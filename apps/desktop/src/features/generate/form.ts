@@ -49,17 +49,22 @@ export function resolveGenerateForm(
   const model = provider
     ? (provider.models.find((m) => m.id === draft.modelId) ?? provider.models[0] ?? null)
     : null;
-  const params = !model
-    ? FALLBACK_PARAMS
-    : draft.params
-      ? adaptGenerationParams(draft.params, model)
-      : defaultGenerationParams(model);
   const ready = assets.filter((a) => a.status === "ready");
   const referenceIds = draft.referenceAssetIds
     ? orderReferenceIds(draft.referenceAssetIds, ready)
     : model
       ? defaultReferenceIds(assets, model)
       : [];
+  // Default aspect follows the master, else the first selected reference.
+  const anchor =
+    assets.find((a) => a.id === masterAssetId) ??
+    assets.find((a) => a.id === referenceIds[0]) ??
+    null;
+  const params = !model
+    ? FALLBACK_PARAMS
+    : draft.params
+      ? adaptGenerationParams(draft.params, model, anchor)
+      : defaultGenerationParams(model, anchor);
   return {
     provider,
     model,

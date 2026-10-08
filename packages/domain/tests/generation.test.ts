@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adaptGenerationParams,
+  closestAspectRatio,
   COMPILER_VERSION,
   defaultGenerationParams,
   defaultReferenceIds,
@@ -220,5 +221,31 @@ describe("GenerationDTO schema", () => {
       durationMs: 1000,
     });
     expect(g.error?.kind).toBe("auth");
+  });
+});
+
+describe("aspect ratio from the anchor image", () => {
+  const ratios = ["1:1", "3:2", "16:9", "9:16", "21:9"];
+
+  it("picks the offered ratio closest to the image's shape", () => {
+    expect(closestAspectRatio(ratios, 1600, 1000)).toBe("3:2");
+    expect(closestAspectRatio(ratios, 1920, 1080)).toBe("16:9");
+    expect(closestAspectRatio(ratios, 1080, 1920)).toBe("9:16");
+    expect(closestAspectRatio(ratios, 3000, 1200)).toBe("21:9");
+  });
+
+  it("falls back to the first option without usable dimensions, null without options", () => {
+    expect(closestAspectRatio(ratios, null, 1000)).toBe("1:1");
+    expect(closestAspectRatio([], 1600, 1000)).toBeNull();
+  });
+
+  it("is used by the default params when an anchor is given", () => {
+    const m = model({ aspectRatios: ratios });
+    expect(defaultGenerationParams(m, { widthPx: 1920, heightPx: 1080 }).aspectRatio).toBe("16:9");
+    expect(defaultGenerationParams(m).aspectRatio).toBe("1:1");
+    expect(
+      defaultGenerationParams(model({ aspectRatios: [] }), { widthPx: 10, heightPx: 5 })
+        .aspectRatio,
+    ).toBeNull();
   });
 });

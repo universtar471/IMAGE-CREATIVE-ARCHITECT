@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 export function Dialog({
@@ -14,14 +14,25 @@ export function Dialog({
   footer?: ReactNode;
   size?: "sm" | "md";
 }) {
+  // Escape closes only the topmost open dialog: the last backdrop in document order
+  // (a confirm nested inside a settings dialog renders after it).
+  const backdrop = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const open = document.querySelectorAll(".dialog-backdrop");
+      if (open[open.length - 1] === backdrop.current) onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      ref={backdrop}
+      className="dialog-backdrop"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div
         className={`dialog ${size === "sm" ? "dialog-sm" : ""}`}
         role="dialog"

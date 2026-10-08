@@ -68,10 +68,46 @@ export function defaultReferenceIds(
     .map((a) => a.id);
 }
 
-/** Default parameters for a model: first offered ratio/size (or provider default), 1 output, no seed. */
-export function defaultGenerationParams(model: ModelCapabilities): GenerationParams {
+/** Pixel size of the image a generation is anchored on (master, else first reference). */
+export type AspectAnchor = { widthPx: number | null; heightPx: number | null };
+
+/**
+ * The offered "W:H" ratio closest to `width`/`height` (compared in log space, so 2:1 and 1:2
+ * are equally far from 1:1). Falls back to the first option when the size is unknown or no
+ * option parses; null when the model offers none (provider decides).
+ */
+export function closestAspectRatio(
+  ratios: readonly string[],
+  width: number | null | undefined,
+  height: number | null | undefined,
+): string | null {
+  if (!ratios.length) return null;
+  if (!width || !height) return ratios[0]!;
+  const target = Math.log(width / height);
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const r of ratios) {
+    const m = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(r);
+    if (!m || !Number(m[1]) || !Number(m[2])) continue;
+    const dist = Math.abs(Math.log(Number(m[1]) / Number(m[2])) - target);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = r;
+    }
+  }
+  return best ?? ratios[0]!;
+}
+
+/**
+ * Default parameters for a model: the offered ratio closest to the anchor image (first option
+ * without one), the first offered size (null when the model lists none), 1 output, no seed.
+ */
+export function defaultGenerationParams(
+  model: ModelCapabilities,
+  anchor?: AspectAnchor | null,
+): GenerationParams {
   return {
-    aspectRatio: model.aspectRatios[0] ?? null,
+    aspectRatio: closestAspectRatio(model.aspectRatios, anchor?.widthPx, anchor?.heightPx),
     imageSize: model.imageSizes[0] ?? null,
     outputCount: 1,
     seed: null,
@@ -85,8 +121,9 @@ export function defaultGenerationParams(model: ModelCapabilities): GenerationPar
 export function adaptGenerationParams(
   params: GenerationParams,
   model: ModelCapabilities,
+  anchor?: AspectAnchor | null,
 ): GenerationParams {
-  const d = defaultGenerationParams(model);
+  const d = defaultGenerationParams(model, anchor);
   return {
     aspectRatio:
       params.aspectRatio !== null && model.aspectRatios.includes(params.aspectRatio)

@@ -39,7 +39,7 @@ function RunningClock({ startedAt, compact }: { startedAt: number; compact: bool
 
 /**
  * Latest result for the open project: the run that just finished here, otherwise the newest
- * history entry. Completed → outputs + actions; failed/interrupted → error + Retry.
+ * history entry. Completed → outputs + actions; failed/interrupted → error (any kind) + Retry when retryable.
  */
 export function GenerationResult() {
   const run = useStudio((s) => s.run);
@@ -148,20 +148,21 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               {g.error?.message ?? "The generation did not finish."}
             </div>
           </div>
-          <div className="btn-row">
-            <button
-              className="btn btn-sm btn-primary"
-              disabled={running || readOnly}
-              onClick={retry}
-            >
-              <RotateCcw size={13} /> Retry
-            </button>
-            {g.error && !g.error.retryable && (
-              <span className="field-hint">
-                Retrying the same request will probably fail again.
-              </span>
-            )}
-          </div>
+          {g.error?.retryable ? (
+            <div className="btn-row">
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={running || readOnly}
+                onClick={retry}
+              >
+                <RotateCcw size={13} /> Retry
+              </button>
+            </div>
+          ) : (
+            <span className="field-hint">
+              This error cannot be retried as is. Fix the cause, then generate again.
+            </span>
+          )}
         </>
       )}
       {confirmMaster && (

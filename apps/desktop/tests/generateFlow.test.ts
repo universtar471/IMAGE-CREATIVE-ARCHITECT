@@ -243,6 +243,31 @@ describe("Generate form derivation", () => {
     ).toMatch(/at most 3/);
   });
 
+  it("defaults the aspect ratio to the master's shape, else the first reference's", () => {
+    // Seeded assets are 1600×1000 (1.6) → closest Gemini ratio is 3:2.
+    const withMaster = resolveGenerateForm(
+      EMPTY_GENERATE_DRAFT,
+      providers(true),
+      [
+        ...assets,
+        asset("P", "AST_tall", { role: "context_reference", widthPx: 900, heightPx: 1600 }),
+      ],
+      "AST_master",
+    );
+    expect(withMaster.params.aspectRatio).toBe("3:2");
+
+    const tallFirst = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, referenceAssetIds: ["AST_tall"] },
+      providers(true),
+      [asset("P", "AST_tall", { widthPx: 900, heightPx: 1600 })],
+      null,
+    );
+    expect(tallFirst.params.aspectRatio).toBe("9:16");
+
+    const none = resolveGenerateForm(EMPTY_GENERATE_DRAFT, providers(true), [], null);
+    expect(none.params.aspectRatio).toBe("1:1");
+  });
+
   it("legacy model without image sizes sends imageSize null", () => {
     const f = resolveGenerateForm(
       { ...EMPTY_GENERATE_DRAFT, providerId: "gemini", modelId: "gemini-2.5-flash-image" },

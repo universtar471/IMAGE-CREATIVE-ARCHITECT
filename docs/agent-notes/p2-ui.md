@@ -36,7 +36,9 @@ tabs. `src-tauri` was not touched.
 - Tests: `apps/desktop/tests/mockGeneration.test.ts` (bridge parsing, mock providers,
   mock generation incl. failure / PROVIDER_NOT_CONFIGURED / validation),
   `apps/desktop/tests/generateFlow.test.ts` (store flow, project switch while running,
-  single run, reuse settings, form derivation, version tree).
+  single run, reuse settings, form derivation incl. anchor aspect, version tree),
+  `apps/desktop/tests/dialogs.test.tsx` (topmost-dialog Escape; unknown error kinds; Retry
+  only when retryable).
 
 ## Decisions / deviations
 
@@ -48,10 +50,17 @@ tabs. `src-tauri` was not touched.
    compiled prompt matches the N-th image sent. The backend should keep request order.
 3. **`compilePromptPreview(projectId, referenceAssetIds?)`**: with IDs, only those ready assets
    are described as references (exactly what the generation sends). Without, unchanged.
-4. **Default params**: first offered aspect ratio and image size (or null when the model
-   lists none), 1 output, no seed. For Gemini this means 1:1 / 1K by default.
-5. **Retry** resends the stored request snapshot (`g.prompt` unchanged). **Generate again**
-   reuses the settings but recompiles the prompt from the current DNA.
+4. **Default params**: the offered aspect ratio closest to the master's pixel shape (else the
+   first selected reference's; compared in log space via `closestAspectRatio`), falling back to
+   the first option, null when the model lists none; first offered image size (or null);
+   1 output; no seed. Switching model keeps a still-offered ratio, else re-derives it.
+5. **Retry** resends the stored request snapshot (`g.prompt` unchanged) and is offered only
+   when `error.retryable` is true; otherwise the card says it cannot be retried as is.
+   **Generate again** reuses the settings but recompiles the prompt from the current DNA.
+   `error.kind` is rendered verbatim (badge + message), so backend kinds outside the §9 list
+   (e.g. `io`, `interrupted` with `retryable=false` after archiving mid-call) display fine.
+10. **Dialogs**: Escape closes only the topmost dialog — the last `.dialog-backdrop` in
+    document order (a nested confirm renders inside, hence after, its parent dialog).
 6. **One generation at a time** in the UI (global `run`), even across projects. A result for a
    project that is no longer open only updates `run`; that project reloads history/assets
    from the backend when reopened.
@@ -76,8 +85,8 @@ tabs. `src-tauri` was not touched.
 
 ## Debts / follow-ups
 
-- Hero default aspect ratio does not follow the master's aspect (1:1 by default).
-- Nested ConfirmDialog inside the provider Dialog: Escape closes both (shared window listener).
+- (fixed) default aspect ratio now follows the master / first reference.
+- (fixed) Escape in the nested "Clear key" confirm closes only the confirm.
 - The canvas has no dedicated "generation contact sheet" mode yet; outputs are browsed via
   thumbnails in the panel/History.
 
@@ -86,7 +95,7 @@ tabs. `src-tauri` was not touched.
 ```
 npm run typecheck
 npm run lint
-npx vitest run            # 116 tests (domain + desktop)
+npx vitest run            # 123 tests (domain + desktop)
 npx prettier --check .
 npm run verify            # green, incl. cargo test
 npm --prefix apps/desktop run dev -- --port 1421 --strictPort   # browser preview (mock)
