@@ -1,0 +1,564 @@
+//! Adapter tests against a local mock HTTP server (std `TcpListener`, no network).
+
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+
+use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine as _;
+use serde_json::{json, Value};
+
+use super::super::{
+    GenerationParams, ImageProvider, PromptText, ProviderError, ProviderErrorKind, ProviderRequest, ReferenceImage,
+};
+use super::{wire, GeminiProvider};
+
+const KEY: &str = "AIzaTEST-secret-key-0123456789";
+const PNG_BYTES: &[u8] = b"\x89PNG\r\n\x1a\nfake-image-1";
+const PNG_BYTES_2: &[u8] = b"\x89PNG\r\n\x1a\nfake-image-2";
+
+// ---------------------------------------------------------------- mock server
+
+#[derive(Debug, Clone)]
+struct Recorded {
+    method: String,
+    path: String,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+#[derive(Clone)]
+enum Reply {
+    Json(u16, String),
+    /// Wait before answering (client-timeout tests).
+    Slow(Duration, u16, String),
+}
+
+struct MockServer {
+    base_url: String,
+    requests: Arc<Mutex<Vec<Recorded>>>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl MockServer {
+    /// Serves `replies` in order, one connection each, then stops.
+    fn start(replies: Vec<Reply>) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let base_url = format!("http://{}/v1beta", listener.local_addr().unwrap());
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let log = Arc::clone(&requests);
+        let handle = thread::spawn(move || {
+            for reply in replies {
+                let Ok((stream, _)) = listener.accept() else { return };
+                serve_one(stream, &reply, &log);
+            }
+        });
+        Self { base_url, requests, handle: Some(handle) }
+    }
+
+    fn provider(&self) -> GeminiProvider {
+        GeminiProvider::with_base_url(&self.base_url)
+    }
+
+    fn requests(&mut self) -> Vec<Recorded> {
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+fn serve_one(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<Recorded>>) {
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
+    let mut request_line = String::new();
+    if reader.read_line(&mut request_line).unwrap_or(0) == 0 {
+        return; // connection opened and closed without a request
+    }
+    let mut parts = request_line.split_whitespace();
+    let method = parts.next().unwrap_or_default().to_string();
+    let path = parts.next().unwrap_or_default().to_string();
+    let mut headers = HashMap::new();
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+            break;
+        }
+        if let Some((name, value)) = line.split_once(':') {
+            headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
+        }
+    }
+    let length = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0usize);
+    let mut body = vec![0; length];
+    reader.read_exact(&mut body).unwrap();
+    log.lock().unwrap().push(Recorded { method, path, headers, body: String::from_utf8(body).unwrap() });
+
+    let (status, payload) = match reply {
+        Reply::Json(status, payload) => (*status, payload),
+        Reply::Slow(delay, status, payload) => {
+            thread::sleep(*delay);
+            (*status, payload)
+        }
+    };
+    let response = format!(
+        "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+        payload.len()
+    );
+    let mut stream = stream;
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
+}
+
+// ---------------------------------------------------------------- fixtures
+
+fn image_response(bytes: &[u8]) -> Reply {
+    Reply::Json(
+        200,
+        json!({
+            "candidates": [{
+                "content": { "role": "model", "parts": [
+                    { "text": "Here is your render." },
+                    { "inlineData": { "mimeType": "image/png", "data": B64.encode(bytes) } }
+                ]},
+                "finishReason": "STOP"
+            }],
+            "modelVersion": "gemini-nano-banana-2.1"
+        })
+        .to_string(),
+    )
+}
+
+fn error_reply(status: u16, google_status: &str, message: &str, reason: Option<&str>) -> Reply {
+    let mut error = json!({ "code": status, "message": message, "status": google_status });
+    if let Some(reason) = reason {
+        error["details"] = json!([{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": reason }]);
+    }
+    Reply::Json(status, json!({ "error": error }).to_string())
+}
+
+fn request(outputs: u32) -> ProviderRequest {
+    ProviderRequest {
+        model_id: "gemini-nano-banana-2.1".into(),
+        prompt: PromptText {
+            positive: "Hero exterior view of the villa at golden hour.".into(),
+            negative: "warped lines".into(),
+            reference_instructions: "Image 1 is the master.".into(),
+            preservation_instructions: "Keep the roof form.".into(),
+        },
+        references: vec![
+            ReferenceImage {
+                asset_id: "AST_1".into(),
+                role: "master_architecture".into(),
+                mime_type: "image/png".into(),
+                bytes: vec![1, 2, 3, 4],
+            },
+            ReferenceImage {
+                asset_id: "AST_2".into(),
+                role: "material_reference".into(),
+                mime_type: "image/jpeg".into(),
+                bytes: vec![9, 8, 7],
+            },
+        ],
+        params: GenerationParams {
+            aspect_ratio: Some("16:9".into()),
+            image_size: Some("2K".into()),
+            output_count: outputs,
+            seed: None,
+        },
+        api_key: Some(KEY.into()),
+    }
+}
+
+fn generate_error(replies: Vec<Reply>) -> ProviderError {
+    let server = MockServer::start(replies);
+    server.provider().generate(&request(1)).unwrap_err()
+}
+
+fn assert_key_free(error: &ProviderError) {
+    assert!(!error.message.contains(KEY), "key leaked into message: {}", error.message);
+    assert!(!format!("{error}").contains(KEY));
+    assert!(!format!("{error:?}").contains(KEY));
+}
+
+// ---------------------------------------------------------------- request shape
+
+#[test]
+fn request_has_model_path_key_header_parts_and_image_config() {
+    let mut server = MockServer::start(vec![image_response(PNG_BYTES)]);
+    server.provider().generate(&request(1)).unwrap();
+    let recorded = server.requests();
+    assert_eq!(recorded.len(), 1);
+    let req = &recorded[0];
+
+    assert_eq!(req.method, "POST");
+    assert_eq!(req.path, "/v1beta/models/gemini-nano-banana-2.1:generateContent");
+    assert!(!req.path.contains(KEY), "key must not be in the URL");
+    assert_eq!(req.headers.get("x-goog-api-key").map(String::as_str), Some(KEY));
+    assert!(req.headers.get("content-type").unwrap().starts_with("application/json"));
+
+    let body: Value = serde_json::from_str(&req.body).unwrap();
+    let parts = body["contents"][0]["parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 5, "prompt + (label, image) per reference");
+    assert_eq!(
+        parts[0]["text"],
+        "Hero exterior view of the villa at golden hour.\n\nImage 1 is the master.\n\nKeep the roof form.\n\nAvoid: \
+         warped lines"
+    );
+    assert_eq!(parts[1]["text"], "Reference 1 — master architecture: preserve massing, openings and proportions");
+    assert_eq!(parts[2]["inlineData"]["mimeType"], "image/png");
+    assert_eq!(parts[2]["inlineData"]["data"], B64.encode([1, 2, 3, 4]));
+    assert_eq!(parts[3]["text"], "Reference 2 — material reference: use only for materials, textures and finishes");
+    assert_eq!(parts[4]["inlineData"]["mimeType"], "image/jpeg");
+    assert_eq!(parts[4]["inlineData"]["data"], B64.encode([9, 8, 7]));
+
+    let config = &body["generationConfig"];
+    assert_eq!(config["responseModalities"], json!(["TEXT", "IMAGE"]));
+    assert_eq!(config["imageConfig"], json!({ "aspectRatio": "16:9", "imageSize": "2K" }));
+    assert!(!req.body.contains(KEY));
+}
+
+#[test]
+fn image_config_is_omitted_when_nothing_is_set() {
+    let mut params = request(1).params;
+    params.aspect_ratio = None;
+    params.image_size = None;
+    let body = wire::build_request(&request(1).prompt, &[], &params);
+    assert!(body["generationConfig"].get("imageConfig").is_none());
+    assert_eq!(body["contents"][0]["parts"].as_array().unwrap().len(), 1);
+}
+
+// ---------------------------------------------------------------- success
+
+#[test]
+fn parses_one_image_and_meta() {
+    let server = MockServer::start(vec![image_response(PNG_BYTES)]);
+    let out = server.provider().generate(&request(1)).unwrap();
+    assert_eq!(out.images.len(), 1);
+    assert_eq!(out.images[0].mime_type, "image/png");
+    assert_eq!(out.images[0].bytes, PNG_BYTES);
+    assert_eq!(out.meta["requested"], 1);
+    assert_eq!(out.meta["returned"], 1);
+    assert_eq!(out.meta["failed"], 0);
+    assert_eq!(out.meta["modelVersion"], "gemini-nano-banana-2.1");
+    assert_eq!(out.meta["finishReasons"], json!(["STOP"]));
+    assert_eq!(out.meta["text"], "Here is your render.");
+}
+
+#[test]
+fn several_outputs_are_sequential_calls() {
+    let mut server = MockServer::start(vec![image_response(PNG_BYTES), image_response(PNG_BYTES_2)]);
+    let out = server.provider().generate(&request(2)).unwrap();
+    assert_eq!(out.images.iter().map(|i| i.bytes.as_slice()).collect::<Vec<_>>(), vec![PNG_BYTES, PNG_BYTES_2]);
+    assert_eq!(out.meta["returned"], 2);
+    let recorded = server.requests();
+    assert_eq!(recorded.len(), 2);
+    assert_eq!(recorded[0].body, recorded[1].body, "every call sends the same request");
+}
+
+#[test]
+fn thought_images_are_skipped_and_extra_images_capped() {
+    let thought = B64.encode(b"thought");
+    let body = json!({
+        "candidates": [{
+            "content": { "parts": [
+                { "inlineData": { "mimeType": "image/png", "data": thought }, "thought": true },
+                { "inlineData": { "mimeType": "image/png", "data": B64.encode(PNG_BYTES) } },
+                { "inlineData": { "mimeType": "image/png", "data": B64.encode(PNG_BYTES_2) } }
+            ]},
+            "finishReason": "STOP"
+        }]
+    });
+    let server = MockServer::start(vec![Reply::Json(200, body.to_string())]);
+    let out = server.provider().generate(&request(1)).unwrap();
+    assert_eq!(out.images.len(), 1);
+    assert_eq!(out.images[0].bytes, PNG_BYTES);
+}
+
+#[test]
+fn partial_failure_returns_successes_and_counts_failures() {
+    let server = MockServer::start(vec![
+        image_response(PNG_BYTES),
+        error_reply(503, "UNAVAILABLE", "The model is overloaded.", None),
+        image_response(PNG_BYTES_2),
+    ]);
+    let out = server.provider().generate(&request(3)).unwrap();
+    assert_eq!(out.images.len(), 2);
+    assert_eq!(out.meta["requested"], 3);
+    assert_eq!(out.meta["returned"], 2);
+    assert_eq!(out.meta["failed"], 1);
+    assert_eq!(out.meta["errors"][0]["kind"], "network");
+    assert!(!out.meta.to_string().contains(KEY));
+}
+
+#[test]
+fn all_outputs_failing_returns_the_error() {
+    let server = MockServer::start(vec![
+        error_reply(500, "INTERNAL", "boom", None),
+        error_reply(503, "UNAVAILABLE", "overloaded", None),
+    ]);
+    let err = server.provider().generate(&request(2)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Network);
+}
+
+#[test]
+fn auth_failure_stops_further_calls() {
+    let mut server = MockServer::start(vec![
+        error_reply(403, "PERMISSION_DENIED", "Permission denied.", None),
+        image_response(PNG_BYTES),
+    ]);
+    let err = server.provider().generate(&request(2)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Auth);
+    // Unblock the mock's second accept so its thread can end.
+    let _ = TcpStream::connect(server.base_url.trim_start_matches("http://").trim_end_matches("/v1beta"));
+    assert_eq!(server.requests().len(), 1);
+}
+
+// ---------------------------------------------------------------- error mapping
+
+#[test]
+fn maps_http_errors_to_kinds() {
+    use ProviderErrorKind::*;
+    let cases = [
+        (error_reply(401, "UNAUTHENTICATED", "Request had invalid authentication credentials.", None), Auth),
+        (error_reply(403, "PERMISSION_DENIED", "Method doesn't allow unregistered callers.", None), Auth),
+        (
+            error_reply(
+                400,
+                "INVALID_ARGUMENT",
+                "API key not valid. Please pass a valid API key.",
+                Some("API_KEY_INVALID"),
+            ),
+            Auth,
+        ),
+        (error_reply(400, "INVALID_ARGUMENT", "Unsupported aspect ratio.", None), InvalidRequest),
+        (error_reply(404, "NOT_FOUND", "models/x is not found.", None), InvalidRequest),
+        (error_reply(429, "RESOURCE_EXHAUSTED", "Quota exceeded.", None), RateLimited),
+        (error_reply(500, "INTERNAL", "Internal error.", None), Network),
+        (error_reply(503, "UNAVAILABLE", "Overloaded.", None), Network),
+        (Reply::Json(502, "<html>bad gateway</html>".into()), Network),
+    ];
+    for (reply, expected) in cases {
+        let err = generate_error(vec![reply]);
+        assert_eq!(err.kind, expected, "{err:?}");
+        assert!(err.message.len() < 400, "message too long: {}", err.message);
+        assert!(!err.message.contains("<html>"), "raw body leaked: {}", err.message);
+        assert_key_free(&err);
+    }
+}
+
+#[test]
+fn invalid_request_message_carries_short_vendor_detail() {
+    let err = generate_error(vec![error_reply(400, "INVALID_ARGUMENT", "Unsupported aspect ratio.", None)]);
+    assert!(err.message.contains("Unsupported aspect ratio."), "{}", err.message);
+}
+
+#[test]
+fn echoed_key_is_redacted_and_long_messages_truncated() {
+    let echoed = format!("API key {KEY} is not allowed. {}", "x".repeat(1000));
+    let err = generate_error(vec![error_reply(400, "INVALID_ARGUMENT", &echoed, None)]);
+    assert_key_free(&err);
+    assert!(err.message.contains("[redacted]"));
+    assert!(err.message.chars().count() < 320, "{}", err.message);
+}
+
+#[test]
+fn connection_failure_is_network() {
+    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let provider = GeminiProvider::with_base_url(format!("http://127.0.0.1:{port}/v1beta"));
+    let err = provider.generate(&request(1)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Network);
+    assert_key_free(&err);
+}
+
+#[test]
+fn client_timeout_is_timeout() {
+    let server = MockServer::start(vec![Reply::Slow(Duration::from_millis(1500), 200, "{}".into())]);
+    let mut provider = server.provider();
+    provider.generate_timeout = Duration::from_millis(300);
+    let err = provider.generate(&request(1)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Timeout);
+    assert_key_free(&err);
+}
+
+#[test]
+fn prompt_block_reason_is_blocked() {
+    let body = json!({ "promptFeedback": { "blockReason": "PROHIBITED_CONTENT" } });
+    let err = generate_error(vec![Reply::Json(200, body.to_string())]);
+    assert_eq!(err.kind, ProviderErrorKind::Blocked);
+    assert!(err.message.contains("PROHIBITED_CONTENT"));
+}
+
+#[test]
+fn safety_finish_reasons_are_blocked() {
+    for reason in ["SAFETY", "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "PROHIBITED_CONTENT"] {
+        let body = json!({ "candidates": [{ "content": { "parts": [] }, "finishReason": reason }] });
+        let err = generate_error(vec![Reply::Json(200, body.to_string())]);
+        assert_eq!(err.kind, ProviderErrorKind::Blocked, "{reason}");
+    }
+}
+
+#[test]
+fn no_image_is_bad_response_with_trimmed_text() {
+    let long_text = format!("I cannot draw that because {}", "reasons ".repeat(100));
+    let body = json!({
+        "candidates": [{ "content": { "parts": [{ "text": long_text }] }, "finishReason": "STOP" }]
+    });
+    let err = generate_error(vec![Reply::Json(200, body.to_string())]);
+    assert_eq!(err.kind, ProviderErrorKind::BadResponse);
+    assert!(err.message.contains("I cannot draw that"));
+    assert!(err.message.contains("STOP"));
+    assert!(err.message.chars().count() < 320, "{}", err.message);
+}
+
+#[test]
+fn non_json_success_body_is_bad_response() {
+    let err = generate_error(vec![Reply::Json(200, "not json".into())]);
+    assert_eq!(err.kind, ProviderErrorKind::BadResponse);
+}
+
+// ---------------------------------------------------------------- validation (no network)
+
+#[test]
+fn validation_rejects_before_calling_the_api() {
+    // Base URL points nowhere: any network attempt would surface as Network, not InvalidRequest.
+    let provider = GeminiProvider::with_base_url("http://127.0.0.1:9/v1beta");
+    let check = |mutate: &dyn Fn(&mut ProviderRequest), kind: ProviderErrorKind| {
+        let mut req = request(1);
+        mutate(&mut req);
+        let err = provider.generate(&req).unwrap_err();
+        assert_eq!(err.kind, kind, "{err:?}");
+        assert_key_free(&err);
+    };
+    use ProviderErrorKind::*;
+    check(&|r| r.api_key = None, Auth);
+    check(&|r| r.api_key = Some("  ".into()), Auth);
+    check(&|r| r.model_id = "gemini-made-up".into(), InvalidRequest);
+    check(&|r| r.params.output_count = 0, InvalidRequest);
+    check(&|r| r.params.output_count = 5, InvalidRequest);
+    check(&|r| r.params.aspect_ratio = Some("7:3".into()), InvalidRequest);
+    check(&|r| r.params.image_size = Some("2k".into()), InvalidRequest);
+    check(
+        &|r| {
+            r.model_id = "gemini-2.5-flash-image".into();
+            r.params.aspect_ratio = None;
+        },
+        InvalidRequest, // image size set on a fixed-size model
+    );
+    check(
+        &|r| {
+            r.model_id = "gemini-2.5-flash-image".into();
+            r.params.image_size = None;
+            r.params.aspect_ratio = None;
+            let extra = r.references[0].clone();
+            r.references.extend([extra.clone(), extra]);
+        },
+        InvalidRequest, // 4 references > 3
+    );
+    check(
+        &|r| {
+            r.prompt = PromptText {
+                positive: " ".into(),
+                negative: String::new(),
+                reference_instructions: String::new(),
+                preservation_instructions: String::new(),
+            }
+        },
+        InvalidRequest,
+    );
+}
+
+// ---------------------------------------------------------------- info
+
+#[test]
+fn info_lists_verified_models_with_honest_capabilities() {
+    let info = GeminiProvider::new().info();
+    assert_eq!(info.id, "gemini");
+    assert!(info.requires_api_key);
+    let ids: Vec<_> = info.models.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "gemini-nano-banana-2.1",
+            "gemini-3-pro-image",
+            "gemini-3.1-flash-image",
+            "gemini-3.1-flash-lite-image",
+            "gemini-2.5-flash-image"
+        ]
+    );
+    for model in &info.models {
+        assert_eq!(model.max_outputs, 4);
+        assert!(!model.supports_negative_prompt);
+        assert!(!model.supports_seed);
+        assert!(model.aspect_ratios.contains(&"1:1".to_string()));
+    }
+    let pro = info.model("gemini-3-pro-image").unwrap();
+    assert_eq!(pro.image_sizes, ["1K", "2K", "4K"]);
+    assert_eq!(pro.max_reference_images, 14);
+    assert!(info.model("gemini-2.5-flash-image").unwrap().image_sizes.is_empty());
+    assert_eq!(info.model("gemini-3.1-flash-image").unwrap().aspect_ratios.len(), 14);
+}
+
+// ---------------------------------------------------------------- test_connection
+
+#[test]
+fn test_connection_gets_model_metadata_with_header() {
+    let body = json!({ "name": "models/gemini-nano-banana-2.1", "displayName": "Nano Banana 2.1" });
+    let mut server = MockServer::start(vec![Reply::Json(200, body.to_string())]);
+    let status = server.provider().test_connection(Some(KEY)).unwrap();
+    assert!(status.contains("Nano Banana 2.1"), "{status}");
+    let recorded = server.requests();
+    assert_eq!(recorded[0].method, "GET");
+    assert_eq!(recorded[0].path, "/v1beta/models/gemini-nano-banana-2.1");
+    assert_eq!(recorded[0].headers.get("x-goog-api-key").map(String::as_str), Some(KEY));
+}
+
+#[test]
+fn test_connection_maps_errors_without_leaking_the_key() {
+    let server = MockServer::start(vec![error_reply(
+        400,
+        "INVALID_ARGUMENT",
+        "API key not valid. Please pass a valid API key.",
+        Some("API_KEY_INVALID"),
+    )]);
+    let err = server.provider().test_connection(Some(KEY)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Auth);
+    assert_key_free(&err);
+
+    let missing = GeminiProvider::new().test_connection(None).unwrap_err();
+    assert_eq!(missing.kind, ProviderErrorKind::Auth);
+}
+
+// ---------------------------------------------------------------- live smoke test
+
+/// Manual only: `ARCH_STUDIO_GEMINI_API_KEY=... cargo test gemini_live -- --ignored --nocapture`.
+/// Costs one image generation. Never prints the key.
+#[test]
+#[ignore = "calls the real Gemini API; needs ARCH_STUDIO_GEMINI_API_KEY"]
+fn gemini_live_smoke() {
+    let key = std::env::var("ARCH_STUDIO_GEMINI_API_KEY").expect("set ARCH_STUDIO_GEMINI_API_KEY");
+    let provider = GeminiProvider::new();
+    let status = provider.test_connection(Some(&key)).unwrap_or_else(|e| panic!("test_connection: {e}"));
+    println!("{status}");
+
+    let model = std::env::var("ARCH_STUDIO_GEMINI_MODEL").unwrap_or_else(|_| super::DEFAULT_MODEL.into());
+    let req = ProviderRequest {
+        model_id: model,
+        prompt: PromptText {
+            positive: "A small white concrete pavilion in a green meadow, architectural photograph, overcast light."
+                .into(),
+            negative: "people, text".into(),
+            reference_instructions: String::new(),
+            preservation_instructions: String::new(),
+        },
+        references: vec![],
+        params: GenerationParams { aspect_ratio: Some("1:1".into()), image_size: None, output_count: 1, seed: None },
+        api_key: Some(key),
+    };
+    let out = provider.generate(&req).unwrap_or_else(|e| panic!("generate: {e}"));
+    assert_eq!(out.images.len(), 1);
+    assert!(out.images[0].mime_type.starts_with("image/"));
+    assert!(out.images[0].bytes.len() > 1000);
+    println!("meta: {}", out.meta);
+}
