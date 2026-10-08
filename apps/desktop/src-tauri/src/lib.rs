@@ -59,6 +59,13 @@ pub fn run() {
             commands::asset_set_master,
             commands::asset_remove,
             commands::version_list,
+            commands::provider_list,
+            commands::provider_set_api_key,
+            commands::provider_clear_api_key,
+            commands::provider_test,
+            commands::generation_submit,
+            commands::generation_list,
+            commands::generation_get,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");
