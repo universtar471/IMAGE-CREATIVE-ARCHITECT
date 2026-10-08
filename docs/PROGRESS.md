@@ -1,9 +1,33 @@
 # Progress
 
 ## Current phase
-Phase 2 — provider-neutral AI foundation, merged to `main` (2026-10-08) on the user's
-provisional approval. Codex review: P2-B approved (round 2); P2-A round 2 and P2-C round 1
-still pending (Codex quota). Phase 1 is complete.
+Phase 3 — Anchor + Camera production, merged to `main` (2026-10-09) on the user's provisional
+approval. Codex reviews of the three Phase 3 branches are pending (Codex quota). Phase 2 review
+findings (see `docs/agent-reviews/`) were fixed inside the Phase 3 branches.
+
+## Phase 3 — completed
+Built in three parallel worktrees on the contract branch `wt/p3-base` (`tasks/PHASE_03.md`,
+ADR-016…018, `docs/API_CONTRACTS.md` §10), integrated on `wt/p3-integration`; notes in
+`docs/agent-notes/p3-*.md`.
+- **P3-B domain** — camera presets for every knowledge pack, camera helpers (ids, presets,
+  readiness, validation), compiler `pc-1.1.0` with a camera section and anchor references,
+  anchor/production batch builders.
+- **P3-A backend** — persistent job queue (`services/queue.rs`): per-provider concurrency
+  (local 2, remote 1), retries 15 s / 60 s up to 3 attempts, cancel, restart recovery, events;
+  batches; camera anchors; `anchor_generation` / `production` status; v2 → v3 upgrade.
+- **P3-C UI** — Camera module with the Camera Director (SVG plan, drag/keyboard), Generate
+  anchors / Render cameras dialogs, Contact Sheet with Approve as anchor, Jobs tray and top-bar
+  queue indicator, Generate through the queue; Phase 2 race fixes.
+
+## Phase 3 — automated checks (main after merge)
+- `npm run verify` — pass: vitest 239, cargo 135 passed + 1 ignored (live Gemini), clippy
+  `-D warnings`, `cargo fmt --check`, Prettier clean. Contract fixtures cover every §10 command.
+
+## Phase 3 — not yet verified
+- Camera Director, Contact Sheet and Jobs tray seen with human eyes (agent checked DOM/layout
+  in the browser preview against the mock backend; screenshots were not available).
+- Queue behaviour in the native app with the real backend beyond cargo tests.
+- Live Gemini generation (no key on the build machine).
 
 ## Phase 2 — completed
 Built in three parallel worktrees against shared contracts (`tasks/PHASE_02.md`,
