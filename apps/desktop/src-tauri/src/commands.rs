@@ -7,9 +7,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use tauri::State;
 
-use crate::dto::{AssetDto, AssetRemoveResult, ProjectBundleDto, ProjectDto, ProjectSummaryDto, VersionDto};
+use crate::dto::{
+    AssetDto, AssetRemoveResult, GenerationDto, ProjectBundleDto, ProjectDto, ProjectSummaryDto, ProviderDescriptorDto,
+    ProviderTestResult, VersionDto,
+};
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::services::{assets, dna, projects, AppCore};
+use crate::services::{assets, dna, generations, projects, provider_settings, AppCore};
 
 type Core<'a> = State<'a, Arc<AppCore>>;
 
@@ -162,6 +165,68 @@ pub async fn asset_remove(core: Core<'_>, request: AssetRef) -> AppResult<AssetR
 #[tauri::command]
 pub async fn version_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<VersionDto>> {
     blocking(&core, move |c| assets::list_versions(c, &request.project_id)).await
+}
+
+// ------------------------------------------------------------------ providers
+
+#[tauri::command]
+pub async fn provider_list(core: Core<'_>) -> AppResult<Vec<ProviderDescriptorDto>> {
+    blocking(&core, |c| Ok(provider_settings::list(c))).await
+}
+
+/// No `Debug`: the key must never end up in a log line.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetApiKeyRequest {
+    provider_id: String,
+    api_key: String,
+}
+
+#[tauri::command]
+pub async fn provider_set_api_key(core: Core<'_>, request: SetApiKeyRequest) -> AppResult<ProviderDescriptorDto> {
+    blocking(&core, move |c| provider_settings::set_api_key(c, &request.provider_id, &request.api_key)).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderRef {
+    provider_id: String,
+}
+
+#[tauri::command]
+pub async fn provider_clear_api_key(core: Core<'_>, request: ProviderRef) -> AppResult<ProviderDescriptorDto> {
+    blocking(&core, move |c| provider_settings::clear_api_key(c, &request.provider_id)).await
+}
+
+#[tauri::command]
+pub async fn provider_test(core: Core<'_>, request: ProviderRef) -> AppResult<ProviderTestResult> {
+    blocking(&core, move |c| provider_settings::test(c, &request.provider_id)).await
+}
+
+// ------------------------------------------------------------------ generation
+
+/// Runs the provider call synchronously off the UI thread (ADR-014); returns the finished
+/// generation (`completed` or `failed`).
+#[tauri::command]
+pub async fn generation_submit(core: Core<'_>, request: generations::SubmitRequest) -> AppResult<GenerationDto> {
+    blocking(&core, move |c| generations::submit(c, request)).await
+}
+
+#[tauri::command]
+pub async fn generation_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<GenerationDto>> {
+    blocking(&core, move |c| generations::list(c, &request.project_id)).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationRef {
+    project_id: String,
+    generation_id: String,
+}
+
+#[tauri::command]
+pub async fn generation_get(core: Core<'_>, request: GenerationRef) -> AppResult<GenerationDto> {
+    blocking(&core, move |c| generations::get(c, &request.project_id, &request.generation_id)).await
 }
 
 // ------------------------------------------------------------------ app

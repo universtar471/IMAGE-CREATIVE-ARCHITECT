@@ -93,3 +93,25 @@ string_enum!(AssetSource {
     Reference => "reference",
     Other => "other",
 });
+
+string_enum!(GenerationPurpose {
+    Hero => "hero",
+    Variation => "variation",
+});
+
+impl GenerationPurpose {
+    /// Prefix of generated asset/version names, e.g. "Hero 1 — <model label>".
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Hero => "Hero",
+            Self::Variation => "Variation",
+        }
+    }
+}
+
+string_enum!(GenerationStatus {
+    Running => "running",
+    Completed => "completed",
+    Failed => "failed",
+    Interrupted => "interrupted",
+});

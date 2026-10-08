@@ -1,9 +1,12 @@
-//! Shapes returned to the UI. Mirrors `packages/domain/src/schemas/dto.ts` (camelCase).
+//! Shapes returned to the UI. Mirrors `packages/domain/src/schemas/dto.ts` and
+//! `generation.ts` (camelCase).
 
-use serde::Serialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
-use crate::domain::{AssetRole, AssetSource, ProjectStatus, ProjectType};
+use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, ProjectStatus, ProjectType};
+use crate::providers::{GenerationParams, ModelCapabilities, ProviderKind};
+use crate::secrets::KeySource;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +72,8 @@ pub struct VersionDto {
     pub parent_version_id: Option<String>,
     pub label: Option<String>,
     pub operation: String,
+    /// The generation that produced this version, if any.
+    pub generation_id: Option<String>,
     pub created_at: String,
 }
 
@@ -78,4 +83,71 @@ pub struct AssetRemoveResult {
     pub asset_id: String,
     /// Set when the DB record was removed but a managed file could not be deleted.
     pub file_cleanup_warning: Option<String>,
+}
+
+// ------------------------------------------------------------------ Phase 2: providers + generation
+
+/// Mirrors `PromptBundleSchema` (`packages/domain/src/schemas/prompt.ts`). Compiled by the UI
+/// and stored verbatim in the generation request snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptBundle {
+    pub compiler_version: String,
+    pub positive_prompt: String,
+    pub negative_prompt: String,
+    pub reference_instructions: String,
+    pub preservation_instructions: String,
+    pub metadata: Map<String, Value>,
+}
+
+/// Mirrors `ProviderDescriptorDTOSchema`. Never carries the key itself.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDescriptorDto {
+    pub id: String,
+    pub label: String,
+    pub kind: ProviderKind,
+    pub requires_api_key: bool,
+    pub configured: bool,
+    pub key_source: Option<KeySource>,
+    pub models: Vec<ModelCapabilities>,
+}
+
+/// Mirrors `ProviderTestResultSchema`; `ok: false` is a normal answer, not an error.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderTestResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+/// Mirrors `GenerationErrorSchema`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationErrorDto {
+    pub kind: String,
+    pub message: String,
+    pub retryable: bool,
+}
+
+/// Mirrors `GenerationDTOSchema`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationDto {
+    pub id: String,
+    pub project_id: String,
+    pub provider_id: String,
+    pub model_id: String,
+    pub purpose: GenerationPurpose,
+    pub status: GenerationStatus,
+    pub prompt: PromptBundle,
+    pub reference_asset_ids: Vec<String>,
+    pub params: GenerationParams,
+    pub parent_asset_id: Option<String>,
+    /// Output assets still present in the project, in output order.
+    pub output_asset_ids: Vec<String>,
+    pub error: Option<GenerationErrorDto>,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub duration_ms: Option<i64>,
 }

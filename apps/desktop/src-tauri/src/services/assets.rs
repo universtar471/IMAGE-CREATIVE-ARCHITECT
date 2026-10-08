@@ -110,23 +110,9 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
         }
     }
 
-    // 4. copy to managed storage with a collision-safe name, then verify
-    core.storage.ensure_project_dirs(&req.project_id)?;
+    // 4-5. copy to managed storage (verified) + thumbnail
     let asset_id = new_id(prefix::ASSET);
-    let managed_rel = storage::rel(&[ORIGINALS_DIR, &format!("{asset_id}.{}", info.format.extension())]);
-    let managed_abs = core.storage.resolve(&req.project_id, &managed_rel)?;
-    write_new_file(&managed_abs, &bytes)?;
-
-    // 5. thumbnail (non-fatal)
-    let thumb_rel = storage::rel(&[PREVIEWS_DIR, &format!("{asset_id}_thumb.jpg")]);
-    let thumb_abs = core.storage.resolve(&req.project_id, &thumb_rel)?;
-    let thumbnail_rel_path = match imaging::write_thumbnail(&bytes, info.format, &thumb_abs) {
-        Ok(()) => Some(thumb_rel),
-        Err(e) => {
-            eprintln!("[assets] thumbnail failed for {asset_id}: {e}");
-            None
-        }
-    };
+    let stored = store_managed_image(&core.storage, &req.project_id, &asset_id, &bytes, &info, Thumbnail::BestEffort)?;
 
     // 6. DB write (asset + root version + optional master), cleaning up files on failure
     let now = now_iso();
@@ -137,8 +123,8 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
         role: AssetRole::RegularImage, // master is applied through the shared invariant below
         status: "ready".into(),
         original_name: Some(display_name.clone()),
-        managed_rel_path: managed_rel,
-        thumbnail_rel_path,
+        managed_rel_path: stored.managed_rel.clone(),
+        thumbnail_rel_path: stored.thumbnail_rel.clone(),
         mime_type: Some(info.format.mime().into()),
         file_size_bytes: Some(info.size_bytes as i64),
         width_px: Some(info.width as i64),
@@ -168,6 +154,7 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
                 label: Some(display_name.clone()),
                 operation: "import".into(),
                 operation_json: None,
+                generation_id: None,
                 created_at: now.clone(),
             },
         )?;
@@ -182,15 +169,127 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
     match db_result {
         Ok(row) => asset_dto(&core.storage, &row),
         Err(err) => {
-            let _ = fs::remove_file(&managed_abs);
-            let _ = fs::remove_file(&thumb_abs);
+            let _ = stored.remove_files(); // logged inside; the DB error is what the user needs
             Err(err)
         }
     }
 }
 
+/// Files of one image written into managed storage, not yet referenced by any DB row.
+#[derive(Debug)]
+pub(crate) struct StoredImage {
+    pub asset_id: String,
+    pub managed_rel: String,
+    pub managed_abs: PathBuf,
+    /// `None` when a best-effort thumbnail could not be made.
+    pub thumbnail_rel: Option<String>,
+    pub thumbnail_abs: PathBuf,
+}
+
+impl StoredImage {
+    /// Undo [`store_managed_image`] when the DB write that should reference the files fails.
+    /// The caller's error stays the primary error; files that cannot be deleted are logged
+    /// (asset id + path only) and returned so nothing is lost silently.
+    pub(crate) fn remove_files(&self) -> Vec<String> {
+        let mut failures = Vec::new();
+        for path in [&self.managed_abs, &self.thumbnail_abs] {
+            match fs::remove_file(path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => {
+                    let line = format!("{}: {}: {e}", self.asset_id, path.display());
+                    eprintln!("[assets] cleanup failed for {line}");
+                    failures.push(line);
+                }
+            }
+        }
+        failures
+    }
+}
+
+/// How [`store_managed_image`] treats the thumbnail.
+pub(crate) enum Thumbnail<'a> {
+    /// Import: decode from the bytes; failure leaves the asset without a thumbnail.
+    BestEffort,
+    /// Generation: from the already fully decoded image; failure fails the whole write.
+    Required(&'a image::DynamicImage),
+}
+
+/// Shared by import and generation: write `<asset_id>.<ext>` into the project's originals
+/// folder (verified `.part` + rename) and a JPEG thumbnail into previews. The caller owns
+/// the DB write and must call [`StoredImage::remove_files`] if it fails. On error nothing
+/// written by this call is left behind.
+pub(crate) fn store_managed_image(
+    storage: &Storage,
+    project_id: &str,
+    asset_id: &str,
+    bytes: &[u8],
+    info: &imaging::Inspection,
+    thumbnail: Thumbnail<'_>,
+) -> AppResult<StoredImage> {
+    storage.ensure_project_dirs(project_id)?;
+    let managed_rel = storage::rel(&[ORIGINALS_DIR, &format!("{asset_id}.{}", info.format.extension())]);
+    let managed_abs = storage.resolve(project_id, &managed_rel)?;
+    let thumb_rel = storage::rel(&[PREVIEWS_DIR, &format!("{asset_id}_thumb.jpg")]);
+    let thumbnail_abs = storage.resolve(project_id, &thumb_rel)?;
+    write_new_file(&managed_abs, bytes)?;
+
+    let mut stored =
+        StoredImage { asset_id: asset_id.to_string(), managed_rel, managed_abs, thumbnail_rel: None, thumbnail_abs };
+    match thumbnail {
+        Thumbnail::BestEffort => match imaging::write_thumbnail(bytes, info.format, &stored.thumbnail_abs) {
+            Ok(()) => stored.thumbnail_rel = Some(thumb_rel),
+            Err(e) => eprintln!("[assets] thumbnail failed for {asset_id}: {e}"),
+        },
+        Thumbnail::Required(img) => {
+            let written = imaging::save_thumbnail(img, &stored.thumbnail_abs);
+            #[cfg(test)]
+            let written = if faults::hit(&faults::FAIL_THUMBNAIL_AT) { Err("injected".to_string()) } else { written };
+            if let Err(e) = written {
+                stored.remove_files();
+                return Err(AppError::new(ErrorCode::IoError, format!("Could not write the thumbnail: {e}")));
+            }
+            stored.thumbnail_rel = Some(thumb_rel);
+        }
+    }
+    Ok(stored)
+}
+
+/// Test-only fault injection for the managed write path. Thread-local, so it only affects
+/// the test that arms it (services run on the caller's thread).
+#[cfg(test)]
+pub(crate) mod faults {
+    use std::cell::Cell;
+    use std::thread::LocalKey;
+
+    thread_local! {
+        /// Fail the n-th original write on this thread (1-based); 0 = never.
+        pub static FAIL_ORIGINAL_AT: Cell<usize> = const { Cell::new(0) };
+        /// Fail the n-th required thumbnail write on this thread (1-based); 0 = never.
+        pub static FAIL_THUMBNAIL_AT: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(crate) fn hit(slot: &'static LocalKey<Cell<usize>>) -> bool {
+        slot.with(|c| match c.get() {
+            0 => false,
+            1 => {
+                c.set(0);
+                true
+            }
+            n => {
+                c.set(n - 1);
+                false
+            }
+        })
+    }
+}
+
 /// Write to `<target>.part`, fsync, verify size, then rename into place.
 fn write_new_file(target: &Path, bytes: &[u8]) -> AppResult<()> {
+    #[cfg(test)]
+    if faults::hit(&faults::FAIL_ORIGINAL_AT) {
+        return Err(AppError::io("Could not copy the image into project storage", std::io::Error::other("injected")));
+    }
     if target.exists() {
         return Err(AppError::new(ErrorCode::Conflict, "A managed file with this ID already exists."));
     }
@@ -334,6 +433,7 @@ pub fn list_versions(core: &AppCore, project_id: &str) -> AppResult<Vec<VersionD
             parent_version_id: v.parent_version_id,
             label: v.label,
             operation: v.operation,
+            generation_id: v.generation_id,
             created_at: v.created_at,
         })
         .collect())
@@ -505,5 +605,44 @@ mod tests {
         let err =
             import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "regular_image").unwrap_err();
         assert_eq!(err.code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn cleanup_failures_are_reported_with_asset_id_and_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        // A directory cannot be removed with remove_file; a missing thumbnail is not a failure.
+        let undeletable = tmp.path().join("AST_X.png");
+        fs::create_dir(&undeletable).unwrap();
+        let stored = StoredImage {
+            asset_id: "AST_X".into(),
+            managed_rel: "assets/original/AST_X.png".into(),
+            managed_abs: undeletable.clone(),
+            thumbnail_rel: None,
+            thumbnail_abs: tmp.path().join("missing_thumb.jpg"),
+        };
+        let failures = stored.remove_files();
+        assert_eq!(failures.len(), 1, "{failures:?}");
+        assert!(failures[0].starts_with("AST_X: ") && failures[0].contains("AST_X.png"));
+    }
+
+    #[test]
+    fn required_thumbnail_failure_removes_the_written_original() {
+        let (_tmp, core) = core();
+        let p = test_create_villa(&core, "A");
+        let mut bytes = Vec::new();
+        image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .unwrap();
+        let info = imaging::inspect(&bytes, "x").unwrap();
+        let decoded = imaging::decode(&bytes, info.format).unwrap();
+        faults::FAIL_THUMBNAIL_AT.with(|c| c.set(1));
+        let err = store_managed_image(&core.storage, &p.id, "AST_T", &bytes, &info, Thumbnail::Required(&decoded))
+            .unwrap_err();
+        assert_eq!(err.code, ErrorCode::IoError);
+        let originals = core.storage.project_dir(&p.id).join(ORIGINALS_DIR);
+        assert_eq!(fs::read_dir(originals).unwrap().count(), 0);
+        // Import keeps its best-effort policy: a bad thumbnail never blocks the asset.
+        let ok = store_managed_image(&core.storage, &p.id, "AST_U", &bytes, &info, Thumbnail::BestEffort).unwrap();
+        assert!(ok.thumbnail_rel.is_some());
     }
 }
