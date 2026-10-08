@@ -1491,3 +1491,67 @@ textarea {
 .version-gen {
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------ phase 3: jobs tray */
+.jobs-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.jobs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--c-border);
+}
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow: auto;
+}
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 12px;
+}
+.job-row .btn-row {
+  flex-wrap: nowrap;
+}
+.job-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.job-head,
+.job-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.job-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+.job-meta {
+  color: var(--c-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.queue-indicator {
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-2);
+}
+.queue-indicator.is-busy {
+  color: var(--c-text);
+}
