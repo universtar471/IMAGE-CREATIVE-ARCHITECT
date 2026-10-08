@@ -13,6 +13,7 @@ export * from "./knowledge/defaults";
 export * from "./invariants/dna";
 export * from "./prompt/compiler";
 export * from "./generation/helpers";
+export * from "./camera/cameras";
 export * from "./labels";
 export * from "./ids";
 export type * from "./providers";
