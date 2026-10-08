@@ -160,4 +160,93 @@ mod tests {
         );
         assert!(second.is_err());
     }
+
+    #[test]
+    fn upgrades_a_phase_1_database_to_v2_and_can_generate_from_its_master() {
+        use crate::domain::GenerationStatus;
+        use crate::services::tests_support::{open_test_core, write_png};
+        use crate::services::{assets, generations, DB_FILE};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        std::fs::create_dir_all(&root).unwrap();
+        let dna = test_valid_dna();
+        {
+            // A database exactly as Phase 1 left it: only migration 1 applied.
+            let conn = Connection::open(root.join(DB_FILE)).unwrap();
+            configure(&conn).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+            )
+            .unwrap();
+            conn.execute_batch(MIGRATIONS[0].1).unwrap();
+            conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (1, 't0')", []).unwrap();
+            assert_eq!(schema_version(&conn).unwrap(), 1);
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, project_type, subtype, status, active_master_asset_id,
+                     master_approved_at, created_at, updated_at)
+                   VALUES ('PRJ_V1', 'Old villa', 'villa', 'tropical', 'master_approved', 'AST_M',
+                     't1', 't1', 't1');
+                 INSERT INTO assets (id, project_id, source, role, status, original_name, managed_rel_path,
+                     mime_type, width_px, height_px, operation, created_at, updated_at)
+                   VALUES ('AST_M', 'PRJ_V1', 'external', 'master_architecture', 'ready', 'master.png',
+                     'assets/original/AST_M.png', 'image/png', 40, 30, 'import', 't1', 't1'),
+                          ('AST_R', 'PRJ_V1', 'photo', 'material_reference', 'ready', 'stone.png',
+                     'assets/original/AST_R.png', 'image/png', 40, 30, 'import', 't1', 't1');
+                 INSERT INTO versions (id, project_id, asset_id, parent_version_id, label, operation, created_at)
+                   VALUES ('VER_M', 'PRJ_V1', 'AST_M', NULL, 'master.png', 'import', 't1'),
+                          ('VER_R', 'PRJ_V1', 'AST_R', NULL, 'stone.png', 'import', 't1');",
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO project_dna (project_id, schema_version, dna_json, created_at, updated_at)
+                 VALUES ('PRJ_V1', 1, ?1, 't1', 't1')",
+                [dna.to_string()],
+            )
+            .unwrap();
+            let originals = root.join("projects/PRJ_V1/assets/original");
+            std::fs::create_dir_all(&originals).unwrap();
+            write_png(&originals, "AST_M.png", 40, 30, [180, 40, 40]);
+            write_png(&originals, "AST_R.png", 40, 30, [90, 90, 90]);
+        }
+
+        let (core, _) = open_test_core(&root);
+        {
+            let conn = core.conn().unwrap();
+            assert_eq!(schema_version(&conn).unwrap(), 2);
+            let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
+            assert_eq!(fk, 1);
+            let violations: i64 =
+                conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
+            assert_eq!(violations, 0);
+        }
+        let bundle = projects::get(&core, "PRJ_V1").unwrap();
+        assert_eq!(bundle.project.name, "Old villa");
+        assert_eq!(bundle.project.active_master_asset_id.as_deref(), Some("AST_M"));
+        assert_eq!(bundle.dna, dna);
+        assert_eq!(bundle.assets.len(), 2);
+        assert!(bundle.assets.iter().all(|a| a.status == "ready"));
+        let versions = assets::list_versions(&core, "PRJ_V1").unwrap();
+        assert_eq!(versions.len(), 2);
+        assert!(versions.iter().all(|v| v.generation_id.is_none()));
+        assert!(generations::list(&core, "PRJ_V1").unwrap().is_empty());
+
+        let g = generations::submit(
+            &core,
+            serde_json::from_value(serde_json::json!({
+                "projectId": "PRJ_V1", "providerId": "local_preview", "modelId": "placeholder-v1", "purpose": "hero",
+                "prompt": { "compilerVersion": "1", "positivePrompt": "Old villa at dusk", "negativePrompt": "",
+                            "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+                "referenceAssetIds": ["AST_R", "AST_M"],
+                "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(g.status, GenerationStatus::Completed, "{:?}", g.error);
+        assert_eq!(g.parent_asset_id.as_deref(), Some("AST_M"));
+        let versions = assets::list_versions(&core, "PRJ_V1").unwrap();
+        let generated = versions.iter().find(|v| v.generation_id.as_deref() == Some(g.id.as_str())).unwrap();
+        assert_eq!(generated.parent_version_id.as_deref(), Some("VER_M"));
+    }
 }
