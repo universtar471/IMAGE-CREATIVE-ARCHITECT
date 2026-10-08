@@ -38,6 +38,16 @@ impl AppCore {
     }
 }
 
+pub(crate) fn ensure_not_archived(p: &ProjectRow) -> AppResult<()> {
+    if p.archived_at.is_some() {
+        return Err(AppError::invalid_state(format!(
+            "'{}' is archived and read-only. Restore it from the Project Hub before making changes.",
+            p.name
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 pub(crate) mod tests_support {
     use std::path::{Path, PathBuf};
@@ -51,19 +61,12 @@ pub(crate) mod tests_support {
         (tmp, core)
     }
 
+    pub(crate) use crate::services::dna_validation::tests::minimal as test_valid_dna;
+    pub(crate) use crate::services::projects::tests::create_villa as test_create_villa;
+
     pub fn write_png(dir: &Path, name: &str, w: u32, h: u32, rgb: [u8; 3]) -> PathBuf {
         let path = dir.join(name);
         image::RgbImage::from_pixel(w, h, image::Rgb(rgb)).save(&path).unwrap();
         path
     }
-}
-
-pub(crate) fn ensure_not_archived(p: &ProjectRow) -> AppResult<()> {
-    if p.archived_at.is_some() {
-        return Err(AppError::invalid_state(format!(
-            "'{}' is archived and read-only. Restore it from the Project Hub before making changes.",
-            p.name
-        )));
-    }
-    Ok(())
 }

@@ -345,7 +345,8 @@ pub fn list_versions(core: &AppCore, project_id: &str) -> AppResult<Vec<VersionD
 mod tests {
     use super::*;
     use crate::domain::ProjectStatus;
-    use crate::services::projects::{self, test_create_villa};
+    use crate::services::projects;
+    use crate::services::tests_support::test_create_villa;
     use crate::services::tests_support::{core, write_png};
 
     fn import_file(core: &AppCore, project_id: &str, path: &Path, role: &str) -> AppResult<AssetDto> {

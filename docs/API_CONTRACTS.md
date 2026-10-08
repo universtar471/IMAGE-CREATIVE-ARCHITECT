@@ -261,3 +261,23 @@ Future:
 - `export_batch`
 
 Their existence should not distort Phase 1 code.
+
+## 8. Phase 1 implementation notes
+
+All commands take a single `request` argument (`invoke(cmd, { request })`) and return
+`Result<T, AppError>`. Additions and deviations from the sections above:
+
+- `AppErrorCode` also includes `DUPLICATE_ASSET` (details: `existingAssetId`, `fileName`).
+- `project_create` request carries the resolved `dna` (built in the UI from the Knowledge
+  Pack via `createInitialDNA`); the backend validates it against the exported JSON Schema
+  and inserts project + DNA in one transaction (ADR-008).
+- `project_get` returns `{ project, dna, assets }` (full `AssetDTO`s).
+- `project_approve_master { projectId, approved }` → `ProjectDTO` (new, ADR-009).
+- `asset_import` accepts `allowDuplicate?: boolean` (ADR-010).
+- `asset_update_role` and `asset_set_master` return the project's full `AssetDTO[]`.
+- `asset_remove` returns `{ assetId, fileCleanupWarning }`.
+- `version_list { projectId }` → `VersionDTO[]` (import lineage).
+- `app_info` → `{ dataRoot, schemaVersion, appVersion }`.
+- `knowledge_*` commands are not needed in Phase 1: packs are bundled into the UI.
+- `prompt_compile_preview` is a UI application service (`compilePromptPreview`), compiling
+  persisted data loaded with `project_get` (ADR-008).

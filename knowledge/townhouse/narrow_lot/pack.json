@@ -24,21 +24,14 @@
       "climateContext": "tropical monsoon",
       "density": "very_high",
       "left": {
-        "adjacentBuildings": [
-          "attached neighbouring house"
-        ]
+        "adjacentBuildings": ["attached neighbouring house"]
       },
       "right": {
-        "adjacentBuildings": [
-          "attached neighbouring house"
-        ]
+        "adjacentBuildings": ["attached neighbouring house"]
       }
     }
   },
-  "styleSuggestions": [
-    "Modern tropical",
-    "Minimalist"
-  ],
+  "styleSuggestions": ["Modern tropical", "Minimalist"],
   "contextPresets": [
     {
       "id": "alley",
@@ -51,8 +44,5 @@
       }
     }
   ],
-  "negativeConstraints": [
-    "facade wider than one bay",
-    "side windows on party walls"
-  ]
+  "negativeConstraints": ["facade wider than one bay", "side windows on party walls"]
 }

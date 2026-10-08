@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Main window: core events/window APIs and the open-file dialog for image import.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-ask", "dialog:allow-message"]
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-ask",
+    "dialog:allow-message",
+    "core:window:allow-destroy"
+  ]
 }

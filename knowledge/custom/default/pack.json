@@ -8,14 +8,7 @@
     "building": {},
     "context": {}
   },
-  "styleSuggestions": [
-    "Modern",
-    "Contemporary",
-    "Minimalist"
-  ],
+  "styleSuggestions": ["Modern", "Contemporary", "Minimalist"],
   "contextPresets": [],
-  "negativeConstraints": [
-    "cars blocking the facade",
-    "people in the foreground"
-  ]
+  "negativeConstraints": ["cars blocking the facade", "people in the foreground"]
 }

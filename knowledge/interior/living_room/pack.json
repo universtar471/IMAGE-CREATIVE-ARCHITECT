@@ -17,27 +17,17 @@
       "macroContext": "residential apartment"
     }
   },
-  "styleSuggestions": [
-    "Japandi",
-    "Modern",
-    "Minimalist",
-    "Indochine"
-  ],
+  "styleSuggestions": ["Japandi", "Modern", "Minimalist", "Indochine"],
   "contextPresets": [
     {
       "id": "city_view",
       "label": "City view windows",
       "context": {
-        "distantBackground": [
-          "city skyline through windows"
-        ]
+        "distantBackground": ["city skyline through windows"]
       }
     }
   ],
-  "negativeConstraints": [
-    "exterior facade",
-    "bed in living room"
-  ],
+  "negativeConstraints": ["exterior facade", "bed in living room"],
   "promptVocabulary": {
     "subjectNoun": "living room",
     "framing": "interior view"

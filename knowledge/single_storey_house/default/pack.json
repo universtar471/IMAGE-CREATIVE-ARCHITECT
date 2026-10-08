@@ -19,12 +19,7 @@
       "density": "low"
     }
   },
-  "styleSuggestions": [
-    "Modern tropical",
-    "Japandi",
-    "Contemporary farmhouse",
-    "Minimalist"
-  ],
+  "styleSuggestions": ["Modern tropical", "Japandi", "Contemporary farmhouse", "Minimalist"],
   "contextPresets": [
     {
       "id": "garden",
@@ -32,10 +27,7 @@
       "context": {
         "front": {
           "spaceType": "front garden",
-          "vegetation": [
-            "lawn",
-            "frangipani trees"
-          ]
+          "vegetation": ["lawn", "frangipani trees"]
         },
         "rear": {
           "spaceType": "back garden"
@@ -60,15 +52,9 @@
           "spaceType": "courtyard",
           "roadType": "village road"
         },
-        "distantBackground": [
-          "rice fields",
-          "low hills"
-        ]
+        "distantBackground": ["rice fields", "low hills"]
       }
     }
   ],
-  "negativeConstraints": [
-    "second floor",
-    "urban high-rise background"
-  ]
+  "negativeConstraints": ["second floor", "urban high-rise background"]
 }

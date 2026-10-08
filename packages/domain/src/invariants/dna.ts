@@ -1,11 +1,10 @@
+import type { z } from "zod";
 import { ProjectDNASchema, type ProjectDNA } from "../schemas/projectDna";
 import type { ProjectType } from "../schemas/enums";
 
 export type FieldErrors = Record<string, string>;
 
-export type DNAValidation =
-  | { ok: true; dna: ProjectDNA }
-  | { ok: false; fieldErrors: FieldErrors };
+export type DNAValidation = { ok: true; dna: ProjectDNA } | { ok: false; fieldErrors: FieldErrors };
 
 /**
  * Validate a complete DNA aggregate. Error keys are dotted paths
@@ -17,9 +16,31 @@ export function validateProjectDNA(candidate: unknown): DNAValidation {
   const fieldErrors: FieldErrors = {};
   for (const issue of parsed.error.issues) {
     const key = issue.path.map(String).join(".") || "(root)";
-    fieldErrors[key] ??= issue.message;
+    fieldErrors[key] ??= friendlyMessage(issue);
   }
   return { ok: false, fieldErrors };
+}
+
+type Issue = z.core.$ZodIssue;
+
+/** Turn Zod's technical messages into actionable field messages. */
+function friendlyMessage(issue: Issue): string {
+  const msg = issue.message;
+  if (issue.code === "invalid_type") {
+    if (/received NaN/i.test(msg)) return "Enter a valid number.";
+    if (/received undefined/i.test(msg)) return "This field is required.";
+  }
+  if (issue.code === "too_small" && issue.origin === "number") {
+    return issue.inclusive
+      ? `Must be at least ${issue.minimum}.`
+      : `Must be greater than ${issue.minimum}.`;
+  }
+  if (issue.code === "too_big" && issue.origin === "number") {
+    return `Must be at most ${issue.maximum}.`;
+  }
+  if (issue.code === "too_small" && issue.origin === "string") return "This field cannot be empty.";
+  if (issue.code === "invalid_type" && /expected int/i.test(msg)) return "Enter a whole number.";
+  return msg;
 }
 
 export type ReadinessItem = { key: string; label: string; done: boolean };

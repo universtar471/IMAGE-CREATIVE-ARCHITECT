@@ -178,9 +178,9 @@ pub fn approve_master(core: &AppCore, project_id: &str, approved: bool) -> AppRe
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use crate::services::dna_validation::test_valid_dna;
+    use crate::services::tests_support::test_valid_dna;
     use crate::services::tests_support::core;
 
     pub(crate) fn create_villa(core: &AppCore, name: &str) -> ProjectDto {
@@ -253,6 +253,3 @@ mod tests {
         assert!(approve_master(&core, &p.id, true).is_err());
     }
 }
-
-#[cfg(test)]
-pub(crate) use tests::create_villa as test_create_villa;

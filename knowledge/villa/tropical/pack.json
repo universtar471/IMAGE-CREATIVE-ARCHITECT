@@ -33,18 +33,11 @@
       "climateContext": "hot humid tropical",
       "density": "low",
       "front": {
-        "vegetation": [
-          "palms",
-          "tropical shrubs"
-        ]
+        "vegetation": ["palms", "tropical shrubs"]
       }
     }
   },
-  "styleSuggestions": [
-    "Modern tropical",
-    "Tropical minimalist",
-    "Bali style"
-  ],
+  "styleSuggestions": ["Modern tropical", "Tropical minimalist", "Bali style"],
   "contextPresets": [
     {
       "id": "garden_pool",
@@ -66,15 +59,9 @@
         "front": {
           "spaceType": "resort landscape"
         },
-        "distantBackground": [
-          "sea horizon"
-        ]
+        "distantBackground": ["sea horizon"]
       }
     }
   ],
-  "negativeConstraints": [
-    "snow",
-    "bare deciduous trees",
-    "dense urban street"
-  ]
+  "negativeConstraints": ["snow", "bare deciduous trees", "dense urban street"]
 }

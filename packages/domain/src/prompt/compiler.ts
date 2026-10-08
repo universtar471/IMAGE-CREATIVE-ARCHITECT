@@ -92,7 +92,10 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
     ["materials", materialsSection(dna)],
     ["context", contextSection(dna, isInterior)],
     ["lighting", lightingSection(dna)],
-    ["quality", "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail."],
+    [
+      "quality",
+      "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    ],
   ];
   const included = positiveSections.filter((s): s is [string, string] => s[1] !== null);
 
@@ -134,7 +137,9 @@ function subjectSection(
   const b = dna.building;
   const noun = pack?.promptVocabulary.subjectNoun ?? b.buildingType ?? typeLabel;
   const descriptor = joinWords([b.architecturalStyle, b.subtype && humanize(b.subtype)]);
-  const what = descriptor ? `${article(descriptor)} ${descriptor} ${noun}` : `${article(noun)} ${noun}`;
+  const what = descriptor
+    ? `${article(descriptor)} ${descriptor} ${noun}`
+    : `${article(noun)} ${noun}`;
   const framing =
     pack?.promptVocabulary.framing ?? (isInterior ? "interior view" : "exterior view");
   return `Architectural visualization (${framing}) of ${what}, project type: ${typeLabel.toLowerCase()}${
@@ -146,7 +151,9 @@ function formSection(dna: ProjectDNA, isInterior: boolean): string | null {
   const b = dna.building;
   const parts: string[] = [];
   if (b.floors !== undefined) {
-    parts.push(isInterior ? `${b.floors}-level space` : `${b.floors} ${b.floors === 1 ? "floor" : "floors"}`);
+    parts.push(
+      isInterior ? `${b.floors}-level space` : `${b.floors} ${b.floors === 1 ? "floor" : "floors"}`,
+    );
   }
   const dims = dimensionText(b.dimensions);
   if (dims) parts.push(dims);
@@ -156,18 +163,33 @@ function formSection(dna: ProjectDNA, isInterior: boolean): string | null {
   if (m.secondaryVolume) parts.push(`secondary volume: ${m.secondaryVolume}`);
   if (m.voids.length) parts.push(`voids: ${m.voids.join(", ")}`);
   if (m.cantilever) parts.push(`cantilever: ${m.cantilever}`);
-  const roof = joinWords([b.roof.type, b.roof.pitch && `${b.roof.pitch} pitch`, b.roof.overhang && `${b.roof.overhang} overhang`], ", ");
+  const roof = joinWords(
+    [
+      b.roof.type,
+      b.roof.pitch && `${b.roof.pitch} pitch`,
+      b.roof.overhang && `${b.roof.overhang} overhang`,
+    ],
+    ", ",
+  );
   if (roof) parts.push(`roof: ${roof}`);
   const o = b.openings;
-  const openings = joinWords([o.windowType, o.frame && `${o.frame} frames`, o.rhythm && `${o.rhythm} rhythm`, o.glazing && `${o.glazing} glazing`], ", ");
+  const openings = joinWords(
+    [
+      o.windowType,
+      o.frame && `${o.frame} frames`,
+      o.rhythm && `${o.rhythm} rhythm`,
+      o.glazing && `${o.glazing} glazing`,
+    ],
+    ", ",
+  );
   if (openings) parts.push(`openings: ${openings}`);
   return parts.length ? `Building form: ${parts.join("; ")}.` : null;
 }
 
 function languageSection(dna: ProjectDNA): string | null {
   const b = dna.building;
+  // The style itself is already stated in the subject section.
   const parts: string[] = [];
-  if (b.architecturalStyle) parts.push(`${b.architecturalStyle} architectural language`);
   if (b.specialFeatures.length) parts.push(`signature features: ${b.specialFeatures.join(", ")}`);
   const notes = b.notes.trim();
   if (notes) parts.push(`design notes: ${notes}`);
@@ -195,15 +217,20 @@ function contextSection(dna: ProjectDNA, isInterior: boolean): string | null {
   const c = dna.context;
   const lines: string[] = [];
   const setting = joinWords(
-    [c.macroContext, c.climateContext && `${c.climateContext} climate`, c.density && `${DENSITY_LABELS[c.density].toLowerCase()} density`],
+    [
+      c.macroContext,
+      c.climateContext && `${c.climateContext} climate`,
+      c.density && `${DENSITY_LABELS[c.density].toLowerCase()} density`,
+    ],
     ", ",
   );
-  if (setting) lines.push(`Setting: ${setting}.`);
+  if (setting) lines.push(`${setting}.`);
   for (const dir of CONTEXT_DIRECTIONS) {
     const zone = zoneText(c[dir]);
     if (zone) lines.push(`${DIRECTION_LABEL[dir]}: ${zone}.`);
   }
-  if (c.distantBackground.length) lines.push(`Distant background: ${c.distantBackground.join(", ")}.`);
+  if (c.distantBackground.length)
+    lines.push(`Distant background: ${c.distantBackground.join(", ")}.`);
   const atmosphere = c.atmosphereNotes.trim();
   if (atmosphere) lines.push(`Atmosphere: ${atmosphere}.`);
   if (!lines.length) return null;
@@ -227,7 +254,10 @@ function lightingSection(dna: ProjectDNA): string | null {
   const parts: string[] = [];
   const l = dna.lighting;
   if (l) {
-    const text = joinWords([l.timeOfDay, l.sunDirection && `sun from ${l.sunDirection}`, l.intensity, l.ambientLight], ", ");
+    const text = joinWords(
+      [l.timeOfDay, l.sunDirection && `sun from ${l.sunDirection}`, l.intensity, l.ambientLight],
+      ", ",
+    );
     if (text) parts.push(`lighting: ${text}`);
   }
   const w = dna.weather;
@@ -260,13 +290,18 @@ function preservationSection(dna: ProjectDNA, references: readonly PromptReferen
       `Preserve the architecture of Image ${masterIndex + 1} (master): do not change building massing, floor count, roof form, opening positions or facade proportions.`,
     );
   } else {
-    lines.push("No master architecture image is set; keep the building consistent with the structured DNA.");
+    lines.push(
+      "No master architecture image is set; keep the building consistent with the structured DNA.",
+    );
   }
   const b = dna.building;
-  if (b.floors !== undefined) lines.push(`Keep exactly ${b.floors} ${b.floors === 1 ? "floor" : "floors"}.`);
+  if (b.floors !== undefined)
+    lines.push(`Keep exactly ${b.floors} ${b.floors === 1 ? "floor" : "floors"}.`);
   if (b.materials.length) lines.push("Do not substitute the specified materials.");
-  if (dna.locks.building) lines.push("Building DNA is LOCKED: no changes to the building design are permitted.");
-  if (dna.locks.context) lines.push("Context DNA is LOCKED: keep the surroundings exactly as described.");
+  if (dna.locks.building)
+    lines.push("Building DNA is LOCKED: no changes to the building design are permitted.");
+  if (dna.locks.context)
+    lines.push("Context DNA is LOCKED: keep the surroundings exactly as described.");
   return lines.join("\n");
 }
 
@@ -274,7 +309,9 @@ function preservationSection(dna: ProjectDNA, references: readonly PromptReferen
 
 export function sortReferences(refs: readonly PromptReference[]): PromptReference[] {
   const rank = (role: AssetRole) => REFERENCE_ROLE_ORDER.indexOf(role);
-  return [...refs].sort((a, b) => rank(a.role) - rank(b.role) || compareStrings(a.assetId, b.assetId));
+  return [...refs].sort(
+    (a, b) => rank(a.role) - rank(b.role) || compareStrings(a.assetId, b.assetId),
+  );
 }
 
 /** Locale-independent comparison (localeCompare depends on the runtime locale). */
@@ -284,11 +321,13 @@ function compareStrings(a: string, b: string): number {
 
 function dimensionText(d: ProjectDNA["building"]["dimensions"]): string | null {
   const parts: string[] = [];
-  if (d.widthM !== undefined && d.depthM !== undefined) parts.push(`footprint ${num(d.widthM)} m x ${num(d.depthM)} m`);
+  if (d.widthM !== undefined && d.depthM !== undefined)
+    parts.push(`footprint ${num(d.widthM)} m x ${num(d.depthM)} m`);
   else if (d.widthM !== undefined) parts.push(`width ${num(d.widthM)} m`);
   else if (d.depthM !== undefined) parts.push(`depth ${num(d.depthM)} m`);
   if (d.heightM !== undefined) parts.push(`height ${num(d.heightM)} m`);
-  if (d.siteWidthM !== undefined && d.siteDepthM !== undefined) parts.push(`site ${num(d.siteWidthM)} m x ${num(d.siteDepthM)} m`);
+  if (d.siteWidthM !== undefined && d.siteDepthM !== undefined)
+    parts.push(`site ${num(d.siteWidthM)} m x ${num(d.siteDepthM)} m`);
   else if (d.siteWidthM !== undefined) parts.push(`site width ${num(d.siteWidthM)} m`);
   else if (d.siteDepthM !== undefined) parts.push(`site depth ${num(d.siteDepthM)} m`);
   return parts.length ? parts.join(", ") : null;
@@ -300,7 +339,10 @@ function num(n: number): string {
 }
 
 function joinWords(parts: Array<string | undefined | null | false>, sep = " "): string {
-  return parts.filter((p): p is string => typeof p === "string" && p.trim() !== "").map((p) => p.trim()).join(sep);
+  return parts
+    .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+    .map((p) => p.trim())
+    .join(sep);
 }
 
 function humanize(s: string): string {

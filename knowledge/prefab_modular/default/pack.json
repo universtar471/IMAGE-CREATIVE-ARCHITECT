@@ -23,11 +23,7 @@
       "density": "low"
     }
   },
-  "styleSuggestions": [
-    "Industrial modern",
-    "Minimalist",
-    "Scandinavian"
-  ],
+  "styleSuggestions": ["Industrial modern", "Minimalist", "Scandinavian"],
   "contextPresets": [
     {
       "id": "garden",
@@ -35,10 +31,7 @@
       "context": {
         "front": {
           "spaceType": "gravel yard",
-          "vegetation": [
-            "grass",
-            "small trees"
-          ]
+          "vegetation": ["grass", "small trees"]
         }
       }
     },
@@ -46,15 +39,9 @@
       "id": "nature",
       "label": "Nature retreat",
       "context": {
-        "distantBackground": [
-          "forest",
-          "mountains"
-        ]
+        "distantBackground": ["forest", "mountains"]
       }
     }
   ],
-  "negativeConstraints": [
-    "curved organic walls",
-    "heavy masonry"
-  ]
+  "negativeConstraints": ["curved organic walls", "heavy masonry"]
 }

@@ -4,3 +4,4 @@ apps/desktop/src-tauri/target
 apps/desktop/src-tauri/gen
 package-lock.json
 *.md
+packages/domain/schema

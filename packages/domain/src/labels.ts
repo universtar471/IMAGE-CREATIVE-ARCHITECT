@@ -1,10 +1,4 @@
-import type {
-  AssetRole,
-  AssetSource,
-  Density,
-  ProjectStatus,
-  ProjectType,
-} from "./schemas/enums";
+import type { AssetRole, AssetSource, Density, ProjectStatus, ProjectType } from "./schemas/enums";
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
   interior: "Interior",

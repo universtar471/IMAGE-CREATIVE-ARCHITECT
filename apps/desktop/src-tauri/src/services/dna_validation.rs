@@ -37,10 +37,10 @@ pub fn validate_dna(dna: &Value) -> AppResult<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
-    fn minimal() -> Value {
+    pub(crate) fn minimal() -> Value {
         json!({
             "schemaVersion": 1,
             "building": {
@@ -60,10 +60,6 @@ mod tests {
             "locks": { "building": false, "context": false, "camera": false, "lighting": false,
                        "weather": false, "colorGrade": false, "objectIds": [] }
         })
-    }
-
-    pub(crate) fn valid_dna() -> Value {
-        minimal()
     }
 
     #[test]
@@ -95,6 +91,3 @@ mod tests {
         assert!(validate_dna(&json!({ "schemaVersion": 1 })).is_err());
     }
 }
-
-#[cfg(test)]
-pub(crate) use tests::valid_dna as test_valid_dna;

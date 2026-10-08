@@ -19,12 +19,7 @@
       "density": "medium"
     }
   },
-  "styleSuggestions": [
-    "Modern",
-    "Neo-classical",
-    "Modern tropical",
-    "Indochine"
-  ],
+  "styleSuggestions": ["Modern", "Neo-classical", "Modern tropical", "Indochine"],
   "contextPresets": [
     {
       "id": "residential_street",
@@ -33,19 +28,13 @@
         "front": {
           "spaceType": "small front yard with gate",
           "roadType": "residential street",
-          "vegetation": [
-            "street trees"
-          ]
+          "vegetation": ["street trees"]
         },
         "left": {
-          "adjacentBuildings": [
-            "neighbouring villa"
-          ]
+          "adjacentBuildings": ["neighbouring villa"]
         },
         "right": {
-          "adjacentBuildings": [
-            "neighbouring villa"
-          ]
+          "adjacentBuildings": ["neighbouring villa"]
         }
       }
     },
@@ -57,14 +46,9 @@
           "spaceType": "front yard",
           "roadType": "wide planned boulevard"
         },
-        "distantBackground": [
-          "mid-rise apartment blocks"
-        ]
+        "distantBackground": ["mid-rise apartment blocks"]
       }
     }
   ],
-  "negativeConstraints": [
-    "rural landscape",
-    "very large garden"
-  ]
+  "negativeConstraints": ["rural landscape", "very large garden"]
 }

@@ -11,6 +11,9 @@ export const ID_PREFIX = {
 
 const ULID = "[0-9A-HJKMNP-TV-Z]{26}";
 
-export function isStableId(id: string, prefix: (typeof ID_PREFIX)[keyof typeof ID_PREFIX]): boolean {
+export function isStableId(
+  id: string,
+  prefix: (typeof ID_PREFIX)[keyof typeof ID_PREFIX],
+): boolean {
   return new RegExp(`^${prefix}_${ULID}$`).test(id);
 }

@@ -21,7 +21,10 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
       "@typescript-eslint/consistent-type-imports": "error",
     },
   },
@@ -33,7 +36,10 @@ export default tseslint.config(
         "error",
         {
           patterns: [
-            { group: ["react", "react-*", "@tauri-apps/*"], message: "Domain must not depend on UI or Tauri." },
+            {
+              group: ["react", "react-*", "@tauri-apps/*"],
+              message: "Domain must not depend on UI or Tauri.",
+            },
           ],
         },
       ],

@@ -79,7 +79,7 @@ pub fn schema_version(conn: &Connection) -> AppResult<i64> {
 mod tests {
     use super::*;
     use crate::services::projects::{self, CreateProjectRequest};
-    use crate::services::{dna_validation::test_valid_dna, AppCore};
+    use crate::services::{tests_support::test_valid_dna, AppCore};
 
     fn tables(conn: &Connection) -> Vec<String> {
         let mut stmt = conn
