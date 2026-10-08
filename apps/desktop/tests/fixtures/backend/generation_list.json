@@ -12,8 +12,8 @@
         "retryable": false
       },
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000006",
-      "jobId": "JOB_01M4EEE3JRVJ84SW1R1M8NK32B",
+      "id": "GEN_00000000000000000000000007",
+      "jobId": "JOB_00000000000000000000000008",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -23,7 +23,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000005",
+      "projectId": "PRJ_00000000000000000000000006",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -48,11 +48,11 @@
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
       "id": "GEN_00000000000000000000000001",
-      "jobId": "JOB_01M4EEE2VM5CPFSFDPHJ56GN5X",
+      "jobId": "JOB_00000000000000000000000002",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_00000000000000000000000002",
-        "AST_00000000000000000000000003"
+        "AST_00000000000000000000000003",
+        "AST_00000000000000000000000004"
       ],
       "params": {
         "aspectRatio": null,
@@ -60,8 +60,8 @@
         "outputCount": 2,
         "seed": null
       },
-      "parentAssetId": "AST_00000000000000000000000004",
-      "projectId": "PRJ_00000000000000000000000005",
+      "parentAssetId": "AST_00000000000000000000000005",
+      "projectId": "PRJ_00000000000000000000000006",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -75,7 +75,7 @@
       "providerId": "local_preview",
       "purpose": "hero",
       "referenceAssetIds": [
-        "AST_00000000000000000000000004"
+        "AST_00000000000000000000000005"
       ],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"

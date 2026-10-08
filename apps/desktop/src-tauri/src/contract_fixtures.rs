@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 
 use crate::providers::local_preview::{self, LocalPreviewProvider};
 use crate::providers::{gemini::GeminiProvider, ProviderErrorKind, ProviderRegistry};
-use crate::secrets::MemorySecretStore;
+use crate::secrets::{env_var_name, EnvSource, FixedEnv, MemorySecretStore, ProcessEnv};
 use crate::services::assets::{self, ImportRequest};
 use crate::services::generations::{self, SubmitRequest};
 use crate::services::tests_support::{
@@ -66,13 +66,14 @@ impl Normalizer {
         }
     }
 
-    /// `PRJ_/AST_/VER_/GEN_` + 26 ULID chars → counters in order of first appearance.
+    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_` + 26 ULID chars → counters in order of first appearance.
     fn stable_ids(&mut self, text: &str) -> String {
         let bytes = text.as_bytes();
         let mut out = String::with_capacity(text.len());
         let mut i = 0;
         while i < bytes.len() {
-            let candidate = ["PRJ_", "AST_", "VER_", "GEN_"].iter().find(|p| text[i..].starts_with(**p));
+            let candidate =
+                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_"].iter().find(|p| text[i..].starts_with(**p));
             if let Some(prefix) = candidate {
                 let tail = &bytes[i + 4..(i + 30).min(bytes.len())];
                 if tail.len() == 26 && tail.iter().all(|b| ULID_CHARS.contains(b)) {
@@ -131,13 +132,25 @@ fn submit_request(project_id: &str, provider: &str, model: &str, refs: &[&str], 
     .unwrap()
 }
 
-fn build_fixtures() -> BTreeMap<String, Value> {
+/// Nothing that can reach a paid API: closed local port (connection refused at once).
+const UNROUTABLE_GEMINI_URL: &str = "http://127.0.0.1:9/v1beta";
+
+/// `ambient` stands for the environment of the process running `cargo test` (a developer
+/// may have `ARCH_STUDIO_GEMINI_API_KEY` set). It is deliberately *not* wired into the core:
+/// the fixture core resolves keys from its memory store and an empty environment only, and
+/// its Gemini adapter points at an unroutable address (Codex review p2-backend, last item).
+fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     let tmp = tempfile::tempdir().unwrap();
     let data_root = tmp.path().join("data");
     let double = Arc::new(TestProvider::default());
-    let registry =
-        ProviderRegistry::new(vec![Arc::new(GeminiProvider::new()), Arc::new(LocalPreviewProvider), double.clone()]);
+    let registry = ProviderRegistry::new(vec![
+        Arc::new(GeminiProvider::with_base_url(UNROUTABLE_GEMINI_URL)),
+        Arc::new(LocalPreviewProvider),
+        double.clone(),
+    ]);
     let core = AppCore::open_with(&data_root, registry, Arc::new(MemorySecretStore::default())).unwrap();
+    drop(ambient);
+    assert!(core.env.var(&env_var_name("gemini")).is_none(), "fixture core must not see an ambient key");
     let mut rec = Recorder { norm: Normalizer::new(&data_root), out: BTreeMap::new() };
 
     // Providers. Gemini: unconfigured, then configured (the key never appears in the DTO).
@@ -187,8 +200,20 @@ fn build_fixtures() -> BTreeMap<String, Value> {
 }
 
 #[test]
+fn fixtures_and_descriptors_ignore_a_gemini_key_in_the_environment() {
+    let ambient: Arc<dyn EnvSource> = Arc::new(FixedEnv::with(&env_var_name("gemini"), "ambient-real-looking-key"));
+    let with_key = build_fixtures(ambient);
+    let without = build_fixtures(Arc::new(FixedEnv::default()));
+    assert_eq!(with_key, without);
+    let text = serde_json::to_string(&with_key).unwrap();
+    assert!(!text.contains("ambient-real-looking-key"));
+    let gemini = &with_key["provider_list"]["response"].as_array().unwrap()[0];
+    assert_eq!((gemini["id"].as_str(), gemini["configured"].as_bool()), (Some("gemini"), Some(false)));
+}
+
+#[test]
 fn backend_fixtures_are_current() {
-    let fixtures = build_fixtures();
+    let fixtures = build_fixtures(Arc::new(ProcessEnv));
     let dir = fixtures_dir();
     let update = std::env::var_os("UPDATE_BACKEND_FIXTURES").is_some();
     if update {

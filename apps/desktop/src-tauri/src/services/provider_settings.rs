@@ -21,7 +21,7 @@ pub(crate) fn key_for(core: &AppCore, provider: &dyn ImageProvider) -> Option<Re
     if !info.requires_api_key {
         return None;
     }
-    secrets::resolve_key(core.secrets.as_ref(), info.id)
+    secrets::resolve_key(core.secrets.as_ref(), core.env.as_ref(), info.id)
 }
 
 /// `PROVIDER_NOT_CONFIGURED`, with an actionable message that names where a key can go.
@@ -132,6 +132,20 @@ mod tests {
         let d = clear_api_key(&core, TEST_PROVIDER).unwrap();
         assert!(!d.configured && d.key_source.is_none());
         assert!(core.secrets.get(TEST_PROVIDER).unwrap().is_none());
+    }
+
+    #[test]
+    fn env_fallback_comes_from_the_injected_environment_only() {
+        let (_tmp, mut core) = core();
+        assert!(!find(&list(&core), TEST_PROVIDER).configured, "test cores ignore the process environment");
+        core.env = Arc::new(crate::secrets::FixedEnv::with(&crate::secrets::env_var_name(TEST_PROVIDER), "env-key"));
+        let d = list(&core);
+        let remote = find(&d, TEST_PROVIDER);
+        assert!(remote.configured);
+        assert_eq!(remote.key_source, Some(KeySource::Env));
+        assert!(!serde_json::to_string(&d).unwrap().contains("env-key"));
+        // Clearing the keychain entry keeps an env key.
+        assert_eq!(clear_api_key(&core, TEST_PROVIDER).unwrap().key_source, Some(KeySource::Env));
     }
 
     #[test]

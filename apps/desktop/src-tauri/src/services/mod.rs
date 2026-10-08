@@ -21,7 +21,7 @@ use crate::db;
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::providers::ProviderRegistry;
 use crate::repositories::ProjectRow;
-use crate::secrets::{KeyringSecretStore, SecretStore};
+use crate::secrets::{EnvSource, FixedEnv, KeyringSecretStore, ProcessEnv, SecretStore};
 use crate::storage::Storage;
 
 pub const DB_FILE: &str = "studio.db";
@@ -33,6 +33,9 @@ pub struct AppCore {
     pub storage: Storage,
     pub providers: ProviderRegistry,
     pub secrets: Arc<dyn SecretStore>,
+    /// Development key fallback (`ARCH_STUDIO_<PROVIDER>_API_KEY`). The process environment
+    /// in the app; empty for every core made with [`AppCore::open_with`].
+    pub env: Arc<dyn EnvSource>,
     /// Time source of the job queue (timestamps, retry backoff). Tests inject a manual clock.
     pub clock: Arc<dyn queue::Clock>,
     /// Receives job/generation updates. The app sets a Tauri emitter before sharing the core.
@@ -41,12 +44,15 @@ pub struct AppCore {
 }
 
 impl AppCore {
-    /// Production wiring: builtin providers + OS keychain.
+    /// Production wiring: builtin providers + OS keychain + process-environment key fallback.
     pub fn open(data_root: &Path) -> AppResult<Self> {
-        Self::open_with(data_root, ProviderRegistry::builtin(), Arc::new(KeyringSecretStore))
+        let mut core = Self::open_with(data_root, ProviderRegistry::builtin(), Arc::new(KeyringSecretStore))?;
+        core.env = Arc::new(ProcessEnv);
+        Ok(core)
     }
 
-    /// Explicit wiring (tests use a memory secret store and test-double providers).
+    /// Explicit wiring (tests use a memory secret store and test-double providers). The key
+    /// fallback environment starts empty, so a key in the developer's shell is never used.
     /// Jobs and generations left `running` by a previous process become `interrupted` here;
     /// `queued` and `retrying` jobs stay and resume once the worker runs.
     pub fn open_with(data_root: &Path, providers: ProviderRegistry, secrets: Arc<dyn SecretStore>) -> AppResult<Self> {
@@ -60,6 +66,7 @@ impl AppCore {
             storage: Storage::new(data_root),
             providers,
             secrets,
+            env: Arc::new(FixedEnv::default()),
             clock: Arc::new(queue::SystemClock),
             notifier: Arc::new(queue::NoopNotifier),
             queue: queue::QueueState::default(),
