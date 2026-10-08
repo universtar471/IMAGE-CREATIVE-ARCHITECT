@@ -52,3 +52,41 @@ Có ba vấn đề chặn merge: output hỏng vẫn có thể được ghi thà
 - `cargo clippy --all-targets -- -D warnings`: **bị chặn cùng lỗi**.
 - Không chạy `npm run verify`.
 - Không sửa, tạo hay commit file. `git status --short` không báo thay đổi.
+---
+
+# Review P2-A (backend) — vòng 2
+
+## Kết luận: PHẢI SỬA
+
+Cả **3 lỗi chặn và 2 khuyến nghị vòng 1 đã được xử lý** qua đối chiếu code. Tuy nhiên, contract fixture mới có thể gọi Gemini thật bằng API key của môi trường khi chạy test. Chưa xác nhận test/clippy xanh vì sandbox chặn build lock.
+
+## PHẢI SỬA (chặn merge)
+
+1. **Contract fixture chưa cô lập credentials và mạng.**  
+   **Vị trí:** [apps/desktop/src-tauri/src/contract_fixtures.rs:171](/D:/IMAGE-CREATIVE-ARCHITECT/apps/desktop/src-tauri/src/contract_fixtures.rs:171), liên quan dòng 137 và [src/secrets.rs:126](/D:/IMAGE-CREATIVE-ARCHITECT/apps/desktop/src-tauri/src/secrets.rs:126).  
+   `MemorySecretStore` không vô hiệu hóa env fallback, trong khi fixture đăng ký `GeminiProvider::new()` dùng endpoint thật.  
+   **Kịch bản:** máy developer có `ARCH_STUDIO_GEMINI_API_KEY`; chạy `cargo test` khiến ca “gemini has no key” gửi `generateContent` thật, có thể tiêu quota/phát sinh phí. Sau đó `.expect_err(...)` panic vì service trả `Ok(GenerationDto)` cho cả thành công lẫn lỗi provider. Các fixture `configured`/`keySource` cũng phụ thuộc môi trường.  
+   **Đề xuất:** inject nguồn env rỗng cho fixture và dùng adapter/transport giả chặn mạng thật. Thêm kiểm tra fixture vẫn ổn định khi tiến trình cha có biến key; tránh sửa env toàn cục giữa các test chạy song song.
+
+## NÊN SỬA
+
+Không có phát hiện bổ sung.
+
+## ĐẠT / điểm tốt
+
+- **Vòng 1 — lỗi 1:** `services/generations.rs:363` decode đầy đủ trước khi ghi; `Thumbnail::Required` khiến lỗi thumbnail thất bại cả batch. Có test PNG hỏng pixel và lỗi thumbnail ở output thứ hai.
+- **Vòng 1 — lỗi 2:** validation hiện khớp §9 đã cập nhật: capability list rỗng yêu cầu `null`. `empty_capability_lists_require_null_values` kiểm tra cả từ chối giá trị lẫn chấp nhận `null`.
+- **Vòng 1 — lỗi 3:** `services/generations.rs:288` kiểm tra lại mọi reference trong cùng vùng khóa với insert. Test bao phủ xóa master, xóa reference khác và mất file; xác nhận không tạo row, không gọi provider.
+- **Vòng 1 — rollback:** test tại `services/generations.rs:1041` và `:1051` ép lỗi ghi output thứ hai và lỗi SQL giữa transaction; kiểm tra sạch assets, versions, generation_outputs và file, giữ generation `failed`.
+- **Vòng 1 — cleanup:** `services/assets.rs:193` ghi log và trả lỗi xóa kèm asset ID/path, bỏ qua `NotFound`; có test tương ứng.
+- **Monotonic IDs:** `util.rs:13` dùng chung `ulid::Generator` dưới mutex; có test ID và thứ tự assets/versions trong batch.
+- **Nâng cấp v1→v2:** `db.rs:165` kiểm tra dữ liệu cũ, FK, `generation_id = NULL` và generation mới nối đúng version của master cũ.
+
+## Đã chạy
+
+- Đối chiếu review vòng 1, agent note, API_CONTRACTS §9 và các thay đổi P2-A trong diff được chỉ định; HEAD là `b1dcfc0`.
+- `cargo fmt --check`: **đạt**.
+- `cargo test --locked --offline`: **bị chặn** khi mở `target/debug/.cargo-build-lock`, `Access is denied (os error 5)`.
+- `cargo clippy --locked --offline --all-targets -- -D warnings`: **bị chặn cùng lỗi**.
+- Không gọi Gemini thật để tái hiện; phát hiện dựa trên luồng code.
+- Vẫn ở `main`; `git status --short` sạch. Không sửa, tạo hay commit file.
