@@ -4,6 +4,10 @@
  * cost hint and validation messages shown before submitting.
  */
 import {
+  anchorViews,
+  buildAnchorBatchItems,
+  buildProductionBatchItems,
+  MAX_BATCH_ITEMS,
   validateGenerationRequest,
   type BatchCreateRequest,
   type BatchItem,
@@ -12,11 +16,6 @@ import {
   type ProviderDescriptorDTO,
 } from "@arch/domain";
 import type { ProjectBundle } from "../../app/services";
-import {
-  anchorViews,
-  buildAnchorBatchItems,
-  buildProductionBatchItems,
-} from "../../lib/cameraDomain";
 import { knowledge } from "../../lib/knowledge";
 
 export type BatchMode = "anchor" | "production";
@@ -115,7 +114,8 @@ export function planBatch(
     if (!choices.cameraIds.length) issues.push("Choose at least one camera.");
     items = buildProductionBatchItems(input, choices.cameraIds, anchors);
   }
-  if (items.length > 50) issues.push(`A batch holds at most 50 items (${items.length} chosen).`);
+  if (items.length > MAX_BATCH_ITEMS)
+    issues.push(`A batch holds at most ${MAX_BATCH_ITEMS} items (${items.length} chosen).`);
   for (const item of items) {
     const first = validateGenerationRequest(item, model, bundle.assets)[0];
     if (first) {

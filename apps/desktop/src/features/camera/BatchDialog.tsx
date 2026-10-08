@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { Anchor, Clapperboard, KeyRound } from "lucide-react";
-import { defaultGenerationParams, orderReferences, type GenerationParams } from "@arch/domain";
+import {
+  anchorViews,
+  defaultGenerationParams,
+  orderReferences,
+  type GenerationParams,
+} from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
 import { FieldGroup, SelectField, TextField } from "../../components/panels/fields";
 import { RoleBadge } from "../../components/common/StatusBadge";
 import { call, toBridgeError } from "../../lib/bridge";
-import { anchorViews } from "../../lib/cameraDomain";
 import { planBatch, type BatchMode } from "./batch";
 
 /**

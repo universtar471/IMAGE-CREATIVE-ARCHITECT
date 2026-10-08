@@ -1,7 +1,11 @@
 /** Phase 3 camera module: geometry, stand-in domain helpers, batch planning, Contact Sheet. */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  blankCamera,
+  cameraFromPreset,
   CameraDNASchema,
+  compilePrompt,
+  newCameraId,
   type CameraDNA,
   type GenerationDTO,
   type JobDTO,
@@ -22,15 +26,7 @@ import {
   snapPosition,
 } from "../src/features/camera/geometry";
 import { call, setTransport } from "../src/lib/bridge";
-import {
-  azimuthWords,
-  blankCamera,
-  cameraFromPreset,
-  compileCameraPrompt,
-  FALLBACK_CAMERA_PRESETS,
-  newCameraId,
-  uniqueCameraName,
-} from "../src/lib/cameraDomain";
+import { knowledge } from "../src/lib/knowledge";
 import { createMockTransport, MOCK_PROVIDERS } from "../src/lib/mockBackend";
 import { asset } from "./helpers";
 
@@ -98,29 +94,18 @@ describe("camera geometry", () => {
   });
 });
 
-describe("camera helpers (TODO(p3-domain) stand-ins)", () => {
-  it("makes schema-valid, time-ordered camera IDs", () => {
-    const a = newCameraId(1_700_000_000_000);
-    const b = newCameraId(1_700_000_000_001);
-    expect(a).toMatch(/^CAM_[0-9A-HJKMNP-TV-Z]{26}$/);
-    expect(a.slice(0, 14) < b.slice(0, 14)).toBe(true);
-    expect(CameraDNASchema.safeParse(blankCamera()).success).toBe(true);
-  });
-
-  it("creates cameras from presets with unique names", () => {
-    const preset = FALLBACK_CAMERA_PRESETS[0]!;
-    const c = cameraFromPreset(preset, [preset.label]);
-    expect(c.name).toBe(`${preset.label} 2`);
-    expect(c).toMatchObject({ presetId: preset.id, isAnchorView: preset.anchorRecommended });
-    expect(CameraDNASchema.safeParse(c).success).toBe(true);
-    expect(uniqueCameraName("Camera", ["camera", "Camera 2"])).toBe("Camera 3");
-  });
-
-  it("describes the viewpoint in words", () => {
-    expect(azimuthWords(0)).toBe("frontal view");
-    expect(azimuthWords(40)).toBe("front-left three-quarter view");
-    expect(azimuthWords(-40)).toBe("front-right three-quarter view");
-    expect(azimuthWords(180)).toBe("rear view");
+describe("camera presets in the Camera module", () => {
+  it("every bundled pack offers presets that become valid, uniquely named cameras", () => {
+    for (const type of ["villa", "townhouse", "interior", "single_storey_house"] as const) {
+      const presets = knowledge.cameraPresets(type);
+      expect(presets.length, type).toBeGreaterThanOrEqual(4);
+      expect(presets.filter((p) => p.anchorRecommended).length, type).toBeGreaterThanOrEqual(2);
+      const first = cameraFromPreset(presets[0]!, []);
+      const second = cameraFromPreset(presets[0]!, [first.name]);
+      expect(second.name).not.toBe(first.name);
+      expect(CameraDNASchema.safeParse(second).success).toBe(true);
+    }
+    expect(newCameraId()).toMatch(/^CAM_[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 });
 
@@ -290,7 +275,7 @@ describe("batch dialog planning", () => {
   });
 });
 
-describe("camera prompt section (stand-in)", () => {
+describe("camera prompt section (compiler pc-1.1.0)", () => {
   it("adds the camera section after context and is deterministic", async () => {
     const b = await bundleWithCameras();
     const input = {
@@ -299,12 +284,13 @@ describe("camera prompt section (stand-in)", () => {
       references: [{ assetId: "AST_M", role: "master_architecture" as const }],
       cameraId: b.dna.cameras[2]!.id,
     };
-    const one = compileCameraPrompt(input);
-    expect(one).toEqual(compileCameraPrompt(input));
+    const one = compilePrompt(input);
+    expect(one).toEqual(compilePrompt(input));
     const sections = one.metadata.sections as string[];
     expect(sections.indexOf("camera")).toBe(sections.indexOf("context") + 1);
+    expect(one.metadata.cameraId).toBe(b.dna.cameras[2]!.id);
     expect(one.positivePrompt).toMatch(
-      /Camera: custom view; viewpoint: from an elevated viewpoint/,
+      /^Camera: .*viewpoint: view from an aerial viewpoint, about 35° down/m,
     );
   });
 });

@@ -3,6 +3,7 @@
  * with backend commands. Components call these, never `invoke` directly.
  */
 import {
+  compilePrompt,
   createInitialDNA,
   type ProjectDTO,
   type ProjectType,
@@ -10,7 +11,6 @@ import {
   type WizardStarter,
 } from "@arch/domain";
 import { call, type CommandResponse } from "../lib/bridge";
-import { compileCameraPrompt } from "../lib/cameraDomain";
 import { knowledge } from "../lib/knowledge";
 
 export type NewProjectInput = {
@@ -56,7 +56,7 @@ export function compileFromBundle(
   const { project, dna, assets } = bundle;
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
   const ids = options.referenceAssetIds;
-  return compileCameraPrompt({
+  return compilePrompt({
     project: {
       id: project.id,
       name: project.name,

@@ -9,21 +9,22 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react";
-import { CameraViewTypeSchema, type CameraDNA, type PromptBundle } from "@arch/domain";
+import {
+  anchorViews,
+  blankCamera,
+  cameraFromPreset,
+  cameraReadiness,
+  CameraViewTypeSchema,
+  duplicateCamera,
+  type CameraDNA,
+  type PromptBundle,
+} from "@arch/domain";
 import { compilePromptPreview } from "../../app/services";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { NumberField, SelectField, TextAreaField, TextField } from "../../components/panels/fields";
 import { toBridgeError } from "../../lib/bridge";
-import {
-  anchorViews,
-  blankCamera,
-  cameraFromPreset,
-  cameraReadiness,
-  FALLBACK_CAMERA_PRESETS,
-  duplicateCamera,
-} from "../../lib/cameraDomain";
 import { knowledge } from "../../lib/knowledge";
 import { fileUrl } from "../../lib/files";
 import { BatchDialog } from "./BatchDialog";
@@ -146,10 +147,7 @@ function CameraListSection() {
   const [confirmDelete, setConfirmDelete] = useState<CameraDNA | null>(null);
   const cameras = ws.draftDna.cameras;
   const names = cameras.map((c) => c.name);
-  const packPresets =
-    knowledge.resolve(ws.project.projectType, ws.project.subtype).pack?.cameraPresets ?? [];
-  // TODO(p3-domain): packs gain presets on P3-B's branch; until then use the fallback list.
-  const presets = packPresets.length ? packPresets : FALLBACK_CAMERA_PRESETS;
+  const presets = knowledge.cameraPresets(ws.project.projectType, ws.project.subtype);
 
   const add = (camera: CameraDNA) => {
     setCameras([...cameras, camera]);
