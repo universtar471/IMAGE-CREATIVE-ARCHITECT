@@ -6,6 +6,7 @@ export * from "./schemas/projectDna";
 export * from "./schemas/prompt";
 export * from "./schemas/dto";
 export * from "./schemas/generation";
+export * from "./schemas/jobs";
 export * from "./knowledge/pack";
 export * from "./knowledge/registry";
 export * from "./knowledge/defaults";

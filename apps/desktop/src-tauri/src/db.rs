@@ -10,8 +10,11 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::util::now_iso;
 
 /// Ordered list of migrations. Append only; never edit an applied migration.
-pub const MIGRATIONS: &[(i64, &str)] =
-    &[(1, include_str!("../migrations/0001_initial.sql")), (2, include_str!("../migrations/0002_generations.sql"))];
+pub const MIGRATIONS: &[(i64, &str)] = &[
+    (1, include_str!("../migrations/0001_initial.sql")),
+    (2, include_str!("../migrations/0002_generations.sql")),
+    (3, include_str!("../migrations/0003_jobs.sql")),
+];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
     if let Some(parent) = path.parent() {
@@ -93,7 +96,18 @@ mod tests {
         assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
         assert_eq!(
             tables(&conn),
-            ["assets", "generation_outputs", "generations", "project_dna", "projects", "schema_migrations", "versions"]
+            [
+                "assets",
+                "batches",
+                "camera_anchors",
+                "generation_outputs",
+                "generations",
+                "jobs",
+                "project_dna",
+                "projects",
+                "schema_migrations",
+                "versions"
+            ]
         );
         let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
         assert_eq!(fk, 1);
@@ -213,7 +227,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 2);
+            assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
             let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
             assert_eq!(fk, 1);
             let violations: i64 =

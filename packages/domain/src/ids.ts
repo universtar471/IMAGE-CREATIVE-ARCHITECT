@@ -7,6 +7,7 @@ export const ID_PREFIX = {
   camera: "CAM",
   job: "JOB",
   generation: "GEN",
+  batch: "BAT",
   material: "MAT",
 } as const;
 

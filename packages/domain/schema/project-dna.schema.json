@@ -484,8 +484,36 @@
             "type": "number",
             "const": 1
           },
+          "id": {
+            "type": "string",
+            "pattern": "^CAM_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
           "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "viewType": {
+            "default": "custom",
+            "type": "string",
+            "enum": [
+              "exterior_front",
+              "exterior_corner",
+              "exterior_side",
+              "exterior_rear",
+              "aerial",
+              "street_level",
+              "detail",
+              "interior_wide",
+              "interior_detail",
+              "custom"
+            ]
+          },
+          "presetId": {
             "type": "string"
+          },
+          "isAnchorView": {
+            "default": false,
+            "type": "boolean"
           },
           "azimuthDeg": {
             "type": "number",
@@ -501,9 +529,16 @@
             "type": "number",
             "exclusiveMinimum": 0
           },
+          "distanceM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
           "lensMm": {
             "type": "number",
             "exclusiveMinimum": 0
+          },
+          "aspectRatio": {
+            "type": "string"
           },
           "targetObjectId": {
             "type": "string"
@@ -518,7 +553,10 @@
         },
         "required": [
           "schemaVersion",
+          "id",
           "name",
+          "viewType",
+          "isAnchorView",
           "notes"
         ],
         "additionalProperties": false
