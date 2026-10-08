@@ -1,0 +1,11 @@
+{
+  "command": "error",
+  "response": {
+    "code": "VALIDATION_ERROR",
+    "details": {
+      "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZX",
+      "itemIndex": 1
+    },
+    "message": "Item 2 ('bad'): Camera 'CAM_01J9ZZZZZZZZZZZZZZZZZZZZZX' is not in this project's DNA. Reload the cameras."
+  }
+}

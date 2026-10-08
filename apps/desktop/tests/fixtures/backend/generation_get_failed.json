@@ -1,27 +1,28 @@
 {
-  "command": "generation_submit",
+  "command": "generation_get",
   "response": {
     "batchId": null,
     "cameraId": null,
     "createdAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 1234,
-    "error": null,
+    "error": {
+      "kind": "blocked",
+      "message": "Test provider failure.",
+      "retryable": false
+    },
     "finishedAt": "2026-01-01T00:00:00.000Z",
-    "id": "GEN_00000000000000000000000001",
-    "jobId": "JOB_00000000000000000000000002",
-    "modelId": "placeholder-v1",
-    "outputAssetIds": [
-      "AST_00000000000000000000000003",
-      "AST_00000000000000000000000004"
-    ],
+    "id": "GEN_00000000000000000000000007",
+    "jobId": "JOB_00000000000000000000000008",
+    "modelId": "full",
+    "outputAssetIds": [],
     "params": {
       "aspectRatio": null,
       "imageSize": null,
-      "outputCount": 2,
+      "outputCount": 1,
       "seed": null
     },
-    "parentAssetId": "AST_00000000000000000000000005",
-    "projectId": "PRJ_00000000000000000000000006",
+    "parentAssetId": null,
+    "projectId": "PRJ_00000000000000000000000004",
     "prompt": {
       "compilerVersion": "pc-1.0.0",
       "metadata": {
@@ -32,12 +33,10 @@
       "preservationInstructions": "Keep the massing.",
       "referenceInstructions": "Image 1 is the master."
     },
-    "providerId": "local_preview",
+    "providerId": "test_remote",
     "purpose": "hero",
-    "referenceAssetIds": [
-      "AST_00000000000000000000000005"
-    ],
+    "referenceAssetIds": [],
     "startedAt": "2026-01-01T00:00:00.000Z",
-    "status": "completed"
+    "status": "failed"
   }
 }

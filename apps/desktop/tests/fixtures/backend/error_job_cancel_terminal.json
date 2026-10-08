@@ -1,0 +1,7 @@
+{
+  "command": "error",
+  "response": {
+    "code": "INVALID_STATE",
+    "message": "This job has already ended (cancelled)."
+  }
+}

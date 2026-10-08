@@ -1,0 +1,25 @@
+{
+  "command": "batch_create",
+  "response": {
+    "counts": {
+      "cancelled": 0,
+      "completed": 0,
+      "failed": 0,
+      "interrupted": 0,
+      "queued": 2,
+      "retrying": 0,
+      "running": 0
+    },
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "id": "BAT_0000000000000000000000000D",
+    "jobIds": [
+      "JOB_0000000000000000000000000E",
+      "JOB_0000000000000000000000000F"
+    ],
+    "modelId": "placeholder-v1",
+    "name": "Anchors",
+    "projectId": "PRJ_00000000000000000000000004",
+    "providerId": "local_preview",
+    "purpose": "anchor"
+  }
+}
