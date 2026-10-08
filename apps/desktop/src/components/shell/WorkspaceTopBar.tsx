@@ -11,6 +11,7 @@ import {
 import { PROJECT_TYPE_LABELS } from "@arch/domain";
 import { attempt, useStudio, type SaveState } from "../../app/store";
 import { call } from "../../lib/bridge";
+import { ProviderChip } from "../../features/providers/ProviderChip";
 import { ConfirmDialog } from "../common/Dialog";
 import { StatusBadge } from "../common/StatusBadge";
 
@@ -55,6 +56,8 @@ export function WorkspaceTopBar() {
         <StatusBadge status={project.status} />
       </div>
       <span className="spacer" />
+      <ProviderChip />
+      <span className="topbar-sep" />
       <SaveIndicator save={save} onRetry={() => void flushDna()} />
       <span className="topbar-sep" />
       {archived ? (

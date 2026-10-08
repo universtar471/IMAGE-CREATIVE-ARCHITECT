@@ -1167,3 +1167,327 @@ textarea {
   outline: 2px dashed var(--c-primary);
   outline-offset: -4px;
 }
+
+/* ------------------------------------------------------------ phase 2: generate */
+.generate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 100%;
+}
+.generate-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--s-2));
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-2) 0;
+  background: var(--c-surface);
+  border-top: 1px solid var(--c-border);
+}
+.generate-btn {
+  width: 100%;
+  height: 34px;
+  justify-content: center;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #93c5fd;
+  font-size: inherit;
+  cursor: pointer;
+}
+.link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.callout > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.callout .btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.callout-warning {
+  border-color: #78350f;
+  background: #2a1a05;
+  color: #fcd34d;
+}
+.callout-error {
+  border-color: #7f1d1d;
+  background: #2a0b0b;
+  color: #fecaca;
+}
+.callout-success {
+  border-color: #065f46;
+  background: #03241b;
+  color: #a7f3d0;
+}
+.run-status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow: auto;
+}
+.ref-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.ref-row:hover label {
+  background: var(--c-surface-2);
+}
+.ref-row.is-checked label {
+  background: var(--c-surface-3);
+}
+.ref-thumb {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: #050c17;
+  overflow: hidden;
+  color: var(--c-text-3);
+}
+.ref-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ref-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.ref-meta > span:last-child {
+  display: flex;
+  gap: 4px;
+}
+.ref-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-index {
+  margin-right: 6px;
+  color: #93c5fd;
+  font-weight: 600;
+}
+.gen-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gen-prompt.is-stale {
+  opacity: 0.55;
+}
+.gen-prompt pre {
+  margin: 0 0 4px;
+  max-height: 140px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--c-bg);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 11px/1.5 var(--mono);
+}
+.out-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.out-thumb {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: #050c17;
+  color: var(--c-text-3);
+  overflow: hidden;
+  cursor: pointer;
+}
+.out-thumbs-md .out-thumb {
+  width: 84px;
+  height: 60px;
+}
+.out-thumbs-sm .out-thumb {
+  width: 56px;
+  height: 40px;
+}
+.out-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.out-thumb[aria-pressed="true"] {
+  border-color: var(--c-primary);
+}
+
+/* ------------------------------------------------------------ phase 2: providers */
+.provider-chip {
+  font-variant-numeric: tabular-nums;
+}
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.provider-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+}
+.provider-card.is-focused {
+  border-color: var(--c-primary);
+}
+.provider-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.provider-card header .spacer {
+  flex: 1;
+}
+.key-row {
+  display: flex;
+  gap: 6px;
+}
+.key-row .input {
+  flex: 1;
+}
+
+/* ------------------------------------------------------------ phase 2: history + versions */
+.history-list,
+.version-tree {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  height: 100%;
+  overflow: auto;
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 12px;
+}
+.history-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.history-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.history-error {
+  color: #fecaca;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.version-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.version-row:hover:not(:disabled) {
+  background: var(--c-surface-2);
+}
+.version-row[aria-pressed="true"] {
+  border-color: var(--c-primary);
+}
+.version-row .spacer {
+  flex: 1;
+}
+.version-branch {
+  color: var(--c-text-3);
+}
+.version-thumb {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: #050c17;
+  overflow: hidden;
+  color: var(--c-text-3);
+}
+.version-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.version-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.version-gen {
+  white-space: nowrap;
+}

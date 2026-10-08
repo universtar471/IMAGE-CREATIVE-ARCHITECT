@@ -3,6 +3,7 @@ import { selectReadOnly, useStudio } from "../../app/store";
 import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
 import { BuildingDnaPanel } from "../../features/dna/BuildingDnaPanel";
 import { ContextDnaPanel } from "../../features/dna/ContextDnaPanel";
+import { GeneratePanel } from "../../features/generate/GeneratePanel";
 import { OverviewPanel } from "../../features/overview/OverviewPanel";
 import { moduleById } from "../../features/workspace/modules";
 import { FutureModulePlaceholder } from "../common/states";
@@ -30,6 +31,7 @@ export function PropertyPanel() {
         {active === "design_dna" && <BuildingDnaPanel />}
         {active === "context" && <ContextDnaPanel />}
         {active === "references" && <AssetPropertyPanel />}
+        {active === "generate" && <GeneratePanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

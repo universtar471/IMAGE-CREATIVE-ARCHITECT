@@ -3,17 +3,28 @@
  * and for UI tests. It mirrors the Rust services' rules closely enough to exercise the
  * UI, but it is NOT the source of truth — the Rust backend and its tests are.
  * Data persists to localStorage so reloads behave like reopening the app.
+ *
+ * Phase 2: two mock providers mirror the Rust registry (`gemini`, `local_preview`).
+ * API keys are never stored here — only a "configured" boolean per provider.
+ * Generated outputs are cheap SVG placeholders. A positive prompt containing `[fail]`
+ * produces a `failed` generation so the error UI can be exercised.
  */
 import {
+  generationParentAssetId,
   isDnaReady,
   ProjectDNASchema,
+  validateGenerationRequest,
   validateProjectDNA,
   type AppError,
   type AssetDTO,
   type AssetRole,
+  type GenerationDTO,
+  type GenerationSubmitRequest,
+  type ModelCapabilities,
   type ProjectDNA,
   type ProjectDTO,
   type ProjectStatus,
+  type ProviderDescriptorDTO,
 } from "@arch/domain";
 import type { CommandName, Requests, Transport, VersionDTO } from "./bridge";
 
@@ -22,7 +33,113 @@ type Db = {
   dna: Record<string, ProjectDNA>;
   assets: Record<string, AssetDTO>;
   versions: VersionDTO[];
+  /** Phase 2 (optional so Phase 1 snapshots and test fixtures still load). */
+  generations?: GenerationDTO[];
+  /** providerId → a key has been "set". Never the key itself. */
+  providerKeys?: Record<string, boolean>;
 };
+
+export type MockOptions = {
+  /** Simulated provider latency for `generation_submit` (ms). */
+  generationDelayMs?: number;
+};
+
+type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
+
+const RATIOS_EXTENDED = [
+  "1:1",
+  "1:4",
+  "1:8",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:1",
+  "4:3",
+  "4:5",
+  "5:4",
+  "8:1",
+  "9:16",
+  "16:9",
+  "21:9",
+];
+const RATIOS_STANDARD = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+
+/** Mirrors `providers/gemini/models.rs` (P2-B): one image per call, up to 4 sequential outputs. */
+const GEMINI_MODELS: ModelCapabilities[] = (
+  [
+    ["gemini-nano-banana-2.1", "Nano Banana 2.1 (Gemini)", 14, RATIOS_EXTENDED, ["1K", "2K", "4K"]],
+    [
+      "gemini-3-pro-image",
+      "Nano Banana Pro (Gemini 3 Pro Image)",
+      14,
+      RATIOS_STANDARD,
+      ["1K", "2K", "4K"],
+    ],
+    [
+      "gemini-3.1-flash-image",
+      "Nano Banana 2 (Gemini 3.1 Flash Image)",
+      14,
+      RATIOS_EXTENDED,
+      ["512", "1K", "2K", "4K"],
+    ],
+    [
+      "gemini-3.1-flash-lite-image",
+      "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+      14,
+      RATIOS_STANDARD,
+      ["1K"],
+    ],
+    [
+      "gemini-2.5-flash-image",
+      "Nano Banana (Gemini 2.5 Flash Image, legacy)",
+      3,
+      RATIOS_STANDARD,
+      [],
+    ],
+  ] as const
+).map(([id, label, maxReferenceImages, aspectRatios, imageSizes]) => ({
+  id,
+  label,
+  textToImage: true,
+  imageToImage: true,
+  maxReferenceImages,
+  maxOutputs: 4,
+  aspectRatios: [...aspectRatios],
+  imageSizes: [...imageSizes],
+  supportsNegativePrompt: false,
+  supportsSeed: false,
+}));
+
+/** Mirrors `ProviderRegistry::builtin()` in src-tauri/src/providers. */
+export const MOCK_PROVIDERS: readonly MockProvider[] = [
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    kind: "remote",
+    requiresApiKey: true,
+    models: GEMINI_MODELS,
+  },
+  {
+    id: "local_preview",
+    label: "Local preview (offline)",
+    kind: "local",
+    requiresApiKey: false,
+    models: [
+      {
+        id: "placeholder-v1",
+        label: "Placeholder renderer",
+        textToImage: true,
+        imageToImage: true,
+        maxReferenceImages: 14,
+        maxOutputs: 4,
+        aspectRatios: ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16"],
+        imageSizes: ["1K"],
+        supportsNegativePrompt: true,
+        supportsSeed: true,
+      },
+    ],
+  },
+];
 
 const STORAGE_KEY = "arch-studio-mock-db-v1";
 const browserFiles = new Map<string, File>();
@@ -48,15 +165,34 @@ function newId(prefix: string): string {
 function load(): Db {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Db;
+    if (raw) {
+      const db = JSON.parse(raw) as Db;
+      // Like the Rust startup sweep (ADR-014): a reload mid-generation leaves it interrupted.
+      for (const g of db.generations ?? []) {
+        if (g.status === "running") {
+          g.status = "interrupted";
+          g.error = {
+            kind: "interrupted",
+            message: "The app was closed while this generation was running.",
+            retryable: true,
+          };
+        }
+      }
+      return db;
+    }
   } catch {
     /* fall through to empty db */
   }
   return { projects: {}, dna: {}, assets: {}, versions: [] };
 }
 
-export function createMockTransport(initial?: Db): Transport {
+export function createMockTransport(initial?: Db, options: MockOptions = {}): Transport {
   const db: Db = initial ?? load();
+  const generations = (db.generations ??= []);
+  const providerKeys = (db.providerKeys ??= {});
+  for (const v of db.versions) v.generationId ??= null;
+  const generationDelayMs = options.generationDelayMs ?? 1500;
+
   const save = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -107,6 +243,78 @@ export function createMockTransport(initial?: Db): Transport {
     if (assetId) db.assets[assetId]!.role = "master_architecture";
     p.activeMasterAssetId = assetId;
     refreshStatus(projectId);
+  };
+
+  const getProvider = (id: string): MockProvider =>
+    MOCK_PROVIDERS.find((p) => p.id === id) ?? fail("NOT_FOUND", `Unknown provider '${id}'.`);
+
+  const describeProvider = (p: MockProvider): ProviderDescriptorDTO => {
+    const hasKey = !!providerKeys[p.id];
+    return {
+      ...p,
+      configured: !p.requiresApiKey || hasKey,
+      keySource: p.requiresApiKey && hasKey ? "keychain" : null,
+    };
+  };
+
+  /** Output IDs still present, like the backend's join on generation_outputs. */
+  const publicGeneration = (g: GenerationDTO): GenerationDTO => ({
+    ...g,
+    outputAssetIds: g.outputAssetIds.filter((id) => db.assets[id]),
+  });
+
+  /** ADR-015: outputs are ai_generated regular images, versioned under the parent's latest. */
+  const createOutputs = (gen: GenerationDTO, req: GenerationSubmitRequest): string[] => {
+    const parent = gen.parentAssetId ? db.assets[gen.parentAssetId] : undefined;
+    const parentVersion = parent
+      ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
+      : undefined;
+    const [w, h] = outputSize(req.params.aspectRatio, parent);
+    const purpose = req.purpose === "hero" ? "Hero" : "Variation";
+    const ids: string[] = [];
+    for (let i = 0; i < req.params.outputCount; i++) {
+      const id = newId("AST");
+      const t = now();
+      const url = placeholderSvg(
+        w,
+        h,
+        `${purpose} ${i + 1}`,
+        req.modelId,
+        (req.params.seed ?? 0) + i,
+      );
+      db.assets[id] = {
+        id,
+        projectId: req.projectId,
+        source: "ai_generated",
+        role: "regular_image",
+        status: "ready",
+        originalName: `${purpose.toLowerCase()}-${gen.id.slice(-6).toLowerCase()}-${i + 1}.svg`,
+        managedRelPath: `assets/generated/${id}.svg`,
+        absolutePath: url,
+        thumbnailPath: url,
+        mimeType: "image/svg+xml",
+        fileSizeBytes: url.length,
+        widthPx: w,
+        heightPx: h,
+        sha256: null,
+        parentAssetId: gen.parentAssetId,
+        operation: "generate",
+        createdAt: t,
+        updatedAt: t,
+      };
+      db.versions.push({
+        id: newId("VER"),
+        projectId: req.projectId,
+        assetId: id,
+        parentVersionId: parentVersion?.id ?? null,
+        label: `${purpose} ${i + 1}/${req.params.outputCount}`,
+        operation: "generate",
+        generationId: gen.id,
+        createdAt: t,
+      });
+      ids.push(id);
+    }
+    return ids;
   };
 
   const handlers: { [C in CommandName]: (req: Requests[C]) => unknown | Promise<unknown> } = {
@@ -267,6 +475,7 @@ export function createMockTransport(initial?: Db): Transport {
         parentVersionId: null,
         label: file.name,
         operation: "import",
+        generationId: null,
         createdAt: t,
       });
       if (req.role === "master_architecture") applyMaster(req.projectId, id);
@@ -313,12 +522,148 @@ export function createMockTransport(initial?: Db): Transport {
     },
 
     version_list: (req) => db.versions.filter((v) => v.projectId === req.projectId),
+
+    provider_list: () => MOCK_PROVIDERS.map(describeProvider),
+
+    provider_set_api_key: (req) => {
+      const p = getProvider(req.providerId);
+      if (!p.requiresApiKey) fail("INVALID_STATE", `${p.label} does not use an API key.`);
+      if (!req.apiKey.trim()) fail("VALIDATION_ERROR", "The API key cannot be empty.");
+      // Only the fact that a key exists is kept; the string itself is dropped here.
+      providerKeys[p.id] = true;
+      save();
+      return describeProvider(p);
+    },
+
+    provider_clear_api_key: (req) => {
+      const p = getProvider(req.providerId);
+      delete providerKeys[p.id];
+      save();
+      return describeProvider(p);
+    },
+
+    provider_test: (req) => {
+      const p = describeProvider(getProvider(req.providerId));
+      if (!p.configured) return { ok: false, message: `No API key is set for ${p.label}.` };
+      return {
+        ok: true,
+        message:
+          p.kind === "local"
+            ? "Offline provider, always available."
+            : "Key accepted (browser preview mock — no network call was made).",
+      };
+    },
+
+    generation_submit: async (req) => {
+      writable(req.projectId);
+      const provider = getProvider(req.providerId);
+      const model =
+        provider.models.find((m) => m.id === req.modelId) ??
+        fail("NOT_FOUND", `Model '${req.modelId}' is not offered by ${provider.label}.`);
+      const assets = projectAssets(req.projectId);
+      for (const id of req.referenceAssetIds) {
+        const a =
+          assets.find((x) => x.id === id) ??
+          fail("NOT_FOUND", `Reference asset '${id}' was not found in this project.`);
+        if (a.status !== "ready")
+          fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
+      }
+      const issues = validateGenerationRequest(req, model);
+      if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
+      if (provider.requiresApiKey && !providerKeys[provider.id]) {
+        fail(
+          "PROVIDER_NOT_CONFIGURED",
+          `${provider.label} has no API key yet. Add one in provider settings.`,
+          { providerId: provider.id },
+        );
+      }
+
+      const startedMs = Date.now();
+      const gen: GenerationDTO = {
+        id: newId("GEN"),
+        projectId: req.projectId,
+        providerId: req.providerId,
+        modelId: req.modelId,
+        purpose: req.purpose,
+        status: "running",
+        prompt: req.prompt,
+        referenceAssetIds: [...req.referenceAssetIds],
+        params: req.params,
+        parentAssetId: generationParentAssetId(req.referenceAssetIds, assets),
+        outputAssetIds: [],
+        error: null,
+        startedAt: new Date(startedMs).toISOString(),
+        finishedAt: null,
+        durationMs: null,
+      };
+      generations.push(gen);
+      save();
+
+      await new Promise((resolve) => setTimeout(resolve, generationDelayMs));
+
+      if (/\[fail\]/i.test(req.prompt.positivePrompt)) {
+        gen.status = "failed";
+        gen.error = {
+          kind: "bad_response",
+          message: "The mock provider was told to fail ([fail] found in the prompt).",
+          retryable: true,
+        };
+      } else {
+        gen.status = "completed";
+        gen.outputAssetIds = createOutputs(gen, req);
+      }
+      gen.finishedAt = now();
+      gen.durationMs = Math.max(0, Date.now() - startedMs);
+      save();
+      return publicGeneration(gen);
+    },
+
+    generation_list: (req) => {
+      getProject(req.projectId);
+      return generations
+        .filter((g) => g.projectId === req.projectId)
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id))
+        .map(publicGeneration);
+    },
+
+    generation_get: (req) => {
+      const g = generations.find((x) => x.id === req.generationId && x.projectId === req.projectId);
+      return g ? publicGeneration(g) : fail("NOT_FOUND", "Generation not found in this project.");
+    },
   };
 
   return async (command, args) => {
     const handler = handlers[command] as (req: unknown) => unknown;
     return structuredClone(await handler(args.request));
   };
+}
+
+function outputSize(aspectRatio: string | null, parent: AssetDTO | undefined): [number, number] {
+  const LONG = 1024;
+  let ratio = 4 / 3;
+  const m = aspectRatio?.match(/^(\d+):(\d+)$/);
+  if (m) ratio = Number(m[1]) / Number(m[2]);
+  else if (parent?.widthPx && parent.heightPx) ratio = parent.widthPx / parent.heightPx;
+  return ratio >= 1 ? [LONG, Math.round(LONG / ratio)] : [Math.round(LONG * ratio), LONG];
+}
+
+/** A tiny, displayable placeholder image (no canvas needed, so it also works under jsdom). */
+function placeholderSvg(w: number, h: number, title: string, model: string, seed: number): string {
+  const hue = (seed * 47 + 200) % 360;
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">`,
+    `<stop offset="0" stop-color="hsl(${hue},45%,62%)"/>`,
+    `<stop offset="1" stop-color="hsl(${(hue + 40) % 360},35%,22%)"/>`,
+    `</linearGradient></defs>`,
+    `<rect width="${w}" height="${h}" fill="url(#g)"/>`,
+    `<rect x="${w * 0.3}" y="${h * 0.4}" width="${w * 0.4}" height="${h * 0.4}" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="3"/>`,
+    `<polygon points="${w * 0.27},${h * 0.42} ${w * 0.5},${h * 0.22} ${w * 0.73},${h * 0.42}" fill="rgba(255,255,255,0.28)"/>`,
+    `<rect y="${h * 0.84}" width="${w}" height="${h * 0.16}" fill="rgba(0,0,0,0.35)"/>`,
+    `<text x="${w / 2}" y="${h * 0.93}" fill="#fff" font-family="Segoe UI, sans-serif" font-size="${Math.round(h * 0.045)}" text-anchor="middle">${title} · ${model} · mock</text>`,
+    `</svg>`,
+  ].join("");
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 async function inspectImage(

@@ -100,6 +100,11 @@ function CenterArea() {
                 <ImagePlus size={14} /> Go to References
               </button>
             }
+            emptyMessage={
+              active === "generate"
+                ? "Nothing to show yet. Generate an image with the panel on the right, or import a master in the Assets tray."
+                : undefined
+            }
           />
         )}
       </div>
