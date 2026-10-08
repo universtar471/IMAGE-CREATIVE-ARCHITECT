@@ -93,7 +93,7 @@ provider/generation DTOs and seven Tauri commands. The Gemini adapter (P2-B) and
 
 ```
 cd apps/desktop/src-tauri
-cargo test                                   # 62 tests
+cargo test                                   # 66 tests
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 cd ../../.. && npm install && npm run verify # green (vitest 70 + cargo)
@@ -149,3 +149,29 @@ Failing tests were written first, then fixed.
 - **Test seams (`#[cfg(test)]` only, thread-local so parallel tests do not interfere):**
   - `assets::faults::{FAIL_ORIGINAL_AT, FAIL_THUMBNAIL_AT}`.
   - `generations::AFTER_PREPARE`, a hook between validation and the insert.
+
+## Review round 1 follow-up
+
+- **Monotonic IDs.**
+  - Found by the integration fixture test: outputs of one generation and their versions share
+    one `created_at`, and the lists order by `created_at, id`.
+  - `Ulid::generate()` is random within a millisecond. So Hero 1 and Hero 2 could swap places
+    between runs, and the "latest version of the parent" lookup was ambiguous for versions
+    created in the same millisecond.
+  - Fix: `util::new_id` now uses `ulid::Generator` behind a process-wide `Mutex`. IDs are
+    strictly increasing, across threads too.
+  - Overflow uses `commit_overflow_increment`, which borrows from the next millisecond and
+    keeps the order. A poisoned lock is recovered, because the generator state stays valid.
+  - Tests:
+    - `ids_created_later_always_sort_after_earlier_ones` (20 000 IDs in a tight loop)
+    - `ids_stay_increasing_across_threads`
+    - `three_outputs_list_in_output_order` (assets and versions follow output order, run 5×)
+- **Upgrade from a Phase 1 database.**
+  - `upgrades_a_phase_1_database_to_v2_and_can_generate_from_its_master` builds a v1-only
+    database (project with an approved master, DNA, two assets, versions, managed files), then
+    opens it with the current app.
+  - It checks:
+    - the schema is v2, FKs are on and `foreign_key_check` is clean
+    - all old rows are intact and `versions.generation_id` is NULL
+    - a `local_preview` submit with the old master completes, with
+      `parent_version_id` = the master's old version
