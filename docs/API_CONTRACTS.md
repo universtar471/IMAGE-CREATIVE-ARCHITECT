@@ -303,8 +303,8 @@ Zod source of truth: `packages/domain/src/schemas/generation.ts`. Rust mirrors i
 - `NOT_FOUND` — project, provider, model or reference asset unknown
 - `INVALID_STATE` — project archived, reference file missing
 - `VALIDATION_ERROR` — empty positive prompt, duplicate references, too many references,
-  `outputCount` above `maxOutputs`, `aspectRatio`/`imageSize` not offered by the model
-  (when the model lists any), `seed` set on a model without seed support, references on a
+  `outputCount` above `maxOutputs`, `aspectRatio`/`imageSize` not in the model's list
+  (an empty list means the provider decides, so the value must be `null`), `seed` set on a model without seed support, references on a
   model without image-to-image, no references on a model without text-to-image
 - `PROVIDER_NOT_CONFIGURED` — provider needs a key and none is available
 
