@@ -8,9 +8,18 @@
  * API keys are never stored here — only a "configured" boolean per provider.
  * Generated outputs are cheap SVG placeholders. A positive prompt containing `[fail]`
  * produces a `failed` generation so the error UI can be exercised.
+ *
+ * Phase 3 (ADR-017/018): every generation runs as a job in an in-process queue with the
+ * backend's rules — per-provider concurrency (local 2, remote 1), priority then age,
+ * retry with backoff for retryable errors (delays scaled down), cancel, restart recovery —
+ * and emits `job://updated` / `generation://updated` through `connectEvents`.
+ * `[flaky]` in the prompt fails the first attempt with `rate_limited`, then succeeds.
  */
 import {
+  GENERATION_UPDATED_EVENT,
   generationParentAssetId,
+  JOB_UPDATED_EVENT,
+  TERMINAL_JOB_STATUSES,
   isDnaReady,
   ProjectDNASchema,
   validateGenerationRequest,
@@ -18,15 +27,21 @@ import {
   type AppError,
   type AssetDTO,
   type AssetRole,
+  type BatchDTO,
+  type CameraAnchorDTO,
   type GenerationDTO,
+  type GenerationError,
+  type GenerationPurpose,
   type GenerationSubmitRequest,
+  type JobCounts,
+  type JobDTO,
   type ModelCapabilities,
   type ProjectDNA,
   type ProjectDTO,
   type ProjectStatus,
   type ProviderDescriptorDTO,
 } from "@arch/domain";
-import type { CommandName, Requests, Transport, VersionDTO } from "./bridge";
+import type { CommandName, EventSink, Requests, Transport, VersionDTO } from "./bridge";
 
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
@@ -37,11 +52,33 @@ type Db = {
   generations?: GenerationDTO[];
   /** providerId → a key has been "set". Never the key itself. */
   providerKeys?: Record<string, boolean>;
+  /** Phase 3 queue (optional so older snapshots still load). */
+  jobs?: MockJob[];
+  batches?: MockBatch[];
+  anchors?: CameraAnchorDTO[];
 };
 
+/** A job plus what the mock needs to run and retry it (never sent to the UI). */
+type MockJob = JobDTO & { seq: number; request: GenerationSubmitRequest };
+type MockBatch = Omit<BatchDTO, "counts">;
+
 export type MockOptions = {
-  /** Simulated provider latency for `generation_submit` (ms). */
+  /** Simulated provider latency per attempt (ms). */
   generationDelayMs?: number;
+  /** Backoff before attempts 2 and 3 (ms). The backend waits 15 s and 60 s. */
+  retryDelaysMs?: readonly [number, number];
+};
+
+/** ADR-017: concurrent jobs per provider, by provider kind. */
+export const MOCK_PROVIDER_SLOTS = { local: 2, remote: 1 } as const;
+export const MOCK_MAX_ATTEMPTS = 3;
+const RETRYABLE_KINDS: readonly GenerationError["kind"][] = ["rate_limited", "network", "timeout"];
+
+const PURPOSE_TITLES: Record<GenerationPurpose, string> = {
+  hero: "Hero",
+  variation: "Variation",
+  anchor: "Anchor",
+  production: "Production",
 };
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
@@ -167,15 +204,24 @@ function load(): Db {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const db = JSON.parse(raw) as Db;
-      // Like the Rust startup sweep (ADR-014): a reload mid-generation leaves it interrupted.
+      const interrupted: GenerationError = {
+        kind: "interrupted",
+        message: "The app was closed while this generation was running.",
+        retryable: true,
+      };
+      // Like the Rust startup sweep (ADR-014/017): a reload mid-call leaves it interrupted;
+      // queued and retrying jobs resume.
       for (const g of db.generations ?? []) {
         if (g.status === "running") {
           g.status = "interrupted";
-          g.error = {
-            kind: "interrupted",
-            message: "The app was closed while this generation was running.",
-            retryable: true,
-          };
+          g.error = interrupted;
+        }
+      }
+      for (const j of db.jobs ?? []) {
+        if (j.status === "running") {
+          j.status = "interrupted";
+          j.error = interrupted;
+          j.finishedAt = new Date().toISOString();
         }
       }
       return db;
@@ -190,8 +236,21 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const db: Db = initial ?? load();
   const generations = (db.generations ??= []);
   const providerKeys = (db.providerKeys ??= {});
+  const jobs = (db.jobs ??= []);
+  const batches = (db.batches ??= []);
+  db.anchors ??= [];
   for (const v of db.versions) v.generationId ??= null;
+  // Phase 2 snapshots: fill the Phase 3 generation fields.
+  for (const g of generations) {
+    g.createdAt ??= g.startedAt ?? new Date().toISOString();
+    g.cameraId ??= null;
+    g.batchId ??= null;
+    g.jobId ??= null;
+  }
   const generationDelayMs = options.generationDelayMs ?? 1500;
+  const retryDelaysMs = options.retryDelaysMs ?? [1500, 6000];
+  const sinks = new Set<EventSink>();
+  let jobSeq = jobs.reduce((n, j) => Math.max(n, j.seq ?? 0), 0);
 
   const save = () => {
     try {
@@ -219,8 +278,19 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const dna = db.dna[id]!;
     let status: ProjectStatus = "draft";
     if (p.archivedAt) status = "archived";
-    else if (p.activeMasterAssetId && p.masterApprovedAt) status = "master_approved";
-    else if (p.activeMasterAssetId) status = "master_pending";
+    else if (p.activeMasterAssetId && p.masterApprovedAt) {
+      // ADR-016: anchor views move an approved master into anchor generation / production.
+      const views = dna.cameras.filter((c) => c.isAnchorView);
+      const anchored = views.filter((c) =>
+        db.anchors!.some((a) => a.projectId === id && a.cameraId === c.id),
+      );
+      status =
+        views.length === 0
+          ? "master_approved"
+          : anchored.length === views.length
+            ? "production"
+            : "anchor_generation";
+    } else if (p.activeMasterAssetId) status = "master_pending";
     else if (isDnaReady(dna, p.projectType)) status = "dna_ready";
     p.status = status;
     p.updatedAt = now();
@@ -270,7 +340,10 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
       : undefined;
     const [w, h] = outputSize(req.params.aspectRatio, parent);
-    const purpose = req.purpose === "hero" ? "Hero" : "Variation";
+    const purpose = PURPOSE_TITLES[req.purpose];
+    const camera = req.cameraId
+      ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
+      : undefined;
     const ids: string[] = [];
     for (let i = 0; i < req.params.outputCount; i++) {
       const id = newId("AST");
@@ -278,7 +351,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const url = placeholderSvg(
         w,
         h,
-        `${purpose} ${i + 1}`,
+        camera ? `${camera.name} · ${purpose} ${i + 1}` : `${purpose} ${i + 1}`,
         req.modelId,
         (req.params.seed ?? 0) + i,
       );
@@ -316,6 +389,243 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     }
     return ids;
   };
+
+  // ------------------------------------------------------------------ queue (ADR-017)
+
+  const emit = (event: Parameters<EventSink>[0], payload: unknown) => {
+    for (const sink of [...sinks]) sink(event, structuredClone(payload));
+  };
+  const publicJob = (j: MockJob): JobDTO => {
+    const { seq: _seq, request: _request, ...dto } = j;
+    return dto;
+  };
+  const emitJob = (j: MockJob) => emit(JOB_UPDATED_EVENT, publicJob(j));
+  const emitGeneration = (g: GenerationDTO) => emit(GENERATION_UPDATED_EVENT, publicGeneration(g));
+  const isTerminal = (j: JobDTO) => TERMINAL_JOB_STATUSES.includes(j.status);
+  const generationOf = (j: JobDTO) => generations.find((g) => g.id === j.generationId)!;
+
+  /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
+  const validateRequest = (req: GenerationSubmitRequest) => {
+    writable(req.projectId);
+    const provider = getProvider(req.providerId);
+    const model =
+      provider.models.find((m) => m.id === req.modelId) ??
+      fail("NOT_FOUND", `Model '${req.modelId}' is not offered by ${provider.label}.`);
+    const assets = projectAssets(req.projectId);
+    for (const id of req.referenceAssetIds) {
+      const a =
+        assets.find((x) => x.id === id) ??
+        fail("NOT_FOUND", `Reference asset '${id}' was not found in this project.`);
+      if (a.status !== "ready")
+        fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
+    }
+    const issues = validateGenerationRequest(req, model);
+    if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
+    if (req.cameraId && !db.dna[req.projectId]!.cameras.some((c) => c.id === req.cameraId)) {
+      fail("VALIDATION_ERROR", `Camera '${req.cameraId}' does not exist in the Design DNA.`);
+    }
+    if (provider.requiresApiKey && !providerKeys[provider.id]) {
+      fail(
+        "PROVIDER_NOT_CONFIGURED",
+        `${provider.label} has no API key yet. Add one in provider settings.`,
+        { providerId: provider.id },
+      );
+    }
+  };
+
+  /** Insert a queued generation + its job (no validation here). */
+  const enqueue = (
+    req: GenerationSubmitRequest,
+    extra: { batchId: string | null; label: string; priority: number },
+  ): MockJob => {
+    const t = now();
+    const genId = newId("GEN");
+    const jobId = newId("JOB");
+    const gen: GenerationDTO = {
+      id: genId,
+      projectId: req.projectId,
+      providerId: req.providerId,
+      modelId: req.modelId,
+      purpose: req.purpose,
+      status: "queued",
+      prompt: req.prompt,
+      referenceAssetIds: [...req.referenceAssetIds],
+      params: req.params,
+      parentAssetId: generationParentAssetId(req.referenceAssetIds, projectAssets(req.projectId)),
+      outputAssetIds: [],
+      error: null,
+      cameraId: req.cameraId ?? null,
+      batchId: extra.batchId,
+      jobId,
+      createdAt: t,
+      startedAt: null,
+      finishedAt: null,
+      durationMs: null,
+    };
+    const job: MockJob = {
+      id: jobId,
+      projectId: req.projectId,
+      batchId: extra.batchId,
+      generationId: genId,
+      cameraId: req.cameraId ?? null,
+      providerId: req.providerId,
+      modelId: req.modelId,
+      label: extra.label,
+      status: "queued",
+      priority: extra.priority,
+      attempt: 0,
+      maxAttempts: MOCK_MAX_ATTEMPTS,
+      nextAttemptAt: null,
+      error: null,
+      createdAt: t,
+      startedAt: null,
+      finishedAt: null,
+      seq: ++jobSeq,
+      request: structuredClone(req),
+    };
+    generations.push(gen);
+    jobs.push(job);
+    emitGeneration(gen);
+    emitJob(job);
+    return job;
+  };
+
+  const defaultLabel = (req: GenerationSubmitRequest) => {
+    const camera = req.cameraId
+      ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
+      : undefined;
+    return camera
+      ? `${camera.name} — ${PURPOSE_TITLES[req.purpose].toLowerCase()}`
+      : PURPOSE_TITLES[req.purpose];
+  };
+
+  let pumpScheduled = false;
+  /** Start every runnable job that has a free provider slot (priority, then age). */
+  const pump = () => {
+    pumpScheduled = false;
+    const nowMs = Date.now();
+    const runnable = jobs
+      .filter(
+        (j) =>
+          j.status === "queued" ||
+          (j.status === "retrying" && Date.parse(j.nextAttemptAt ?? "") <= nowMs),
+      )
+      .sort((a, b) => b.priority - a.priority || a.seq - b.seq);
+    for (const j of runnable) {
+      const provider = MOCK_PROVIDERS.find((p) => p.id === j.providerId);
+      const slots = MOCK_PROVIDER_SLOTS[provider?.kind ?? "remote"];
+      const busy = jobs.filter((x) => x.status === "running" && x.providerId === j.providerId);
+      if (busy.length < slots) startAttempt(j);
+    }
+  };
+  const schedulePump = (delayMs = 0) => {
+    if (delayMs > 0) {
+      setTimeout(pump, delayMs);
+      return;
+    }
+    if (pumpScheduled) return;
+    pumpScheduled = true;
+    setTimeout(pump, 0);
+  };
+
+  const startAttempt = (j: MockJob) => {
+    const t = now();
+    j.status = "running";
+    j.attempt += 1;
+    j.startedAt ??= t;
+    j.nextAttemptAt = null;
+    const gen = generationOf(j);
+    gen.status = "running";
+    gen.startedAt ??= t;
+    save();
+    emitJob(j);
+    emitGeneration(gen);
+    const attempt = j.attempt;
+    setTimeout(() => finishAttempt(j.id, attempt), generationDelayMs);
+  };
+
+  const finishAttempt = (jobId: string, attempt: number) => {
+    const j = jobs.find((x) => x.id === jobId);
+    // Cancelled (or otherwise moved on) while the call ran: discard the result, write nothing.
+    if (!j || j.status !== "running" || j.attempt !== attempt) {
+      schedulePump();
+      return;
+    }
+    const gen = generationOf(j);
+    const prompt = j.request.prompt.positivePrompt;
+    let error: GenerationError | null = null;
+    if (/\[fail\]/i.test(prompt)) {
+      error = {
+        kind: "bad_response",
+        message: "The mock provider was told to fail ([fail] found in the prompt).",
+        retryable: true,
+      };
+    } else if (/\[flaky\]/i.test(prompt) && attempt === 1) {
+      error = {
+        kind: "rate_limited",
+        message: "The mock provider is rate limited ([flaky] fails the first attempt).",
+        retryable: true,
+      };
+    }
+    const t = now();
+    if (error && RETRYABLE_KINDS.includes(error.kind) && attempt < j.maxAttempts) {
+      const delay = retryDelaysMs[attempt - 1] ?? retryDelaysMs[1];
+      j.status = "retrying";
+      j.error = error;
+      j.nextAttemptAt = new Date(Date.now() + delay).toISOString();
+      // The generation waits in the queue again until the next attempt starts.
+      gen.status = "queued";
+      gen.error = error;
+      schedulePump(delay + 1);
+    } else if (error) {
+      j.status = "failed";
+      j.error = error;
+      j.finishedAt = t;
+      gen.status = "failed";
+      gen.error = error;
+    } else {
+      j.status = "completed";
+      j.error = null;
+      j.finishedAt = t;
+      gen.status = "completed";
+      gen.error = null;
+      gen.outputAssetIds = createOutputs(gen, j.request);
+    }
+    if (j.status !== "retrying") {
+      gen.finishedAt = t;
+      gen.durationMs = Math.max(0, Date.parse(t) - Date.parse(gen.startedAt ?? t));
+    }
+    save();
+    emitJob(j);
+    emitGeneration(gen);
+    schedulePump();
+  };
+
+  const getJob = (id: string) =>
+    jobs.find((j) => j.id === id) ?? fail("NOT_FOUND", `Job '${id}' was not found.`);
+
+  const countsOf = (jobIds: readonly string[]): JobCounts => {
+    const counts: JobCounts = {
+      queued: 0,
+      running: 0,
+      retrying: 0,
+      completed: 0,
+      failed: 0,
+      cancelled: 0,
+      interrupted: 0,
+    };
+    for (const id of jobIds) {
+      const j = jobs.find((x) => x.id === id);
+      if (j) counts[j.status] += 1;
+    }
+    return counts;
+  };
+  const publicBatch = (b: MockBatch): BatchDTO => ({ ...b, counts: countsOf(b.jobIds) });
+  const projectAnchors = (projectId: string) =>
+    db.anchors!.filter((a) => a.projectId === projectId);
+
+  // Resume queued/retrying jobs left from a previous session.
+  if (jobs.some((j) => !isTerminal(j))) schedulePump();
 
   const handlers: { [C in CommandName]: (req: Requests[C]) => unknown | Promise<unknown> } = {
     app_info: () => ({
@@ -413,6 +723,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         });
       writable(req.projectId);
       db.dna[req.projectId] = JSON.parse(JSON.stringify(req.dna)) as ProjectDNA;
+      // ADR-016: anchors of cameras that no longer exist are dropped.
+      const cameraIds = new Set(req.dna.cameras.map((c) => c.id));
+      db.anchors = db.anchors!.filter(
+        (x) => x.projectId !== req.projectId || cameraIds.has(x.cameraId),
+      );
       refreshStatus(req.projectId);
       save();
       return publicProject(getProject(req.projectId));
@@ -517,6 +832,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       if (p.activeMasterAssetId === req.assetId) applyMaster(req.projectId, null);
       delete db.assets[req.assetId];
       db.versions = db.versions.filter((v) => v.assetId !== req.assetId);
+      db.anchors = db.anchors!.filter((x) => x.assetId !== req.assetId);
+      refreshStatus(req.projectId);
       save();
       return { assetId: req.assetId, fileCleanupWarning: null };
     },
@@ -554,75 +871,22 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       };
     },
 
-    generation_submit: async (req) => {
-      writable(req.projectId);
-      const provider = getProvider(req.providerId);
-      const model =
-        provider.models.find((m) => m.id === req.modelId) ??
-        fail("NOT_FOUND", `Model '${req.modelId}' is not offered by ${provider.label}.`);
-      const assets = projectAssets(req.projectId);
-      for (const id of req.referenceAssetIds) {
-        const a =
-          assets.find((x) => x.id === id) ??
-          fail("NOT_FOUND", `Reference asset '${id}' was not found in this project.`);
-        if (a.status !== "ready")
-          fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
-      }
-      const issues = validateGenerationRequest(req, model);
-      if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
-      if (provider.requiresApiKey && !providerKeys[provider.id]) {
-        fail(
-          "PROVIDER_NOT_CONFIGURED",
-          `${provider.label} has no API key yet. Add one in provider settings.`,
-          { providerId: provider.id },
-        );
-      }
-
-      const startedMs = Date.now();
-      const gen: GenerationDTO = {
-        id: newId("GEN"),
-        projectId: req.projectId,
-        providerId: req.providerId,
-        modelId: req.modelId,
-        purpose: req.purpose,
-        status: "running",
-        prompt: req.prompt,
-        referenceAssetIds: [...req.referenceAssetIds],
-        params: req.params,
-        parentAssetId: generationParentAssetId(req.referenceAssetIds, assets),
-        outputAssetIds: [],
-        error: null,
-        startedAt: new Date(startedMs).toISOString(),
-        finishedAt: null,
-        durationMs: null,
-      };
-      generations.push(gen);
+    generation_submit: (req) => {
+      validateRequest(req);
+      const job = enqueue(
+        { ...req, cameraId: req.cameraId ?? null },
+        { batchId: null, label: defaultLabel(req), priority: 0 },
+      );
       save();
-
-      await new Promise((resolve) => setTimeout(resolve, generationDelayMs));
-
-      if (/\[fail\]/i.test(req.prompt.positivePrompt)) {
-        gen.status = "failed";
-        gen.error = {
-          kind: "bad_response",
-          message: "The mock provider was told to fail ([fail] found in the prompt).",
-          retryable: true,
-        };
-      } else {
-        gen.status = "completed";
-        gen.outputAssetIds = createOutputs(gen, req);
-      }
-      gen.finishedAt = now();
-      gen.durationMs = Math.max(0, Date.now() - startedMs);
-      save();
-      return publicGeneration(gen);
+      schedulePump();
+      return publicGeneration(generationOf(job));
     },
 
     generation_list: (req) => {
       getProject(req.projectId);
       return generations
         .filter((g) => g.projectId === req.projectId)
-        .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || b.id.localeCompare(a.id))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
         .map(publicGeneration);
     },
 
@@ -630,12 +894,149 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const g = generations.find((x) => x.id === req.generationId && x.projectId === req.projectId);
       return g ? publicGeneration(g) : fail("NOT_FOUND", "Generation not found in this project.");
     },
+
+    batch_create: (req) => {
+      if (!req.name.trim()) fail("VALIDATION_ERROR", "The batch needs a name.");
+      if (req.items.length < 1 || req.items.length > 50)
+        fail("VALIDATION_ERROR", "A batch has between 1 and 50 items.");
+      // All-or-nothing: validate every item before inserting anything.
+      const requests = req.items.map((item, i) => {
+        const r: GenerationSubmitRequest = {
+          projectId: req.projectId,
+          providerId: req.providerId,
+          modelId: req.modelId,
+          purpose: req.purpose,
+          prompt: item.prompt,
+          referenceAssetIds: item.referenceAssetIds,
+          params: item.params,
+          cameraId: item.cameraId,
+        };
+        try {
+          validateRequest(r);
+        } catch (e) {
+          const err = e as AppError;
+          throw { ...err, message: `Item ${i + 1} (${item.label}): ${err.message}` };
+        }
+        return { r, label: item.label };
+      });
+      const batch: MockBatch = {
+        id: newId("BAT"),
+        projectId: req.projectId,
+        name: req.name.trim(),
+        providerId: req.providerId,
+        modelId: req.modelId,
+        purpose: req.purpose,
+        createdAt: now(),
+        jobIds: [],
+      };
+      batches.push(batch);
+      for (const { r, label } of requests) {
+        const job = enqueue(r, { batchId: batch.id, label, priority: req.priority ?? 0 });
+        batch.jobIds.push(job.id);
+      }
+      save();
+      schedulePump();
+      return publicBatch(batch);
+    },
+
+    batch_list: (req) => {
+      getProject(req.projectId);
+      return batches
+        .filter((b) => b.projectId === req.projectId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+        .map(publicBatch);
+    },
+
+    job_list: (req) => {
+      const mine = jobs
+        .filter((j) => req.projectId === null || j.projectId === req.projectId)
+        .sort((a, b) => b.seq - a.seq);
+      const active = mine.filter((j) => !isTerminal(j));
+      const done = mine.filter(isTerminal).slice(0, 100);
+      return [...active, ...done].sort((a, b) => b.seq - a.seq).map(publicJob);
+    },
+
+    job_cancel: (req) => {
+      const j = getJob(req.jobId);
+      if (isTerminal(j)) fail("INVALID_STATE", `This job is already ${j.status}.`);
+      const t = now();
+      j.status = "cancelled";
+      j.finishedAt = t;
+      j.nextAttemptAt = null;
+      const gen = generationOf(j);
+      gen.status = "cancelled";
+      gen.finishedAt = t;
+      save();
+      emitJob(j);
+      emitGeneration(gen);
+      schedulePump();
+      return publicJob(j);
+    },
+
+    job_retry: (req) => {
+      const j = getJob(req.jobId);
+      if (!["failed", "cancelled", "interrupted"].includes(j.status))
+        fail("INVALID_STATE", "Only failed, cancelled or interrupted jobs can be retried.");
+      validateRequest(j.request);
+      const copy = enqueue(j.request, { batchId: j.batchId, label: j.label, priority: j.priority });
+      if (copy.batchId) batches.find((b) => b.id === copy.batchId)?.jobIds.push(copy.id);
+      save();
+      schedulePump();
+      return publicJob(copy);
+    },
+
+    camera_anchor_list: (req) => {
+      getProject(req.projectId);
+      return projectAnchors(req.projectId);
+    },
+
+    camera_anchor_set: (req) => {
+      writable(req.projectId);
+      const camera =
+        db.dna[req.projectId]!.cameras.find((c) => c.id === req.cameraId) ??
+        fail("NOT_FOUND", "That camera does not exist in the Design DNA.");
+      if (!camera.isAnchorView)
+        fail("VALIDATION_ERROR", `'${camera.name}' is not an anchor view. Mark it first.`);
+      const asset = db.assets[req.assetId];
+      if (!asset || asset.projectId !== req.projectId)
+        fail("NOT_FOUND", "That image is not part of this project.");
+      if (asset!.status !== "ready") fail("INVALID_STATE", "The image file is missing.");
+      db.anchors = db.anchors!.filter(
+        (a) => !(a.projectId === req.projectId && a.cameraId === req.cameraId),
+      );
+      db.anchors.push({
+        projectId: req.projectId,
+        cameraId: req.cameraId,
+        assetId: req.assetId,
+        approvedAt: now(),
+      });
+      refreshStatus(req.projectId);
+      save();
+      return projectAnchors(req.projectId);
+    },
+
+    camera_anchor_clear: (req) => {
+      writable(req.projectId);
+      db.anchors = db.anchors!.filter(
+        (a) => !(a.projectId === req.projectId && a.cameraId === req.cameraId),
+      );
+      refreshStatus(req.projectId);
+      save();
+      return projectAnchors(req.projectId);
+    },
   };
 
-  return async (command, args) => {
+  const transport: Transport = async (command, args) => {
     const handler = handlers[command] as (req: unknown) => unknown;
     return structuredClone(await handler(args.request));
   };
+  transport.connectEvents = (sink) => {
+    sinks.add(sink);
+    return () => {
+      sinks.delete(sink);
+    };
+  };
+  return transport;
 }
 
 function outputSize(aspectRatio: string | null, parent: AssetDTO | undefined): [number, number] {

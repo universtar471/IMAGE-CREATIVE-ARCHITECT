@@ -8,7 +8,12 @@ import { z } from "zod";
 import {
   AppErrorSchema,
   AssetDTOSchema,
+  BatchDTOSchema,
+  CameraAnchorDTOSchema,
+  GENERATION_UPDATED_EVENT,
   GenerationDTOSchema,
+  JOB_UPDATED_EVENT,
+  JobDTOSchema,
   ProjectBundleDTOSchema,
   ProjectDNASchema,
   ProjectDTOSchema,
@@ -18,7 +23,10 @@ import {
   type AppError,
   type AssetRole,
   type AssetSource,
+  type BatchCreateRequest,
+  type GenerationDTO,
   type GenerationSubmitRequest,
+  type JobDTO,
   type ProjectDNA,
   type ProjectType,
 } from "@arch/domain";
@@ -83,6 +91,15 @@ export type Requests = {
   generation_submit: GenerationSubmitRequest;
   generation_list: { projectId: string };
   generation_get: { projectId: string; generationId: string };
+  batch_create: BatchCreateRequest;
+  batch_list: { projectId: string };
+  /** null = every project. */
+  job_list: { projectId: string | null };
+  job_cancel: { jobId: string };
+  job_retry: { jobId: string };
+  camera_anchor_list: { projectId: string };
+  camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
+  camera_anchor_clear: { projectId: string; cameraId: string };
 };
 
 /** Response schemas per command. */
@@ -109,19 +126,50 @@ export const responses = {
   generation_submit: GenerationDTOSchema,
   generation_list: z.array(GenerationDTOSchema),
   generation_get: GenerationDTOSchema,
+  batch_create: BatchDTOSchema,
+  batch_list: z.array(BatchDTOSchema),
+  job_list: z.array(JobDTOSchema),
+  job_cancel: JobDTOSchema,
+  job_retry: JobDTOSchema,
+  camera_anchor_list: z.array(CameraAnchorDTOSchema),
+  camera_anchor_set: z.array(CameraAnchorDTOSchema),
+  camera_anchor_clear: z.array(CameraAnchorDTOSchema),
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;
 export type CommandResponse<C extends CommandName> = z.infer<(typeof responses)[C]>;
 
-/** Transport receives the command and `{ request }` exactly as Tauri commands expect. */
-export type Transport = (command: CommandName, args: { request: unknown }) => Promise<unknown>;
+/** Backend → UI events (ADR-017) and their payloads. */
+export type BackendEvents = {
+  [JOB_UPDATED_EVENT]: JobDTO;
+  [GENERATION_UPDATED_EVENT]: GenerationDTO;
+};
+export type BackendEventName = keyof BackendEvents;
+const eventSchemas = {
+  [JOB_UPDATED_EVENT]: JobDTOSchema,
+  [GENERATION_UPDATED_EVENT]: GenerationDTOSchema,
+} satisfies Record<BackendEventName, z.ZodType>;
+export const BACKEND_EVENTS = Object.keys(eventSchemas) as BackendEventName[];
+
+/** Receives raw events from an event source (Tauri `listen` or the mock's emitter). */
+export type EventSink = (event: BackendEventName, payload: unknown) => void;
+
+/**
+ * Transport receives the command and `{ request }` exactly as Tauri commands expect.
+ * An in-process transport (the mock) may also offer `connectEvents`, which delivers its
+ * events to a sink until the returned function is called.
+ */
+export type Transport = ((command: CommandName, args: { request: unknown }) => Promise<unknown>) & {
+  connectEvents?: (sink: EventSink) => () => void;
+};
 
 let transport: Transport | null = null;
 
-/** Replace the transport (tests, browser preview). */
+/** Replace the transport (tests, browser preview). Events are re-bound to the new one. */
 export function setTransport(t: Transport | null) {
+  disconnectEvents();
   transport = t;
+  if (handlerCount() > 0) void connectEvents();
 }
 
 export const runningInTauri = () => isTauri();
@@ -135,6 +183,84 @@ async function getTransport(): Promise<Transport> {
     transport = createMockTransport();
   }
   return transport;
+}
+
+// ---------------------------------------------------------------- events
+
+type Handler<E extends BackendEventName> = (payload: BackendEvents[E]) => void;
+const handlers = new Map<BackendEventName, Set<Handler<BackendEventName>>>();
+let disconnect: (() => void) | null = null;
+let connecting: Promise<void> | null = null;
+
+const handlerCount = () => [...handlers.values()].reduce((n, set) => n + set.size, 0);
+
+/** Parse and fan out one raw event; malformed payloads are dropped (and logged). */
+const dispatch: EventSink = (event, payload) => {
+  const parsed = eventSchemas[event]?.safeParse(payload);
+  if (!parsed?.success) {
+    console.warn(`[bridge] dropped malformed ${event} event`, parsed?.error.issues.slice(0, 3));
+    return;
+  }
+  for (const h of [...(handlers.get(event) ?? [])]) {
+    try {
+      h(parsed.data);
+    } catch (err) {
+      console.error(`[bridge] ${event} handler failed`, err);
+    }
+  }
+};
+
+function disconnectEvents() {
+  disconnect?.();
+  disconnect = null;
+  connecting = null;
+}
+
+async function connectEvents(): Promise<void> {
+  if (disconnect || connecting) return connecting ?? undefined;
+  connecting = (async () => {
+    const t = await getTransport();
+    let off: () => void;
+    if (t.connectEvents) {
+      off = t.connectEvents(dispatch);
+    } else if (isTauri()) {
+      const { listen } = await import("@tauri-apps/api/event");
+      const offs = await Promise.all(
+        BACKEND_EVENTS.map((e) => listen(e, (msg) => dispatch(e, msg.payload))),
+      );
+      off = () => offs.forEach((f) => f());
+    } else {
+      off = () => {};
+    }
+    if (transport !== t) {
+      off(); // the transport was replaced while connecting
+      return;
+    }
+    disconnect = off;
+  })().finally(() => {
+    connecting = null;
+  });
+  return connecting;
+}
+
+/**
+ * Subscribe to a backend event (Tauri `listen` in the app, the mock's emitter in the
+ * browser preview and tests). Payloads are parsed with the domain schemas. Returns an
+ * unsubscribe function. The connection is shared and opened on first use.
+ */
+export function subscribe<E extends BackendEventName>(event: E, handler: Handler<E>): () => void {
+  let set = handlers.get(event);
+  if (!set) handlers.set(event, (set = new Set()));
+  set.add(handler as Handler<BackendEventName>);
+  void connectEvents();
+  return () => {
+    set.delete(handler as Handler<BackendEventName>);
+  };
+}
+
+/** Resolves once the event source is connected (tests; harmless in the app). */
+export async function eventsReady(): Promise<void> {
+  await connectEvents();
 }
 
 export class BridgeError extends Error implements AppError {
