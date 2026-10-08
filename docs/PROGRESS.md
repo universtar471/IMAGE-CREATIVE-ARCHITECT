@@ -1,8 +1,42 @@
 # Progress
 
 ## Current phase
-Phase 1 — implemented on branch `wt/phase-01`; awaiting manual end-to-end check in the
-real desktop window (see "Not yet verified").
+Phase 2 — provider-neutral AI foundation, merged to `main` (2026-10-08) on the user's
+provisional approval. Codex review: P2-B approved (round 2); P2-A round 2 and P2-C round 1
+still pending (Codex quota). Phase 1 is complete.
+
+## Phase 2 — completed
+Built in three parallel worktrees against shared contracts (`tasks/PHASE_02.md`,
+ADR-012…015, `docs/API_CONTRACTS.md` §9); notes in `docs/agent-notes/p2-*.md`.
+- **P2-A backend** — `secrets.rs` (OS keychain via `keyring`, env fallback, memory store
+  for tests); offline deterministic `local_preview` provider; `services/generations.rs`
+  (validation, `running` row, provider call without the DB lock, full decode of outputs,
+  managed originals + thumbnails, one transaction for assets/versions/outputs, failure
+  cleanup, `interrupted` recovery at startup); provider and generation commands;
+  monotonic IDs; v1 → v2 database upgrade test.
+- **P2-B Gemini adapter** — `providers/gemini/` against `generateContent`; five verified
+  model ids with capabilities; prompt composition with role-labelled reference images;
+  typed error mapping; key redaction on every path; sequential calls for several outputs
+  with partial-failure handling; mock-server tests plus one ignored live smoke test.
+- **P2-C UI** — Generate module (provider/model, Hero/Variation, capability-driven params,
+  ordered reference checklist, prompt preview, running state, results, Use as master,
+  Retry), provider settings dialog + top-bar chip (key never kept in app state), History
+  tab, Versions lineage tree, mock backend parity.
+- **Contract fixtures** — the real Rust services write JSON for every Phase 2 command to
+  `apps/desktop/tests/fixtures/backend`; vitest parses each with the bridge's Zod schema.
+
+## Phase 2 — automated checks (last run, main after merge)
+- `npm run verify` — pass: vitest 136, cargo 102 passed + 1 ignored (live Gemini),
+  clippy `-D warnings` clean, `cargo fmt --check` clean.
+- `tauri dev` on the integrated build — app starts, migrations reach schema v2.
+
+## Phase 2 — not yet verified
+- Live Gemini generation (no `ARCH_STUDIO_GEMINI_API_KEY` on the build machine).
+- Generate flow inside the native window with the real backend (verified in the browser
+  preview against the mock backend and by cargo tests).
+- Codex reviews still pending (see Current phase).
+
+## Phase 1
 
 ## Completed
 - Architecture handoff package prepared.
