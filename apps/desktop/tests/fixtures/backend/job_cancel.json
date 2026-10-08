@@ -1,0 +1,22 @@
+{
+  "command": "job_cancel",
+  "response": {
+    "attempt": 0,
+    "batchId": null,
+    "cameraId": null,
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "error": null,
+    "finishedAt": "2026-01-01T00:00:00.000Z",
+    "generationId": "GEN_00000000000000000000000009",
+    "id": "JOB_0000000000000000000000000A",
+    "label": "Placeholder renderer — hero",
+    "maxAttempts": 3,
+    "modelId": "placeholder-v1",
+    "nextAttemptAt": null,
+    "priority": 0,
+    "projectId": "PRJ_00000000000000000000000004",
+    "providerId": "local_preview",
+    "startedAt": null,
+    "status": "cancelled"
+  }
+}

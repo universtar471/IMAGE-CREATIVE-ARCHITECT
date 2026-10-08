@@ -1,10 +1,12 @@
 //! Shapes returned to the UI. Mirrors `packages/domain/src/schemas/dto.ts` and
-//! `generation.ts` (camelCase).
+//! `generation.ts` and `jobs.ts` (camelCase).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, ProjectStatus, ProjectType};
+use crate::domain::{
+    AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus, ProjectStatus, ProjectType,
+};
 use crate::providers::{GenerationParams, ModelCapabilities, ProviderKind};
 use crate::secrets::KeySource;
 
@@ -147,7 +149,95 @@ pub struct GenerationDto {
     /// Output assets still present in the project, in output order.
     pub output_asset_ids: Vec<String>,
     pub error: Option<GenerationErrorDto>,
-    pub started_at: String,
+    pub camera_id: Option<String>,
+    pub batch_id: Option<String>,
+    /// The queue job that runs this generation (`None` for Phase 2 history).
+    pub job_id: Option<String>,
+    /// Time the generation was queued.
+    pub created_at: String,
+    /// When the provider call of the latest attempt began; `None` while queued.
+    pub started_at: Option<String>,
     pub finished_at: Option<String>,
     pub duration_ms: Option<i64>,
+}
+
+// ------------------------------------------------------------------ Phase 3: jobs, batches, anchors
+
+/// Mirrors `JobDTOSchema`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JobDto {
+    pub id: String,
+    pub project_id: String,
+    pub batch_id: Option<String>,
+    pub generation_id: String,
+    pub camera_id: Option<String>,
+    pub provider_id: String,
+    pub model_id: String,
+    pub label: String,
+    pub status: JobStatus,
+    pub priority: i64,
+    /// Attempts started so far.
+    pub attempt: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
+    /// Last attempt's error (also set while `retrying`).
+    pub error: Option<GenerationErrorDto>,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+}
+
+/// Mirrors `JobCountsSchema`: one count per job status, always all keys.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct JobCounts {
+    pub queued: u32,
+    pub running: u32,
+    pub retrying: u32,
+    pub completed: u32,
+    pub failed: u32,
+    pub cancelled: u32,
+    pub interrupted: u32,
+}
+
+impl JobCounts {
+    pub fn add(&mut self, status: JobStatus) {
+        let slot = match status {
+            JobStatus::Queued => &mut self.queued,
+            JobStatus::Running => &mut self.running,
+            JobStatus::Retrying => &mut self.retrying,
+            JobStatus::Completed => &mut self.completed,
+            JobStatus::Failed => &mut self.failed,
+            JobStatus::Cancelled => &mut self.cancelled,
+            JobStatus::Interrupted => &mut self.interrupted,
+        };
+        *slot += 1;
+    }
+}
+
+/// Mirrors `BatchDTOSchema`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchDto {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub provider_id: String,
+    pub model_id: String,
+    pub purpose: GenerationPurpose,
+    pub created_at: String,
+    /// In item order.
+    pub job_ids: Vec<String>,
+    pub counts: JobCounts,
+}
+
+/// Mirrors `CameraAnchorDTOSchema`.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CameraAnchorDto {
+    pub project_id: String,
+    pub camera_id: String,
+    pub asset_id: String,
+    pub approved_at: String,
 }

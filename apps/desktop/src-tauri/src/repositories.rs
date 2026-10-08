@@ -3,7 +3,9 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 
-use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, ProjectStatus, ProjectType};
+use crate::domain::{
+    AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus, ProjectStatus, ProjectType,
+};
 use crate::error::{AppError, AppResult, ErrorCode};
 
 #[derive(Debug, Clone)]
@@ -314,7 +316,7 @@ pub fn latest_version_id(conn: &Connection, asset_id: &str) -> AppResult<Option<
         .optional()?)
 }
 
-// ------------------------------------------------------------------ generations
+/// ------------------------------------------------------------------ generations
 
 #[derive(Debug, Clone)]
 pub struct GenerationRow {
@@ -330,16 +332,29 @@ pub struct GenerationRow {
     pub error_kind: Option<String>,
     pub error_message: Option<String>,
     pub error_retryable: Option<bool>,
+    /// NOT NULL in the schema (Phase 2). Phase 3 writes the queue time here until the first
+    /// attempt starts; the DTO reports `startedAt = null` while nothing has started.
     pub started_at: String,
     pub finished_at: Option<String>,
     pub duration_ms: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
+    pub camera_id: Option<String>,
+    pub batch_id: Option<String>,
+    /// Read-only, from the job that runs this generation (`None` for Phase 2 rows).
+    pub job_id: Option<String>,
+    /// Read-only: when the job's latest attempt started (`None` if it never started).
+    pub job_started_at: Option<String>,
 }
 
 const GENERATION_COLS: &str = "id, project_id, provider_id, model_id, purpose, status, request_json, \
      parent_asset_id, error_kind, error_message, error_retryable, started_at, finished_at, duration_ms, \
-     created_at, updated_at";
+     created_at, updated_at, camera_id, batch_id";
+
+const GENERATION_SELECT: &str = "SELECT g.id, g.project_id, g.provider_id, g.model_id, g.purpose, g.status, \
+     g.request_json, g.parent_asset_id, g.error_kind, g.error_message, g.error_retryable, g.started_at, \
+     g.finished_at, g.duration_ms, g.created_at, g.updated_at, g.camera_id, g.batch_id, j.id, j.started_at \
+     FROM generations g LEFT JOIN jobs j ON j.generation_id = g.id";
 
 fn map_generation(r: &Row<'_>) -> rusqlite::Result<GenerationRow> {
     Ok(GenerationRow {
@@ -359,24 +374,28 @@ fn map_generation(r: &Row<'_>) -> rusqlite::Result<GenerationRow> {
         duration_ms: r.get(13)?,
         created_at: r.get(14)?,
         updated_at: r.get(15)?,
+        camera_id: r.get(16)?,
+        batch_id: r.get(17)?,
+        job_id: r.get(18)?,
+        job_started_at: r.get(19)?,
     })
 }
 
 pub fn insert_generation(conn: &Connection, g: &GenerationRow) -> AppResult<()> {
     conn.execute(
         &format!(
-            "INSERT INTO generations ({GENERATION_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"
+            "INSERT INTO generations ({GENERATION_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"
         ),
         params![
             g.id, g.project_id, g.provider_id, g.model_id, g.purpose, g.status, g.request_json, g.parent_asset_id,
             g.error_kind, g.error_message, g.error_retryable, g.started_at, g.finished_at, g.duration_ms,
-            g.created_at, g.updated_at
+            g.created_at, g.updated_at, g.camera_id, g.batch_id
         ],
     )?;
     Ok(())
 }
 
-/// Error part of a finished generation.
+/// Error part of a finished generation or of a job's last attempt.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenerationErrorRow {
     pub kind: String,
@@ -384,14 +403,14 @@ pub struct GenerationErrorRow {
     pub retryable: bool,
 }
 
-/// Move a `running` generation to its final state.
+/// Move a generation to a final state.
 pub fn finish_generation(
     conn: &Connection,
     id: &str,
     status: GenerationStatus,
     error: Option<&GenerationErrorRow>,
     finished_at: &str,
-    duration_ms: i64,
+    duration_ms: Option<i64>,
 ) -> AppResult<()> {
     let n = conn.execute(
         "UPDATE generations SET status = ?2, error_kind = ?3, error_message = ?4, error_retryable = ?5,
@@ -413,17 +432,34 @@ pub fn finish_generation(
     Ok(())
 }
 
-pub fn find_generation(conn: &Connection, id: &str) -> AppResult<Option<GenerationRow>> {
-    Ok(conn
-        .query_row(&format!("SELECT {GENERATION_COLS} FROM generations WHERE id = ?1"), [id], map_generation)
-        .optional()?)
+/// A job attempt started: the generation is `running` from `now`.
+pub fn start_generation(conn: &Connection, id: &str, now: &str) -> AppResult<()> {
+    conn.execute(
+        "UPDATE generations SET status = ?2, started_at = ?3, error_kind = NULL, error_message = NULL,
+             error_retryable = NULL, finished_at = NULL, duration_ms = NULL, updated_at = ?3
+         WHERE id = ?1",
+        params![id, GenerationStatus::Running, now],
+    )?;
+    Ok(())
 }
 
-/// Newest first.
+/// A retryable attempt failed: the generation waits in the queue again.
+pub fn requeue_generation(conn: &Connection, id: &str, now: &str) -> AppResult<()> {
+    conn.execute(
+        "UPDATE generations SET status = ?2, updated_at = ?3 WHERE id = ?1",
+        params![id, GenerationStatus::Queued, now],
+    )?;
+    Ok(())
+}
+
+pub fn find_generation(conn: &Connection, id: &str) -> AppResult<Option<GenerationRow>> {
+    Ok(conn.query_row(&format!("{GENERATION_SELECT} WHERE g.id = ?1"), [id], map_generation).optional()?)
+}
+
+/// Newest first (by queue time).
 pub fn list_generations(conn: &Connection, project_id: &str) -> AppResult<Vec<GenerationRow>> {
-    let mut stmt = conn.prepare(&format!(
-        "SELECT {GENERATION_COLS} FROM generations WHERE project_id = ?1 ORDER BY started_at DESC, id DESC"
-    ))?;
+    let mut stmt =
+        conn.prepare(&format!("{GENERATION_SELECT} WHERE g.project_id = ?1 ORDER BY g.created_at DESC, g.id DESC"))?;
     let rows = stmt.query_map([project_id], map_generation)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
@@ -452,4 +488,282 @@ pub fn interrupt_running_generations(conn: &Connection, message: &str, now: &str
          WHERE status = ?4",
         params![GenerationStatus::Interrupted, message, now, GenerationStatus::Running],
     )?)
+}
+
+// ------------------------------------------------------------------ jobs
+
+#[derive(Debug, Clone)]
+pub struct JobRow {
+    pub id: String,
+    pub project_id: String,
+    pub batch_id: Option<String>,
+    pub generation_id: String,
+    pub provider_id: String,
+    pub label: String,
+    pub status: JobStatus,
+    pub priority: i64,
+    pub attempt: i64,
+    pub max_attempts: i64,
+    pub next_attempt_at: Option<String>,
+    pub error_kind: Option<String>,
+    pub error_message: Option<String>,
+    pub error_retryable: Option<bool>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    /// Read-only, from the generation.
+    pub model_id: String,
+    /// Read-only, from the generation.
+    pub camera_id: Option<String>,
+}
+
+const JOB_COLS: &str = "id, project_id, batch_id, generation_id, provider_id, label, status, priority, attempt, \
+     max_attempts, next_attempt_at, error_kind, error_message, error_retryable, created_at, updated_at, \
+     started_at, finished_at";
+
+const JOB_SELECT: &str = "SELECT j.id, j.project_id, j.batch_id, j.generation_id, j.provider_id, j.label, j.status, \
+     j.priority, j.attempt, j.max_attempts, j.next_attempt_at, j.error_kind, j.error_message, j.error_retryable, \
+     j.created_at, j.updated_at, j.started_at, j.finished_at, g.model_id, g.camera_id \
+     FROM jobs j JOIN generations g ON g.id = j.generation_id";
+
+fn map_job(r: &Row<'_>) -> rusqlite::Result<JobRow> {
+    Ok(JobRow {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        batch_id: r.get(2)?,
+        generation_id: r.get(3)?,
+        provider_id: r.get(4)?,
+        label: r.get(5)?,
+        status: r.get(6)?,
+        priority: r.get(7)?,
+        attempt: r.get(8)?,
+        max_attempts: r.get(9)?,
+        next_attempt_at: r.get(10)?,
+        error_kind: r.get(11)?,
+        error_message: r.get(12)?,
+        error_retryable: r.get(13)?,
+        created_at: r.get(14)?,
+        updated_at: r.get(15)?,
+        started_at: r.get(16)?,
+        finished_at: r.get(17)?,
+        model_id: r.get(18)?,
+        camera_id: r.get(19)?,
+    })
+}
+
+pub fn insert_job(conn: &Connection, j: &JobRow) -> AppResult<()> {
+    conn.execute(
+        &format!(
+            "INSERT INTO jobs ({JOB_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"
+        ),
+        params![
+            j.id, j.project_id, j.batch_id, j.generation_id, j.provider_id, j.label, j.status, j.priority, j.attempt,
+            j.max_attempts, j.next_attempt_at, j.error_kind, j.error_message, j.error_retryable, j.created_at,
+            j.updated_at, j.started_at, j.finished_at
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn find_job(conn: &Connection, id: &str) -> AppResult<Option<JobRow>> {
+    Ok(conn.query_row(&format!("{JOB_SELECT} WHERE j.id = ?1"), [id], map_job).optional()?)
+}
+
+pub fn get_job(conn: &Connection, id: &str) -> AppResult<JobRow> {
+    find_job(conn, id)?.ok_or_else(|| AppError::not_found("Job", id))
+}
+
+/// Every non-terminal job plus the `terminal_limit` most recently updated terminal ones,
+/// newest first. `project_id = None` lists all projects.
+pub fn list_jobs(conn: &Connection, project_id: Option<&str>, terminal_limit: i64) -> AppResult<Vec<JobRow>> {
+    let mut stmt = conn.prepare(&format!(
+        "{JOB_SELECT}
+         WHERE (?1 IS NULL OR j.project_id = ?1)
+           AND (j.status IN ('queued', 'running', 'retrying')
+                OR j.id IN (SELECT id FROM jobs
+                            WHERE (?1 IS NULL OR project_id = ?1)
+                              AND status NOT IN ('queued', 'running', 'retrying')
+                            ORDER BY updated_at DESC, id DESC LIMIT ?2))
+         ORDER BY j.created_at DESC, j.id DESC"
+    ))?;
+    let rows = stmt.query_map(params![project_id, terminal_limit], map_job)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+/// Jobs that may start at `now`, in pick order: highest priority, then oldest.
+pub fn runnable_jobs(conn: &Connection, now: &str) -> AppResult<Vec<JobRow>> {
+    let mut stmt = conn.prepare(&format!(
+        "{JOB_SELECT}
+         WHERE j.status = 'queued' OR (j.status = 'retrying' AND j.next_attempt_at <= ?1)
+         ORDER BY j.priority DESC, j.created_at, j.id"
+    ))?;
+    let rows = stmt.query_map([now], map_job)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+/// Earliest `next_attempt_at` of a waiting retry (the worker sleeps until then).
+pub fn next_retry_at(conn: &Connection) -> AppResult<Option<String>> {
+    Ok(conn.query_row("SELECT MIN(next_attempt_at) FROM jobs WHERE status = 'retrying'", [], |r| r.get(0))?)
+}
+
+/// Claim a runnable job: `running`, one more attempt. False if it is no longer runnable.
+pub fn start_job(conn: &Connection, id: &str, now: &str) -> AppResult<bool> {
+    Ok(conn.execute(
+        "UPDATE jobs SET status = 'running', attempt = attempt + 1, next_attempt_at = NULL, started_at = ?2,
+             finished_at = NULL, updated_at = ?2
+         WHERE id = ?1 AND status IN ('queued', 'retrying')",
+        params![id, now],
+    )? == 1)
+}
+
+/// Final state of a running job. False if it is no longer running (e.g. cancelled).
+pub fn finish_running_job(
+    conn: &Connection,
+    id: &str,
+    status: JobStatus,
+    error: Option<&GenerationErrorRow>,
+    now: &str,
+) -> AppResult<bool> {
+    Ok(conn.execute(
+        "UPDATE jobs SET status = ?2, error_kind = ?3, error_message = ?4, error_retryable = ?5, finished_at = ?6,
+             updated_at = ?6
+         WHERE id = ?1 AND status = 'running'",
+        params![id, status, error.map(|e| &e.kind), error.map(|e| &e.message), error.map(|e| e.retryable), now],
+    )? == 1)
+}
+
+/// A running job's attempt failed with a retryable error. False if it is no longer running.
+pub fn retry_running_job(
+    conn: &Connection,
+    id: &str,
+    error: &GenerationErrorRow,
+    next_attempt_at: &str,
+    now: &str,
+) -> AppResult<bool> {
+    Ok(conn.execute(
+        "UPDATE jobs SET status = 'retrying', next_attempt_at = ?2, error_kind = ?3, error_message = ?4,
+             error_retryable = ?5, updated_at = ?6
+         WHERE id = ?1 AND status = 'running'",
+        params![id, next_attempt_at, error.kind, error.message, error.retryable, now],
+    )? == 1)
+}
+
+/// Cancel a non-terminal job. False if it already ended.
+pub fn cancel_job(conn: &Connection, id: &str, now: &str) -> AppResult<bool> {
+    Ok(conn.execute(
+        "UPDATE jobs SET status = 'cancelled', next_attempt_at = NULL, finished_at = ?2, updated_at = ?2
+         WHERE id = ?1 AND status IN ('queued', 'running', 'retrying')",
+        params![id, now],
+    )? == 1)
+}
+
+/// Startup recovery: jobs still `running` died with the app.
+pub fn interrupt_running_jobs(conn: &Connection, message: &str, now: &str) -> AppResult<usize> {
+    Ok(conn.execute(
+        "UPDATE jobs SET status = 'interrupted', error_kind = 'interrupted', error_message = ?1, error_retryable = 1,
+             finished_at = ?2, updated_at = ?2
+         WHERE status = 'running'",
+        params![message, now],
+    )?)
+}
+
+// ------------------------------------------------------------------ batches
+
+#[derive(Debug, Clone)]
+pub struct BatchRow {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub provider_id: String,
+    pub model_id: String,
+    pub purpose: GenerationPurpose,
+    pub created_at: String,
+}
+
+pub fn insert_batch(conn: &Connection, b: &BatchRow) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO batches (id, project_id, name, provider_id, model_id, purpose, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![b.id, b.project_id, b.name, b.provider_id, b.model_id, b.purpose, b.created_at],
+    )?;
+    Ok(())
+}
+
+fn map_batch(r: &Row<'_>) -> rusqlite::Result<BatchRow> {
+    Ok(BatchRow {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        name: r.get(2)?,
+        provider_id: r.get(3)?,
+        model_id: r.get(4)?,
+        purpose: r.get(5)?,
+        created_at: r.get(6)?,
+    })
+}
+
+/// Newest first.
+pub fn list_batches(conn: &Connection, project_id: &str) -> AppResult<Vec<BatchRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, project_id, name, provider_id, model_id, purpose, created_at FROM batches
+         WHERE project_id = ?1 ORDER BY created_at DESC, id DESC",
+    )?;
+    let rows = stmt.query_map([project_id], map_batch)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+pub fn find_batch(conn: &Connection, id: &str) -> AppResult<Option<BatchRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT id, project_id, name, provider_id, model_id, purpose, created_at FROM batches WHERE id = ?1",
+            [id],
+            map_batch,
+        )
+        .optional()?)
+}
+
+/// `(job id, status)` of a batch, in item order (job retries come after the items).
+pub fn list_batch_jobs(conn: &Connection, batch_id: &str) -> AppResult<Vec<(String, JobStatus)>> {
+    let mut stmt = conn.prepare("SELECT id, status FROM jobs WHERE batch_id = ?1 ORDER BY created_at, id")?;
+    let rows = stmt.query_map([batch_id], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+// ------------------------------------------------------------------ camera anchors
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnchorRow {
+    pub project_id: String,
+    pub camera_id: String,
+    pub asset_id: String,
+    pub approved_at: String,
+}
+
+pub fn list_anchors(conn: &Connection, project_id: &str) -> AppResult<Vec<AnchorRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT project_id, camera_id, asset_id, approved_at FROM camera_anchors
+         WHERE project_id = ?1 ORDER BY approved_at, camera_id",
+    )?;
+    let rows = stmt
+        .query_map([project_id], |r| {
+            Ok(AnchorRow { project_id: r.get(0)?, camera_id: r.get(1)?, asset_id: r.get(2)?, approved_at: r.get(3)? })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+/// Insert or replace the anchor of one camera.
+pub fn upsert_anchor(conn: &Connection, a: &AnchorRow) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO camera_anchors (project_id, camera_id, asset_id, approved_at) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT (project_id, camera_id) DO UPDATE SET asset_id = excluded.asset_id,
+             approved_at = excluded.approved_at",
+        params![a.project_id, a.camera_id, a.asset_id, a.approved_at],
+    )?;
+    Ok(())
+}
+
+pub fn delete_anchor(conn: &Connection, project_id: &str, camera_id: &str) -> AppResult<()> {
+    conn.execute("DELETE FROM camera_anchors WHERE project_id = ?1 AND camera_id = ?2", [project_id, camera_id])?;
+    Ok(())
 }

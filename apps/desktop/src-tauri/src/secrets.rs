@@ -94,6 +94,38 @@ impl SecretStore for MemorySecretStore {
     }
 }
 
+/// Where the development fallback `ARCH_STUDIO_<PROVIDER>_API_KEY` is read from. Injected so
+/// tests and contract fixtures never see a key that happens to be set in the developer's
+/// shell (which would make them call a real paid API).
+pub trait EnvSource: Send + Sync {
+    fn var(&self, name: &str) -> Option<String>;
+}
+
+/// The real process environment (production `AppCore::open`).
+pub struct ProcessEnv;
+
+impl EnvSource for ProcessEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        std::env::var(name).ok()
+    }
+}
+
+/// A fixed environment; `FixedEnv::default()` is empty (tests, fixtures).
+#[derive(Default)]
+pub struct FixedEnv(pub HashMap<String, String>);
+
+impl FixedEnv {
+    pub fn with(name: &str, value: &str) -> Self {
+        Self(HashMap::from([(name.to_string(), value.to_string())]))
+    }
+}
+
+impl EnvSource for FixedEnv {
+    fn var(&self, name: &str) -> Option<String> {
+        self.0.get(name).cloned()
+    }
+}
+
 /// A key ready to hand to an adapter, plus where it came from.
 #[derive(Clone)]
 pub struct ResolvedKey {
@@ -115,7 +147,7 @@ pub fn env_var_name(provider_id: &str) -> String {
 /// Keychain first, then the environment fallback. A keychain that cannot be read is
 /// reported on stderr (without the key) and treated as empty, so the env fallback and the
 /// provider list keep working on machines without a credential store.
-pub fn resolve_key(store: &dyn SecretStore, provider_id: &str) -> Option<ResolvedKey> {
+pub fn resolve_key(store: &dyn SecretStore, env: &dyn EnvSource, provider_id: &str) -> Option<ResolvedKey> {
     match store.get(provider_id) {
         Ok(Some(value)) if !value.trim().is_empty() => {
             return Some(ResolvedKey { value, source: KeySource::Keychain });
@@ -123,8 +155,7 @@ pub fn resolve_key(store: &dyn SecretStore, provider_id: &str) -> Option<Resolve
         Ok(_) => {}
         Err(e) => eprintln!("[secrets] cannot read key for '{provider_id}': {}", e.message),
     }
-    std::env::var(env_var_name(provider_id))
-        .ok()
+    env.var(&env_var_name(provider_id))
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .map(|value| ResolvedKey { value, source: KeySource::Env })
@@ -168,24 +199,25 @@ mod tests {
 
     #[test]
     fn keychain_wins_over_env_and_env_is_fallback() {
-        // Provider id unique to this test so parallel tests never share the variable.
-        let id = "secrets_env_fallback_test";
+        // Injected environment: no global env mutation shared with parallel tests.
+        let id = "gemini";
         let store = MemorySecretStore::default();
-        assert!(resolve_key(&store, id).is_none());
+        let empty = FixedEnv::default();
+        let env = FixedEnv::with(&env_var_name(id), " from-env ");
+        assert!(resolve_key(&store, &empty, id).is_none());
 
-        std::env::set_var(env_var_name(id), " from-env ");
-        let k = resolve_key(&store, id).unwrap();
+        let k = resolve_key(&store, &env, id).unwrap();
         assert_eq!((k.value.as_str(), k.source), ("from-env", KeySource::Env));
 
         store.set(id, "from-keychain").unwrap();
-        let k = resolve_key(&store, id).unwrap();
+        let k = resolve_key(&store, &env, id).unwrap();
         assert_eq!((k.value.as_str(), k.source), ("from-keychain", KeySource::Keychain));
         assert!(!format!("{k:?}").contains("from-keychain"));
 
         store.delete(id).unwrap();
         store.delete(id).unwrap(); // idempotent
-        assert_eq!(resolve_key(&store, id).unwrap().source, KeySource::Env);
-        std::env::remove_var(env_var_name(id));
-        assert!(resolve_key(&store, id).is_none());
+        assert_eq!(resolve_key(&store, &env, id).unwrap().source, KeySource::Env);
+        assert!(resolve_key(&store, &empty, id).is_none());
+        assert!(resolve_key(&store, &FixedEnv::with(&env_var_name(id), "  "), id).is_none(), "blank is no key");
     }
 }

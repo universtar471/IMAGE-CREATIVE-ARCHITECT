@@ -2,34 +2,74 @@
   "command": "version_list",
   "response": [
     {
-      "assetId": "AST_00000000000000000000000004",
+      "assetId": "AST_00000000000000000000000003",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "generationId": null,
-      "id": "VER_00000000000000000000000007",
+      "id": "VER_0000000000000000000000000T",
       "label": "master.png",
       "operation": "import",
       "parentVersionId": null,
-      "projectId": "PRJ_00000000000000000000000005"
+      "projectId": "PRJ_00000000000000000000000004"
     },
     {
-      "assetId": "AST_00000000000000000000000002",
+      "assetId": "AST_00000000000000000000000005",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "generationId": "GEN_00000000000000000000000001",
-      "id": "VER_00000000000000000000000008",
+      "id": "VER_0000000000000000000000000V",
       "label": "Hero 1 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": "VER_00000000000000000000000007",
-      "projectId": "PRJ_00000000000000000000000005"
+      "parentVersionId": "VER_0000000000000000000000000T",
+      "projectId": "PRJ_00000000000000000000000004"
     },
     {
-      "assetId": "AST_00000000000000000000000003",
+      "assetId": "AST_00000000000000000000000006",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "generationId": "GEN_00000000000000000000000001",
-      "id": "VER_00000000000000000000000009",
+      "id": "VER_0000000000000000000000000W",
       "label": "Hero 2 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": "VER_00000000000000000000000007",
-      "projectId": "PRJ_00000000000000000000000005"
+      "parentVersionId": "VER_0000000000000000000000000T",
+      "projectId": "PRJ_00000000000000000000000004"
+    },
+    {
+      "assetId": "AST_0000000000000000000000000P",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_0000000000000000000000000H",
+      "id": "VER_0000000000000000000000000X",
+      "label": "Anchor 1 — Placeholder renderer",
+      "operation": "generate",
+      "parentVersionId": "VER_0000000000000000000000000T",
+      "projectId": "PRJ_00000000000000000000000004"
+    },
+    {
+      "assetId": "AST_0000000000000000000000000Q",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_0000000000000000000000000G",
+      "id": "VER_0000000000000000000000000Y",
+      "label": "Anchor 1 — Placeholder renderer",
+      "operation": "generate",
+      "parentVersionId": "VER_0000000000000000000000000T",
+      "projectId": "PRJ_00000000000000000000000004"
+    },
+    {
+      "assetId": "AST_0000000000000000000000000R",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_0000000000000000000000000J",
+      "id": "VER_0000000000000000000000000Z",
+      "label": "Hero 1 — Test full",
+      "operation": "generate",
+      "parentVersionId": null,
+      "projectId": "PRJ_00000000000000000000000004"
+    },
+    {
+      "assetId": "AST_0000000000000000000000000S",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_0000000000000000000000000B",
+      "id": "VER_00000000000000000000000010",
+      "label": "Hero 1 — Placeholder renderer",
+      "operation": "generate",
+      "parentVersionId": null,
+      "projectId": "PRJ_00000000000000000000000004"
     }
   ]
 }

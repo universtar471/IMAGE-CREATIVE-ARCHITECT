@@ -1,10 +1,13 @@
-//! Synchronous generation with persisted history (ADR-014) and generated-output lineage
-//! (ADR-015).
+//! Generations through the job queue (ADR-017), with persisted history (ADR-014) and
+//! generated-output lineage (ADR-015).
 //!
-//! `submit` = validate everything (no row yet) -> insert a `running` row -> release the DB
-//! lock -> call the provider -> inspect + write outputs -> one transaction that inserts the
-//! assets, versions and output rows and marks the row `completed`. Anything that goes wrong
-//! after the provider was called becomes a `failed` history entry, never a bridge error.
+//! `submit` = validate everything (no row yet) -> insert a `queued` generation and its job in
+//! one transaction -> wake the queue. The queue later calls [`run_job`]: read the references
+//! and the key -> call the provider without the DB lock -> inspect + write outputs -> one
+//! transaction that inserts the assets, versions and output rows and marks the generation and
+//! the job `completed`. Anything that goes wrong after the job started is a job/generation
+//! error (retried or `failed` by the queue), never a bridge error. A job cancelled while its
+//! provider call runs has its result discarded: no rows, no files.
 
 use std::fs;
 use std::sync::Arc;
@@ -12,20 +15,20 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 
-use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus};
+use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus};
 use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
     GenerationParams, ImageProvider, ModelCapabilities, PromptText, ProviderOutput, ProviderRequest, ReferenceImage,
 };
-use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, VersionRow};
+use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
 use crate::services::provider_settings::{find_provider, key_for, not_configured};
-use crate::services::{ensure_not_archived, AppCore};
-use crate::util::{new_id, now_iso, prefix};
+use crate::services::{ensure_not_archived, queue, AppCore};
+use crate::util::{new_id, prefix};
 
 /// Upper bound of `GenerationParamsSchema.outputCount`, whatever the model allows.
 pub const MAX_OUTPUT_COUNT: u32 = 4;
@@ -43,6 +46,9 @@ pub struct SubmitRequest {
     #[serde(default)]
     pub reference_asset_ids: Vec<String>,
     pub params: GenerationParams,
+    /// Camera this render is for; must exist in the project's DNA.
+    #[serde(default)]
+    pub camera_id: Option<String>,
 }
 
 /// What `generations.request_json` holds: the provider-neutral request, never a key.
@@ -54,19 +60,45 @@ struct RequestSnapshot {
     params: GenerationParams,
 }
 
-/// A request that passed every check and is ready to send.
-struct Prepared {
+/// A request that passed every check of API_CONTRACTS §9/§10 and may be enqueued.
+pub(crate) struct Validated {
     project_id: String,
-    provider: Arc<dyn ImageProvider>,
+    provider_id: String,
     model: ModelCapabilities,
     purpose: GenerationPurpose,
     snapshot: RequestSnapshot,
     parent_asset_id: Option<String>,
+    camera_id: Option<String>,
+    camera_name: Option<String>,
+}
+
+impl Validated {
+    /// Default job label, e.g. "Front corner — anchor" or "Placeholder renderer — hero".
+    pub(crate) fn default_label(&self) -> String {
+        format!("{} — {}", self.camera_name.as_deref().unwrap_or(&self.model.label), self.purpose.as_str())
+    }
+}
+
+/// Where a queued generation belongs and how it is shown in the Jobs tray.
+pub(crate) struct JobOptions {
+    pub label: String,
+    pub priority: i64,
+    pub batch_id: Option<String>,
+}
+
+/// A job that is running and ready to send: everything read, key resolved.
+struct Prepared {
+    job_id: String,
+    generation: GenerationRow,
+    provider: Arc<dyn ImageProvider>,
+    model: ModelCapabilities,
+    purpose: GenerationPurpose,
+    snapshot: RequestSnapshot,
     references: Vec<ReferenceImage>,
     api_key: Option<String>,
 }
 
-/// Why a generation ended `failed` after the provider was called.
+/// Why a job attempt ended without outputs.
 #[derive(Debug)]
 struct Failure(GenerationErrorRow);
 
@@ -76,22 +108,50 @@ impl Failure {
     }
 }
 
-/// Local DB / file failure while saving outputs: kind `io` (see the agent note).
-impl From<AppError> for Failure {
-    fn from(e: AppError) -> Self {
-        Failure::new("io", format!("The generated images could not be saved: {}", e.message), true)
+/// How a run stops early.
+#[derive(Debug)]
+enum Stop {
+    Failed(Failure),
+    /// The job is no longer running (cancelled): drop the result, write nothing.
+    Discarded,
+}
+
+impl From<Failure> for Stop {
+    fn from(f: Failure) -> Self {
+        Stop::Failed(f)
     }
 }
 
+/// Local DB / file failure while saving outputs: kind `io` (see the Phase 2 agent note).
+impl From<AppError> for Stop {
+    fn from(e: AppError) -> Self {
+        Stop::Failed(Failure::new("io", format!("The generated images could not be saved: {}", e.message), true))
+    }
+}
+
+/// Result of one job attempt, for the queue's bookkeeping.
+#[derive(Debug)]
+pub(crate) enum RunOutcome {
+    /// Outputs stored; the generation and the job are already `completed`.
+    Completed,
+    /// The job was cancelled during the attempt; nothing was written.
+    Discarded,
+    /// The attempt failed; the queue decides between `retrying` and `failed`.
+    Failed { error: GenerationErrorRow, duration_ms: i64 },
+}
+
 pub fn parse_purpose(s: &str) -> AppResult<GenerationPurpose> {
-    GenerationPurpose::parse(s)
-        .ok_or_else(|| AppError::validation(format!("Unknown generation purpose '{s}'. Use 'hero' or 'variation'.")))
+    GenerationPurpose::parse(s).ok_or_else(|| {
+        let known: Vec<&str> = GenerationPurpose::ALL.iter().map(|p| p.as_str()).collect();
+        AppError::validation(format!("Unknown generation purpose '{s}'. Use one of: {}.", known.join(", ")))
+    })
 }
 
 // ------------------------------------------------------------------ validation
 
-/// Every check of API_CONTRACTS §9, before any row is written or any byte is sent.
-fn prepare(core: &AppCore, req: SubmitRequest) -> AppResult<Prepared> {
+/// Every check of API_CONTRACTS §9/§10, before any row is written. Reads no image bytes and
+/// does not keep the key: both are fetched again when the job runs.
+pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validated> {
     let purpose = parse_purpose(&req.purpose)?;
     let provider = find_provider(core, &req.provider_id)?;
     let info = provider.info();
@@ -101,8 +161,7 @@ fn prepare(core: &AppCore, req: SubmitRequest) -> AppResult<Prepared> {
         .ok_or_else(|| AppError::not_found(&format!("Model of {}", info.label), &req.model_id))?;
     validate_against_model(&req, &model)?;
 
-    // Project + reference rows under the lock; file reads after releasing it.
-    let (project, assets) = {
+    let (project, assets, camera_name) = {
         let conn = core.conn()?;
         let project = repo::get_project(&conn, &req.project_id)?;
         ensure_not_archived(&project)?;
@@ -111,24 +170,25 @@ fn prepare(core: &AppCore, req: SubmitRequest) -> AppResult<Prepared> {
             .iter()
             .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
-        (project, assets)
+        let camera_name = match &req.camera_id {
+            Some(id) => Some(camera_name(&repo::get_dna(&conn, &project.id)?, id)?),
+            None => None,
+        };
+        (project, assets, camera_name)
     };
-    let references = assets.iter().map(|a| read_reference(core, a)).collect::<AppResult<Vec<_>>>()?;
 
     // Lineage anchor: the master if referenced, else the first reference.
     let master = project.active_master_asset_id.as_deref();
     let parent_asset_id =
         assets.iter().find(|a| Some(a.id.as_str()) == master).or_else(|| assets.first()).map(|a| a.id.clone());
 
-    let api_key = if info.requires_api_key {
-        Some(key_for(core, provider.as_ref()).ok_or_else(|| not_configured(provider.as_ref()))?.value)
-    } else {
-        None
-    };
+    if info.requires_api_key && key_for(core, provider.as_ref()).is_none() {
+        return Err(not_configured(provider.as_ref()));
+    }
 
-    Ok(Prepared {
+    Ok(Validated {
         project_id: project.id,
-        provider,
+        provider_id: info.id.to_string(),
         model,
         purpose,
         snapshot: RequestSnapshot {
@@ -137,9 +197,22 @@ fn prepare(core: &AppCore, req: SubmitRequest) -> AppResult<Prepared> {
             params: req.params,
         },
         parent_asset_id,
-        references,
-        api_key,
+        camera_id: req.camera_id,
+        camera_name,
     })
+}
+
+/// Display name of a DNA camera; `VALIDATION_ERROR` if the DNA has no camera with this id.
+fn camera_name(dna: &Value, camera_id: &str) -> AppResult<String> {
+    let camera = dna
+        .get("cameras")
+        .and_then(Value::as_array)
+        .and_then(|cams| cams.iter().find(|c| c.get("id").and_then(Value::as_str) == Some(camera_id)))
+        .ok_or_else(|| {
+            AppError::validation(format!("Camera '{camera_id}' is not in this project's DNA. Reload the cameras."))
+                .with_details(json!({ "cameraId": camera_id }))
+        })?;
+    Ok(camera.get("name").and_then(Value::as_str).unwrap_or(camera_id).to_string())
 }
 
 fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> AppResult<()> {
@@ -219,8 +292,8 @@ fn missing_reference(a: &AssetRow) -> AppError {
 }
 
 /// A reference must exist, belong to the project (`NOT_FOUND` otherwise) and be ready with
-/// its managed file present (`INVALID_STATE` otherwise). Runs at validation and again in the
-/// lock scope of the row insert, so a reference removed in between is never sent.
+/// its managed file present (`INVALID_STATE` otherwise). Runs at validation, again in the
+/// transaction that enqueues, and again when the job starts.
 fn check_reference(core: &AppCore, conn: &Connection, project_id: &str, asset_id: &str) -> AppResult<AssetRow> {
     let asset = match repo::find_asset(conn, asset_id)? {
         Some(a) if a.project_id == project_id => a,
@@ -244,54 +317,206 @@ fn read_reference(core: &AppCore, a: &AssetRow) -> AppResult<ReferenceImage> {
     Ok(ReferenceImage { asset_id: a.id.clone(), role: a.role.as_str().to_string(), mime_type, bytes })
 }
 
-// ------------------------------------------------------------------ submit
+// ------------------------------------------------------------------ enqueue
 
 #[cfg(test)]
 thread_local! {
     /// Runs between validation and the row insert (no lock held), to race the insert in tests.
-    static AFTER_PREPARE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+    pub(crate) static AFTER_PREPARE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+    /// Runs after the outputs were written to disk and before their transaction, to race it.
+    pub(crate) static BEFORE_COMMIT: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
 }
 
+/// Validate, enqueue one job and return the `queued` generation. Validation errors are
+/// `AppError`s and nothing is enqueued.
 pub fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
-    let prepared = prepare(core, req)?;
+    let validated = validate(core, req)?;
     #[cfg(test)]
     if let Some(hook) = AFTER_PREPARE.with(|h| h.borrow_mut().take()) {
         hook();
     }
+    let options = JobOptions { label: validated.default_label(), priority: 0, batch_id: None };
+    let (generation_id, job_id) = {
+        let mut conn = core.conn()?;
+        let tx = conn.transaction()?;
+        let ids = insert_queued(core, &tx, &validated, &options, &core.now_iso())?;
+        tx.commit()?;
+        ids
+    };
+    queue::enqueued(core, &[job_id]);
+    get(core, &validated.project_id, &generation_id)
+}
 
-    // 1. persist the running row (the project may have been archived since validation)
-    let now = now_iso();
-    let row = GenerationRow {
+/// Insert one `queued` generation and its job inside the caller's transaction. The project
+/// may have been archived, and references removed, since validation: both are checked again.
+/// Returns `(generation id, job id)`.
+pub(crate) fn insert_queued(
+    core: &AppCore,
+    conn: &Connection,
+    v: &Validated,
+    options: &JobOptions,
+    now: &str,
+) -> AppResult<(String, String)> {
+    ensure_not_archived(&repo::get_project(conn, &v.project_id)?)?;
+    for id in &v.snapshot.reference_asset_ids {
+        check_reference(core, conn, &v.project_id, id)?;
+    }
+    let generation = GenerationRow {
         id: new_id(prefix::GENERATION),
-        project_id: prepared.project_id.clone(),
-        provider_id: prepared.provider.info().id.to_string(),
-        model_id: prepared.model.id.clone(),
-        purpose: prepared.purpose,
-        status: GenerationStatus::Running,
-        request_json: serde_json::to_string(&prepared.snapshot)
+        project_id: v.project_id.clone(),
+        provider_id: v.provider_id.clone(),
+        model_id: v.model.id.clone(),
+        purpose: v.purpose,
+        status: GenerationStatus::Queued,
+        request_json: serde_json::to_string(&v.snapshot)
             .map_err(|e| AppError::new(ErrorCode::DbError, format!("Cannot record the request: {e}")))?,
-        parent_asset_id: prepared.parent_asset_id.clone(),
+        parent_asset_id: v.parent_asset_id.clone(),
         error_kind: None,
         error_message: None,
         error_retryable: None,
-        started_at: now.clone(),
+        started_at: now.to_string(),
         finished_at: None,
         duration_ms: None,
-        created_at: now.clone(),
-        updated_at: now,
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+        camera_id: v.camera_id.clone(),
+        batch_id: options.batch_id.clone(),
+        job_id: None,
+        job_started_at: None,
     };
-    {
-        let conn = core.conn()?;
-        ensure_not_archived(&repo::get_project(&conn, &row.project_id)?)?;
-        // References may have been removed or lost their file since validation.
-        for id in &prepared.snapshot.reference_asset_ids {
-            check_reference(core, &conn, &row.project_id, id)?;
-        }
-        repo::insert_generation(&conn, &row)?;
-    } // DB lock released: the provider call below must never hold it.
+    repo::insert_generation(conn, &generation)?;
+    let job = JobRow {
+        id: new_id(prefix::JOB),
+        project_id: v.project_id.clone(),
+        batch_id: options.batch_id.clone(),
+        generation_id: generation.id.clone(),
+        provider_id: v.provider_id.clone(),
+        label: options.label.clone(),
+        status: JobStatus::Queued,
+        priority: options.priority,
+        attempt: 0,
+        max_attempts: queue::MAX_ATTEMPTS,
+        next_attempt_at: None,
+        error_kind: None,
+        error_message: None,
+        error_retryable: None,
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+        started_at: None,
+        finished_at: None,
+        model_id: v.model.id.clone(),
+        camera_id: v.camera_id.clone(),
+    };
+    repo::insert_job(conn, &job)?;
+    Ok((generation.id, job.id))
+}
 
-    // 2. provider call
+/// The provider-neutral request of an existing generation, for `job_retry`.
+pub(crate) fn request_of(conn: &Connection, generation_id: &str) -> AppResult<SubmitRequest> {
+    let row =
+        repo::find_generation(conn, generation_id)?.ok_or_else(|| AppError::not_found("Generation", generation_id))?;
+    let snapshot = snapshot_of(&row)?;
+    Ok(SubmitRequest {
+        project_id: row.project_id,
+        provider_id: row.provider_id,
+        model_id: row.model_id,
+        purpose: row.purpose.as_str().to_string(),
+        prompt: snapshot.prompt,
+        reference_asset_ids: snapshot.reference_asset_ids,
+        params: snapshot.params,
+        camera_id: row.camera_id,
+    })
+}
+
+// ------------------------------------------------------------------ run (called by the queue)
+
+/// Run one attempt of a job the queue has just marked `running`.
+pub(crate) fn run_job(core: &AppCore, job_id: &str) -> RunOutcome {
     let clock = Instant::now();
+    let stop = match prepare_run(core, job_id) {
+        Ok(prepared) => match call_and_store(core, &prepared, &clock) {
+            Ok(()) => return RunOutcome::Completed,
+            Err(stop) => stop,
+        },
+        Err(stop) => stop,
+    };
+    match stop {
+        Stop::Discarded => RunOutcome::Discarded,
+        Stop::Failed(f) => RunOutcome::Failed { error: f.0, duration_ms: elapsed_ms(&clock) },
+    }
+}
+
+/// A job that can no longer be sent as queued: not retryable automatically.
+fn not_runnable(message: impl Into<String>) -> Stop {
+    Stop::Failed(Failure::new("invalid_request", message, false))
+}
+
+fn job_is_running(core: &AppCore, job_id: &str) -> Result<bool, Stop> {
+    let conn = core.conn()?;
+    Ok(repo::get_job(&conn, job_id)?.status == JobStatus::Running)
+}
+
+/// Load the generation, re-check and read its references, resolve the key. Things that
+/// changed since the job was queued fail the attempt, they are not bridge errors.
+fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
+    let (job, generation, assets) = {
+        let conn = core.conn()?;
+        let job = repo::get_job(&conn, job_id)?;
+        if job.status != JobStatus::Running {
+            return Err(Stop::Discarded);
+        }
+        let generation = repo::find_generation(&conn, &job.generation_id)?
+            .ok_or_else(|| AppError::not_found("Generation", &job.generation_id))?;
+        let project = repo::get_project(&conn, &generation.project_id)?;
+        if project.archived_at.is_some() {
+            return Err(not_runnable(format!("'{}' was archived before this job started.", project.name)));
+        }
+        let snapshot = snapshot_of(&generation)?;
+        let assets = snapshot
+            .reference_asset_ids
+            .iter()
+            .map(|id| check_reference(core, &conn, &generation.project_id, id))
+            .collect::<AppResult<Vec<_>>>()
+            .map_err(|e| not_runnable(e.message))?;
+        (job, generation, assets)
+    };
+    let references = assets
+        .iter()
+        .map(|a| read_reference(core, a))
+        .collect::<AppResult<Vec<_>>>()
+        .map_err(|e| not_runnable(e.message))?;
+    let provider = core.providers.get(&generation.provider_id).ok_or_else(|| {
+        not_runnable(format!("Provider '{}' is not available in this build.", generation.provider_id))
+    })?;
+    let info = provider.info();
+    let model = info
+        .model(&generation.model_id)
+        .cloned()
+        .ok_or_else(|| not_runnable(format!("{} no longer offers model '{}'.", info.label, generation.model_id)))?;
+    let api_key = if info.requires_api_key {
+        let key = key_for(core, provider.as_ref())
+            .ok_or_else(|| Stop::Failed(Failure::new("auth", not_configured(provider.as_ref()).message, false)))?;
+        Some(key.value)
+    } else {
+        None
+    };
+    let snapshot = snapshot_of(&generation)?;
+    Ok(Prepared {
+        job_id: job.id,
+        purpose: generation.purpose,
+        generation,
+        provider,
+        model,
+        snapshot,
+        references,
+        api_key,
+    })
+}
+
+/// The provider call (no DB lock held), then storage of the outputs.
+fn call_and_store(core: &AppCore, prepared: &Prepared, clock: &Instant) -> Result<(), Stop> {
     let request = ProviderRequest {
         model_id: prepared.model.id.clone(),
         prompt: PromptText {
@@ -306,27 +531,12 @@ pub fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
     };
     let result = prepared.provider.generate(&request);
     drop(request);
-
-    // 3. store outputs, or record the failure
-    let failure = match result {
-        Err(e) => Failure::new(e.kind.as_str(), e.message, e.kind.retryable()),
-        Ok(output) => match store_outputs(core, &prepared, &row, output, &clock) {
-            Ok(()) => return get(core, &row.project_id, &row.id),
-            Err(f) => f,
-        },
-    };
-    {
-        let conn = core.conn()?;
-        repo::finish_generation(
-            &conn,
-            &row.id,
-            GenerationStatus::Failed,
-            Some(&failure.0),
-            &now_iso(),
-            elapsed_ms(&clock),
-        )?;
+    let output = result.map_err(|e| Failure::new(e.kind.as_str(), e.message, e.kind.retryable()))?;
+    // Cancelled during the call: drop the result before writing anything.
+    if !job_is_running(core, &prepared.job_id)? {
+        return Err(Stop::Discarded);
     }
-    get(core, &row.project_id, &row.id)
+    store_outputs(core, prepared, output, clock)
 }
 
 fn elapsed_ms(clock: &Instant) -> i64 {
@@ -334,16 +544,11 @@ fn elapsed_ms(clock: &Instant) -> i64 {
 }
 
 /// Fully decode every image, write the files, then commit all rows in one transaction.
-/// On any failure no asset row survives and every written file is removed.
-fn store_outputs(
-    core: &AppCore,
-    prepared: &Prepared,
-    generation: &GenerationRow,
-    output: ProviderOutput,
-    clock: &Instant,
-) -> Result<(), Failure> {
+/// On any failure (or a cancel that lands before the commit) no asset row survives and every
+/// written file is removed.
+fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, clock: &Instant) -> Result<(), Stop> {
     if output.images.is_empty() {
-        return Err(Failure::new("bad_response", "The provider returned no image.", true));
+        return Err(Failure::new("bad_response", "The provider returned no image.", true).into());
     }
     // A provider that returns more than asked for: keep the requested count only.
     let images: Vec<_> = output.images.into_iter().take(prepared.snapshot.params.output_count as usize).collect();
@@ -365,6 +570,7 @@ fn store_outputs(
         })
         .collect::<Result<Vec<_>, Failure>>()?;
 
+    let generation = &prepared.generation;
     let mut stored: Vec<StoredImage> = Vec::new();
     let cleanup = |stored: &[StoredImage]| {
         for s in stored {
@@ -389,8 +595,12 @@ fn store_outputs(
         }
     }
 
+    #[cfg(test)]
+    if let Some(hook) = BEFORE_COMMIT.with(|h| h.borrow_mut().take()) {
+        hook();
+    }
     let inspected: Vec<&Inspection> = checked.iter().map(|(info, _)| info).collect();
-    let result = commit_outputs(core, prepared, generation, &stored, &inspected, clock);
+    let result = commit_outputs(core, prepared, &stored, &inspected, clock);
     if result.is_err() {
         cleanup(&stored);
     }
@@ -400,23 +610,28 @@ fn store_outputs(
 fn commit_outputs(
     core: &AppCore,
     prepared: &Prepared,
-    generation: &GenerationRow,
     stored: &[StoredImage],
     inspected: &[&Inspection],
     clock: &Instant,
-) -> Result<(), Failure> {
+) -> Result<(), Stop> {
+    let generation = &prepared.generation;
     let mut conn = core.conn()?;
     let tx = conn.transaction().map_err(AppError::from)?;
+    // Cancel runs under the same DB lock, so this check and the commit below are atomic.
+    if repo::get_job(&tx, &prepared.job_id)?.status != JobStatus::Running {
+        return Err(Stop::Discarded);
+    }
     let project = repo::get_project(&tx, &generation.project_id)?;
     if project.archived_at.is_some() {
         return Err(Failure::new(
             "interrupted",
             format!("'{}' was archived while the image was generating, so the results were discarded.", project.name),
             false,
-        ));
+        )
+        .into());
     }
     // The parent may have been removed during the call; the FK would reject a dangling id.
-    let parent_asset_id = match &prepared.parent_asset_id {
+    let parent_asset_id = match &generation.parent_asset_id {
         Some(id) if repo::find_asset(&tx, id)?.is_some() => Some(id.clone()),
         _ => None,
     };
@@ -424,7 +639,7 @@ fn commit_outputs(
         Some(id) => repo::latest_version_id(&tx, id)?,
         None => None,
     };
-    let now = now_iso();
+    let now = core.now_iso();
     for (index, (files, info)) in stored.iter().zip(inspected).enumerate() {
         let asset_id = &files.asset_id;
         let index = index as u32;
@@ -475,23 +690,42 @@ fn commit_outputs(
         )?;
         repo::insert_generation_output(&tx, &generation.id, index, asset_id)?;
     }
-    repo::finish_generation(&tx, &generation.id, GenerationStatus::Completed, None, &now, elapsed_ms(clock))?;
+    repo::finish_generation(&tx, &generation.id, GenerationStatus::Completed, None, &now, Some(elapsed_ms(clock)))?;
+    repo::finish_running_job(&tx, &prepared.job_id, JobStatus::Completed, None, &now)?;
     tx.commit().map_err(AppError::from)?;
     Ok(())
 }
 
 // ------------------------------------------------------------------ read
 
-fn to_dto(conn: &Connection, row: GenerationRow) -> AppResult<GenerationDto> {
-    let snapshot: RequestSnapshot = serde_json::from_str(&row.request_json).map_err(|e| {
+fn snapshot_of(row: &GenerationRow) -> AppResult<RequestSnapshot> {
+    serde_json::from_str(&row.request_json).map_err(|e| {
         AppError::new(ErrorCode::DbError, format!("Stored request of generation '{}' is not valid: {e}", row.id))
-    })?;
-    let output_asset_ids = repo::list_generation_outputs(conn, &row.id)?;
-    let error = row.error_kind.map(|kind| GenerationErrorDto {
+    })
+}
+
+pub(crate) fn error_dto(
+    kind: Option<String>,
+    message: Option<String>,
+    retryable: Option<bool>,
+) -> Option<GenerationErrorDto> {
+    kind.map(|kind| GenerationErrorDto {
         kind,
-        message: row.error_message.unwrap_or_default(),
-        retryable: row.error_retryable.unwrap_or(false),
-    });
+        message: message.unwrap_or_default(),
+        retryable: retryable.unwrap_or(false),
+    })
+}
+
+fn to_dto(conn: &Connection, row: GenerationRow) -> AppResult<GenerationDto> {
+    let snapshot = snapshot_of(&row)?;
+    let output_asset_ids = repo::list_generation_outputs(conn, &row.id)?;
+    // Queued (or waiting for a retry): nothing runs now. Job-backed rows take the latest
+    // attempt's start from the job (`None` if cancelled before it ever started).
+    let started_at = match (row.status, &row.job_id) {
+        (GenerationStatus::Queued, _) => None,
+        (_, Some(_)) => row.job_started_at,
+        (_, None) => Some(row.started_at),
+    };
     Ok(GenerationDto {
         id: row.id,
         project_id: row.project_id,
@@ -504,11 +738,22 @@ fn to_dto(conn: &Connection, row: GenerationRow) -> AppResult<GenerationDto> {
         params: snapshot.params,
         parent_asset_id: row.parent_asset_id,
         output_asset_ids,
-        error,
-        started_at: row.started_at,
+        error: error_dto(row.error_kind, row.error_message, row.error_retryable),
+        camera_id: row.camera_id,
+        batch_id: row.batch_id,
+        job_id: row.job_id,
+        created_at: row.created_at,
+        started_at,
         finished_at: row.finished_at,
         duration_ms: row.duration_ms,
     })
+}
+
+/// One generation by id, under a lock the caller already holds.
+pub(crate) fn dto_by_id(conn: &Connection, generation_id: &str) -> AppResult<GenerationDto> {
+    let row =
+        repo::find_generation(conn, generation_id)?.ok_or_else(|| AppError::not_found("Generation", generation_id))?;
+    to_dto(conn, row)
 }
 
 /// Newest first.
@@ -527,9 +772,11 @@ pub fn get(core: &AppCore, project_id: &str, generation_id: &str) -> AppResult<G
     }
 }
 
-/// Startup recovery (ADR-014): a row still `running` means the app died mid-call.
-pub fn recover_interrupted(conn: &Connection) -> AppResult<usize> {
-    repo::interrupt_running_generations(conn, INTERRUPTED_MESSAGE, &now_iso())
+/// Startup recovery (ADR-014/017): a job or generation still `running` means the app died
+/// mid-call. Interrupted jobs are never re-sent automatically (remote calls cost money).
+pub fn recover_interrupted(conn: &Connection, now: &str) -> AppResult<usize> {
+    repo::interrupt_running_jobs(conn, INTERRUPTED_MESSAGE, now)?;
+    repo::interrupt_running_generations(conn, INTERRUPTED_MESSAGE, now)
 }
 
 #[cfg(test)]
@@ -547,8 +794,14 @@ mod tests {
     use crate::services::projects;
     use crate::services::provider_settings;
     use crate::services::tests_support::{
-        core_with_double, open_test_core, test_create_villa, write_png, TestBehavior, TEST_PROVIDER,
+        core_with_double, open_test_core, submit_and_run, test_create_villa, write_png, TestBehavior, TEST_PROVIDER,
     };
+
+    /// Phase 2 tests check a whole run: submit, then let the queue run it on this thread.
+    /// Shadows `super::submit` inside this module.
+    fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
+        submit_and_run(core, req)
+    }
 
     fn bundle(positive: &str) -> PromptBundle {
         let metadata = json!({ "moduleId": "generate", "dnaVersion": 1 });
@@ -581,6 +834,7 @@ mod tests {
             prompt: bundle("Tropical villa at dusk"),
             reference_asset_ids: refs.iter().map(|s| s.to_string()).collect(),
             params,
+            camera_id: None,
         }
     }
 
@@ -785,7 +1039,8 @@ mod tests {
         set_key(&core, "k");
         let p = test_create_villa(&core, "A");
         let cases = [
-            (TestBehavior::Fail(ProviderErrorKind::RateLimited), "rate_limited", true),
+            // Auto-retried kinds (rate_limited, network, timeout) are covered in queue tests.
+            (TestBehavior::Fail(ProviderErrorKind::Blocked), "blocked", false),
             (TestBehavior::Fail(ProviderErrorKind::Auth), "auth", false),
             (TestBehavior::NotAnImage, "bad_response", true),
             (TestBehavior::NoImages, "bad_response", true),
@@ -945,10 +1200,14 @@ mod tests {
         assert_eq!(
             keys(&value),
             [
+                "batchId",
+                "cameraId",
+                "createdAt",
                 "durationMs",
                 "error",
                 "finishedAt",
                 "id",
+                "jobId",
                 "modelId",
                 "outputAssetIds",
                 "params",
