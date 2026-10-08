@@ -1,0 +1,48 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "townhouse",
+  "subtype": "narrow_lot",
+  "label": "Very narrow lot (4 m or less)",
+  "description": "Ultra-narrow townhouse where the facade is a single bay.",
+  "defaults": {
+    "building": {
+      "buildingType": "townhouse",
+      "floors": 5,
+      "dimensions": {
+        "widthM": 3.5,
+        "depthM": 15
+      },
+      "massing": {
+        "composition": "single-bay vertical facade"
+      },
+      "openings": {
+        "rhythm": "one opening per floor"
+      }
+    },
+    "context": {
+      "macroContext": "dense Vietnamese urban alley",
+      "climateContext": "tropical monsoon",
+      "density": "very_high",
+      "left": {
+        "adjacentBuildings": ["attached neighbouring house"]
+      },
+      "right": {
+        "adjacentBuildings": ["attached neighbouring house"]
+      }
+    }
+  },
+  "styleSuggestions": ["Modern tropical", "Minimalist"],
+  "contextPresets": [
+    {
+      "id": "alley",
+      "label": "Small alley (hem)",
+      "context": {
+        "front": {
+          "spaceType": "narrow alley",
+          "roadType": "2-3 m alley"
+        }
+      }
+    }
+  ],
+  "negativeConstraints": ["facade wider than one bay", "side windows on party walls"]
+}

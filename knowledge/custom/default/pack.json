@@ -1,0 +1,14 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "custom",
+  "subtype": "default",
+  "label": "Generic",
+  "description": "Generic fallback used when no specific pack exists.",
+  "defaults": {
+    "building": {},
+    "context": {}
+  },
+  "styleSuggestions": ["Modern", "Contemporary", "Minimalist"],
+  "contextPresets": [],
+  "negativeConstraints": ["cars blocking the facade", "people in the foreground"]
+}

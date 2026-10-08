@@ -1,0 +1,67 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "villa",
+  "subtype": "tropical",
+  "label": "Tropical villa",
+  "description": "Open tropical villa with deep overhangs, natural materials and lush planting.",
+  "defaults": {
+    "building": {
+      "buildingType": "villa",
+      "architecturalStyle": "Modern tropical",
+      "floors": 2,
+      "roof": {
+        "type": "flat roof with deep overhangs",
+        "overhang": "deep"
+      },
+      "openings": {
+        "windowType": "full-height sliding glass doors",
+        "frame": "slim dark"
+      },
+      "materials": [
+        {
+          "zone": "walls",
+          "description": "white render"
+        },
+        {
+          "zone": "accents",
+          "description": "warm timber louvres"
+        }
+      ]
+    },
+    "context": {
+      "macroContext": "tropical villa compound",
+      "climateContext": "hot humid tropical",
+      "density": "low",
+      "front": {
+        "vegetation": ["palms", "tropical shrubs"]
+      }
+    }
+  },
+  "styleSuggestions": ["Modern tropical", "Tropical minimalist", "Bali style"],
+  "contextPresets": [
+    {
+      "id": "garden_pool",
+      "label": "Garden + rear pool",
+      "context": {
+        "front": {
+          "spaceType": "front garden",
+          "roadType": "private driveway"
+        },
+        "rear": {
+          "spaceType": "swimming pool and garden"
+        }
+      }
+    },
+    {
+      "id": "resort",
+      "label": "Beach resort",
+      "context": {
+        "front": {
+          "spaceType": "resort landscape"
+        },
+        "distantBackground": ["sea horizon"]
+      }
+    }
+  ],
+  "negativeConstraints": ["snow", "bare deciduous trees", "dense urban street"]
+}

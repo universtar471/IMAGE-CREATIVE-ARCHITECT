@@ -1,0 +1,36 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "interior",
+  "subtype": "default",
+  "label": "Interior space",
+  "description": "Interior room or open-plan space.",
+  "defaults": {
+    "building": {
+      "buildingType": "interior space"
+    },
+    "context": {
+      "macroContext": "residential apartment"
+    }
+  },
+  "styleSuggestions": ["Japandi", "Modern", "Minimalist", "Indochine", "Wabi-sabi", "Scandinavian"],
+  "contextPresets": [
+    {
+      "id": "city_view",
+      "label": "City view windows",
+      "context": {
+        "distantBackground": ["city skyline through windows"]
+      }
+    },
+    {
+      "id": "garden_view",
+      "label": "Garden view",
+      "context": {
+        "distantBackground": ["garden visible through glazing"]
+      }
+    }
+  ],
+  "negativeConstraints": ["exterior facade", "fisheye distortion", "cluttered surfaces"],
+  "promptVocabulary": {
+    "framing": "interior view"
+  }
+}

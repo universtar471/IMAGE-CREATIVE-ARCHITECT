@@ -1,0 +1,54 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "urban_villa",
+  "subtype": "default",
+  "label": "Urban villa",
+  "description": "Villa on a compact urban plot in a new residential area, partially attached.",
+  "defaults": {
+    "building": {
+      "buildingType": "urban villa",
+      "floors": 3,
+      "dimensions": {
+        "widthM": 10,
+        "depthM": 20
+      }
+    },
+    "context": {
+      "macroContext": "new urban residential area",
+      "climateContext": "tropical monsoon",
+      "density": "medium"
+    }
+  },
+  "styleSuggestions": ["Modern", "Neo-classical", "Modern tropical", "Indochine"],
+  "contextPresets": [
+    {
+      "id": "residential_street",
+      "label": "Residential street",
+      "context": {
+        "front": {
+          "spaceType": "small front yard with gate",
+          "roadType": "residential street",
+          "vegetation": ["street trees"]
+        },
+        "left": {
+          "adjacentBuildings": ["neighbouring villa"]
+        },
+        "right": {
+          "adjacentBuildings": ["neighbouring villa"]
+        }
+      }
+    },
+    {
+      "id": "new_urban_area",
+      "label": "New urban area",
+      "context": {
+        "front": {
+          "spaceType": "front yard",
+          "roadType": "wide planned boulevard"
+        },
+        "distantBackground": ["mid-rise apartment blocks"]
+      }
+    }
+  ],
+  "negativeConstraints": ["rural landscape", "very large garden"]
+}
