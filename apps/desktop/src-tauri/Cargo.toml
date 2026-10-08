@@ -1,0 +1,30 @@
+[package]
+name = "arch-ai-studio"
+version = "0.1.0"
+description = "AI Architecture Image Studio"
+edition = "2021"
+publish = false
+
+[lib]
+name = "arch_ai_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = "2.7.1"
+
+[dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+hex = "0.4.3"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
+jsonschema = { version = "0.58.6", default-features = false }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+tauri = { version = "2.12.1", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2.8.1"
+thiserror = "2.0.21"
+ulid = "3.0.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"

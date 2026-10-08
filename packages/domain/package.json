@@ -1,0 +1,18 @@
+{
+  "name": "@arch/domain",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "schema:export": "tsx scripts/export-json-schema.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

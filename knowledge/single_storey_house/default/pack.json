@@ -1,0 +1,74 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "single_storey_house",
+  "subtype": "default",
+  "label": "Single-storey house",
+  "description": "One-level detached house, typically suburban or rural.",
+  "defaults": {
+    "building": {
+      "buildingType": "single-storey house",
+      "floors": 1,
+      "roof": {
+        "type": "pitched roof",
+        "overhang": "deep"
+      }
+    },
+    "context": {
+      "macroContext": "Vietnamese suburban or rural plot",
+      "climateContext": "tropical",
+      "density": "low"
+    }
+  },
+  "styleSuggestions": [
+    "Modern tropical",
+    "Japandi",
+    "Contemporary farmhouse",
+    "Minimalist"
+  ],
+  "contextPresets": [
+    {
+      "id": "garden",
+      "label": "Garden plot",
+      "context": {
+        "front": {
+          "spaceType": "front garden",
+          "vegetation": [
+            "lawn",
+            "frangipani trees"
+          ]
+        },
+        "rear": {
+          "spaceType": "back garden"
+        }
+      }
+    },
+    {
+      "id": "suburban",
+      "label": "Suburban street",
+      "context": {
+        "front": {
+          "spaceType": "front yard with gate",
+          "roadType": "quiet residential road"
+        }
+      }
+    },
+    {
+      "id": "rural",
+      "label": "Rural / countryside",
+      "context": {
+        "front": {
+          "spaceType": "courtyard",
+          "roadType": "village road"
+        },
+        "distantBackground": [
+          "rice fields",
+          "low hills"
+        ]
+      }
+    }
+  ],
+  "negativeConstraints": [
+    "second floor",
+    "urban high-rise background"
+  ]
+}

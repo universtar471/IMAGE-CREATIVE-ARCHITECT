@@ -1,0 +1,96 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "townhouse",
+  "subtype": "default",
+  "label": "Standard townhouse",
+  "description": "Vietnamese tube house / townhouse on a narrow deep plot with a single street frontage.",
+  "defaults": {
+    "building": {
+      "buildingType": "townhouse",
+      "floors": 4,
+      "dimensions": {
+        "widthM": 5,
+        "depthM": 20
+      },
+      "massing": {
+        "composition": "narrow vertical facade with stacked balconies"
+      },
+      "roof": {
+        "type": "flat roof with roof terrace"
+      }
+    },
+    "context": {
+      "macroContext": "dense Vietnamese urban street",
+      "climateContext": "tropical monsoon",
+      "density": "high",
+      "left": {
+        "adjacentBuildings": [
+          "attached neighbouring townhouse"
+        ]
+      },
+      "right": {
+        "adjacentBuildings": [
+          "attached neighbouring townhouse"
+        ]
+      }
+    }
+  },
+  "styleSuggestions": [
+    "Modern tropical",
+    "Minimalist",
+    "Indochine",
+    "Neo-classical"
+  ],
+  "contextPresets": [
+    {
+      "id": "alley",
+      "label": "Small alley (hem)",
+      "context": {
+        "front": {
+          "spaceType": "narrow residential alley",
+          "roadType": "3 m concrete alley",
+          "elements": [
+            "motorbikes parked",
+            "potted plants"
+          ]
+        }
+      }
+    },
+    {
+      "id": "street",
+      "label": "Small street frontage",
+      "context": {
+        "front": {
+          "spaceType": "sidewalk",
+          "roadType": "two-lane street",
+          "elements": [
+            "street trees",
+            "power lines"
+          ]
+        }
+      }
+    },
+    {
+      "id": "urban_frontage",
+      "label": "Main urban frontage",
+      "context": {
+        "front": {
+          "spaceType": "wide sidewalk",
+          "roadType": "busy urban avenue",
+          "elements": [
+            "shopfronts",
+            "street lamps"
+          ]
+        }
+      }
+    }
+  ],
+  "negativeConstraints": [
+    "detached side walls with windows",
+    "wide front lawn",
+    "extra floors"
+  ],
+  "promptVocabulary": {
+    "framing": "street-level exterior view"
+  }
+}

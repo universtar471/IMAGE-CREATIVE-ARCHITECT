@@ -1,0 +1,93 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "villa",
+  "subtype": "default",
+  "label": "Detached villa",
+  "description": "Free-standing villa on a generous landscaped plot.",
+  "defaults": {
+    "building": {
+      "buildingType": "villa",
+      "floors": 2,
+      "massing": {
+        "composition": "horizontal interlocking volumes"
+      }
+    },
+    "context": {
+      "macroContext": "low-density villa compound",
+      "climateContext": "tropical",
+      "density": "low"
+    }
+  },
+  "styleSuggestions": [
+    "Modern tropical",
+    "Contemporary",
+    "Neo-classical",
+    "Mediterranean"
+  ],
+  "contextPresets": [
+    {
+      "id": "garden",
+      "label": "Landscaped garden",
+      "context": {
+        "front": {
+          "spaceType": "front garden",
+          "roadType": "private driveway",
+          "vegetation": [
+            "manicured lawn",
+            "palms"
+          ]
+        },
+        "rear": {
+          "spaceType": "garden with swimming pool"
+        }
+      }
+    },
+    {
+      "id": "resort",
+      "label": "Resort setting",
+      "context": {
+        "front": {
+          "spaceType": "resort landscape",
+          "vegetation": [
+            "tropical planting"
+          ]
+        },
+        "distantBackground": [
+          "sea horizon"
+        ]
+      }
+    },
+    {
+      "id": "lake",
+      "label": "Lakeside",
+      "context": {
+        "rear": {
+          "spaceType": "lake-front deck"
+        },
+        "distantBackground": [
+          "lake",
+          "tree line"
+        ]
+      }
+    },
+    {
+      "id": "hill",
+      "label": "Hillside",
+      "context": {
+        "rear": {
+          "spaceType": "sloping terrain"
+        },
+        "distantBackground": [
+          "forested hills"
+        ]
+      }
+    }
+  ],
+  "negativeConstraints": [
+    "attached neighbouring buildings",
+    "dense urban street"
+  ],
+  "promptVocabulary": {
+    "framing": "exterior view"
+  }
+}

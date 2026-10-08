@@ -1,0 +1,45 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "interior",
+  "subtype": "living_room",
+  "label": "Living room",
+  "description": "Residential living room.",
+  "defaults": {
+    "building": {
+      "buildingType": "living room",
+      "dimensions": {
+        "widthM": 5,
+        "depthM": 6,
+        "heightM": 3
+      }
+    },
+    "context": {
+      "macroContext": "residential apartment"
+    }
+  },
+  "styleSuggestions": [
+    "Japandi",
+    "Modern",
+    "Minimalist",
+    "Indochine"
+  ],
+  "contextPresets": [
+    {
+      "id": "city_view",
+      "label": "City view windows",
+      "context": {
+        "distantBackground": [
+          "city skyline through windows"
+        ]
+      }
+    }
+  ],
+  "negativeConstraints": [
+    "exterior facade",
+    "bed in living room"
+  ],
+  "promptVocabulary": {
+    "subjectNoun": "living room",
+    "framing": "interior view"
+  }
+}

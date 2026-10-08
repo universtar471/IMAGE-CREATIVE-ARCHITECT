@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "building": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "buildingType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subtype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "architecturalStyle": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimensions": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "widthM": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            },
+            "depthM": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            },
+            "heightM": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            },
+            "siteWidthM": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            },
+            "siteDepthM": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            }
+          },
+          "additionalProperties": false
+        },
+        "floors": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 200
+        },
+        "massing": {
+          "default": {
+            "voids": []
+          },
+          "type": "object",
+          "properties": {
+            "composition": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mainVolume": {
+              "type": "string",
+              "minLength": 1
+            },
+            "secondaryVolume": {
+              "type": "string",
+              "minLength": 1
+            },
+            "voids": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "cantilever": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "voids"
+          ],
+          "additionalProperties": false
+        },
+        "roof": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pitch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "overhang": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "openings": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "windowType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "frame": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rhythm": {
+              "type": "string",
+              "minLength": 1
+            },
+            "glazing": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "materials": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "zone": {
+                "type": "string",
+                "minLength": 1
+              },
+              "materialId": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "zone",
+              "description"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "colorPalette": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "specialFeatures": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "buildingType",
+        "dimensions",
+        "massing",
+        "roof",
+        "openings",
+        "materials",
+        "colorPalette",
+        "specialFeatures",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "macroContext": {
+          "type": "string",
+          "minLength": 1
+        },
+        "climateContext": {
+          "type": "string",
+          "minLength": 1
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "very_low",
+            "low",
+            "medium",
+            "high",
+            "very_high"
+          ]
+        },
+        "front": {
+          "default": {
+            "elements": [],
+            "vegetation": [],
+            "adjacentBuildings": [],
+            "notes": ""
+          },
+          "type": "object",
+          "properties": {
+            "spaceType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roadType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elements": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "vegetation": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "adjacentBuildings": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "notes": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "elements",
+            "vegetation",
+            "adjacentBuildings",
+            "notes"
+          ],
+          "additionalProperties": false
+        },
+        "rear": {
+          "default": {
+            "elements": [],
+            "vegetation": [],
+            "adjacentBuildings": [],
+            "notes": ""
+          },
+          "type": "object",
+          "properties": {
+            "spaceType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roadType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elements": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "vegetation": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "adjacentBuildings": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "notes": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "elements",
+            "vegetation",
+            "adjacentBuildings",
+            "notes"
+          ],
+          "additionalProperties": false
+        },
+        "left": {
+          "default": {
+            "elements": [],
+            "vegetation": [],
+            "adjacentBuildings": [],
+            "notes": ""
+          },
+          "type": "object",
+          "properties": {
+            "spaceType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roadType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elements": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "vegetation": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "adjacentBuildings": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "notes": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "elements",
+            "vegetation",
+            "adjacentBuildings",
+            "notes"
+          ],
+          "additionalProperties": false
+        },
+        "right": {
+          "default": {
+            "elements": [],
+            "vegetation": [],
+            "adjacentBuildings": [],
+            "notes": ""
+          },
+          "type": "object",
+          "properties": {
+            "spaceType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roadType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "elements": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "vegetation": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "adjacentBuildings": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "notes": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "required": [
+            "elements",
+            "vegetation",
+            "adjacentBuildings",
+            "notes"
+          ],
+          "additionalProperties": false
+        },
+        "distantBackground": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "atmosphereNotes": {
+          "default": "",
+          "type": "string"
+        },
+        "negativeConstraints": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "front",
+        "rear",
+        "left",
+        "right",
+        "distantBackground",
+        "atmosphereNotes",
+        "negativeConstraints"
+      ],
+      "additionalProperties": false
+    },
+    "cameras": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "azimuthDeg": {
+            "type": "number",
+            "minimum": -360,
+            "maximum": 360
+          },
+          "elevationDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "heightM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "lensMm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "targetObjectId": {
+            "type": "string"
+          },
+          "composition": {
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "name",
+          "notes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "lighting": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "timeOfDay": {
+          "type": "string"
+        },
+        "sunDirection": {
+          "type": "string"
+        },
+        "sunElevation": {
+          "type": "string"
+        },
+        "intensity": {
+          "type": "string"
+        },
+        "shadowLength": {
+          "type": "string"
+        },
+        "shadowSoftness": {
+          "type": "string"
+        },
+        "ambientLight": {
+          "type": "string"
+        },
+        "artificialLighting": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "temperatureK": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "intensity": {
+                "type": "string"
+              },
+              "zone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "artificialLighting"
+      ],
+      "additionalProperties": false
+    },
+    "weather": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "preset": {
+          "type": "string"
+        },
+        "sky": {
+          "type": "string"
+        },
+        "humidity": {
+          "type": "string"
+        },
+        "groundWetness": {
+          "type": "string"
+        },
+        "haze": {
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "mood": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "preset": {
+          "type": "string"
+        },
+        "contrast": {
+          "type": "string"
+        },
+        "saturation": {
+          "type": "string"
+        },
+        "warmth": {
+          "type": "string"
+        },
+        "atmosphere": {
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "colorGrade": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "exposure": {
+          "default": 0,
+          "type": "number",
+          "minimum": -5,
+          "maximum": 5
+        },
+        "contrast": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "highlights": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "shadows": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "whites": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "blacks": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "temperature": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "tint": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "vibrance": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "saturation": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "clarity": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "dehaze": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "look": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "exposure",
+        "contrast",
+        "highlights",
+        "shadows",
+        "whites",
+        "blacks",
+        "temperature",
+        "tint",
+        "vibrance",
+        "saturation",
+        "clarity",
+        "dehaze"
+      ],
+      "additionalProperties": false
+    },
+    "locks": {
+      "default": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "colorGrade": false,
+        "objectIds": []
+      },
+      "type": "object",
+      "properties": {
+        "building": {
+          "default": false,
+          "type": "boolean"
+        },
+        "context": {
+          "default": false,
+          "type": "boolean"
+        },
+        "camera": {
+          "default": false,
+          "type": "boolean"
+        },
+        "lighting": {
+          "default": false,
+          "type": "boolean"
+        },
+        "weather": {
+          "default": false,
+          "type": "boolean"
+        },
+        "colorGrade": {
+          "default": false,
+          "type": "boolean"
+        },
+        "objectIds": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "building",
+        "context",
+        "camera",
+        "lighting",
+        "weather",
+        "colorGrade",
+        "objectIds"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "building",
+    "context",
+    "cameras",
+    "locks"
+  ],
+  "additionalProperties": false
+}

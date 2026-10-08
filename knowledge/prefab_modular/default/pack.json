@@ -1,0 +1,60 @@
+{
+  "packVersion": "1.0.0",
+  "projectType": "prefab_modular",
+  "subtype": "default",
+  "label": "Prefab / modular",
+  "description": "Factory-built modular units (container or steel frame) assembled on site.",
+  "defaults": {
+    "building": {
+      "buildingType": "prefab modular house",
+      "floors": 1,
+      "massing": {
+        "composition": "stacked or linked rectangular modules"
+      },
+      "materials": [
+        {
+          "zone": "structure",
+          "description": "light steel frame"
+        }
+      ]
+    },
+    "context": {
+      "macroContext": "open site",
+      "density": "low"
+    }
+  },
+  "styleSuggestions": [
+    "Industrial modern",
+    "Minimalist",
+    "Scandinavian"
+  ],
+  "contextPresets": [
+    {
+      "id": "garden",
+      "label": "Garden lot",
+      "context": {
+        "front": {
+          "spaceType": "gravel yard",
+          "vegetation": [
+            "grass",
+            "small trees"
+          ]
+        }
+      }
+    },
+    {
+      "id": "nature",
+      "label": "Nature retreat",
+      "context": {
+        "distantBackground": [
+          "forest",
+          "mountains"
+        ]
+      }
+    }
+  ],
+  "negativeConstraints": [
+    "curved organic walls",
+    "heavy masonry"
+  ]
+}
