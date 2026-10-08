@@ -421,6 +421,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     }
     const issues = validateGenerationRequest(req, model);
     if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
+    // §9 / Rust: a model that lists no ratios or sizes only accepts null (the provider decides).
+    if (!model.aspectRatios.length && req.params.aspectRatio !== null)
+      fail("VALIDATION_ERROR", `${model.label} chooses the aspect ratio itself; send null.`);
+    if (!model.imageSizes.length && req.params.imageSize !== null)
+      fail("VALIDATION_ERROR", `${model.label} chooses the image size itself; send null.`);
     if (req.cameraId && !db.dna[req.projectId]!.cameras.some((c) => c.id === req.cameraId)) {
       fail("VALIDATION_ERROR", `Camera '${req.cameraId}' does not exist in the Design DNA.`);
     }
@@ -499,6 +504,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       : PURPOSE_TITLES[req.purpose];
   };
 
+  /** Jobs whose provider call is in flight (a cancelled call keeps its slot until it returns). */
+  const inFlight = new Map<string, string>();
   let pumpScheduled = false;
   /** Start every runnable job that has a free provider slot (priority, then age). */
   const pump = () => {
@@ -514,8 +521,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     for (const j of runnable) {
       const provider = MOCK_PROVIDERS.find((p) => p.id === j.providerId);
       const slots = MOCK_PROVIDER_SLOTS[provider?.kind ?? "remote"];
-      const busy = jobs.filter((x) => x.status === "running" && x.providerId === j.providerId);
-      if (busy.length < slots) startAttempt(j);
+      const busy = [...inFlight.values()].filter((p) => p === j.providerId).length;
+      if (busy < slots) startAttempt(j);
     }
   };
   const schedulePump = (delayMs = 0) => {
@@ -536,7 +543,10 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     j.nextAttemptAt = null;
     const gen = generationOf(j);
     gen.status = "running";
-    gen.startedAt ??= t;
+    // Like the backend: a job-backed generation's startedAt is the latest attempt's start.
+    gen.startedAt = t;
+    gen.error = null;
+    inFlight.set(j.id, j.providerId);
     save();
     emitJob(j);
     emitGeneration(gen);
@@ -545,6 +555,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   };
 
   const finishAttempt = (jobId: string, attempt: number) => {
+    inFlight.delete(jobId);
     const j = jobs.find((x) => x.id === jobId);
     // Cancelled (or otherwise moved on) while the call ran: discard the result, write nothing.
     if (!j || j.status !== "running" || j.attempt !== attempt) {
@@ -573,9 +584,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       j.status = "retrying";
       j.error = error;
       j.nextAttemptAt = new Date(Date.now() + delay).toISOString();
-      // The generation waits in the queue again until the next attempt starts.
+      // The generation waits in the queue again until the next attempt starts; the job
+      // carries the error (backend: generation error null, startedAt null while waiting).
       gen.status = "queued";
-      gen.error = error;
+      gen.error = null;
+      gen.startedAt = null;
       schedulePump(delay + 1);
     } else if (error) {
       j.status = "failed";
@@ -915,7 +928,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           validateRequest(r);
         } catch (e) {
           const err = e as AppError;
-          throw { ...err, message: `Item ${i + 1} (${item.label}): ${err.message}` };
+          throw {
+            ...err,
+            message: `Item ${i + 1} (${item.label}): ${err.message}`,
+            details: { ...(err.details as object | undefined), itemIndex: i },
+          };
         }
         return { r, label: item.label };
       });

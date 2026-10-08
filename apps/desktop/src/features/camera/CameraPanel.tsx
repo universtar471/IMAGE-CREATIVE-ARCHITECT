@@ -22,8 +22,7 @@ import {
   cameraFromPreset,
   cameraReadiness,
   FALLBACK_CAMERA_PRESETS,
-  newCameraId,
-  uniqueCameraName,
+  duplicateCamera,
 } from "../../lib/cameraDomain";
 import { knowledge } from "../../lib/knowledge";
 import { fileUrl } from "../../lib/files";
@@ -157,7 +156,7 @@ function CameraListSection() {
     selectCamera(camera.id);
   };
   const duplicate = (c: CameraDNA) => {
-    const copy = { ...c, id: newCameraId(), name: uniqueCameraName(`${c.name} copy`, names) };
+    const copy = duplicateCamera(c, names);
     const i = cameras.findIndex((x) => x.id === c.id);
     setCameras([...cameras.slice(0, i + 1), copy, ...cameras.slice(i + 1)]);
     selectCamera(copy.id);
@@ -196,10 +195,7 @@ function CameraListSection() {
               </option>
             ))}
           </select>
-          <button
-            className="btn btn-sm"
-            onClick={() => add({ ...blankCamera(), name: uniqueCameraName("Camera", names) })}
-          >
+          <button className="btn btn-sm" onClick={() => add(blankCamera(names))}>
             <Plus size={13} /> Blank
           </button>
         </div>

@@ -51,14 +51,15 @@ export function uniqueCameraName(base: string, existingNames: readonly string[])
   }
 }
 
-/** TODO(p3-domain) */
+/** TODO(p3-domain) — same signature as `@arch/domain` on wt/p3-domain. */
 export function cameraFromPreset(
   preset: CameraPreset,
-  existingNames: readonly string[],
+  existingNames: readonly string[] = [],
+  id: string = newCameraId(),
 ): CameraDNA {
   const camera: CameraDNA = {
     schemaVersion: 1,
-    id: newCameraId(),
+    id,
     name: uniqueCameraName(preset.label, existingNames),
     viewType: preset.viewType,
     presetId: preset.id,
@@ -75,20 +76,40 @@ export function cameraFromPreset(
   return camera;
 }
 
-/** TODO(p3-domain) */
-export function blankCamera(): CameraDNA {
+/** TODO(p3-domain) — same signature as `@arch/domain` on wt/p3-domain. */
+export function blankCamera(
+  existingNames: readonly string[] = [],
+  id: string = newCameraId(),
+): CameraDNA {
   return {
     schemaVersion: 1,
-    id: newCameraId(),
-    name: "Camera",
+    id,
+    name: uniqueCameraName(`Camera ${existingNames.length + 1}`, existingNames),
     viewType: "custom",
     isAnchorView: false,
     notes: "",
   };
 }
 
+/**
+ * TODO(p3-domain): a copy with a fresh id and unique name. The anchor-view flag is NOT
+ * copied (it would silently add a required anchor), as on wt/p3-domain.
+ */
+export function duplicateCamera(
+  camera: CameraDNA,
+  existingNames: readonly string[] = [],
+  id: string = newCameraId(),
+): CameraDNA {
+  return {
+    ...structuredClone(camera),
+    id,
+    name: uniqueCameraName(`${camera.name} copy`, existingNames),
+    isAnchorView: false,
+  };
+}
+
 /** TODO(p3-domain) */
-export function anchorViews(dna: ProjectDNA): CameraDNA[] {
+export function anchorViews(dna: Pick<ProjectDNA, "cameras">): CameraDNA[] {
   return dna.cameras.filter((c) => c.isAnchorView);
 }
 
@@ -304,12 +325,12 @@ export function compileCameraPrompt(input: CameraCompileInput): PromptBundle {
 
 // ---------------------------------------------------------------- batch builders
 
-export type BatchAsset = ReferenceCandidate & { originalName: string | null };
+export type BatchAsset = ReferenceCandidate & { originalName?: string | null };
 
 /** TODO(p3-domain): the input shape of P3-B's batch builders. */
 export type BatchBuildInput = Omit<CameraCompileInput, "references" | "cameraId"> & {
   assets: readonly BatchAsset[];
-  masterAssetId: string;
+  masterAssetId: string | null;
   model: ModelCapabilities;
   params: GenerationParams;
   /** Other references for production renders (beyond master + anchor). */
@@ -365,10 +386,10 @@ export function buildAnchorBatchItems(input: BatchBuildInput): BatchItem[] {
 export function buildProductionBatchItems(
   input: BatchBuildInput,
   cameraIds: readonly string[],
-  anchors: readonly CameraAnchorDTO[],
+  anchors: readonly Pick<CameraAnchorDTO, "cameraId" | "assetId">[],
 ): BatchItem[] {
   const byId = new Map(input.assets.map((a) => [a.id, a]));
-  const master = byId.get(input.masterAssetId);
+  const master = byId.get(input.masterAssetId ?? "");
   const cap = input.model.imageToImage ? input.model.maxReferenceImages : 0;
   return input.dna.cameras
     .filter((c) => cameraIds.includes(c.id))

@@ -88,14 +88,17 @@ export function GenerationResult() {
 
 function ActiveCard({ generation: g }: { generation: GenerationDTO }) {
   const cancelJob = useStudio((s) => s.cancelJob);
+  // While a job waits to retry, the job (not the generation) carries the last error.
+  const jobError = useStudio((s) => s.jobs.find((j) => j.generationId === g.id)?.error ?? null);
+  const lastError = jobError ?? g.error;
   const readOnly = useStudio(selectReadOnly);
   return (
     <SectionPanel title="Current generation" aside={<GenerationStatusBadge status={g.status} />}>
       <ActiveGenerationStatus generation={g} />
-      {g.error && (
+      {lastError && (
         <span className="field-hint">
-          Last attempt: <span className="badge badge-warning">{g.error.kind}</span>{" "}
-          {g.error.message}
+          Last attempt: <span className="badge badge-warning">{lastError.kind}</span>{" "}
+          {lastError.message}
         </span>
       )}
       {g.jobId && (

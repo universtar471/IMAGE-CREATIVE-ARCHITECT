@@ -238,6 +238,24 @@ describe("mock generation_submit", () => {
     ["unknown provider", { providerId: "nope" }, "NOT_FOUND"],
     ["unknown model", { modelId: "nope" }, "NOT_FOUND"],
     ["unknown reference", { referenceAssetIds: ["AST_nope"] }, "NOT_FOUND"],
+    // Review p2-ui PHẢI SỬA 1: a model without size/ratio lists only accepts null.
+    [
+      "an image size for a model without sizes",
+      {
+        providerId: "gemini",
+        modelId: "gemini-2.5-flash-image",
+        params: { aspectRatio: "16:9", imageSize: "8K", outputCount: 1, seed: null },
+      },
+      "VALIDATION_ERROR",
+    ],
+    [
+      "an aspect ratio the model does not offer",
+      {
+        modelId: "placeholder-v1",
+        params: { aspectRatio: "7:5", imageSize: "1K", outputCount: 1, seed: null },
+      },
+      "VALIDATION_ERROR",
+    ],
   ] as const)("rejects %s", async (_n, over, code) => {
     const p = await newProject();
     const req = request(p.id, over as Partial<GenerationSubmitRequest>);
