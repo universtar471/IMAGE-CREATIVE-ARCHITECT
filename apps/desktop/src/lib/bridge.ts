@@ -8,13 +8,17 @@ import { z } from "zod";
 import {
   AppErrorSchema,
   AssetDTOSchema,
+  GenerationDTOSchema,
   ProjectBundleDTOSchema,
   ProjectDNASchema,
   ProjectDTOSchema,
   ProjectSummaryDTOSchema,
+  ProviderDescriptorDTOSchema,
+  ProviderTestResultSchema,
   type AppError,
   type AssetRole,
   type AssetSource,
+  type GenerationSubmitRequest,
   type ProjectDNA,
   type ProjectType,
 } from "@arch/domain";
@@ -26,6 +30,8 @@ export const VersionDTOSchema = z.object({
   parentVersionId: z.string().nullable(),
   label: z.string().nullable(),
   operation: z.string(),
+  /** Set for versions created by a generation (ADR-015); null for imports. */
+  generationId: z.string().nullable(),
   createdAt: z.string(),
 });
 export type VersionDTO = z.infer<typeof VersionDTOSchema>;
@@ -69,6 +75,14 @@ export type Requests = {
   asset_set_master: { projectId: string; assetId: string | null };
   asset_remove: { projectId: string; assetId: string };
   version_list: { projectId: string };
+  provider_list: Record<string, never>;
+  /** The key goes straight to the OS credential store; it is never returned or stored in JS. */
+  provider_set_api_key: { providerId: string; apiKey: string };
+  provider_clear_api_key: { providerId: string };
+  provider_test: { providerId: string };
+  generation_submit: GenerationSubmitRequest;
+  generation_list: { projectId: string };
+  generation_get: { projectId: string; generationId: string };
 };
 
 /** Response schemas per command. */
@@ -88,6 +102,13 @@ export const responses = {
   asset_set_master: z.array(AssetDTOSchema),
   asset_remove: AssetRemoveResultSchema,
   version_list: z.array(VersionDTOSchema),
+  provider_list: z.array(ProviderDescriptorDTOSchema),
+  provider_set_api_key: ProviderDescriptorDTOSchema,
+  provider_clear_api_key: ProviderDescriptorDTOSchema,
+  provider_test: ProviderTestResultSchema,
+  generation_submit: GenerationDTOSchema,
+  generation_list: z.array(GenerationDTOSchema),
+  generation_get: GenerationDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;
@@ -164,4 +185,15 @@ export function fieldErrorsOf(err: unknown): Record<string, string> {
   if (!(err instanceof BridgeError) || err.code !== "VALIDATION_ERROR") return {};
   const details = err.details as { fieldErrors?: Record<string, string> } | undefined;
   return details?.fieldErrors ?? {};
+}
+
+/**
+ * When `err` is PROVIDER_NOT_CONFIGURED, the provider that needs a key (from the error
+ * details, else `fallbackProviderId`); otherwise null. The UI turns this into a
+ * "Set API key" action instead of a bare error.
+ */
+export function providerNeedingKey(err: unknown, fallbackProviderId: string): string | null {
+  if (!(err instanceof BridgeError) || err.code !== "PROVIDER_NOT_CONFIGURED") return null;
+  const details = err.details as { providerId?: unknown } | undefined;
+  return typeof details?.providerId === "string" ? details.providerId : fallbackProviderId;
 }
