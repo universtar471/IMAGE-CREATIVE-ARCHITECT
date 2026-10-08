@@ -565,7 +565,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const gen = generationOf(j);
     const prompt = j.request.prompt.positivePrompt;
     let error: GenerationError | null = null;
-    if (/\[fail\]/i.test(prompt)) {
+    if (db.projects[j.projectId]?.archivedAt) {
+      // Like Rust: the commit re-checks the project; archived mid-call → failed, no outputs.
+      error = {
+        kind: "interrupted",
+        message: "The project was archived while this generation was running.",
+        retryable: false,
+      };
+    } else if (/\[fail\]/i.test(prompt)) {
       error = {
         kind: "bad_response",
         message: "The mock provider was told to fail ([fail] found in the prompt).",
