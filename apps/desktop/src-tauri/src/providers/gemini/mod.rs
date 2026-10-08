@@ -95,7 +95,7 @@ impl GeminiProvider {
         let value: Value = serde_json::from_str(&text).map_err(|_| {
             ProviderError::new(ProviderErrorKind::BadResponse, "Gemini returned a response that is not valid JSON.")
         })?;
-        wire::parse_success(&value)
+        wire::parse_success(&value, api_key)
     }
 }
 
@@ -184,10 +184,11 @@ impl ImageProvider for GeminiProvider {
         let model = models::find(&request.model_id).ok_or_else(|| {
             ProviderError::new(
                 ProviderErrorKind::InvalidRequest,
-                format!("Unknown Gemini model \"{}\".", request.model_id),
+                format!("Unknown Gemini model \"{}\".", wire::sanitize(&request.model_id, api_key)),
             )
         })?;
-        validate(&model, request)?;
+        // Validation messages echo request values; redact in case a key was pasted into one.
+        validate(&model, request).map_err(|e| ProviderError::new(e.kind, wire::sanitize(&e.message, api_key)))?;
 
         let body = wire::build_request(&request.prompt, &request.references, &request.params);
         let url = format!("{}/models/{}:generateContent", self.base_url, model.id);
@@ -203,7 +204,7 @@ impl ImageProvider for GeminiProvider {
             match self.call_once(&client, &url, api_key, &body) {
                 Ok(call) => {
                     images.extend(call.images);
-                    finish_reasons.extend(call.finish_reason);
+                    finish_reasons.extend(call.finish_reasons);
                     model_version = model_version.or(call.model_version);
                     text = text.or(call.text);
                 }
@@ -254,10 +255,17 @@ impl ImageProvider for GeminiProvider {
         if status != 200 {
             return Err(wire::map_http_error(status, &text, api_key));
         }
-        let name = serde_json::from_str::<Value>(&text)
+        // A proxy login page or an empty object must not read as "connected".
+        let metadata = serde_json::from_str::<Value>(&text)
             .ok()
-            .and_then(|v| v.get("displayName").and_then(Value::as_str).map(String::from))
-            .unwrap_or_else(|| DEFAULT_MODEL.to_string());
-        Ok(format!("Connected to Gemini; {} is available.", wire::sanitize(&name, api_key)))
+            .filter(|v| v.get("name").and_then(Value::as_str).is_some_and(|n| n.starts_with("models/")));
+        let Some(metadata) = metadata else {
+            return Err(ProviderError::new(
+                ProviderErrorKind::BadResponse,
+                "Gemini answered, but not with model metadata. Check for a proxy or captive portal, then retry.",
+            ));
+        };
+        let name = metadata.get("displayName").and_then(Value::as_str).unwrap_or(DEFAULT_MODEL);
+        Ok(format!("Connected to Gemini; {} is available.", wire::sanitize(name, api_key)))
     }
 }

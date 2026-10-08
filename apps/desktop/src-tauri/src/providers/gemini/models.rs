@@ -7,8 +7,10 @@
 
 use super::super::ModelCapabilities;
 
-/// Every model returns one image per `generateContent` call ("The model won't always follow
-/// the exact number of image outputs"), so several outputs are sequential calls.
+/// Adapter strategy, not an API guarantee: the docs say the model "won't always follow the
+/// exact number of image outputs" requested, so the adapter asks for one image per
+/// `generateContent` call and runs `outputCount` calls in sequence. A call that returns several
+/// images is accepted; the total is capped at `outputCount`.
 pub const MAX_OUTPUTS: u32 = 4;
 
 /// Model used by `test_connection` and listed first in the UI.

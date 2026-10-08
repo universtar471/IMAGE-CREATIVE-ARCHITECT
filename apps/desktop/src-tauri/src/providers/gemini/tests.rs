@@ -1,11 +1,12 @@
 //! Adapter tests against a local mock HTTP server (std `TcpListener`, no network).
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
@@ -40,34 +41,68 @@ enum Reply {
 struct MockServer {
     base_url: String,
     requests: Arc<Mutex<Vec<Recorded>>>,
+    stop: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
 }
 
+/// Longest the mock waits for the next connection before giving up on the remaining replies.
+const ACCEPT_DEADLINE: Duration = Duration::from_secs(5);
+
 impl MockServer {
-    /// Serves `replies` in order, one connection each, then stops.
+    /// Serves `replies` in order, one connection each. Stops when all replies are served, when
+    /// no connection arrives within `ACCEPT_DEADLINE`, or when `requests()` / drop asks it to.
     fn start(replies: Vec<Reply>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
         let base_url = format!("http://{}/v1beta", listener.local_addr().unwrap());
         let requests = Arc::new(Mutex::new(Vec::new()));
-        let log = Arc::clone(&requests);
+        let stop = Arc::new(AtomicBool::new(false));
+        let (log, stop_flag) = (Arc::clone(&requests), Arc::clone(&stop));
         let handle = thread::spawn(move || {
             for reply in replies {
-                let Ok((stream, _)) = listener.accept() else { return };
+                let deadline = Instant::now() + ACCEPT_DEADLINE;
+                let stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                            if stop_flag.load(Ordering::SeqCst) || Instant::now() > deadline {
+                                return;
+                            }
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(_) => return,
+                    }
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream.set_read_timeout(Some(ACCEPT_DEADLINE)).unwrap();
                 serve_one(stream, &reply, &log);
             }
         });
-        Self { base_url, requests, handle: Some(handle) }
+        Self { base_url, requests, stop, handle: Some(handle) }
     }
 
     fn provider(&self) -> GeminiProvider {
         GeminiProvider::with_base_url(&self.base_url)
     }
 
+    /// Requests served so far. Call after the adapter returned: every request it made has been
+    /// answered by then, so unserved replies mean missing requests (the caller asserts the count).
     fn requests(&mut self) -> Vec<Recorded> {
+        self.shutdown();
+        self.requests.lock().unwrap().clone()
+    }
+
+    fn shutdown(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
-        self.requests.lock().unwrap().clone()
+    }
+}
+
+impl Drop for MockServer {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
 
@@ -92,7 +127,9 @@ fn serve_one(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<Recorded>>) {
     }
     let length = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0usize);
     let mut body = vec![0; length];
-    reader.read_exact(&mut body).unwrap();
+    if reader.read_exact(&mut body).is_err() {
+        return;
+    }
     log.lock().unwrap().push(Recorded { method, path, headers, body: String::from_utf8(body).unwrap() });
 
     let (status, payload) = match reply {
@@ -310,8 +347,6 @@ fn auth_failure_stops_further_calls() {
     ]);
     let err = server.provider().generate(&request(2)).unwrap_err();
     assert_eq!(err.kind, ProviderErrorKind::Auth);
-    // Unblock the mock's second accept so its thread can end.
-    let _ = TcpStream::connect(server.base_url.trim_start_matches("http://").trim_end_matches("/v1beta"));
     assert_eq!(server.requests().len(), 1);
 }
 
@@ -416,6 +451,105 @@ fn no_image_is_bad_response_with_trimmed_text() {
 fn non_json_success_body_is_bad_response() {
     let err = generate_error(vec![Reply::Json(200, "not json".into())]);
     assert_eq!(err.kind, ProviderErrorKind::BadResponse);
+}
+
+// ---------------------------------------------------------------- key redaction on HTTP 200 (review round 1)
+
+fn image_part(bytes: &[u8]) -> Value {
+    json!({ "inlineData": { "mimeType": "image/png", "data": B64.encode(bytes) } })
+}
+
+fn ok_body(candidates: Value, model_version: &str) -> Reply {
+    Reply::Json(200, json!({ "candidates": candidates, "modelVersion": model_version }).to_string())
+}
+
+#[test]
+fn key_echoed_in_no_image_text_is_redacted() {
+    let candidates =
+        json!([{ "content": { "parts": [{ "text": format!("Your key {KEY} was used.") }] }, "finishReason": "STOP" }]);
+    let err = generate_error(vec![ok_body(candidates, "v1")]);
+    assert_eq!(err.kind, ProviderErrorKind::BadResponse);
+    assert_key_free(&err);
+    assert!(err.message.contains("[redacted]"), "{}", err.message);
+}
+
+#[test]
+fn key_echoed_in_finish_reason_or_block_reason_is_redacted() {
+    let candidates = json!([{ "content": { "parts": [] }, "finishReason": format!("ODD_{KEY}") }]);
+    assert_key_free(&generate_error(vec![ok_body(candidates, "v1")]));
+
+    let blocked = json!({ "promptFeedback": { "blockReason": format!("SAFETY {KEY}") } });
+    let err = generate_error(vec![Reply::Json(200, blocked.to_string())]);
+    assert_eq!(err.kind, ProviderErrorKind::Blocked);
+    assert_key_free(&err);
+}
+
+#[test]
+fn key_echoed_in_success_fields_never_reaches_meta() {
+    let candidates = json!([{
+        "content": { "parts": [{ "text": format!("note {KEY}") }, image_part(PNG_BYTES)] },
+        "finishReason": format!("STOP{KEY}")
+    }]);
+    let server = MockServer::start(vec![ok_body(candidates, &format!("model-{KEY}"))]);
+    let out = server.provider().generate(&request(1)).unwrap();
+    assert_eq!(out.images.len(), 1);
+    assert!(!out.meta.to_string().contains(KEY), "{}", out.meta);
+}
+
+#[test]
+fn key_echoed_during_partial_failure_never_reaches_meta() {
+    let good = json!([{ "content": { "parts": [{ "text": format!("ok {KEY}") }, image_part(PNG_BYTES)] }, "finishReason": "STOP" }]);
+    let bad = json!([{ "content": { "parts": [{ "text": format!("no image, key {KEY}") }] }, "finishReason": "STOP" }]);
+    let server = MockServer::start(vec![ok_body(good, "v1"), ok_body(bad, &format!("v-{KEY}"))]);
+    let out = server.provider().generate(&request(2)).unwrap();
+    assert_eq!(out.meta["failed"], 1);
+    assert_eq!(out.meta["errors"][0]["kind"], "bad_response");
+    assert!(!out.meta.to_string().contains(KEY), "{}", out.meta);
+}
+
+#[test]
+fn validation_errors_never_echo_the_key() {
+    let provider = GeminiProvider::with_base_url("http://127.0.0.1:9/v1beta");
+    let mutations: [&dyn Fn(&mut ProviderRequest); 3] =
+        [&|r| r.model_id = format!("gemini-{KEY}"), &|r| r.params.aspect_ratio = Some(KEY.into()), &|r| {
+            r.params.image_size = Some(KEY.into())
+        }];
+    for mutate in mutations {
+        let mut req = request(1);
+        mutate(&mut req);
+        let err = provider.generate(&req).unwrap_err();
+        assert_eq!(err.kind, ProviderErrorKind::InvalidRequest);
+        assert_key_free(&err);
+    }
+}
+
+// ---------------------------------------------------------------- per-candidate finish reasons (review round 1)
+
+#[test]
+fn block_reason_on_a_later_candidate_without_images_is_blocked() {
+    let candidates = json!([
+        { "content": { "parts": [{ "text": "thinking" }] }, "finishReason": "STOP" },
+        { "content": { "parts": [] }, "finishReason": "IMAGE_SAFETY" }
+    ]);
+    let err = generate_error(vec![ok_body(candidates, "v1")]);
+    assert_eq!(err.kind, ProviderErrorKind::Blocked, "{err:?}");
+    assert!(err.message.contains("IMAGE_SAFETY"));
+}
+
+#[test]
+fn images_from_blocked_candidates_are_dropped() {
+    let candidates = json!([
+        { "content": { "parts": [image_part(b"unsafe")] }, "finishReason": "IMAGE_SAFETY" },
+        { "content": { "parts": [image_part(PNG_BYTES)] }, "finishReason": "STOP" }
+    ]);
+    let server = MockServer::start(vec![ok_body(candidates, "v1")]);
+    let out = server.provider().generate(&request(1)).unwrap();
+    assert_eq!(out.images.len(), 1);
+    assert_eq!(out.images[0].bytes, PNG_BYTES);
+
+    let only_blocked = json!([{ "content": { "parts": [image_part(b"unsafe")] }, "finishReason": "IMAGE_SAFETY" }]);
+    let err = generate_error(vec![ok_body(only_blocked, "v1")]);
+    assert_eq!(err.kind, ProviderErrorKind::Blocked);
 }
 
 // ---------------------------------------------------------------- validation (no network)
@@ -530,6 +664,16 @@ fn test_connection_maps_errors_without_leaking_the_key() {
     assert_eq!(missing.kind, ProviderErrorKind::Auth);
 }
 
+#[test]
+fn test_connection_rejects_bodies_that_are_not_model_metadata() {
+    for body in ["<html>Sign in to your proxy</html>", "{}", r#"{"name": 42}"#, r#"{"name": "something-else"}"#] {
+        let server = MockServer::start(vec![Reply::Json(200, body.into())]);
+        let err = server.provider().test_connection(Some(KEY)).unwrap_err();
+        assert_eq!(err.kind, ProviderErrorKind::BadResponse, "{body}");
+        assert_key_free(&err);
+    }
+}
+
 // ---------------------------------------------------------------- live smoke test
 
 /// Manual only: `ARCH_STUDIO_GEMINI_API_KEY=... cargo test gemini_live -- --ignored --nocapture`.
@@ -560,5 +704,6 @@ fn gemini_live_smoke() {
     assert_eq!(out.images.len(), 1);
     assert!(out.images[0].mime_type.starts_with("image/"));
     assert!(out.images[0].bytes.len() > 1000);
-    println!("meta: {}", out.meta);
+    // `meta` is built from sanitized strings only; print just the counts anyway.
+    println!("returned {} image(s), failed {}", out.meta["returned"], out.meta["failed"]);
 }

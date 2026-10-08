@@ -42,11 +42,12 @@ pub fn build_request(prompt: &PromptText, references: &[ReferenceImage], params:
     })
 }
 
-/// What one successful call produced.
+/// What one successful call produced. Every string here is already key-redacted and capped.
 #[derive(Debug, Default)]
 pub struct CallResult {
     pub images: Vec<ProviderImage>,
-    pub finish_reason: Option<String>,
+    /// One entry per candidate that reported a finish reason, in response order.
+    pub finish_reasons: Vec<String>,
     pub model_version: Option<String>,
     pub text: Option<String>,
 }
@@ -63,23 +64,42 @@ const BLOCKED_REASONS: [&str; 8] = [
     "IMAGE_RECITATION",
 ];
 
-/// Interpret an HTTP 200 body.
-pub fn parse_success(body: &Value) -> Result<CallResult, ProviderError> {
+/// Cap for enum-like vendor strings (finish reasons, model versions).
+const MAX_VENDOR_ID: usize = 64;
+
+/// Interpret an HTTP 200 body. `api_key` is only used to redact echoes of it: every vendor
+/// string that ends up in an error message or in `CallResult` goes through [`sanitize`].
+///
+/// Finish reasons are judged per candidate: images of a candidate that finished with a policy
+/// reason are dropped, images of other candidates are kept. No image left plus any policy
+/// reason means `Blocked`.
+pub fn parse_success(body: &Value, api_key: &str) -> Result<CallResult, ProviderError> {
+    let clean_id = |s: &str| truncate(&sanitize(s, api_key), MAX_VENDOR_ID);
+
     if let Some(reason) = body.pointer("/promptFeedback/blockReason").and_then(Value::as_str) {
         return Err(ProviderError::new(
             ProviderErrorKind::Blocked,
-            format!("Gemini blocked the prompt ({reason}). Rephrase the prompt or change the reference images."),
+            format!(
+                "Gemini blocked the prompt ({}). Rephrase the prompt or change the reference images.",
+                clean_id(reason)
+            ),
         ));
     }
 
     let mut result = CallResult {
-        model_version: body.get("modelVersion").and_then(Value::as_str).map(String::from),
+        model_version: body.get("modelVersion").and_then(Value::as_str).map(clean_id),
         ..CallResult::default()
     };
+    let mut blocked_reason: Option<String> = None;
     let mut texts = Vec::new();
     for candidate in body.get("candidates").and_then(Value::as_array).into_iter().flatten() {
-        if result.finish_reason.is_none() {
-            result.finish_reason = candidate.get("finishReason").and_then(Value::as_str).map(String::from);
+        let reason = candidate.get("finishReason").and_then(Value::as_str);
+        let blocked = reason.is_some_and(|r| BLOCKED_REASONS.contains(&r));
+        if let Some(reason) = reason {
+            result.finish_reasons.push(clean_id(reason));
+            if blocked && blocked_reason.is_none() {
+                blocked_reason = Some(reason.to_string()); // a known enum value, no vendor free text
+            }
         }
         let parts = candidate.pointer("/content/parts").and_then(Value::as_array);
         for part in parts.into_iter().flatten() {
@@ -88,27 +108,30 @@ pub fn parse_success(body: &Value) -> Result<CallResult, ProviderError> {
                 continue;
             }
             if let Some(text) = part.get("text").and_then(Value::as_str) {
-                texts.push(text.trim().to_string());
+                texts.push(text.to_string());
+            }
+            if blocked {
+                continue;
             }
             if let Some(image) = parse_inline_image(part)? {
                 result.images.push(image);
             }
         }
     }
-    let text = texts.into_iter().filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ");
-    result.text = (!text.is_empty()).then(|| truncate(&text, MAX_VENDOR_TEXT));
+    let text = sanitize(&texts.join(" "), api_key);
+    result.text = (!text.is_empty()).then_some(text);
 
     if !result.images.is_empty() {
         return Ok(result);
     }
-    let reason = result.finish_reason.as_deref().unwrap_or("none");
-    if BLOCKED_REASONS.contains(&reason) {
+    if let Some(reason) = blocked_reason {
         return Err(ProviderError::new(
             ProviderErrorKind::Blocked,
             format!("Gemini refused to generate this image ({reason}). Adjust the prompt or the reference images."),
         ));
     }
-    let mut message = format!("Gemini returned no image (finish reason: {reason}).");
+    let reasons = if result.finish_reasons.is_empty() { "none".to_string() } else { result.finish_reasons.join(", ") };
+    let mut message = format!("Gemini returned no image (finish reason: {reasons}).");
     if let Some(text) = &result.text {
         message.push_str(&format!(" Model said: \"{text}\""));
     }
