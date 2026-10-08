@@ -11,6 +11,7 @@ pub mod error;
 pub mod imaging;
 pub mod providers;
 pub mod repositories;
+pub mod secrets;
 pub mod services;
 pub mod storage;
 pub mod util;
