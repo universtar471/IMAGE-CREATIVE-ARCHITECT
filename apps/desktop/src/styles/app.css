@@ -1491,3 +1491,453 @@ textarea {
 .version-gen {
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------ phase 3: jobs tray */
+.jobs-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.jobs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--c-border);
+}
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow: auto;
+}
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 12px;
+}
+.job-row .btn-row {
+  flex-wrap: nowrap;
+}
+.job-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.job-head,
+.job-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.job-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+.job-meta {
+  color: var(--c-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.queue-indicator {
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-2);
+}
+.queue-indicator.is-busy {
+  color: var(--c-text);
+}
+
+/* ------------------------------------------------------------ phase 3: camera module */
+.camera-panel {
+  display: flex;
+  flex-direction: column;
+}
+.camera-add {
+  display: flex;
+  gap: 6px;
+}
+.camera-add .select {
+  flex: 1;
+  min-width: 0;
+}
+.camera-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.camera-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+}
+.camera-row.is-selected {
+  border-color: var(--c-primary);
+  background: var(--c-surface-2);
+}
+.camera-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--c-text);
+  text-align: left;
+  cursor: pointer;
+}
+.camera-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+.camera-row-text strong,
+.camera-row-text .field-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.camera-thumb {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: #050c17;
+  color: var(--c-text-3);
+  overflow: hidden;
+}
+.camera-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.btn[aria-pressed="true"] {
+  color: var(--c-warning);
+}
+
+/* Camera Director */
+.director {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.director-svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+}
+.director-svg * {
+  vector-effect: non-scaling-stroke;
+}
+.director-rings circle,
+.director-rings line {
+  fill: none;
+  stroke: var(--c-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.director-rings text {
+  fill: var(--c-text-3);
+}
+.director-footprint {
+  fill: var(--c-surface-3);
+  stroke: var(--c-text-2);
+  stroke-width: 1.5;
+}
+.director-front {
+  stroke: var(--c-primary);
+  stroke-width: 4;
+}
+.director-label {
+  fill: var(--c-primary);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.director-hint {
+  fill: var(--c-text-3);
+}
+.director-camera {
+  cursor: grab;
+  outline: none;
+}
+.director-camera:active {
+  cursor: grabbing;
+}
+.director-cone {
+  fill: rgb(148 163 184 / 10%);
+  stroke: rgb(148 163 184 / 40%);
+  stroke-width: 1;
+}
+.director-icon {
+  fill: var(--c-surface);
+  stroke: var(--c-text-2);
+  stroke-width: 2;
+}
+.director-name {
+  fill: var(--c-text-2);
+  font-weight: 500;
+}
+.director-elev rect {
+  fill: var(--c-surface-2);
+  stroke: var(--c-border-strong);
+  stroke-width: 1;
+}
+.director-elev text {
+  fill: var(--c-text-2);
+}
+.director-camera.is-anchor-view .director-icon {
+  stroke: var(--c-warning);
+}
+.director-camera.is-anchor-view .director-cone {
+  fill: rgb(245 158 11 / 10%);
+  stroke: rgb(245 158 11 / 45%);
+}
+.director-anchored {
+  fill: var(--c-success);
+}
+.director-camera.is-anchored .director-icon {
+  stroke: var(--c-success);
+}
+.director-camera.is-unplaced .director-icon,
+.director-camera.is-unplaced .director-cone {
+  stroke-dasharray: 4 3;
+}
+.director-camera.is-selected .director-icon {
+  stroke: var(--c-primary);
+  stroke-width: 3;
+}
+.director-camera.is-selected .director-cone {
+  fill: rgb(59 130 246 / 16%);
+  stroke: rgb(59 130 246 / 70%);
+}
+.director-camera.is-selected .director-name {
+  fill: var(--c-text);
+}
+.director-camera:focus-visible .director-icon {
+  stroke: var(--c-text);
+  stroke-width: 3;
+}
+.director-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--c-border);
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.director-legend .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border: 2px solid var(--c-text-2);
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.director-legend .dot.is-anchor-view {
+  border-color: var(--c-warning);
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+.director-legend .dot.is-anchored {
+  border-color: var(--c-success);
+  background: var(--c-success);
+}
+
+/* Batch dialogs */
+.batch-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.batch-cams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 12px;
+}
+.batch-cams li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.batch-cams label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.batch-ref-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+.batch-summary {
+  margin-right: auto;
+}
+
+/* Contact Sheet */
+.contact-sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.contact-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-border);
+}
+.contact-toolbar .select {
+  max-width: 360px;
+}
+.contact-counts {
+  display: inline-flex;
+  gap: 4px;
+}
+.contact-groups {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.contact-group header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.contact-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.contact-card {
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.contact-card.is-anchor {
+  border-color: var(--c-success);
+}
+.contact-image {
+  position: relative;
+  height: 150px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: #050c17;
+  color: var(--c-text-3);
+  overflow: hidden;
+  cursor: pointer;
+}
+.contact-card.is-pending .contact-image {
+  cursor: default;
+  padding: 8px;
+}
+.contact-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.contact-anchor-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+.contact-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.contact-meta .field-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.compare-head {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+}
+.compare-panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+.compare-pane {
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.compare-pane img {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: #050c17;
+  border-radius: var(--r-sm);
+}

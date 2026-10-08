@@ -1,6 +1,7 @@
 import { Archive } from "lucide-react";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
+import { CameraPanel } from "../../features/camera/CameraPanel";
 import { BuildingDnaPanel } from "../../features/dna/BuildingDnaPanel";
 import { ContextDnaPanel } from "../../features/dna/ContextDnaPanel";
 import { GeneratePanel } from "../../features/generate/GeneratePanel";
@@ -32,6 +33,7 @@ export function PropertyPanel() {
         {active === "context" && <ContextDnaPanel />}
         {active === "references" && <AssetPropertyPanel />}
         {active === "generate" && <GeneratePanel />}
+        {active === "camera" && <CameraPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

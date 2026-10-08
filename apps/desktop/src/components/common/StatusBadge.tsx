@@ -10,6 +10,8 @@ const STATUS_TONE: Partial<Record<ProjectStatus, string>> = {
   dna_ready: "badge-info",
   master_pending: "badge-warning",
   master_approved: "badge-success",
+  anchor_generation: "badge-warning",
+  production: "badge-accent",
   archived: "badge-neutral",
 };
 

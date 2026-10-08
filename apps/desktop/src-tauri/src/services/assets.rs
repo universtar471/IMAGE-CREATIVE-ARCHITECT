@@ -395,10 +395,14 @@ pub fn remove(core: &AppCore, project_id: &str, asset_id: &str) -> AppResult<Ass
         ensure_not_archived(&project)?;
         let asset = get_owned_asset(&tx, project_id, asset_id)?;
         let now = now_iso();
-        if project.active_master_asset_id.as_deref() == Some(asset_id) {
-            apply_master(&tx, project, None, &now)?;
-        }
+        let project = if project.active_master_asset_id.as_deref() == Some(asset_id) {
+            apply_master(&tx, project, None, &now)?
+        } else {
+            project
+        };
+        // Cascades to its camera anchor (if any), which may change the status.
         repo::delete_asset(&tx, asset_id)?;
+        status::save_with_status(&tx, project, &now)?;
         tx.commit()?;
         asset
     };

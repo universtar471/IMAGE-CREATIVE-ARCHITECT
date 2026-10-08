@@ -59,6 +59,10 @@ describe("failed generation card", () => {
       parentAssetId: null,
       outputAssetIds: [],
       error,
+      cameraId: null,
+      batchId: null,
+      jobId: null,
+      createdAt: "2026-10-08T00:00:00Z",
       startedAt: "2026-10-08T00:00:00Z",
       finishedAt: "2026-10-08T00:00:01Z",
       durationMs: 1000,
@@ -83,6 +87,8 @@ describe("failed generation card", () => {
         draftDna: {} as never,
         assets: [],
         generations: [g],
+        anchors: [],
+        batches: [],
       },
     });
     render(<GenerationResult />);

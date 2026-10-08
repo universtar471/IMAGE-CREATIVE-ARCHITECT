@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { DensitySchema, ProjectTypeSchema } from "../schemas/enums";
+import { CameraViewTypeSchema } from "../schemas/future";
 
 const textList = z.array(z.string().trim().min(1)).default([]);
 
@@ -81,6 +82,23 @@ export const ContextPresetSchema = z.object({
 });
 export type ContextPreset = z.infer<typeof ContextPresetSchema>;
 
+/** A suggested viewpoint; the Camera module turns it into a CameraDNA with a fresh id. */
+export const CameraPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  viewType: CameraViewTypeSchema,
+  azimuthDeg: z.number().min(-360).max(360).optional(),
+  elevationDeg: z.number().min(-90).max(90).optional(),
+  heightM: z.number().positive().optional(),
+  distanceM: z.number().positive().optional(),
+  lensMm: z.number().positive().optional(),
+  aspectRatio: z.string().optional(),
+  composition: z.string().optional(),
+  /** Suggested as an anchor view when the camera set is first created. */
+  anchorRecommended: z.boolean().default(false),
+});
+export type CameraPreset = z.infer<typeof CameraPresetSchema>;
+
 export const KnowledgePackSchema = z.object({
   packVersion: z.string().min(1),
   projectType: ProjectTypeSchema,
@@ -95,6 +113,7 @@ export const KnowledgePackSchema = z.object({
     .default({ building: {}, context: {} }),
   styleSuggestions: textList,
   contextPresets: z.array(ContextPresetSchema).default([]),
+  cameraPresets: z.array(CameraPresetSchema).default([]),
   negativeConstraints: textList,
   /** Vocabulary the prompt compiler may use for this type (e.g. "street-facing facade"). */
   promptVocabulary: z

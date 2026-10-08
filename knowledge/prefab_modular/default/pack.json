@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "prefab_modular",
   "subtype": "default",
   "label": "Prefab / modular",
@@ -41,6 +41,73 @@
       "context": {
         "distantBackground": ["forest", "mountains"]
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "front_left_corner",
+      "label": "Front-left corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": 45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 20,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_right_corner",
+      "label": "Front-right corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": -45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 20,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "anchorRecommended": false
+    },
+    {
+      "id": "aerial_three_quarter",
+      "label": "Aerial three-quarter",
+      "viewType": "aerial",
+      "azimuthDeg": 35,
+      "elevationDeg": 35,
+      "heightM": 26,
+      "distanceM": 45,
+      "lensMm": 35,
+      "aspectRatio": "16:9",
+      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "anchorRecommended": true
+    },
+    {
+      "id": "rear_landscape",
+      "label": "Rear landscape view",
+      "viewType": "exterior_rear",
+      "azimuthDeg": 180,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 18,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "rear facade in its landscape, terrace in the foreground",
+      "anchorRecommended": false
+    },
+    {
+      "id": "facade_detail",
+      "label": "Facade detail",
+      "viewType": "detail",
+      "azimuthDeg": 20,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 5,
+      "lensMm": 50,
+      "aspectRatio": "4:5",
+      "composition": "close-up of module joints, cladding panels and connections",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["curved organic walls", "heavy masonry"]

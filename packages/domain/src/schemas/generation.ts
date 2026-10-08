@@ -45,11 +45,21 @@ export const ProviderTestResultSchema = z.object({
 });
 export type ProviderTestResult = z.infer<typeof ProviderTestResultSchema>;
 
-export const GenerationPurposeSchema = z.enum(["hero", "variation"]);
+export const GenerationPurposeSchema = z.enum(["hero", "variation", "anchor", "production"]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 
-/** `interrupted` = the app closed while the provider call was running. */
-export const GenerationStatusSchema = z.enum(["running", "completed", "failed", "interrupted"]);
+/**
+ * `queued` = waiting in the job queue (Phase 3); `interrupted` = the app closed while the
+ * provider call was running; `cancelled` = the user cancelled the job.
+ */
+export const GenerationStatusSchema = z.enum([
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "interrupted",
+  "cancelled",
+]);
 export type GenerationStatus = z.infer<typeof GenerationStatusSchema>;
 
 export const GenerationParamsSchema = z.object({
@@ -70,6 +80,8 @@ export const GenerationSubmitRequestSchema = z.object({
   /** Ordered; every ID must be a ready asset of this project. */
   referenceAssetIds: z.array(z.string()),
   params: GenerationParamsSchema,
+  /** Camera this render is for (Phase 3); must exist in the project's DNA. */
+  cameraId: z.string().nullable().default(null),
 });
 export type GenerationSubmitRequest = z.infer<typeof GenerationSubmitRequestSchema>;
 
@@ -96,7 +108,13 @@ export const GenerationDTOSchema = z.object({
   /** Output assets still present in the project, in output order. */
   outputAssetIds: z.array(z.string()),
   error: GenerationErrorSchema.nullable(),
-  startedAt: z.string(),
+  cameraId: z.string().nullable(),
+  batchId: z.string().nullable(),
+  /** The queue job that runs this generation (Phase 3). */
+  jobId: z.string().nullable(),
+  /** Time the generation was queued; `startedAt` is when the provider call began. */
+  createdAt: z.string(),
+  startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
   durationMs: z.number().int().nonnegative().nullable(),
 });

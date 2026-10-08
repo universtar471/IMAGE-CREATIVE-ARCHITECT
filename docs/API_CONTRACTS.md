@@ -313,3 +313,33 @@ Provider errors after the call started are returned as a `failed` `GenerationDTO
 invalid_request | network | timeout | bad_response | interrupted`.
 
 Never returned or logged anywhere: the API key, vendor request bodies, raw vendor responses.
+
+## 10. Phase 3 contracts — cameras, anchors, jobs, batches
+
+Zod source of truth: `packages/domain/src/schemas/jobs.ts`, `schemas/generation.ts`,
+`schemas/future.ts` (`CameraDNASchema`), `knowledge/pack.ts` (`CameraPresetSchema`).
+
+Changed Phase 2 shapes:
+- `GenerationStatus` adds `queued`, `cancelled`; `GenerationPurpose` adds `anchor`, `production`.
+- `GenerationDTO` adds `cameraId`, `batchId`, `jobId`, `createdAt`; `startedAt` becomes nullable
+  (null while queued).
+- `GenerationSubmitRequest` adds `cameraId` (nullable, default null); it must exist in the DNA.
+- `generation_submit` enqueues one job and returns the `queued` `GenerationDTO` immediately;
+  validation errors are unchanged (still `AppError`, nothing enqueued).
+
+New commands:
+
+| Command | Request | Response |
+|---|---|---|
+| `batch_create` | `BatchCreateRequest` | `BatchDTO` (all jobs `queued`) |
+| `batch_list` | `{ projectId }` | `BatchDTO[]`, newest first |
+| `job_list` | `{ projectId: string \| null }` (null = all projects) | `JobDTO[]`: all non-terminal + the 100 most recent terminal, newest first |
+| `job_cancel` | `{ jobId }` | `JobDTO` (`INVALID_STATE` if already terminal) |
+| `job_retry` | `{ jobId }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`) |
+| `camera_anchor_list` | `{ projectId }` | `CameraAnchorDTO[]` |
+| `camera_anchor_set` | `{ projectId, cameraId, assetId }` | `CameraAnchorDTO[]` (camera must be an anchor view in the DNA; asset ready, same project) |
+| `camera_anchor_clear` | `{ projectId, cameraId }` | `CameraAnchorDTO[]` |
+
+`batch_create` validates every item like `generation_submit` before inserting anything
+(all-or-nothing). Events (Tauri `emit`, payload = DTO): `job://updated` (`JobDTO`),
+`generation://updated` (`GenerationDTO`).

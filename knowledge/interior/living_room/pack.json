@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "interior",
   "subtype": "living_room",
   "label": "Living room",
@@ -25,6 +25,68 @@
       "context": {
         "distantBackground": ["city skyline through windows"]
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "entrance_wide",
+      "label": "Wide from the entrance",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 6,
+      "lensMm": 16,
+      "aspectRatio": "4:3",
+      "composition": "one-point view from the doorway across the living room, sofa group centered",
+      "anchorRecommended": true
+    },
+    {
+      "id": "opposite_corner",
+      "label": "Opposite corner",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 6,
+      "lensMm": 18,
+      "aspectRatio": "4:3",
+      "composition": "two-point view from the far corner back toward the entrance",
+      "anchorRecommended": true
+    },
+    {
+      "id": "sofa_to_windows",
+      "label": "From the sofa toward the windows",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.2,
+      "distanceM": 4,
+      "lensMm": 20,
+      "aspectRatio": "4:3",
+      "composition": "seated-height view over the sofa toward the window wall",
+      "anchorRecommended": false
+    },
+    {
+      "id": "tv_wall",
+      "label": "Toward the feature wall",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 4.5,
+      "lensMm": 24,
+      "aspectRatio": "4:3",
+      "composition": "frontal view of the TV / feature wall with the sofa in the foreground",
+      "anchorRecommended": false
+    },
+    {
+      "id": "material_detail",
+      "label": "Material detail",
+      "viewType": "interior_detail",
+      "elevationDeg": 0,
+      "heightM": 1.2,
+      "distanceM": 1.5,
+      "lensMm": 35,
+      "aspectRatio": "4:5",
+      "composition": "close-up of the coffee table, textiles and lighting",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["exterior facade", "bed in living room"],

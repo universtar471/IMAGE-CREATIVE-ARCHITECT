@@ -218,9 +218,10 @@ Prompt sections should be explicit:
 4. architectural language
 5. materials/colors
 6. context
-7. camera (future)
+7. camera — live since compiler `pc-1.1.0` (Phase 3): added when the request names a
+   `cameraId` (view type, viewpoint, lens, distance, composition, notes)
 8. lighting/weather/mood (future)
-9. reference-role instructions
+9. reference-role instructions (master first, then the camera's approved anchor, ADR-016)
 10. preservation/lock instructions
 11. negative constraints
 

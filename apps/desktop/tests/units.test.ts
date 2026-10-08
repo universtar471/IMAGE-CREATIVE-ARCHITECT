@@ -24,19 +24,20 @@ describe("workspace information architecture", () => {
     ]);
   });
 
-  it("marks exactly the Phase 1 + Phase 2 modules as functional", () => {
+  it("marks exactly the Phase 1–3 modules as functional", () => {
     expect(WORKSPACE_MODULES.filter((m) => m.availableIn === null).map((m) => m.id)).toEqual([
       "overview",
       "design_dna",
       "context",
       "references",
+      "camera",
       "generate",
     ]);
   });
 
   it("reserves the bottom tray tabs", () => {
     expect(TRAY_TABS.map((t) => t.label)).toEqual(["Assets", "Versions", "Jobs", "History"]);
-    expect(TRAY_TABS.find((t) => t.id === "jobs")?.availableIn).toBe(3);
+    expect(TRAY_TABS.find((t) => t.id === "jobs")?.availableIn).toBeNull();
     expect(TRAY_TABS.find((t) => t.id === "history")?.availableIn).toBeNull();
   });
 });

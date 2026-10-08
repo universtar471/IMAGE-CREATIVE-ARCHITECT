@@ -1,4 +1,5 @@
 import type { AssetRole, AssetSource, Density, ProjectStatus, ProjectType } from "./schemas/enums";
+import type { CameraViewType } from "./schemas/future";
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
   interior: "Interior",
@@ -61,4 +62,17 @@ export const DENSITY_LABELS: Record<Density, string> = {
   medium: "Medium",
   high: "High",
   very_high: "Very high",
+};
+
+export const CAMERA_VIEW_TYPE_LABELS: Record<CameraViewType, string> = {
+  exterior_front: "Exterior — front",
+  exterior_corner: "Exterior — corner",
+  exterior_side: "Exterior — side",
+  exterior_rear: "Exterior — rear",
+  aerial: "Aerial",
+  street_level: "Street level",
+  detail: "Detail",
+  interior_wide: "Interior — wide",
+  interior_detail: "Interior — detail",
+  custom: "Custom",
 };

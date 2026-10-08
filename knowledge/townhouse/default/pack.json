@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "townhouse",
   "subtype": "default",
   "label": "Standard townhouse",
@@ -65,6 +65,86 @@
           "elements": ["shopfronts", "street lamps"]
         }
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "front",
+      "label": "Front elevation",
+      "viewType": "exterior_front",
+      "azimuthDeg": 0,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 14,
+      "lensMm": 24,
+      "aspectRatio": "3:4",
+      "composition": "centered one-point perspective on the front facade, verticals kept straight",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_left_corner",
+      "label": "Front-left corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": 45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 16,
+      "lensMm": 24,
+      "aspectRatio": "3:4",
+      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_right_corner",
+      "label": "Front-right corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": -45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 16,
+      "lensMm": 24,
+      "aspectRatio": "3:4",
+      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "anchorRecommended": false
+    },
+    {
+      "id": "street_level",
+      "label": "Street-level pedestrian view",
+      "viewType": "street_level",
+      "azimuthDeg": 25,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 12,
+      "lensMm": 24,
+      "aspectRatio": "3:4",
+      "composition": "pedestrian view from the opposite pavement, neighbouring townhouses framing both sides",
+      "anchorRecommended": false
+    },
+    {
+      "id": "aerial_three_quarter",
+      "label": "Aerial three-quarter",
+      "viewType": "aerial",
+      "azimuthDeg": 35,
+      "elevationDeg": 30,
+      "heightM": 22,
+      "distanceM": 45,
+      "lensMm": 35,
+      "aspectRatio": "4:3",
+      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "anchorRecommended": false
+    },
+    {
+      "id": "facade_detail",
+      "label": "Facade detail",
+      "viewType": "detail",
+      "azimuthDeg": 20,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 5,
+      "lensMm": 50,
+      "aspectRatio": "4:5",
+      "composition": "close-up of balcony, railings and facade finishes",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["detached side walls with windows", "wide front lawn", "extra floors"],

@@ -21,8 +21,10 @@ pub mod util;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tauri::Manager;
+use tauri::{AppHandle, Emitter, Manager};
 
+use dto::{GenerationDto, JobDto};
+use services::queue::{self, Notifier};
 use services::AppCore;
 
 /// Override the data folder (useful for testing with a throwaway profile).
@@ -38,11 +40,16 @@ pub fn run() {
                 None => app.path().app_data_dir()?,
             };
             // A failed migration aborts startup instead of running on a partial schema.
-            let core = AppCore::open(&data_root).map_err(|e| format!("Cannot open project database: {}", e.message))?;
+            let mut core =
+                AppCore::open(&data_root).map_err(|e| format!("Cannot open project database: {}", e.message))?;
+            core.notifier = Arc::new(TauriNotifier(app.handle().clone()));
             core.storage.ensure_projects_root().map_err(|e| e.message)?;
             // Only managed project files may be served to the webview.
             app.asset_protocol_scope().allow_directory(core.storage.projects_root(), true)?;
-            app.manage(Arc::new(core));
+            let core = Arc::new(core);
+            app.manage(Arc::clone(&core));
+            // Resumes jobs left `queued`/`retrying` by the previous run (ADR-017).
+            queue::start_worker(core)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -68,7 +75,32 @@ pub fn run() {
             commands::generation_submit,
             commands::generation_list,
             commands::generation_get,
+            commands::batch_create,
+            commands::batch_list,
+            commands::job_list,
+            commands::job_cancel,
+            commands::job_retry,
+            commands::camera_anchor_list,
+            commands::camera_anchor_set,
+            commands::camera_anchor_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");
+}
+
+/// Forwards queue updates to the webview as Tauri events (payload = the DTO).
+struct TauriNotifier(AppHandle);
+
+impl Notifier for TauriNotifier {
+    fn job_updated(&self, job: &JobDto) {
+        if let Err(e) = self.0.emit(queue::JOB_UPDATED_EVENT, job) {
+            eprintln!("[queue] cannot emit {}: {e}", queue::JOB_UPDATED_EVENT);
+        }
+    }
+
+    fn generation_updated(&self, generation: &GenerationDto) {
+        if let Err(e) = self.0.emit(queue::GENERATION_UPDATED_EVENT, generation) {
+            eprintln!("[queue] cannot emit {}: {e}", queue::GENERATION_UPDATED_EVENT);
+        }
+    }
 }

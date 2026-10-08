@@ -50,7 +50,7 @@ export function useAssetImport() {
       setBusy(null);
       if (imported) {
         const assets = await call("asset_list", { projectId: ws.project.id });
-        await adoptAssets(assets);
+        await adoptAssets(ws.project.id, assets);
         if (lastId) selectAsset(lastId);
         notify("success", `Imported ${imported} image${imported > 1 ? "s" : ""}.`);
       }

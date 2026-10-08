@@ -2,14 +2,201 @@
   "command": "generation_list",
   "response": [
     {
+      "batchId": "BAT_0000000000000000000000000D",
+      "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
+      "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
-      "error": {
-        "kind": "rate_limited",
-        "message": "Test provider failure.",
-        "retryable": true
-      },
+      "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000006",
+      "id": "GEN_0000000000000000000000000G",
+      "jobId": "JOB_0000000000000000000000000F",
+      "modelId": "placeholder-v1",
+      "outputAssetIds": [
+        "AST_0000000000000000000000000Q"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": "AST_00000000000000000000000003",
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB"
+        },
+        "negativePrompt": "",
+        "positivePrompt": "Rear garden — anchor, tropical villa",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "local_preview",
+      "purpose": "anchor",
+      "referenceAssetIds": [
+        "AST_00000000000000000000000003"
+      ],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
+      "batchId": "BAT_0000000000000000000000000D",
+      "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_0000000000000000000000000H",
+      "jobId": "JOB_0000000000000000000000000E",
+      "modelId": "placeholder-v1",
+      "outputAssetIds": [
+        "AST_0000000000000000000000000P"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": "AST_00000000000000000000000003",
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA"
+        },
+        "negativePrompt": "",
+        "positivePrompt": "Front corner — anchor, tropical villa",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "local_preview",
+      "purpose": "anchor",
+      "referenceAssetIds": [
+        "AST_00000000000000000000000003"
+      ],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_0000000000000000000000000B",
+      "jobId": "JOB_0000000000000000000000000C",
+      "modelId": "placeholder-v1",
+      "outputAssetIds": [
+        "AST_0000000000000000000000000S"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": null,
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "projectType": "villa"
+        },
+        "negativePrompt": "people",
+        "positivePrompt": "Tropical villa at dusk",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "local_preview",
+      "purpose": "hero",
+      "referenceAssetIds": [],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": null,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_00000000000000000000000009",
+      "jobId": "JOB_0000000000000000000000000A",
+      "modelId": "placeholder-v1",
+      "outputAssetIds": [],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": null,
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "projectType": "villa"
+        },
+        "negativePrompt": "people",
+        "positivePrompt": "Tropical villa at dusk",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "local_preview",
+      "purpose": "hero",
+      "referenceAssetIds": [],
+      "startedAt": null,
+      "status": "cancelled"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_0000000000000000000000000J",
+      "jobId": "JOB_0000000000000000000000000K",
+      "modelId": "full",
+      "outputAssetIds": [
+        "AST_0000000000000000000000000R"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": null,
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "projectType": "villa"
+        },
+        "negativePrompt": "people",
+        "positivePrompt": "Tropical villa at dusk",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "test_remote",
+      "purpose": "hero",
+      "referenceAssetIds": [],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": null,
+      "error": null,
+      "finishedAt": null,
+      "id": "GEN_0000000000000000000000000M",
+      "jobId": "JOB_0000000000000000000000000N",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -19,7 +206,46 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000005",
+      "projectId": "PRJ_00000000000000000000000004",
+      "prompt": {
+        "compilerVersion": "pc-1.0.0",
+        "metadata": {
+          "projectType": "villa"
+        },
+        "negativePrompt": "people",
+        "positivePrompt": "Tropical villa at dusk",
+        "preservationInstructions": "Keep the massing.",
+        "referenceInstructions": "Image 1 is the master."
+      },
+      "providerId": "test_remote",
+      "purpose": "hero",
+      "referenceAssetIds": [],
+      "startedAt": null,
+      "status": "queued"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "error": {
+        "kind": "blocked",
+        "message": "Test provider failure.",
+        "retryable": false
+      },
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_00000000000000000000000007",
+      "jobId": "JOB_00000000000000000000000008",
+      "modelId": "full",
+      "outputAssetIds": [],
+      "params": {
+        "aspectRatio": null,
+        "imageSize": null,
+        "outputCount": 1,
+        "seed": null
+      },
+      "parentAssetId": null,
+      "projectId": "PRJ_00000000000000000000000004",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -37,14 +263,18 @@
       "status": "failed"
     },
     {
+      "batchId": null,
+      "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZC",
+      "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
       "id": "GEN_00000000000000000000000001",
+      "jobId": "JOB_00000000000000000000000002",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_00000000000000000000000002",
-        "AST_00000000000000000000000003"
+        "AST_00000000000000000000000005",
+        "AST_00000000000000000000000006"
       ],
       "params": {
         "aspectRatio": null,
@@ -52,8 +282,8 @@
         "outputCount": 2,
         "seed": null
       },
-      "parentAssetId": "AST_00000000000000000000000004",
-      "projectId": "PRJ_00000000000000000000000005",
+      "parentAssetId": "AST_00000000000000000000000003",
+      "projectId": "PRJ_00000000000000000000000004",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -67,7 +297,7 @@
       "providerId": "local_preview",
       "purpose": "hero",
       "referenceAssetIds": [
-        "AST_00000000000000000000000004"
+        "AST_00000000000000000000000003"
       ],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"

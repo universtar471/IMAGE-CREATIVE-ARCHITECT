@@ -1,57 +1,43 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AssetDTO, ProviderDescriptorDTO } from "@arch/domain";
+import type { ProviderDescriptorDTO } from "@arch/domain";
 import { createProject } from "../src/app/services";
-import { EMPTY_GENERATE_DRAFT, useStudio, type GenerationInput } from "../src/app/store";
+import {
+  EMPTY_GENERATE_DRAFT,
+  startBackendSync,
+  useStudio,
+  type GenerationInput,
+} from "../src/app/store";
 import { generateDisabledReason, resolveGenerateForm } from "../src/features/generate/form";
 import { buildVersionTree } from "../src/features/versions/tree";
 import { call, setTransport, type VersionDTO } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDERS } from "../src/lib/mockBackend";
+import { asset, settled, sleep, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
+let stopSync: () => void;
 
 function useMock(delayMs: number) {
   db = { projects: {}, dna: {}, assets: {}, versions: [] };
-  setTransport(createMockTransport(db, { generationDelayMs: delayMs }));
+  setTransport(createMockTransport(db, { generationDelayMs: delayMs, retryDelaysMs: [5, 10] }));
 }
 
 beforeEach(() => {
   useMock(0);
+  stopSync = startBackendSync();
   useStudio.setState({
     route: { name: "hub" },
     workspace: null,
     run: null,
+    jobs: [],
     providers: null,
     generateDraft: EMPTY_GENERATE_DRAFT,
   });
 });
-afterEach(() => setTransport(null));
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function asset(projectId: string, id: string, over: Partial<AssetDTO> = {}): AssetDTO {
-  return {
-    id,
-    projectId,
-    source: "external",
-    role: "architecture_reference",
-    status: "ready",
-    originalName: `${id}.jpg`,
-    managedRelPath: `assets/original/${id}.jpg`,
-    absolutePath: `blob:${id}`,
-    thumbnailPath: `data:${id}`,
-    mimeType: "image/jpeg",
-    fileSizeBytes: 10,
-    widthPx: 1600,
-    heightPx: 1000,
-    sha256: id,
-    parentAssetId: null,
-    operation: "import",
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
-    ...over,
-  };
-}
+afterEach(() => {
+  stopSync();
+  setTransport(null);
+});
 
 /** Project with a master (+ its import version) seeded straight into the mock db. */
 async function projectWithMaster(name = "Gen flow") {
@@ -86,37 +72,54 @@ const localInput = (projectId: string, refs: string[]): GenerationInput => ({
   params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: null },
 });
 
-describe("generation flow through the store", () => {
-  it("submit → assets, versions and history are refreshed and the output is selected", async () => {
+/** The open project's history entry once it is no longer queued/running. */
+const finished = (id: string) =>
+  waitFor(() => {
+    const g = useStudio.getState().workspace?.generations.find((x) => x.id === id);
+    return g && g.status !== "queued" && g.status !== "running" ? g : null;
+  }, `generation ${id} to finish`);
+
+describe("generation flow through the store (queued, events)", () => {
+  it("submit returns queued; events land the outputs, history and selection", async () => {
+    useMock(20);
     const { project, masterId } = await projectWithMaster();
     await useStudio.getState().openProject(project.id);
-    const g = await useStudio.getState().submitGeneration(localInput(project.id, [masterId]));
+    useStudio.getState().setModule("generate");
+    const q = await useStudio.getState().submitGeneration(localInput(project.id, [masterId]));
 
-    expect(g?.status).toBe("completed");
+    expect(q?.status).toBe("queued");
+    expect(q?.jobId).toMatch(/^JOB_/);
+    expect(useStudio.getState().run).toMatchObject({ status: "tracking", projectId: project.id });
+    const g = await finished(q!.id);
+    expect(g.status).toBe("completed");
+    await waitFor(
+      () =>
+        useStudio.getState().workspace!.assets.filter((a) => a.source === "ai_generated").length ===
+        2,
+      "outputs in the asset list",
+    );
     const s = useStudio.getState();
-    expect(s.run).toMatchObject({ status: "done", projectId: project.id });
-    expect(s.workspace!.generations.map((x) => x.id)).toEqual([g!.id]);
-    expect(s.workspace!.assets.filter((a) => a.source === "ai_generated")).toHaveLength(2);
-    expect(s.selectedAssetId).toBe(g!.outputAssetIds[0]);
+    expect(s.workspace!.generations.map((x) => x.id)).toEqual([q!.id]);
+    expect(s.run).toMatchObject({ status: "tracking", generation: { status: "completed" } });
+    expect(s.selectedAssetId).toBe(g.outputAssetIds[0]);
     // The prompt was compiled with exactly the chosen references, master as Image 1.
-    expect(g!.prompt.referenceInstructions).toMatch(/^Image 1 \(.*\) is the MASTER/);
-    expect(g!.prompt.metadata.referenceCount).toBe(1);
+    expect(g.prompt.referenceInstructions).toMatch(/^Image 1 \(.*\) is the MASTER/);
+    expect(g.prompt.metadata.referenceCount).toBe(1);
 
     const versions = await call("version_list", { projectId: project.id });
     const tree = buildVersionTree(versions);
     expect(tree[0]).toMatchObject({ depth: 0, childCount: 2 });
-    expect(tree.slice(1).every((n) => n.depth === 1 && n.version.generationId === g!.id)).toBe(
-      true,
-    );
+    expect(tree.slice(1).every((n) => n.depth === 1 && n.version.generationId === g.id)).toBe(true);
   });
 
   it("a [fail] prompt lands as a failed history entry", async () => {
     const { project } = await projectWithMaster();
     await useStudio.getState().openProject(project.id);
     useStudio.getState().editDna("building.notes", "please [fail] now");
-    const g = await useStudio.getState().submitGeneration(localInput(project.id, []));
-    expect(g?.status).toBe("failed");
-    expect(useStudio.getState().workspace!.generations[0]!.error?.kind).toBe("bad_response");
+    const q = await useStudio.getState().submitGeneration(localInput(project.id, []));
+    const g = await finished(q!.id);
+    expect(g.status).toBe("failed");
+    expect(g.error?.kind).toBe("bad_response");
     expect((await call("dna_get", { projectId: project.id })).building.notes).toBe(
       "please [fail] now",
     );
@@ -140,38 +143,47 @@ describe("generation flow through the store", () => {
   });
 
   it("ignores a result that arrives after switching to another project", async () => {
-    useMock(80);
+    useMock(60);
     const a = await projectWithMaster("Project A");
     const b = await projectWithMaster("Project B");
     await useStudio.getState().openProject(a.project.id);
-    const pending = useStudio.getState().submitGeneration(localInput(a.project.id, [a.masterId]));
-    await sleep(5);
-    expect(useStudio.getState().run?.status).toBe("running");
+    const q = await useStudio.getState().submitGeneration(localInput(a.project.id, [a.masterId]));
+    expect(q?.status).toBe("queued");
 
     await useStudio.getState().openProject(b.project.id);
     const bAssetsBefore = useStudio.getState().workspace!.assets.map((x) => x.id);
-    const g = await pending;
+    const g = await settled(a.project.id, q!.id);
+    await sleep(20);
 
     const s = useStudio.getState();
-    expect(g?.status).toBe("completed");
+    expect(g.status).toBe("completed");
     expect(s.workspace!.project.id).toBe(b.project.id);
     expect(s.workspace!.assets.map((x) => x.id)).toEqual(bAssetsBefore);
     expect(s.workspace!.generations).toEqual([]);
-    expect(s.selectedAssetId).not.toBe(g!.outputAssetIds[0]);
+    expect(s.selectedAssetId).not.toBe(g.outputAssetIds[0]);
 
     // Back in A the result is there (loaded from the backend).
     await useStudio.getState().openProject(a.project.id);
-    expect(useStudio.getState().workspace!.generations[0]!.id).toBe(g!.id);
+    expect(useStudio.getState().workspace!.generations[0]).toMatchObject({
+      id: g.id,
+      status: "completed",
+    });
   });
 
-  it("only one generation runs at a time", async () => {
-    useMock(30);
+  it("several submissions queue up and all complete", async () => {
+    useMock(15);
     const { project, masterId } = await projectWithMaster();
     await useStudio.getState().openProject(project.id);
-    const first = useStudio.getState().submitGeneration(localInput(project.id, [masterId]));
-    await sleep(5);
-    expect(await useStudio.getState().submitGeneration(localInput(project.id, []))).toBeUndefined();
-    expect((await first)?.status).toBe("completed");
+    const first = await useStudio.getState().submitGeneration(localInput(project.id, [masterId]));
+    const second = await useStudio.getState().submitGeneration(localInput(project.id, []));
+    expect(first?.status).toBe("queued");
+    expect(second?.status).toBe("queued");
+    expect((await finished(first!.id)).status).toBe("completed");
+    expect((await finished(second!.id)).status).toBe("completed");
+    await waitFor(
+      () => useStudio.getState().jobs.filter((j) => j.status === "completed").length === 2,
+      "two completed jobs in the tray",
+    );
   });
 
   it("reuse settings loads the generation into the Generate draft", async () => {
@@ -203,7 +215,7 @@ describe("Generate form derivation", () => {
     asset("P", "AST_gen", { role: "regular_image", source: "ai_generated" }),
     asset("P", "AST_missing", { status: "missing_file", role: "material_reference" }),
   ];
-  const ctx = { readOnly: false, running: false, dnaInvalid: false, assets };
+  const ctx = { readOnly: false, submitting: false, dnaInvalid: false, assets };
 
   it("defaults to the first configured provider, hero with a master, master-first references", () => {
     const f = resolveGenerateForm(EMPTY_GENERATE_DRAFT, providers(false), assets, "AST_master");
@@ -226,7 +238,7 @@ describe("Generate form derivation", () => {
     expect(generateDisabledReason(f, ctx)).toMatch(/needs an API key/);
     const ok = resolveGenerateForm(EMPTY_GENERATE_DRAFT, providers(false), assets, null);
     expect(generateDisabledReason(ok, { ...ctx, readOnly: true })).toMatch(/archived/);
-    expect(generateDisabledReason(ok, { ...ctx, running: true })).toMatch(/already running/);
+    expect(generateDisabledReason(ok, { ...ctx, submitting: true })).toMatch(/Submitting/);
     const tooMany = resolveGenerateForm(
       {
         ...EMPTY_GENERATE_DRAFT,

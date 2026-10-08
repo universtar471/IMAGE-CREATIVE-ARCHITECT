@@ -5,11 +5,13 @@ import {
   ArchiveRestore,
   ArrowLeft,
   Check,
+  ListChecks,
   Loader2,
   PencilLine,
 } from "lucide-react";
 import { PROJECT_TYPE_LABELS } from "@arch/domain";
-import { attempt, useStudio, type SaveState } from "../../app/store";
+import { useShallow } from "zustand/react/shallow";
+import { attempt, selectQueueCounts, useStudio, type SaveState } from "../../app/store";
 import { call } from "../../lib/bridge";
 import { ProviderChip } from "../../features/providers/ProviderChip";
 import { ConfirmDialog } from "../common/Dialog";
@@ -56,6 +58,7 @@ export function WorkspaceTopBar() {
         <StatusBadge status={project.status} />
       </div>
       <span className="spacer" />
+      <QueueIndicator />
       <ProviderChip />
       <span className="topbar-sep" />
       <SaveIndicator save={save} onRetry={() => void flushDna()} />
@@ -79,6 +82,24 @@ export function WorkspaceTopBar() {
         />
       )}
     </header>
+  );
+}
+
+/** Running and waiting jobs of every project; opens the Jobs tray. */
+function QueueIndicator() {
+  const { running, queued } = useStudio(useShallow(selectQueueCounts));
+  const setTrayTab = useStudio((s) => s.setTrayTab);
+  const busy = running + queued > 0;
+  return (
+    <button
+      className={`btn btn-ghost btn-sm queue-indicator ${busy ? "is-busy" : ""}`}
+      onClick={() => setTrayTab("jobs")}
+      title="Job queue — open the Jobs tray"
+      data-testid="queue-indicator"
+    >
+      {running > 0 ? <Loader2 size={14} className="spin" /> : <ListChecks size={14} />}
+      {busy ? `${running} running · ${queued} queued` : "Queue idle"}
+    </button>
   );
 }
 

@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "townhouse",
   "subtype": "narrow_lot",
   "label": "Very narrow lot (4 m or less)",
@@ -42,6 +42,73 @@
           "roadType": "2-3 m alley"
         }
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "front",
+      "label": "Front elevation",
+      "viewType": "exterior_front",
+      "azimuthDeg": 0,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 12,
+      "lensMm": 24,
+      "aspectRatio": "2:3",
+      "composition": "centered one-point perspective on the front facade, verticals kept straight",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_left_corner",
+      "label": "Front-left corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": 45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 14,
+      "lensMm": 24,
+      "aspectRatio": "2:3",
+      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_right_corner",
+      "label": "Front-right corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": -45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 14,
+      "lensMm": 24,
+      "aspectRatio": "2:3",
+      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "anchorRecommended": false
+    },
+    {
+      "id": "street_level",
+      "label": "Street-level pedestrian view",
+      "viewType": "street_level",
+      "azimuthDeg": 30,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 10,
+      "lensMm": 24,
+      "aspectRatio": "2:3",
+      "composition": "steep pedestrian view along the narrow street, adjacent facades tight on both sides",
+      "anchorRecommended": false
+    },
+    {
+      "id": "facade_detail",
+      "label": "Facade detail",
+      "viewType": "detail",
+      "azimuthDeg": 20,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 5,
+      "lensMm": 50,
+      "aspectRatio": "4:5",
+      "composition": "close-up of the narrow facade: balcony, screen and planter",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["facade wider than one bay", "side windows on party walls"]
