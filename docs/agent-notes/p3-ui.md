@@ -88,6 +88,9 @@ tray. Also the Codex review items of the Phase 2 UI, applied to the new code pat
 
 ## Stand-ins awaiting P3-B — `apps/desktop/src/lib/cameraDomain.ts` (all `TODO(p3-domain)`)
 
+**Resolved on wt/p3-integration (b353644):** the file and `FALLBACK_CAMERA_PRESETS` are gone;
+the UI uses the real `@arch/domain` helpers. The list below is kept for history.
+
 The signatures match the P3-B note (wt/p3-domain). At merge, delete the file and switch the
 imports to `@arch/domain`:
 
