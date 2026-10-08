@@ -110,23 +110,9 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
         }
     }
 
-    // 4. copy to managed storage with a collision-safe name, then verify
-    core.storage.ensure_project_dirs(&req.project_id)?;
+    // 4-5. copy to managed storage (verified) + thumbnail
     let asset_id = new_id(prefix::ASSET);
-    let managed_rel = storage::rel(&[ORIGINALS_DIR, &format!("{asset_id}.{}", info.format.extension())]);
-    let managed_abs = core.storage.resolve(&req.project_id, &managed_rel)?;
-    write_new_file(&managed_abs, &bytes)?;
-
-    // 5. thumbnail (non-fatal)
-    let thumb_rel = storage::rel(&[PREVIEWS_DIR, &format!("{asset_id}_thumb.jpg")]);
-    let thumb_abs = core.storage.resolve(&req.project_id, &thumb_rel)?;
-    let thumbnail_rel_path = match imaging::write_thumbnail(&bytes, info.format, &thumb_abs) {
-        Ok(()) => Some(thumb_rel),
-        Err(e) => {
-            eprintln!("[assets] thumbnail failed for {asset_id}: {e}");
-            None
-        }
-    };
+    let stored = store_managed_image(&core.storage, &req.project_id, &asset_id, &bytes, &info)?;
 
     // 6. DB write (asset + root version + optional master), cleaning up files on failure
     let now = now_iso();
@@ -137,8 +123,8 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
         role: AssetRole::RegularImage, // master is applied through the shared invariant below
         status: "ready".into(),
         original_name: Some(display_name.clone()),
-        managed_rel_path: managed_rel,
-        thumbnail_rel_path,
+        managed_rel_path: stored.managed_rel.clone(),
+        thumbnail_rel_path: stored.thumbnail_rel.clone(),
         mime_type: Some(info.format.mime().into()),
         file_size_bytes: Some(info.size_bytes as i64),
         width_px: Some(info.width as i64),
@@ -168,6 +154,7 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
                 label: Some(display_name.clone()),
                 operation: "import".into(),
                 operation_json: None,
+                generation_id: None,
                 created_at: now.clone(),
             },
         )?;
@@ -182,11 +169,55 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
     match db_result {
         Ok(row) => asset_dto(&core.storage, &row),
         Err(err) => {
-            let _ = fs::remove_file(&managed_abs);
-            let _ = fs::remove_file(&thumb_abs);
+            stored.remove_files();
             Err(err)
         }
     }
+}
+
+/// Files of one image written into managed storage, not yet referenced by any DB row.
+#[derive(Debug)]
+pub(crate) struct StoredImage {
+    pub managed_rel: String,
+    pub managed_abs: PathBuf,
+    /// `None` when the thumbnail could not be made (non-fatal).
+    pub thumbnail_rel: Option<String>,
+    pub thumbnail_abs: PathBuf,
+}
+
+impl StoredImage {
+    /// Undo [`store_managed_image`] when the DB write that should reference the files fails.
+    pub(crate) fn remove_files(&self) {
+        let _ = fs::remove_file(&self.managed_abs);
+        let _ = fs::remove_file(&self.thumbnail_abs);
+    }
+}
+
+/// Shared by import and generation: write `<asset_id>.<ext>` into the project's originals
+/// folder (verified `.part` + rename) and a JPEG thumbnail into previews. The caller owns
+/// the DB write and must call [`StoredImage::remove_files`] if it fails.
+pub(crate) fn store_managed_image(
+    storage: &Storage,
+    project_id: &str,
+    asset_id: &str,
+    bytes: &[u8],
+    info: &imaging::Inspection,
+) -> AppResult<StoredImage> {
+    storage.ensure_project_dirs(project_id)?;
+    let managed_rel = storage::rel(&[ORIGINALS_DIR, &format!("{asset_id}.{}", info.format.extension())]);
+    let managed_abs = storage.resolve(project_id, &managed_rel)?;
+    write_new_file(&managed_abs, bytes)?;
+
+    let thumb_rel = storage::rel(&[PREVIEWS_DIR, &format!("{asset_id}_thumb.jpg")]);
+    let thumbnail_abs = storage.resolve(project_id, &thumb_rel)?;
+    let thumbnail_rel = match imaging::write_thumbnail(bytes, info.format, &thumbnail_abs) {
+        Ok(()) => Some(thumb_rel),
+        Err(e) => {
+            eprintln!("[assets] thumbnail failed for {asset_id}: {e}");
+            None
+        }
+    };
+    Ok(StoredImage { managed_rel, managed_abs, thumbnail_rel, thumbnail_abs })
 }
 
 /// Write to `<target>.part`, fsync, verify size, then rename into place.
@@ -334,6 +365,7 @@ pub fn list_versions(core: &AppCore, project_id: &str) -> AppResult<Vec<VersionD
             parent_version_id: v.parent_version_id,
             label: v.label,
             operation: v.operation,
+            generation_id: v.generation_id,
             created_at: v.created_at,
         })
         .collect())

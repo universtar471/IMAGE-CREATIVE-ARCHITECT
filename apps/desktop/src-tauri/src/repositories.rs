@@ -254,21 +254,35 @@ pub struct VersionRow {
     pub label: Option<String>,
     pub operation: String,
     pub operation_json: Option<String>,
+    /// Set on versions created by a generation (ADR-015).
+    pub generation_id: Option<String>,
     pub created_at: String,
 }
 
 pub fn insert_version(conn: &Connection, v: &VersionRow) -> AppResult<()> {
     conn.execute(
-        "INSERT INTO versions (id, project_id, asset_id, parent_version_id, label, operation, operation_json, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![v.id, v.project_id, v.asset_id, v.parent_version_id, v.label, v.operation, v.operation_json, v.created_at],
+        "INSERT INTO versions (id, project_id, asset_id, parent_version_id, label, operation, operation_json,
+             generation_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            v.id,
+            v.project_id,
+            v.asset_id,
+            v.parent_version_id,
+            v.label,
+            v.operation,
+            v.operation_json,
+            v.generation_id,
+            v.created_at
+        ],
     )?;
     Ok(())
 }
 
 pub fn list_versions(conn: &Connection, project_id: &str) -> AppResult<Vec<VersionRow>> {
     let mut stmt = conn.prepare(
-        "SELECT id, project_id, asset_id, parent_version_id, label, operation, operation_json, created_at
+        "SELECT id, project_id, asset_id, parent_version_id, label, operation, operation_json, generation_id,
+             created_at
          FROM versions WHERE project_id = ?1 ORDER BY created_at, id",
     )?;
     let rows = stmt
@@ -281,7 +295,8 @@ pub fn list_versions(conn: &Connection, project_id: &str) -> AppResult<Vec<Versi
                 label: r.get(4)?,
                 operation: r.get(5)?,
                 operation_json: r.get(6)?,
-                created_at: r.get(7)?,
+                generation_id: r.get(7)?,
+                created_at: r.get(8)?,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;

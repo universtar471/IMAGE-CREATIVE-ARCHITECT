@@ -69,6 +69,8 @@ pub struct VersionDto {
     pub parent_version_id: Option<String>,
     pub label: Option<String>,
     pub operation: String,
+    /// The generation that produced this version, if any.
+    pub generation_id: Option<String>,
     pub created_at: String,
 }
 
