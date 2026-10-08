@@ -4,8 +4,9 @@ import { isTauri } from "@tauri-apps/api/core";
 import { ASSET_ROLE_LABELS, AssetRoleSchema, type AssetRole } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
-import { EmptyState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
-import { call, type VersionDTO } from "../../lib/bridge";
+import { EmptyState, FutureModulePlaceholder } from "../../components/common/states";
+import { HistoryTab } from "../history/HistoryTab";
+import { VersionsTab } from "../versions/VersionsTab";
 import { TRAY_TABS } from "../workspace/modules";
 import { AssetThumbnail } from "./AssetThumbnail";
 import { useAssetImport } from "./useAssetImport";
@@ -18,6 +19,7 @@ export function BottomTray() {
   const setTrayTab = useStudio((s) => s.setTrayTab);
   const toggleTray = useStudio((s) => s.toggleTray);
   const assetCount = useStudio((s) => s.workspace?.assets.length ?? 0);
+  const historyCount = useStudio((s) => s.workspace?.generations.length ?? 0);
 
   return (
     <section className="tray" aria-label="Production tray">
@@ -33,6 +35,9 @@ export function BottomTray() {
           >
             {t.label}
             {t.id === "assets" && <span className="badge badge-neutral">{assetCount}</span>}
+            {t.id === "history" && historyCount > 0 && (
+              <span className="badge badge-neutral">{historyCount}</span>
+            )}
             {t.availableIn && <Lock size={11} />}
           </button>
         ))}
@@ -49,14 +54,15 @@ export function BottomTray() {
         <div className="tray-body" role="tabpanel">
           {trayTab === "assets" && <AssetsTab />}
           {trayTab === "versions" && <VersionsTab />}
-          {(trayTab === "jobs" || trayTab === "history") && <FutureTab id={trayTab} />}
+          {trayTab === "history" && <HistoryTab />}
+          {trayTab === "jobs" && <FutureTab id={trayTab} />}
         </div>
       )}
     </section>
   );
 }
 
-function FutureTab({ id }: { id: "jobs" | "history" }) {
+function FutureTab({ id }: { id: "jobs" }) {
   const tab = TRAY_TABS.find((t) => t.id === id)!;
   return (
     <FutureModulePlaceholder
@@ -203,66 +209,6 @@ function AssetsTab() {
           onCancel={() => duplicate.resolve(false)}
         />
       )}
-    </div>
-  );
-}
-
-function VersionsTab() {
-  const projectId = useStudio((s) => s.workspace!.project.id);
-  const assets = useStudio((s) => s.workspace!.assets);
-  const revision = useStudio((s) => s.dataRevision);
-  const [versions, setVersions] = useState<VersionDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    call("version_list", { projectId })
-      .then((v) => alive && (setVersions(v), setError(null)))
-      .catch((e: Error) => alive && setError(e.message));
-    return () => {
-      alive = false;
-    };
-  }, [projectId, revision]);
-
-  if (error)
-    return (
-      <div className="state">
-        <p>{error}</p>
-      </div>
-    );
-  if (!versions) return <LoadingState />;
-  if (!versions.length)
-    return (
-      <EmptyState title="No versions yet">Each imported image starts a version lineage.</EmptyState>
-    );
-  const nameOf = (id: string) => assets.find((a) => a.id === id)?.originalName ?? id;
-  return (
-    <div className="list">
-      <table>
-        <thead>
-          <tr>
-            <th>Version</th>
-            <th>Asset</th>
-            <th>Operation</th>
-            <th>Parent</th>
-            <th>Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          {versions.map((v) => (
-            <tr key={v.id}>
-              <td style={{ fontFamily: "var(--mono)" }}>{v.id.slice(0, 12)}…</td>
-              <td>{nameOf(v.assetId)}</td>
-              <td>{v.operation}</td>
-              <td>{v.parentVersionId ?? "— root —"}</td>
-              <td>{new Date(v.createdAt).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="field-hint" style={{ padding: "6px 8px" }}>
-        Version tree view and derived branches arrive with generation in Phase 2.
-      </p>
     </div>
   );
 }

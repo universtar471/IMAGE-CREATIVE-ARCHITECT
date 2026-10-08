@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { Toasts } from "../components/common/Toasts";
 import { ProjectHub } from "../features/projects/ProjectHub";
+import { ProviderSettingsDialog } from "../features/providers/ProviderSettingsDialog";
 import { ProjectWorkspace } from "../features/workspace/ProjectWorkspace";
 import { useStudio } from "./store";
 
@@ -13,6 +14,7 @@ export function App() {
     <>
       {!isTauri() && <div className="preview-banner">Browser preview · in-memory mock backend</div>}
       {route.name === "hub" ? <ProjectHub /> : <ProjectWorkspace projectId={route.projectId} />}
+      <ProviderSettingsDialog />
       <Toasts />
     </>
   );

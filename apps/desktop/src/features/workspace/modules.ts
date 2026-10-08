@@ -103,7 +103,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     label: "Generate",
     icon: Sparkles,
     group: "production",
-    availableIn: 2,
+    availableIn: null,
     description: "Provider-neutral image generation and the hero workflow.",
   },
   {
@@ -148,7 +148,7 @@ export const TRAY_TABS: readonly {
     id: "versions",
     label: "Versions",
     availableIn: null,
-    note: "Import lineage now; version tree arrives with generation in Phase 2.",
+    note: "Lineage tree: imports are roots; generated images branch from their parent's version.",
   },
   {
     id: "jobs",
@@ -159,7 +159,7 @@ export const TRAY_TABS: readonly {
   {
     id: "history",
     label: "History",
-    availableIn: 2,
-    note: "Generation and edit history arrives in Phase 2.",
+    availableIn: null,
+    note: "Every generation with its status, settings and outputs.",
   },
 ];

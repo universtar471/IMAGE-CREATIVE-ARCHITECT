@@ -161,7 +161,7 @@ export function SelectField<T extends string>({
 }: Common & {
   value: T | undefined;
   onChange: (v: T | undefined) => void;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; disabled?: boolean }[];
   allowEmpty?: boolean;
 }) {
   const id = useId();
@@ -176,7 +176,7 @@ export function SelectField<T extends string>({
       >
         {allowEmpty && <option value="">— not set —</option>}
         {options.map((o) => (
-          <option key={o.value} value={o.value}>
+          <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
           </option>
         ))}

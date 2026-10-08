@@ -17,9 +17,11 @@ export type CanvasMode = { kind: "single"; asset: AssetDTO | null };
 export function WorkspaceCanvas({
   mode,
   emptyAction,
+  emptyMessage,
 }: {
   mode: CanvasMode;
   emptyAction?: React.ReactNode;
+  emptyMessage?: string;
 }) {
   const asset = mode.asset;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -27,7 +29,8 @@ export function WorkspaceCanvas({
   if (!asset) {
     return (
       <EmptyState icon={<Images size={32} />} title="No image selected" action={emptyAction}>
-        Import images into the Assets tray below, then select one to view it here.
+        {emptyMessage ??
+          "Import images into the Assets tray below, then select one to view it here."}
       </EmptyState>
     );
   }
