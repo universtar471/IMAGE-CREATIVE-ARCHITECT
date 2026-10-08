@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::Value;
 
-use crate::domain::{AssetRole, AssetSource, ProjectStatus, ProjectType};
+use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, ProjectStatus, ProjectType};
 use crate::error::{AppError, AppResult, ErrorCode};
 
 #[derive(Debug, Clone)]
@@ -301,4 +301,155 @@ pub fn list_versions(conn: &Connection, project_id: &str) -> AppResult<Vec<Versi
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
+}
+
+/// Latest version of an asset: the lineage parent for anything derived from it.
+pub fn latest_version_id(conn: &Connection, asset_id: &str) -> AppResult<Option<String>> {
+    Ok(conn
+        .query_row(
+            "SELECT id FROM versions WHERE asset_id = ?1 ORDER BY created_at DESC, id DESC LIMIT 1",
+            [asset_id],
+            |r| r.get(0),
+        )
+        .optional()?)
+}
+
+// ------------------------------------------------------------------ generations
+
+#[derive(Debug, Clone)]
+pub struct GenerationRow {
+    pub id: String,
+    pub project_id: String,
+    pub provider_id: String,
+    pub model_id: String,
+    pub purpose: GenerationPurpose,
+    pub status: GenerationStatus,
+    /// Provider-neutral request snapshot; never contains a key.
+    pub request_json: String,
+    pub parent_asset_id: Option<String>,
+    pub error_kind: Option<String>,
+    pub error_message: Option<String>,
+    pub error_retryable: Option<bool>,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+const GENERATION_COLS: &str = "id, project_id, provider_id, model_id, purpose, status, request_json, \
+     parent_asset_id, error_kind, error_message, error_retryable, started_at, finished_at, duration_ms, \
+     created_at, updated_at";
+
+fn map_generation(r: &Row<'_>) -> rusqlite::Result<GenerationRow> {
+    Ok(GenerationRow {
+        id: r.get(0)?,
+        project_id: r.get(1)?,
+        provider_id: r.get(2)?,
+        model_id: r.get(3)?,
+        purpose: r.get(4)?,
+        status: r.get(5)?,
+        request_json: r.get(6)?,
+        parent_asset_id: r.get(7)?,
+        error_kind: r.get(8)?,
+        error_message: r.get(9)?,
+        error_retryable: r.get(10)?,
+        started_at: r.get(11)?,
+        finished_at: r.get(12)?,
+        duration_ms: r.get(13)?,
+        created_at: r.get(14)?,
+        updated_at: r.get(15)?,
+    })
+}
+
+pub fn insert_generation(conn: &Connection, g: &GenerationRow) -> AppResult<()> {
+    conn.execute(
+        &format!(
+            "INSERT INTO generations ({GENERATION_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"
+        ),
+        params![
+            g.id, g.project_id, g.provider_id, g.model_id, g.purpose, g.status, g.request_json, g.parent_asset_id,
+            g.error_kind, g.error_message, g.error_retryable, g.started_at, g.finished_at, g.duration_ms,
+            g.created_at, g.updated_at
+        ],
+    )?;
+    Ok(())
+}
+
+/// Error part of a finished generation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenerationErrorRow {
+    pub kind: String,
+    pub message: String,
+    pub retryable: bool,
+}
+
+/// Move a `running` generation to its final state.
+pub fn finish_generation(
+    conn: &Connection,
+    id: &str,
+    status: GenerationStatus,
+    error: Option<&GenerationErrorRow>,
+    finished_at: &str,
+    duration_ms: i64,
+) -> AppResult<()> {
+    let n = conn.execute(
+        "UPDATE generations SET status = ?2, error_kind = ?3, error_message = ?4, error_retryable = ?5,
+             finished_at = ?6, duration_ms = ?7, updated_at = ?6
+         WHERE id = ?1",
+        params![
+            id,
+            status,
+            error.map(|e| &e.kind),
+            error.map(|e| &e.message),
+            error.map(|e| e.retryable),
+            finished_at,
+            duration_ms
+        ],
+    )?;
+    if n == 0 {
+        return Err(AppError::not_found("Generation", id));
+    }
+    Ok(())
+}
+
+pub fn find_generation(conn: &Connection, id: &str) -> AppResult<Option<GenerationRow>> {
+    Ok(conn
+        .query_row(&format!("SELECT {GENERATION_COLS} FROM generations WHERE id = ?1"), [id], map_generation)
+        .optional()?)
+}
+
+/// Newest first.
+pub fn list_generations(conn: &Connection, project_id: &str) -> AppResult<Vec<GenerationRow>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {GENERATION_COLS} FROM generations WHERE project_id = ?1 ORDER BY started_at DESC, id DESC"
+    ))?;
+    let rows = stmt.query_map([project_id], map_generation)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+pub fn insert_generation_output(conn: &Connection, generation_id: &str, index: u32, asset_id: &str) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO generation_outputs (generation_id, output_index, asset_id) VALUES (?1, ?2, ?3)",
+        params![generation_id, index, asset_id],
+    )?;
+    Ok(())
+}
+
+/// Output asset IDs still present, in output order (rows cascade away with their asset).
+pub fn list_generation_outputs(conn: &Connection, generation_id: &str) -> AppResult<Vec<String>> {
+    let mut stmt =
+        conn.prepare("SELECT asset_id FROM generation_outputs WHERE generation_id = ?1 ORDER BY output_index")?;
+    let rows = stmt.query_map([generation_id], |r| r.get(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}
+
+/// Startup recovery: rows still `running` belong to a provider call that died with the app.
+pub fn interrupt_running_generations(conn: &Connection, message: &str, now: &str) -> AppResult<usize> {
+    Ok(conn.execute(
+        "UPDATE generations SET status = ?1, error_kind = 'interrupted', error_message = ?2, error_retryable = 1,
+             updated_at = ?3
+         WHERE status = ?4",
+        params![GenerationStatus::Interrupted, message, now, GenerationStatus::Running],
+    )?)
 }

@@ -11,6 +11,7 @@ pub fn new_id(prefix: &str) -> String {
 }
 
 pub mod prefix {
+    pub const GENERATION: &str = "GEN";
     pub const PROJECT: &str = "PRJ";
     pub const ASSET: &str = "AST";
     pub const VERSION: &str = "VER";
