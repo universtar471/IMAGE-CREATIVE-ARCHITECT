@@ -182,11 +182,22 @@ describe("client-side generation validation (§9)", () => {
     expect(fields(req, m)).toContain(field);
   });
 
-  it("allows any ratio/size when the model lists none", () => {
+  // §9: an empty list means the provider decides, so the value must be null (review p2-ui #1).
+  it("rejects a ratio/size when the model lists none", () => {
     const m = model({ aspectRatios: [], imageSizes: [] });
     expect(
       validateGenerationRequest(
         { ...ok, params: params({ aspectRatio: "4:5", imageSize: "8K" }) },
+        m,
+      ).map((i) => i.field),
+    ).toEqual(["aspectRatio", "imageSize"]);
+  });
+
+  it("accepts null ratio/size when the model lists none", () => {
+    const m = model({ aspectRatios: [], imageSizes: [] });
+    expect(
+      validateGenerationRequest(
+        { ...ok, params: params({ aspectRatio: null, imageSize: null }) },
         m,
       ),
     ).toEqual([]);

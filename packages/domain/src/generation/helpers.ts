@@ -201,20 +201,21 @@ export function validateGenerationRequest(
       message: `${model.label} returns at most ${model.maxOutputs} image(s) per request.`,
     });
   }
-  if (
-    p.aspectRatio !== null &&
-    model.aspectRatios.length &&
-    !model.aspectRatios.includes(p.aspectRatio)
-  ) {
+  // An empty list means the provider decides, so only null is valid then (§9).
+  if (p.aspectRatio !== null && !model.aspectRatios.includes(p.aspectRatio)) {
     issues.push({
       field: "aspectRatio",
-      message: `Aspect ratio ${p.aspectRatio} is not offered by ${model.label}.`,
+      message: model.aspectRatios.length
+        ? `Aspect ratio ${p.aspectRatio} is not offered by ${model.label}.`
+        : `${model.label} chooses the aspect ratio itself; leave it unset.`,
     });
   }
-  if (p.imageSize !== null && model.imageSizes.length && !model.imageSizes.includes(p.imageSize)) {
+  if (p.imageSize !== null && !model.imageSizes.includes(p.imageSize)) {
     issues.push({
       field: "imageSize",
-      message: `Image size ${p.imageSize} is not offered by ${model.label}.`,
+      message: model.imageSizes.length
+        ? `Image size ${p.imageSize} is not offered by ${model.label}.`
+        : `${model.label} chooses the image size itself; leave it unset.`,
     });
   }
   if (p.seed !== null && !model.supportsSeed) {
