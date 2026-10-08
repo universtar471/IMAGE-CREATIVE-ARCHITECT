@@ -216,11 +216,41 @@ describe("GenerationDTO schema", () => {
       parentAssetId: null,
       outputAssetIds: [],
       error: { kind: "auth", message: "Key rejected.", retryable: false },
+      cameraId: null,
+      batchId: null,
+      jobId: "JOB_1",
+      createdAt: "2026-10-08T00:00:00Z",
       startedAt: "2026-10-08T00:00:00Z",
       finishedAt: "2026-10-08T00:00:01Z",
       durationMs: 1000,
     });
     expect(g.error?.kind).toBe("auth");
+  });
+
+  it("parses a queued generation (not started yet)", () => {
+    const g = GenerationDTOSchema.parse({
+      id: "GEN_2",
+      projectId: "PRJ_1",
+      providerId: "mock",
+      modelId: "m",
+      purpose: "anchor",
+      status: "queued",
+      prompt: prompt(),
+      referenceAssetIds: ["AST_M"],
+      params: params(),
+      parentAssetId: "AST_M",
+      outputAssetIds: [],
+      error: null,
+      cameraId: "CAM_1",
+      batchId: "BAT_1",
+      jobId: "JOB_2",
+      createdAt: "2026-10-08T00:00:00Z",
+      startedAt: null,
+      finishedAt: null,
+      durationMs: null,
+    });
+    expect(g.status).toBe("queued");
+    expect(g.startedAt).toBeNull();
   });
 });
 
