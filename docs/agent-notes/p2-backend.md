@@ -38,15 +38,14 @@ provider/generation DTOs and seven Tauri commands. The Gemini adapter (P2-B) and
   `TestProvider` (provider `test_remote`; models `full`, `text-only` and `edit-only`). `TestProvider`
   supports behaviours, records the request it received, and can run a hook during the call.
 
-## Decisions and deviations (contract kept unchanged)
+## Decisions (contract kept unchanged)
 
 1. **Reference bytes are read before the `running` row is inserted, not after.** This keeps
    "missing reference file → `INVALID_STATE`, no row" true. The DB lock is still released
    before the file reads and before the provider call.
-2. **`aspectRatio` / `imageSize` must be null when the model lists none.** §9 is loosely worded
-   here ("not offered … when the model lists any"). An empty list means the provider decides,
-   and the Gemini adapter needs `imageSize: null`. The UI only shows these controls when the
-   list is non-empty, so it sends null anyway. Error: `VALIDATION_ERROR`.
+2. **`aspectRatio` / `imageSize` must be null when the model lists none.** This is the
+   API_CONTRACTS §9 rule (clarified on main in 8a06735). A non-null value then gives
+   `VALIDATION_ERROR`. Covered by `empty_capability_lists_require_null_values`.
 3. **Extra `error.kind` values beyond the Zod comment list:**
    - `io`: a local file or DB failure while saving outputs (retryable true). Written files are
      removed.
@@ -81,7 +80,7 @@ provider/generation DTOs and seven Tauri commands. The Gemini adapter (P2-B) and
 - `PROVIDER_NOT_CONFIGURED` details: `{ providerId }`. A missing reference file gives
   `INVALID_STATE` with details `{ assetId }`.
 - `provider_list` takes no request fields (the bridge's `{ request: {} }` is ignored).
-- Send `aspectRatio` / `imageSize` as null when the model's list is empty (see decision 2).
+- Send `aspectRatio` / `imageSize` as null when the model's list is empty (§9, decision 2).
 
 ## Open debts
 
@@ -94,7 +93,7 @@ provider/generation DTOs and seven Tauri commands. The Gemini adapter (P2-B) and
 
 ```
 cd apps/desktop/src-tauri
-cargo test                                   # 53 tests
+cargo test                                   # 62 tests
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 cd ../../.. && npm install && npm run verify # green (vitest 70 + cargo)
@@ -109,3 +108,44 @@ cd ../../.. && npm install && npm run verify # green (vitest 70 + cargo)
   fallback test uses a provider id unique to that test, so parallel tests do not race on the variable.
 - Do not edit `providers/gemini.rs` here. P2-B turns it into `providers/gemini/`. Expect a trivial
   merge only in `providers/mod.rs` if P2-B changed it.
+
+## Review round 1 (Codex, `main:docs/agent-reviews/p2-backend.md`)
+
+Failing tests were written first, then fixed.
+
+- **MUST 1: undecodable output.**
+  - Every generated output is now fully decoded (`imaging::decode`) before anything is written.
+    A PNG with a valid header but corrupt IDAT data → `failed` / `bad_response`.
+  - The thumbnail is written from the decoded image (`Thumbnail::Required`). A failure there is
+    `io`, and every file of the batch is cleaned up.
+  - Import keeps its best-effort thumbnail policy (`Thumbnail::BestEffort`).
+  - Tests:
+    - `header_valid_png_with_corrupt_pixels_is_bad_response` (the fixture is checked to pass
+      `inspect`)
+    - `thumbnail_write_failure_fails_the_whole_batch_as_io`
+    - `required_thumbnail_failure_removes_the_written_original`
+- **MUST 2: no code change.**
+  - The contract on main now says a value must be null when the model's list is empty. The
+    behaviour already matched.
+  - This note no longer calls it a deviation. A dedicated test was added.
+- **MUST 3: references re-checked under the insert lock.**
+  - `check_reference` (exists, same project, `ready`, managed file present) runs at validation.
+    It runs again in the same lock scope as `insert_generation`.
+  - A reference removed in between → `NOT_FOUND`; a lost file → `INVALID_STATE`. In both cases
+    no row is created and nothing is sent.
+  - Tests: `reference_removed_before_insert_is_rejected_without_a_row` (master and non-master)
+    and `reference_file_lost_before_insert_is_invalid_state`.
+- **SHOULD: rollback.**
+  - `sql_failure_on_second_output_rolls_back_everything` uses a SQLite trigger that aborts the
+    second `generation_outputs` insert.
+  - `original_write_failure_mid_batch_rolls_back_everything`.
+  - Both assert that the generation is `failed` / `io`, that assets, versions and
+    generation_outputs are empty, and that no originals or previews are left.
+- **SHOULD: cleanup failures.**
+  - `StoredImage::remove_files` now logs undeletable files (asset id + path only, no provider
+    data) and returns them.
+  - A file that is already missing is not a failure. The primary error is unchanged.
+  - Test: `cleanup_failures_are_reported_with_asset_id_and_path`.
+- **Test seams (`#[cfg(test)]` only, thread-local so parallel tests do not interfere):**
+  - `assets::faults::{FAIL_ORIGINAL_AT, FAIL_THUMBNAIL_AT}`.
+  - `generations::AFTER_PREPARE`, a hook between validation and the insert.
