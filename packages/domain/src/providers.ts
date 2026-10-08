@@ -1,20 +1,23 @@
 /**
- * Future provider boundary (Phase 2+). Interfaces only — no implementations in Phase 1.
- * Providers depend on these domain contracts; the domain never imports vendor SDKs.
+ * Provider boundary. Since Phase 2 provider adapters run in the Rust backend
+ * (`apps/desktop/src-tauri/src/providers`) so API keys never reach the webview (ADR-013).
+ * The UI only sees provider-neutral DTOs from `schemas/generation.ts`.
+ * These types describe the conceptual contract shared by every adapter.
  */
+import type { GenerationParams, ModelCapabilities } from "./schemas/generation";
 import type { PromptBundle } from "./schemas/prompt";
 
 export type ProviderCapabilities = {
   id: string;
-  textToImage: boolean;
-  imageToImage: boolean;
-  maxReferenceImages: number;
+  models: ModelCapabilities[];
 };
 
 export type GenerationRequest = {
   projectId: string;
+  modelId: string;
   prompt: PromptBundle;
   referenceAssetIds: string[];
+  params: GenerationParams;
 };
 
 export type GenerationResult = {

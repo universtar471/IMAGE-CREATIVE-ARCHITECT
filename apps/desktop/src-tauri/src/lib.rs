@@ -9,6 +9,7 @@ pub mod domain;
 pub mod dto;
 pub mod error;
 pub mod imaging;
+pub mod providers;
 pub mod repositories;
 pub mod services;
 pub mod storage;

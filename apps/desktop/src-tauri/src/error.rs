@@ -15,6 +15,7 @@ pub enum ErrorCode {
     UnsupportedFile,
     InvalidState,
     DuplicateAsset,
+    ProviderNotConfigured,
 }
 
 #[derive(Debug, Clone, Serialize, thiserror::Error)]

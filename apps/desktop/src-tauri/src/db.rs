@@ -10,7 +10,8 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::util::now_iso;
 
 /// Ordered list of migrations. Append only; never edit an applied migration.
-pub const MIGRATIONS: &[(i64, &str)] = &[(1, include_str!("../migrations/0001_initial.sql"))];
+pub const MIGRATIONS: &[(i64, &str)] =
+    &[(1, include_str!("../migrations/0001_initial.sql")), (2, include_str!("../migrations/0002_generations.sql"))];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
     if let Some(parent) = path.parent() {
@@ -46,8 +47,7 @@ pub fn migrate(conn: &Connection) -> AppResult<()> {
             applied_at TEXT NOT NULL
          );",
     )?;
-    let current: i64 =
-        conn.query_row("SELECT COALESCE(MAX(version), 0) FROM schema_migrations", [], |r| r.get(0))?;
+    let current: i64 = conn.query_row("SELECT COALESCE(MAX(version), 0) FROM schema_migrations", [], |r| r.get(0))?;
     let latest = MIGRATIONS.last().map(|m| m.0).unwrap_or(0);
     if current > latest {
         return Err(AppError::new(
@@ -59,9 +59,8 @@ pub fn migrate(conn: &Connection) -> AppResult<()> {
     }
     for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v > current) {
         let tx = conn.unchecked_transaction()?;
-        tx.execute_batch(sql).map_err(|e| {
-            AppError::new(ErrorCode::DbError, format!("Migration {version} failed: {e}"))
-        })?;
+        tx.execute_batch(sql)
+            .map_err(|e| AppError::new(ErrorCode::DbError, format!("Migration {version} failed: {e}")))?;
         tx.execute(
             "INSERT INTO schema_migrations (version, applied_at) VALUES (?1, ?2)",
             rusqlite::params![version, now_iso()],
@@ -92,7 +91,10 @@ mod tests {
     fn migrations_apply_on_fresh_database() {
         let conn = open_in_memory().unwrap();
         assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
-        assert_eq!(tables(&conn), ["assets", "project_dna", "projects", "schema_migrations", "versions"]);
+        assert_eq!(
+            tables(&conn),
+            ["assets", "generation_outputs", "generations", "project_dna", "projects", "schema_migrations", "versions"]
+        );
         let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
         assert_eq!(fk, 1);
     }
@@ -122,10 +124,16 @@ mod tests {
             let mut dna = test_valid_dna();
             dna["building"]["floors"] = serde_json::json!(2);
             dna["building"]["colorPalette"] = serde_json::json!(["white", "beige"]);
-            let p = projects::create(&core, CreateProjectRequest {
-                name: "Villa Tropical Test".into(), project_type: "villa".into(),
-                subtype: Some("tropical".into()), dna: dna.clone(),
-            }).unwrap();
+            let p = projects::create(
+                &core,
+                CreateProjectRequest {
+                    name: "Villa Tropical Test".into(),
+                    project_type: "villa".into(),
+                    subtype: Some("tropical".into()),
+                    dna: dna.clone(),
+                },
+            )
+            .unwrap();
             (p.id, dna)
         }; // core dropped = app closed
         let core = AppCore::open(&root).unwrap();

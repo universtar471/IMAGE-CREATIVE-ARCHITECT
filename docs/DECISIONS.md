@@ -103,3 +103,47 @@ master to `architecture_reference`. Additionally, a partial unique index
 `projects.active_master_asset_id` has no FK (it would be cyclic); ownership is checked in
 the service.
 
+
+## ADR-012 — First image provider: Google Gemini, plus an offline provider
+Status: accepted (Phase 2)
+
+Phase 2 ships two providers behind one Rust trait (`ImageProvider`):
+- `gemini` — Google Gemini image models through the public REST `generateContent` API.
+  Chosen first because it accepts several reference images in one request (matches the
+  reference-role model) and needs only an API key.
+- `local_preview` — offline, deterministic placeholder renderer. No key, no network, no cost.
+  It keeps the generation flow (persistence, lineage, history, UI) testable end to end.
+Adding a provider = one new file in `src-tauri/src/providers/` + one registry line.
+Vendor request shapes never leave that folder.
+
+## ADR-013 — Provider calls and secrets live in the Rust backend
+Status: accepted (Phase 2)
+
+Adapters run in Rust, not in the webview, so API keys never enter JavaScript memory,
+zustand state, localStorage or logs. Keys are stored in the OS credential store
+(Windows Credential Manager / macOS Keychain) via the `keyring` crate, service
+`com.archaistudio.desktop.provider`, account = provider id. An environment variable
+`ARCH_STUDIO_<PROVIDER_ID>_API_KEY` is a read-only fallback for development.
+SQLite stores no secrets; `request_json` snapshots are provider-neutral and key-free.
+The UI can set, clear and test a key but can never read it back.
+
+## ADR-014 — Synchronous generation with persisted history (no job queue yet)
+Status: accepted (Phase 2)
+
+`generation_submit` persists a `running` generation row, releases the DB lock, calls the
+provider inside `spawn_blocking`, then stores outputs as managed assets in one transaction
+and marks the row `completed` (or `failed` with a typed provider error). Provider failures
+are history entries, not bridge errors; only invalid requests return `AppError`.
+Rows still `running` at startup become `interrupted`. The Phase 3 job queue replaces the
+synchronous call without changing the `generations` table or the DTOs.
+
+## ADR-015 — Generated-output lineage
+Status: accepted (Phase 2)
+
+Every generated image is a normal managed asset: `source = ai_generated`,
+`role = regular_image`, `operation = generate`, `parent_asset_id` = the generation's parent
+(the master if referenced, otherwise the first reference, otherwise none).
+Each output also gets a version whose `parent_version_id` is the parent asset's latest
+version and whose `generation_id` points at the generation. Promoting an output to master
+uses the existing `asset_set_master` invariant (ADR-011). Project status derivation is
+unchanged in Phase 2.

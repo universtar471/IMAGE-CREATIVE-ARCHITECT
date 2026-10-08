@@ -281,3 +281,35 @@ All commands take a single `request` argument (`invoke(cmd, { request })`) and r
 - `knowledge_*` commands are not needed in Phase 1: packs are bundled into the UI.
 - `prompt_compile_preview` is a UI application service (`compilePromptPreview`), compiling
   persisted data loaded with `project_get` (ADR-008).
+
+## 9. Phase 2 contracts — providers and generation
+
+Zod source of truth: `packages/domain/src/schemas/generation.ts`. Rust mirrors it in
+`src-tauri/src/providers/mod.rs` + `src-tauri/src/dto.rs` (camelCase). New error code:
+`PROVIDER_NOT_CONFIGURED` (details: `{ providerId }`).
+
+| Command | Request | Response |
+|---|---|---|
+| `provider_list` | `{}` | `ProviderDescriptorDTO[]` |
+| `provider_set_api_key` | `{ providerId, apiKey }` | `ProviderDescriptorDTO` |
+| `provider_clear_api_key` | `{ providerId }` | `ProviderDescriptorDTO` |
+| `provider_test` | `{ providerId }` | `ProviderTestResult` (`ok:false` is not an error) |
+| `generation_submit` | `GenerationSubmitRequest` | `GenerationDTO` (`completed` or `failed`) |
+| `generation_list` | `{ projectId }` | `GenerationDTO[]`, newest first |
+| `generation_get` | `{ projectId, generationId }` | `GenerationDTO` |
+| `version_list` | unchanged | `VersionDTO[]`, now with `generationId: string \| null` |
+
+`generation_submit` returns `AppError` only when nothing was sent to a provider:
+- `NOT_FOUND` — project, provider, model or reference asset unknown
+- `INVALID_STATE` — project archived, reference file missing
+- `VALIDATION_ERROR` — empty positive prompt, duplicate references, too many references,
+  `outputCount` above `maxOutputs`, `aspectRatio`/`imageSize` not offered by the model
+  (when the model lists any), `seed` set on a model without seed support, references on a
+  model without image-to-image, no references on a model without text-to-image
+- `PROVIDER_NOT_CONFIGURED` — provider needs a key and none is available
+
+Provider errors after the call started are returned as a `failed` `GenerationDTO` with
+`error = { kind, message, retryable }`; `kind` ∈ `auth | rate_limited | blocked |
+invalid_request | network | timeout | bad_response | interrupted`.
+
+Never returned or logged anywhere: the API key, vendor request bodies, raw vendor responses.

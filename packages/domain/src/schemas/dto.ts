@@ -72,6 +72,7 @@ export const AppErrorCodeSchema = z.enum([
   "UNSUPPORTED_FILE",
   "INVALID_STATE",
   "DUPLICATE_ASSET",
+  "PROVIDER_NOT_CONFIGURED",
 ]);
 export type AppErrorCode = z.infer<typeof AppErrorCodeSchema>;
 
