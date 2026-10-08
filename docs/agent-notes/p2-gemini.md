@@ -21,7 +21,7 @@ capability trung thực theo docs, map lỗi về `ProviderErrorKind`, test khô
 | `gemini/wire.rs` | dựng body JSON, parse response, map lỗi HTTP / finishReason, redact key |
 | `gemini/tests.rs` | mock HTTP server bằng `std::net::TcpListener` + 1 test live `#[ignore]` |
 
-Test: 24 test gemini (+1 ignored); toàn crate 52 passed, 1 ignored. `cargo clippy --all-targets -- -D warnings`
+Test (sau review round 1): 32 test gemini (+1 ignored); toàn crate 60 passed, 1 ignored. `cargo clippy --all-targets -- -D warnings`
 và `cargo fmt --check` sạch.
 
 ## API đã xác minh (2026-10-08)
@@ -94,8 +94,8 @@ Model và capability (`max_outputs` = 4 cho tất cả vì mỗi call 1 ảnh �
   finishReasons, text }`. Không ảnh nào → trả lỗi của call cuối. `Auth`/`InvalidRequest` dừng ngay, không gọi tiếp.
 - Map lỗi: 401/403 → `Auth`; 400 + reason `API_KEY_INVALID` (hoặc message "API key not valid/expired") → `Auth`;
   400 khác, 404 → `InvalidRequest`; 429 → `RateLimited`; 5xx + lỗi kết nối → `Network`; client timeout → `Timeout`;
-  `blockReason` hoặc finishReason SAFETY/PROHIBITED_CONTENT/BLOCKLIST/SPII/RECITATION/IMAGE_* (trừ NO_IMAGE,
-  IMAGE_OTHER) → `Blocked`; 200 không ảnh → `BadResponse` kèm ≤200 ký tự text của model.
+  `blockReason` → `Blocked`; finishReason SAFETY/PROHIBITED_CONTENT/BLOCKLIST/SPII/RECITATION/IMAGE_* (trừ NO_IMAGE,
+  IMAGE_OTHER) xét theo từng candidate: ảnh của candidate bị chặn bị bỏ, còn ảnh khác thì trả; không còn ảnh → `Blocked`; 200 không ảnh → `BadResponse` kèm ≤200 ký tự text của model.
 - Message không bao giờ chứa key (key được thay bằng `[redacted]` nếu Google echo lại), không dump body thô;
   văn bản từ Google bị cắt ≤200 ký tự.
 - Adapter blocking, tự đặt timeout (generate 180 s, test 15 s) — gọi trong `spawn_blocking` như ADR-014.
@@ -105,7 +105,7 @@ Model và capability (`max_outputs` = 4 cho tất cả vì mỗi call 1 ảnh �
 
 ```bash
 cd apps/desktop/src-tauri
-cargo test gemini                      # 24 test, không mạng
+cargo test gemini                      # 32 test, không mạng
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
@@ -128,6 +128,21 @@ Test không in key; chỉ in dòng trạng thái và `meta`.
 - Trang `ai.google.dev/gemini-api/docs/image-generation` hiện mặc định hiển thị Interactions API (`/v1beta/interactions`,
   `response_format`, snake_case). Bản generateContent nằm ở `/gemini-api/docs/generate-content/image-generation`.
 - WebFetch trong phiên này lỗi; docs được tải bằng `curl` rồi bóc text.
-- Mock server: trả `Connection: close` để mỗi call tuần tự mở kết nối mới; khi test cần mở khoá `accept()` còn treo,
-  connect rỗng một lần (server bỏ qua kết nối không có request line).
+- Mock server: trả `Connection: close` để mỗi call tuần tự mở kết nối mới; `accept()` chạy non-blocking với hạn 5 s
+  và dừng khi gọi `requests()`/drop, nên thiếu request thì test fail ngay chứ không treo.
 - `reqwest::blocking` mặc định timeout 30 s — phải đặt rõ 180 s cho generate.
+
+## Review round 1 (Codex, PHẢI SỬA → đã sửa, commit 29f7219)
+
+Viết test trước (8 test mới, đều đỏ), rồi sửa:
+
+| Mục review | Sửa |
+|---|---|
+| PHẢI 1 — key lộ qua HTTP 200 | `wire::parse_success(body, api_key)` redact + cắt mọi chuỗi vendor vào message/meta: text, `modelVersion`, `finishReason`, `blockReason` (id ≤64 ký tự, text ≤200). Lỗi validation echo input (model id, aspect ratio, image size) cũng redact. Test: key nằm trong text/finishReason/blockReason/modelVersion cho ca không ảnh, thành công, partial failure, validation. Live smoke chỉ in số đếm, không in `meta`. |
+| PHẢI 2 — finishReason chỉ xét candidate đầu | Xét từng candidate: bỏ ảnh của candidate bị chặn, giữ ảnh candidate tốt; hết ảnh + có lý do chặn → `Blocked`. `CallResult.finish_reasons` là danh sách. Test: candidate STOP không ảnh + candidate IMAGE_SAFETY → Blocked; candidate IMAGE_SAFETY có ảnh + candidate STOP có ảnh → chỉ trả ảnh STOP; chỉ có candidate bị chặn có ảnh → Blocked. |
+| NÊN 1 — test_connection nhận body bất kỳ | Bắt buộc JSON có `name` bắt đầu bằng `models/`; HTML, `{}`, `name` sai kiểu/sai dạng → `BadResponse`. |
+| NÊN 2 — mock có thể treo | accept non-blocking, hạn 5 s, cờ stop khi `requests()`/drop; bỏ mẹo connect rỗng. |
+| NÊN 3 — comment models.rs | Ghi rõ gọi tuần tự là chiến lược adapter, không phải bảo đảm của API. |
+
+Kiểm tra: `cargo test` 60 passed / 1 ignored, `cargo clippy --all-targets -- -D warnings` sạch, `cargo fmt --check` sạch.
+Test live vẫn chưa chạy (không có key trên máy).
