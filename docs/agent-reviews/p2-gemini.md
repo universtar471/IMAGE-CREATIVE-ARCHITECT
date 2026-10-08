@@ -47,3 +47,48 @@ Các đường dẫn dưới đây tính từ `apps/desktop/src-tauri/src/provid
 - `cargo test providers::gemini`: **bị sandbox chặn**, không mở được `target/debug/.cargo-build-lock`, `Access is denied (os error 5)`.
 - `cargo clippy --all-targets -- -D warnings`: **bị chặn cùng lỗi**.
 - Không chạy live smoke hoặc `cargo fmt --check`. Không sửa, tạo hay commit file.
+---
+
+# Review P2-B (wt/p2-gemini) — vòng 2
+
+## Kết luận: ĐẠT
+
+Hai lỗi chặn merge vòng 1 đã được sửa trong `29f7219`, có test hồi quy đúng tình huống. `7cd70f1` cập nhật bàn giao. Không phát hiện regression chặn merge qua đọc mã; chưa xác nhận test/clippy xanh vì sandbox chặn Cargo.
+
+Các đường dẫn `gemini/*` dưới đây tính từ `apps/desktop/src-tauri/src/providers/`.
+
+## PHẢI SỬA (chặn merge)
+
+Không có.
+
+## NÊN SỬA
+
+1. **`gemini/mod.rs:22`, `docs/agent-notes/p2-gemini.md:49` — vẫn khẳng định mỗi call trả một ảnh.**  
+   `models.rs:10` đã sửa nhưng hai chỗ này còn mô tả như bảo đảm của API. Khi một response có nhiều ảnh, tài liệu mâu thuẫn với chính parser và có thể khiến người bảo trì bỏ hỗ trợ đó. **Sửa:** thống nhất mô tả đây là chiến lược gọi tuần tự, chấp nhận nhiều ảnh/call và giới hạn tổng bằng `outputCount`. Google không bảo đảm số ảnh luôn đúng yêu cầu. [Hướng dẫn chính thức](https://ai.google.dev/gemini-api/docs/generate-content/image-generation).
+
+2. **`gemini/tests.rs:298` — chưa chứng minh giữ được nhiều ảnh từ cùng một response.**  
+   Test đưa vào hai ảnh nhưng yêu cầu `outputCount=1`; parser bị regression chỉ giữ ảnh đầu vẫn vượt qua test. **Sửa:** thêm ca `outputCount=2`, một response chứa hai ảnh; assert đủ hai bộ bytes và đúng một HTTP request.
+
+3. **`gemini/tests.rs:411`, `gemini/mod.rs:248` — thiếu test timeout riêng cho `test_connection`.**  
+   Test hiện tại chỉ thay `generate_timeout`. Nếu GET metadata dùng nhầm timeout generate, bộ test vẫn xanh dù kiểm tra kết nối có thể chờ 180 giây. **Sửa:** thêm mock phản hồi chậm, đặt `test_timeout` ngắn và assert `Timeout`; kiểm tra riêng giá trị mặc định 15/180 giây.
+
+## ĐẠT / điểm tốt
+
+- **PHẢI 1 vòng 1:** `wire.rs:76` nhận key và sanitize text, `modelVersion`, `finishReason`, `blockReason` trước khi đưa vào message/meta; validation cũng được che key. Test tại `tests.rs:467–523` bao phủ lỗi, thành công và partial failure. Live smoke không còn in toàn bộ `meta`.
+- **PHẢI 2 vòng 1:** `wire.rs:95` xét từng candidate, loại ảnh của candidate bị chặn và giữ ảnh hợp lệ. Test tại `tests.rs:529`, `tests.rs:540` kiểm tra cả candidate bị chặn đứng sau và candidate bị chặn vẫn chứa ảnh.
+- **NÊN 1 vòng 1:** GET metadata đã từ chối HTML, `{}`, `name` sai kiểu/sai dạng; có test tương ứng.
+- **NÊN 2 vòng 1:** mock có non-blocking accept, deadline, read timeout và shutdown khi lấy request/drop; đã loại tình huống `join()` chờ `accept()` vô hạn.
+- **NÊN 3 vòng 1:** comment tại `models.rs` đã sửa đúng; còn hai bản mô tả chưa đồng bộ nêu trên.
+- Request mapping, thứ tự reference, MIME/base64, prompt composition và HTTP error mapping phù hợp brief. Partial failure giữa các call giữ ảnh thành công và ghi số call lỗi.
+- Năm model ID có trong [bảng lifecycle Google](https://ai.google.dev/gemini-api/docs/deprecations). Capability có cơ sở trong hướng dẫn ảnh; `imageConfig` vẫn có trong [REST reference](https://ai.google.dev/api/generate-content). Không thấy ID bịa; hoạt động live vẫn chưa được chứng minh.
+- Test thường dùng loopback, live smoke có `#[ignore]`. Cấu trúc module và cách dùng provider contract phù hợp mã xung quanh; không thay services, registry hay frontend.
+
+## Đã chạy
+
+- Đọc review vòng 1 trên `main`, brief, Phase 2, ADR-012/013, agent note, provider contract, toàn bộ thay đổi `main...HEAD` và hai commit sửa.
+- Đối chiếu tài liệu Google chính thức.
+- `cargo test providers::gemini`: **bị chặn**, không mở được `target/debug/.cargo-build-lock`: `Access is denied (os error 5)`.
+- `cargo clippy --all-targets -- -D warnings`: **bị chặn cùng lỗi**.
+- `cargo fmt --check`: **đạt**.
+- `git diff --check main...HEAD`: **đạt**.
+- Không chạy live smoke. Không sửa, tạo hay commit file; `git status --short` không báo thay đổi.
