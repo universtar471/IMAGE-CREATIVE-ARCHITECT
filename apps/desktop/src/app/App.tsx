@@ -4,11 +4,15 @@ import { Toasts } from "../components/common/Toasts";
 import { ProjectHub } from "../features/projects/ProjectHub";
 import { ProviderSettingsDialog } from "../features/providers/ProviderSettingsDialog";
 import { ProjectWorkspace } from "../features/workspace/ProjectWorkspace";
-import { useStudio } from "./store";
+import { isTerminalJob, startBackendSync, useStudio } from "./store";
+
+/** job_list refresh while jobs are active (events are primary; this catches anything missed). */
+export const JOB_POLL_MS = 4000;
 
 export function App() {
   const route = useStudio((s) => s.route);
   useFlushOnClose();
+  useBackendSync();
 
   return (
     <>
@@ -18,6 +22,23 @@ export function App() {
       <Toasts />
     </>
   );
+}
+
+/** Backend events → store, plus an initial job_list and a slow poll while jobs are active. */
+function useBackendSync() {
+  useEffect(() => {
+    const stop = startBackendSync();
+    const { refreshJobs } = useStudio.getState();
+    void refreshJobs();
+    const timer = setInterval(() => {
+      const s = useStudio.getState();
+      if (s.jobs.some((j) => !isTerminalJob(j))) void s.refreshJobs();
+    }, JOB_POLL_MS);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  }, []);
 }
 
 /** Never silently lose DNA edits: save pending changes before the window closes. */

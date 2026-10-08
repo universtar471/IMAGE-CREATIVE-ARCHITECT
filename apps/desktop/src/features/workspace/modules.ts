@@ -79,7 +79,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     label: "Camera",
     icon: Camera,
     group: "scene",
-    availableIn: 3,
+    availableIn: null,
     description: "Camera presets, anchor views and the Camera Director.",
   },
   {
@@ -153,8 +153,8 @@ export const TRAY_TABS: readonly {
   {
     id: "jobs",
     label: "Jobs",
-    availableIn: 3,
-    note: "The job queue (generation, upscale, QC) becomes functional in Phase 3.",
+    availableIn: null,
+    note: "The job queue: live status, attempts, cancel and retry for every project.",
   },
   {
     id: "history",

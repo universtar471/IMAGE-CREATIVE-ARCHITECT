@@ -77,7 +77,8 @@ export function resolveGenerateForm(
 
 export type GenerateContext = {
   readOnly: boolean;
-  running: boolean;
+  /** The previous request is still being compiled/enqueued. */
+  submitting: boolean;
   dnaInvalid: boolean;
   assets: readonly AssetDTO[];
 };
@@ -85,7 +86,7 @@ export type GenerateContext = {
 /** Why Generate is disabled, as text for the user; null when it can run. */
 export function generateDisabledReason(form: GenerateForm, ctx: GenerateContext): string | null {
   if (ctx.readOnly) return "This project is archived (read-only). Restore it to generate.";
-  if (ctx.running) return "A generation is already running.";
+  if (ctx.submitting) return "Submitting the previous request…";
   if (!form.provider || !form.model) return "No image provider is available.";
   if (!form.provider.configured) return `${form.provider.label} needs an API key first.`;
   if (ctx.dnaInvalid) return "Fix the invalid Design DNA fields first.";

@@ -3,14 +3,14 @@
  * with backend commands. Components call these, never `invoke` directly.
  */
 import {
-  compilePrompt,
   createInitialDNA,
   type ProjectDTO,
   type ProjectType,
   type PromptBundle,
   type WizardStarter,
 } from "@arch/domain";
-import { call } from "../lib/bridge";
+import { call, type CommandResponse } from "../lib/bridge";
+import { compileCameraPrompt } from "../lib/cameraDomain";
 import { knowledge } from "../lib/knowledge";
 
 export type NewProjectInput = {
@@ -37,19 +37,26 @@ export async function createProject(input: NewProjectInput): Promise<ProjectDTO>
   });
 }
 
+export type ProjectBundle = CommandResponse<"project_get">;
+
 /**
- * Compile from PERSISTED data only (never unsaved form state), so the preview always
- * reflects what is stored. Deterministic for identical stored data + compiler version.
- * With `referenceAssetIds`, only those (ready) assets are described as references — the
- * exact set a generation sends; otherwise every ready asset is (the Prompt Preview view).
+ * Compile from one persisted bundle (ADR-008). With `referenceAssetIds`, exactly those
+ * assets are described, in that order (master, anchor, then role order); otherwise every
+ * ready asset is (the Prompt Preview view). `anchorAssetId` marks the camera's anchor and
+ * `cameraId` adds the camera section.
  */
-export async function compilePromptPreview(
-  projectId: string,
-  referenceAssetIds?: readonly string[],
-): Promise<PromptBundle> {
-  const { project, dna, assets } = await call("project_get", { projectId });
+export function compileFromBundle(
+  bundle: ProjectBundle,
+  options: {
+    referenceAssetIds?: readonly string[];
+    cameraId?: string | null;
+    anchorAssetId?: string | null;
+  } = {},
+): PromptBundle {
+  const { project, dna, assets } = bundle;
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
-  return compilePrompt({
+  const ids = options.referenceAssetIds;
+  return compileCameraPrompt({
     project: {
       id: project.id,
       name: project.name,
@@ -58,9 +65,28 @@ export async function compilePromptPreview(
     },
     dna,
     pack,
+    cameraId: options.cameraId ?? null,
     references: assets
       .filter((a) => a.status === "ready")
-      .filter((a) => !referenceAssetIds || referenceAssetIds.includes(a.id))
-      .map((a) => ({ assetId: a.id, role: a.role, label: a.originalName })),
+      .filter((a) => !ids || ids.includes(a.id))
+      .map((a) => ({
+        assetId: a.id,
+        role: a.role,
+        label: a.originalName,
+        isAnchor: !!options.anchorAssetId && a.id === options.anchorAssetId,
+      })),
   });
+}
+
+/**
+ * Compile from PERSISTED data only (never unsaved form state), so the preview always
+ * reflects what is stored. Deterministic for identical stored data + compiler version.
+ */
+export async function compilePromptPreview(
+  projectId: string,
+  referenceAssetIds?: readonly string[],
+  camera?: { cameraId: string | null; anchorAssetId?: string | null },
+): Promise<PromptBundle> {
+  const bundle = await call("project_get", { projectId });
+  return compileFromBundle(bundle, { referenceAssetIds, ...camera });
 }

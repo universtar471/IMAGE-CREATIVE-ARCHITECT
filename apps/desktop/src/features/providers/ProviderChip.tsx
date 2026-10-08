@@ -1,11 +1,9 @@
 import { KeyRound, Sparkles } from "lucide-react";
 import { useStudio } from "../../app/store";
-import { RunningStatus } from "../generate/GenerationResult";
 
-/** Top-bar provider state: running generation, or how many providers are ready. Opens settings. */
+/** Top-bar provider state: how many providers are ready. Opens settings. (The queue indicator shows jobs.) */
 export function ProviderChip() {
   const providers = useStudio((s) => s.providers);
-  const running = useStudio((s) => s.run?.status === "running");
   const open = useStudio((s) => s.openProviderDialog);
   const ready = providers?.filter((p) => p.configured) ?? [];
   const needsKey = providers?.filter((p) => !p.configured) ?? [];
@@ -17,18 +15,12 @@ export function ProviderChip() {
       title="Image provider settings"
       data-testid="provider-chip"
     >
-      {running ? (
-        <RunningStatus compact />
-      ) : (
-        <>
-          <Sparkles size={14} />
-          {providers ? `${ready.length}/${providers.length} providers ready` : "Providers"}
-          {needsKey.length > 0 && (
-            <span className="badge badge-warning">
-              <KeyRound size={10} /> Set API key
-            </span>
-          )}
-        </>
+      <Sparkles size={14} />
+      {providers ? `${ready.length}/${providers.length} providers ready` : "Providers"}
+      {needsKey.length > 0 && (
+        <span className="badge badge-warning">
+          <KeyRound size={10} /> Set API key
+        </span>
       )}
     </button>
   );
