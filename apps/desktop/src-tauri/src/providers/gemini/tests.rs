@@ -408,6 +408,39 @@ fn connection_failure_is_network() {
 }
 
 #[test]
+fn one_response_with_two_images_fills_two_outputs_in_one_request() {
+    let candidates = json!([{
+        "content": { "parts": [image_part(PNG_BYTES), image_part(PNG_BYTES_2)] },
+        "finishReason": "STOP"
+    }]);
+    let mut server = MockServer::start(vec![ok_body(candidates, "v1"), image_response(b"never-requested")]);
+    let out = server.provider().generate(&request(2)).unwrap();
+    assert_eq!(out.images.iter().map(|i| i.bytes.as_slice()).collect::<Vec<_>>(), vec![PNG_BYTES, PNG_BYTES_2]);
+    assert_eq!(out.meta["returned"], 2);
+    assert_eq!(server.requests().len(), 1, "no second call once outputCount is reached");
+}
+
+#[test]
+fn default_timeouts_are_180s_generate_and_15s_test() {
+    let provider = GeminiProvider::new();
+    assert_eq!(provider.generate_timeout, Duration::from_secs(180));
+    assert_eq!(provider.test_timeout, Duration::from_secs(15));
+    let local = GeminiProvider::with_base_url("http://127.0.0.1:9/v1beta");
+    assert_eq!((local.generate_timeout, local.test_timeout), (Duration::from_secs(180), Duration::from_secs(15)));
+}
+
+#[test]
+fn test_connection_timeout_is_timeout() {
+    let body = json!({ "name": "models/gemini-nano-banana-2.1" }).to_string();
+    let server = MockServer::start(vec![Reply::Slow(Duration::from_millis(1500), 200, body)]);
+    let mut provider = server.provider();
+    provider.test_timeout = Duration::from_millis(300);
+    let err = provider.test_connection(Some(KEY)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Timeout);
+    assert_key_free(&err);
+}
+
+#[test]
 fn client_timeout_is_timeout() {
     let server = MockServer::start(vec![Reply::Slow(Duration::from_millis(1500), 200, "{}".into())]);
     let mut provider = server.provider();

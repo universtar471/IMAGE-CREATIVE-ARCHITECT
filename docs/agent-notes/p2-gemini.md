@@ -21,7 +21,7 @@ capability trung thực theo docs, map lỗi về `ProviderErrorKind`, test khô
 | `gemini/wire.rs` | dựng body JSON, parse response, map lỗi HTTP / finishReason, redact key |
 | `gemini/tests.rs` | mock HTTP server bằng `std::net::TcpListener` + 1 test live `#[ignore]` |
 
-Test (sau review round 1): 32 test gemini (+1 ignored); toàn crate 60 passed, 1 ignored. `cargo clippy --all-targets -- -D warnings`
+Test (sau review round 2): 35 test gemini (+1 ignored); toàn crate 63 passed, 1 ignored. `cargo clippy --all-targets -- -D warnings`
 và `cargo fmt --check` sạch.
 
 ## API đã xác minh (2026-10-08)
@@ -46,7 +46,7 @@ Wire shape dùng trong code:
 - `promptFeedback.blockReason`, `candidates[].finishReason` (enum có `IMAGE_SAFETY`, `IMAGE_PROHIBITED_CONTENT`, `NO_IMAGE`, `IMAGE_OTHER`, `IMAGE_RECITATION`...)
 - `test_connection` = `GET {base}/models/gemini-nano-banana-2.1` (timeout 15 s), không sinh ảnh
 
-Model và capability (`max_outputs` = 4 cho tất cả vì mỗi call 1 ảnh → gọi tuần tự; negative prompt = false; seed = false):
+Model và capability (`max_outputs` = 4 cho tất cả; chiến lược của adapter — không phải bảo đảm của API — là gọi tuần tự tới khi đủ `outputCount` ảnh; một response có thể chứa nhiều ảnh, giữ hết và cắt tổng ở `outputCount`; negative prompt = false; seed = false):
 
 | Model id | Tình trạng (deprecations) | Aspect ratios | Image sizes | Max refs |
 |---|---|---|---|---|
@@ -105,7 +105,7 @@ Model và capability (`max_outputs` = 4 cho tất cả vì mỗi call 1 ảnh �
 
 ```bash
 cd apps/desktop/src-tauri
-cargo test gemini                      # 32 test, không mạng
+cargo test gemini                      # 35 test, không mạng
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
@@ -146,3 +146,14 @@ Viết test trước (8 test mới, đều đỏ), rồi sửa:
 
 Kiểm tra: `cargo test` 60 passed / 1 ignored, `cargo clippy --all-targets -- -D warnings` sạch, `cargo fmt --check` sạch.
 Test live vẫn chưa chạy (không có key trên máy).
+
+## Review round 2 (Codex: ĐẠT, kèm 3 NÊN SỬA → đã làm)
+
+- Thống nhất câu chữ ở `gemini/mod.rs` (doc đầu module) và bảng model trong note: gọi tuần tự là chiến lược của adapter,
+  một response có thể chứa nhiều ảnh, giữ hết và cắt tổng ở `outputCount`.
+- Test `one_response_with_two_images_fills_two_outputs_in_one_request`: `outputCount=2`, một response có 2 ảnh
+  → giữ cả hai, đúng 1 HTTP request.
+- Test `test_connection_timeout_is_timeout` (mock chậm, `test_timeout` ngắn → `Timeout`) và
+  `default_timeouts_are_180s_generate_and_15s_test`.
+
+Kiểm tra: `cargo test` 63 passed / 1 ignored, clippy `-D warnings` sạch, `fmt --check` sạch.

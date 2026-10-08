@@ -19,8 +19,10 @@
 //!   `generationConfig.imageConfig { aspectRatio, imageSize }` (only fields that were set).
 //! - Images come back in `candidates[].content.parts[].inlineData`; `thought` parts are skipped.
 //!
-//! Each call yields one image, so `outputCount > 1` runs sequential calls. Partial failures
-//! return the images that succeeded and record the failure count in `meta`.
+//! Adapter strategy (not an API guarantee): the API has no image-count field, so the adapter
+//! makes sequential calls until it holds `outputCount` images. A response may carry several
+//! images; all are kept and the total is capped at `outputCount`. Partial failures return the
+//! images that succeeded and record the failure count in `meta`.
 
 mod models;
 mod prompt;
