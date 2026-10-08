@@ -4,6 +4,7 @@ import {
   blankCamera,
   cameraFromPreset,
   cameraReadiness,
+  cameraWorkflowReadiness,
   CameraDNASchema,
   createInitialDNA,
   createUlidGenerator,
@@ -169,7 +170,21 @@ describe("camera creation", () => {
   });
 });
 
-describe("anchor views and readiness", () => {
+describe("per-camera readiness", () => {
+  it("lists the viewpoint fields still missing", () => {
+    const missing = (c: CameraDNA) =>
+      cameraReadiness(c)
+        .filter((i) => !i.done)
+        .map((i) => i.key);
+    expect(missing(cam())).toEqual(["azimuthDeg", "elevationDeg", "distanceM", "lensMm"]);
+    expect(missing(cam({ azimuthDeg: 0, heightM: 1.6, distanceM: 20, lensMm: 28 }))).toEqual([]);
+    expect(cameraReadiness(cam({ viewType: "interior_wide" })).map((i) => i.key)).not.toContain(
+      "azimuthDeg",
+    );
+  });
+});
+
+describe("anchor views and workflow readiness", () => {
   const cameras = [
     cam({ id: camId(1), name: "A", isAnchorView: true }),
     cam({ id: camId(2), name: "B" }),
@@ -181,7 +196,7 @@ describe("anchor views and readiness", () => {
   });
 
   it("explains what is missing", () => {
-    const empty = cameraReadiness({ cameras: [] });
+    const empty = cameraWorkflowReadiness({ cameras: [] });
     expect(empty.map((i) => [i.key, i.done])).toEqual([
       ["cameras.any", false],
       ["cameras.viewpoint", true],
@@ -189,7 +204,7 @@ describe("anchor views and readiness", () => {
     ]);
 
     const vague = cam({ id: camId(4), name: "Vague", viewType: "custom" });
-    const r = cameraReadiness(
+    const r = cameraWorkflowReadiness(
       { cameras: [...cameras, vague] },
       { masterApproved: false, anchors: [{ cameraId: camId(1) }] },
     );
@@ -198,7 +213,7 @@ describe("anchor views and readiness", () => {
     expect(byKey["master.approved"]?.done).toBe(false);
     expect(byKey["anchors.complete"]).toMatchObject({ done: false, detail: "C" });
 
-    const done = cameraReadiness(
+    const done = cameraWorkflowReadiness(
       { cameras },
       { masterApproved: true, anchors: [{ cameraId: camId(1) }, { cameraId: camId(3) }] },
     );

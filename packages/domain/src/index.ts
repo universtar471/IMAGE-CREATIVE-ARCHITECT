@@ -17,3 +17,4 @@ export * from "./camera/cameras";
 export * from "./labels";
 export * from "./ids";
 export type * from "./providers";
+export * from "./camera/describe";

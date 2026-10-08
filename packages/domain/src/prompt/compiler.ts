@@ -11,14 +11,21 @@ import type { ProjectDNA } from "../schemas/projectDna";
 import type { PromptBundle } from "../schemas/prompt";
 import type { KnowledgePack } from "../knowledge/pack";
 import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
+import { cameraSectionText } from "../camera/describe";
+import type { CameraDNA } from "../schemas/future";
 
-export const COMPILER_VERSION = "pc-1.0.0";
+export const COMPILER_VERSION = "pc-1.1.0";
 
 export type PromptReference = {
   assetId: string;
   role: AssetRole;
   /** Human label such as the original file name; display only. */
   label?: string | null;
+  /**
+   * The approved anchor image of the camera being rendered (ADR-016). Numbered right after
+   * the master and described as the view to match. Ignored on the master itself.
+   */
+  isAnchor?: boolean;
 };
 
 export type PromptCompileInput = {
@@ -31,6 +38,8 @@ export type PromptCompileInput = {
   dna: ProjectDNA;
   references: readonly PromptReference[];
   pack?: KnowledgePack | null;
+  /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
+  cameraId?: string | null;
 };
 
 /** Order in which reference roles are described (and the role ranking for sorting). */
@@ -67,6 +76,9 @@ const ROLE_INSTRUCTIONS: Record<AssetRole, string> = {
     "is a general image: use it as loose inspiration only; it carries no binding design information.",
 };
 
+const ANCHOR_INSTRUCTION =
+  "is the APPROVED ANCHOR view for this camera: match its viewpoint, framing, composition and design exactly. The master stays authoritative for the architecture; where they differ, follow the master's building design.";
+
 /** Baseline negatives every architectural image should avoid. */
 const BASE_NEGATIVES = [
   "distorted perspective",
@@ -84,6 +96,7 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
   const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
+  const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
 
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior)],
@@ -91,6 +104,7 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
     ["language", languageSection(dna)],
     ["materials", materialsSection(dna)],
     ["context", contextSection(dna, isInterior)],
+    ["camera", camera ? cameraSectionText(camera) : null],
     ["lighting", lightingSection(dna)],
     [
       "quality",
@@ -103,13 +117,14 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
 
   const roleCounts: Record<string, number> = {};
   for (const r of references) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
+  const anchorIndex = references.findIndex(isAnchorRef);
 
   return {
     compilerVersion: COMPILER_VERSION,
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),
-    preservationInstructions: preservationSection(dna, references),
+    preservationInstructions: preservationSection(dna, references, camera),
     metadata: {
       projectId: project.id,
       projectType: project.projectType,
@@ -119,9 +134,12 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
       sections: included.map(([name]) => name),
       referenceCount: references.length,
       referenceRoles: roleCounts,
+      cameraId: camera?.id ?? null,
+      anchorImage: anchorIndex >= 0 ? anchorIndex + 1 : null,
       locks: {
         building: dna.locks.building,
         context: dna.locks.context,
+        camera: dna.locks.camera,
       },
     },
   };
@@ -278,11 +296,20 @@ function referenceSection(references: readonly PromptReference[]): string {
     return "No reference images attached. Derive the design from the structured description only.";
   }
   return references
-    .map((r, i) => `Image ${i + 1}${r.label ? ` (${r.label})` : ""} ${ROLE_INSTRUCTIONS[r.role]}`)
+    .map(
+      (r, i) =>
+        `Image ${i + 1}${r.label ? ` (${r.label})` : ""} ${
+          isAnchorRef(r) ? ANCHOR_INSTRUCTION : ROLE_INSTRUCTIONS[r.role]
+        }`,
+    )
     .join("\n");
 }
 
-function preservationSection(dna: ProjectDNA, references: readonly PromptReference[]): string {
+function preservationSection(
+  dna: ProjectDNA,
+  references: readonly PromptReference[],
+  camera: CameraDNA | undefined,
+): string {
   const lines: string[] = [];
   const masterIndex = references.findIndex((r) => r.role === "master_architecture");
   if (masterIndex >= 0) {
@@ -294,6 +321,12 @@ function preservationSection(dna: ProjectDNA, references: readonly PromptReferen
       "No master architecture image is set; keep the building consistent with the structured DNA.",
     );
   }
+  const anchorIndex = references.findIndex(isAnchorRef);
+  if (anchorIndex >= 0) {
+    lines.push(
+      `Keep the viewpoint, framing and composition of Image ${anchorIndex + 1} (anchor view); do not move the camera.`,
+    );
+  }
   const b = dna.building;
   if (b.floors !== undefined)
     lines.push(`Keep exactly ${b.floors} ${b.floors === 1 ? "floor" : "floors"}.`);
@@ -302,16 +335,30 @@ function preservationSection(dna: ProjectDNA, references: readonly PromptReferen
     lines.push("Building DNA is LOCKED: no changes to the building design are permitted.");
   if (dna.locks.context)
     lines.push("Context DNA is LOCKED: keep the surroundings exactly as described.");
+  if (camera && dna.locks.camera)
+    lines.push("Camera DNA is LOCKED: keep the viewpoint, lens and framing exactly as described.");
   return lines.join("\n");
 }
 
 // ---------------------------------------------------------------- helpers
 
+/** An anchor reference that is not the master (the master instruction always wins). */
+function isAnchorRef(r: PromptReference): boolean {
+  return r.isAnchor === true && r.role !== "master_architecture";
+}
+
+/**
+ * Image numbering order: master first, then anchor references, then the other roles in
+ * `REFERENCE_ROLE_ORDER`; ties by asset id. Callers submit reference ids in this order.
+ */
 export function sortReferences(refs: readonly PromptReference[]): PromptReference[] {
-  const rank = (role: AssetRole) => REFERENCE_ROLE_ORDER.indexOf(role);
-  return [...refs].sort(
-    (a, b) => rank(a.role) - rank(b.role) || compareStrings(a.assetId, b.assetId),
-  );
+  const rank = (r: PromptReference) =>
+    r.role === "master_architecture"
+      ? 0
+      : isAnchorRef(r)
+        ? 1
+        : REFERENCE_ROLE_ORDER.indexOf(r.role) + 1;
+  return [...refs].sort((a, b) => rank(a) - rank(b) || compareStrings(a.assetId, b.assetId));
 }
 
 /** Locale-independent comparison (localeCompare depends on the runtime locale). */

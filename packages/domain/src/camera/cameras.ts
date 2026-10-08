@@ -3,6 +3,7 @@
  * creates them with these helpers and autosaves them with the rest of the DNA.
  */
 import { newCameraId } from "../ids";
+import { isInteriorViewType } from "./describe";
 import type { ReadinessItem } from "../invariants/dna";
 import type { CameraPreset } from "../knowledge/pack";
 import type { CameraDNA } from "../schemas/future";
@@ -107,7 +108,28 @@ export function cameraHasViewpoint(camera: CameraDNA): boolean {
   );
 }
 
-export type CameraReadinessState = {
+/**
+ * What one camera still lacks for a precise camera prompt, for the field editor. Azimuth is
+ * not asked for interior views (the room has no "front facade" to orbit).
+ */
+export function cameraReadiness(camera: CameraDNA): ReadinessItem[] {
+  const items: ReadinessItem[] = [];
+  if (!isInteriorViewType(camera.viewType)) {
+    items.push({ key: "azimuthDeg", label: "Azimuth", done: camera.azimuthDeg !== undefined });
+  }
+  items.push(
+    {
+      key: "elevationDeg",
+      label: "Elevation or height",
+      done: camera.elevationDeg !== undefined || camera.heightM !== undefined,
+    },
+    { key: "distanceM", label: "Distance", done: camera.distanceM !== undefined },
+    { key: "lensMm", label: "Lens", done: camera.lensMm !== undefined },
+  );
+  return items;
+}
+
+export type CameraWorkflowState = {
   /** Whether the project's master is approved; omit to skip that item. */
   masterApproved?: boolean;
   /** Current anchors (`camera_anchor_list`); omit to skip the anchors item. */
@@ -119,9 +141,9 @@ export type CameraReadinessState = {
  * ("Generate anchors", "Render cameras"). Items with missing data name the cameras in
  * `detail`. The anchor items mirror the backend status derivation (ADR-016).
  */
-export function cameraReadiness(
+export function cameraWorkflowReadiness(
   dna: Pick<ProjectDNA, "cameras">,
-  state: CameraReadinessState = {},
+  state: CameraWorkflowState = {},
 ): ReadinessItem[] {
   const views = anchorViews(dna);
   const vague = dna.cameras.filter((c) => !cameraHasViewpoint(c));
