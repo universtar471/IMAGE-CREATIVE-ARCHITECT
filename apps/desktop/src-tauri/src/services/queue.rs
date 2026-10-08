@@ -437,3 +437,547 @@ pub(crate) fn emit(core: &AppCore, job_id: &str) {
         Err(e) => eprintln!("[queue] cannot read job {job_id} for its update event: {}", e.message),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Instant;
+
+    use super::*;
+    use crate::domain::GenerationStatus as G;
+    use crate::error::ErrorCode;
+    use crate::providers::local_preview;
+    use crate::services::tests_support::{
+        open_queue_core, queue_harness, run_queue, test_create_villa, test_import, test_request, QueueHarness,
+        TestBehavior, TestProvider, TEST_LOCAL_PROVIDER, TEST_PROVIDER,
+    };
+    use crate::services::{assets, batches, generations, provider_settings};
+
+    fn remote(h: &QueueHarness, project_id: &str) -> String {
+        generations::submit(&h.core, test_request(project_id, TEST_PROVIDER, "full", &[], None))
+            .unwrap()
+            .job_id
+            .unwrap()
+    }
+
+    fn local(h: &QueueHarness, project_id: &str) -> String {
+        generations::submit(&h.core, test_request(project_id, TEST_LOCAL_PROVIDER, "full", &[], None))
+            .unwrap()
+            .job_id
+            .unwrap()
+    }
+
+    fn setup() -> (QueueHarness, String) {
+        let h = queue_harness();
+        provider_settings::set_api_key(&h.core, TEST_PROVIDER, "k").unwrap();
+        let p = test_create_villa(&h.core, "Queue villa");
+        (h, p.id)
+    }
+
+    fn job(h: &QueueHarness, id: &str) -> JobDto {
+        get(&h.core, id).unwrap()
+    }
+
+    fn generation(h: &QueueHarness, j: &JobDto) -> GenerationDto {
+        generations::get(&h.core, &j.project_id, &j.generation_id).unwrap()
+    }
+
+    fn tick_now(h: &QueueHarness) -> usize {
+        tick(&h.core, h.clock.now()).unwrap()
+    }
+
+    fn count(h: &QueueHarness, table: &str) -> i64 {
+        h.core.conn().unwrap().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0)).unwrap()
+    }
+
+    fn managed_files(h: &QueueHarness, project_id: &str) -> usize {
+        ["assets/original", "previews"]
+            .iter()
+            .map(|d| std::fs::read_dir(h.core.storage.project_dir(project_id).join(d)).map(|r| r.count()).unwrap_or(0))
+            .sum()
+    }
+
+    fn batch_item(label: &str) -> serde_json::Value {
+        serde_json::json!({ "cameraId": null, "label": label, "referenceAssetIds": [],
+            "prompt": { "compilerVersion": "1", "positivePrompt": "p", "negativePrompt": "",
+                        "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+            "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null } })
+    }
+
+    #[test]
+    fn submit_only_enqueues_and_returns_the_queued_generation() {
+        let (h, pid) = setup();
+        h.events.take();
+        let g = generations::submit(&h.core, test_request(&pid, TEST_PROVIDER, "full", &[], None)).unwrap();
+        assert_eq!(g.status, G::Queued);
+        assert!(g.started_at.is_none() && g.finished_at.is_none() && g.error.is_none());
+        assert_eq!(g.created_at, "2026-10-01T08:00:00.000Z", "queue time from the injected clock");
+        assert_eq!(h.remote.calls(), 0, "nothing runs before the queue does");
+        let j = job(&h, g.job_id.as_deref().unwrap());
+        assert_eq!((j.status, j.attempt, j.max_attempts, j.priority), (JobStatus::Queued, 0, MAX_ATTEMPTS, 0));
+        assert_eq!(j.label, "Test full — hero");
+        assert_eq!(j.generation_id, g.id);
+        assert_eq!(h.events.take(), [("job", j.id.clone(), "queued".into()), ("generation", g.id, "queued".into())]);
+    }
+
+    #[test]
+    fn picks_highest_priority_then_oldest() {
+        let (h, pid) = setup();
+        let first = remote(&h, &pid);
+        let batch = |name: &str, priority: i64, labels: &[&str]| {
+            let items: Vec<serde_json::Value> = labels.iter().map(|l| batch_item(l)).collect();
+            batches::create(
+                &h.core,
+                serde_json::from_value(serde_json::json!({ "projectId": pid, "name": name,
+                    "providerId": TEST_PROVIDER, "modelId": "full", "purpose": "anchor", "priority": priority,
+                    "items": items }))
+                .unwrap(),
+            )
+            .unwrap()
+        };
+        let urgent = batch("Urgent", 5, &["u1", "u2"]);
+        let later = remote(&h, &pid);
+        let low = batch("Low", -3, &["l1"]);
+
+        let mut order = Vec::new();
+        loop {
+            let claims = claim(&h.core, h.clock.now()).unwrap();
+            assert!(claims.len() <= 1, "one remote slot");
+            let Some(c) = claims.into_iter().next() else { break };
+            order.push(c.job_id.clone());
+            run(&h.core, c);
+        }
+        let expected = [urgent.job_ids[0].clone(), urgent.job_ids[1].clone(), first, later, low.job_ids[0].clone()];
+        assert_eq!(order, expected);
+    }
+
+    #[test]
+    fn slots_are_per_provider_two_local_one_remote() {
+        let (h, pid) = setup();
+        let locals: Vec<String> = (0..3).map(|_| local(&h, &pid)).collect();
+        let remotes: Vec<String> = (0..2).map(|_| remote(&h, &pid)).collect();
+        let preview =
+            generations::submit(&h.core, test_request(&pid, local_preview::ID, local_preview::MODEL_ID, &[], None))
+                .unwrap()
+                .job_id
+                .unwrap();
+
+        let claims = claim(&h.core, h.clock.now()).unwrap();
+        let mut claimed: Vec<String> = claims.iter().map(|c| c.job_id.clone()).collect();
+        claimed.sort();
+        let mut expected = vec![locals[0].clone(), locals[1].clone(), remotes[0].clone(), preview.clone()];
+        expected.sort();
+        assert_eq!(claimed, expected, "2 test_local + 1 test_remote + 1 local_preview (its own slots)");
+        assert!(claim(&h.core, h.clock.now()).unwrap().is_empty(), "every provider is at its limit");
+        assert_eq!(job(&h, &locals[2]).status, JobStatus::Queued);
+        assert_eq!(job(&h, &remotes[1]).status, JobStatus::Queued);
+
+        // Finishing one local job frees exactly one local slot.
+        let mut rest: Vec<Claim> = Vec::new();
+        for c in claims {
+            if c.job_id == locals[0] {
+                run(&h.core, c);
+            } else {
+                rest.push(c);
+            }
+        }
+        let next = claim(&h.core, h.clock.now()).unwrap();
+        assert_eq!(next.iter().map(|c| c.job_id.as_str()).collect::<Vec<_>>(), [locals[2].as_str()]);
+        for c in rest.into_iter().chain(next) {
+            run(&h.core, c);
+        }
+        run_queue(&h.core);
+        assert!(list(&h.core, Some(&pid)).unwrap().iter().all(|j| j.status == JobStatus::Completed));
+        assert!(h.core.queue.running_jobs().is_empty());
+    }
+
+    /// Tracks how many calls of one double overlap; each call waits briefly so overlaps show.
+    fn track_overlap(double: &TestProvider) -> Arc<AtomicUsize> {
+        let now = Arc::new(AtomicUsize::new(0));
+        let max = Arc::new(AtomicUsize::new(0));
+        let (n, m) = (now.clone(), max.clone());
+        double.set_hook(move || {
+            let v = n.fetch_add(1, Ordering::SeqCst) + 1;
+            m.fetch_max(v, Ordering::SeqCst);
+            std::thread::sleep(Duration::from_millis(150));
+            n.fetch_sub(1, Ordering::SeqCst);
+        });
+        max
+    }
+
+    #[test]
+    fn worker_runs_local_and_remote_in_parallel_within_limits() {
+        let (h, pid) = setup();
+        let local_max = track_overlap(&h.local);
+        let remote_max = track_overlap(&h.remote);
+        let mut both_running = false;
+        let ids: Vec<String> = (0..3).map(|_| local(&h, &pid)).chain((0..2).map(|_| remote(&h, &pid))).collect();
+
+        let worker = start_worker(h.core.clone()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(20);
+        loop {
+            let jobs: Vec<JobDto> = ids.iter().map(|id| job(&h, id)).collect();
+            let running: std::collections::HashSet<&str> =
+                jobs.iter().filter(|j| j.status == JobStatus::Running).map(|j| j.provider_id.as_str()).collect();
+            both_running |= running.len() == 2;
+            if jobs.iter().all(|j| j.status == JobStatus::Completed) {
+                break;
+            }
+            assert!(Instant::now() < deadline, "jobs did not finish: {jobs:?}");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        stop_worker(&h.core);
+        worker.join().unwrap();
+        assert_eq!(local_max.load(Ordering::SeqCst), LOCAL_SLOTS, "local jobs run 2 at a time");
+        assert_eq!(remote_max.load(Ordering::SeqCst), REMOTE_SLOTS, "one remote call per provider");
+        assert!(both_running, "a local and a remote job ran at the same time");
+        assert_eq!(count(&h, "assets"), 5);
+    }
+
+    #[test]
+    fn retryable_errors_back_off_15_then_60_seconds_then_succeed() {
+        let (h, pid) = setup();
+        h.remote.script(&[
+            TestBehavior::Fail(ProviderErrorKind::RateLimited),
+            TestBehavior::Fail(ProviderErrorKind::Network),
+        ]);
+        let id = remote(&h, &pid);
+        let start = h.clock.now();
+
+        assert_eq!(tick_now(&h), 1);
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Retrying, 1));
+        assert_eq!(j.next_attempt_at.as_deref(), Some(iso(start + chrono::Duration::seconds(15)).as_str()));
+        let e = j.error.clone().unwrap();
+        assert_eq!((e.kind.as_str(), e.retryable), ("rate_limited", true));
+        let g = generation(&h, &j);
+        assert_eq!(g.status, G::Queued, "the generation waits for its next attempt");
+        assert!(g.started_at.is_none() && g.error.is_none() && g.output_asset_ids.is_empty());
+
+        h.clock.advance_secs(14);
+        assert_eq!(tick_now(&h), 0, "not due yet");
+        h.clock.advance_secs(1);
+        assert_eq!(tick_now(&h), 1);
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Retrying, 2));
+        assert_eq!(j.next_attempt_at.as_deref(), Some(iso(h.clock.now() + chrono::Duration::seconds(60)).as_str()));
+        assert_eq!(j.error.unwrap().kind, "network");
+
+        h.clock.advance_secs(59);
+        assert_eq!(tick_now(&h), 0);
+        h.clock.advance_secs(1);
+        assert_eq!(tick_now(&h), 1);
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Completed, 3));
+        assert!(j.error.is_none() && j.next_attempt_at.is_none() && j.finished_at.is_some());
+        let g = generation(&h, &j);
+        assert_eq!(g.status, G::Completed);
+        assert_eq!(g.output_asset_ids.len(), 1);
+        assert_eq!(g.started_at, j.started_at, "latest attempt start");
+        assert_eq!(h.remote.calls(), 3);
+        assert_eq!(
+            h.events.job_statuses(&id),
+            ["queued", "running", "retrying", "running", "retrying", "running", "completed"]
+        );
+    }
+
+    #[test]
+    fn retries_stop_after_three_attempts() {
+        let (h, pid) = setup();
+        h.remote.set_behavior(TestBehavior::Fail(ProviderErrorKind::Timeout));
+        let id = remote(&h, &pid);
+        for _ in 0..3 {
+            assert_eq!(tick_now(&h), 1);
+            h.clock.advance_secs(60);
+        }
+        assert_eq!(tick_now(&h), 0);
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Failed, 3));
+        assert!(j.next_attempt_at.is_none());
+        assert_eq!(j.error.as_ref().unwrap().kind, "timeout");
+        let g = generation(&h, &j);
+        assert_eq!(g.status, G::Failed);
+        assert_eq!(g.error.unwrap().kind, "timeout");
+        assert!(g.duration_ms.is_some() && g.finished_at.is_some());
+        assert_eq!(h.remote.calls(), 3);
+    }
+
+    #[test]
+    fn non_retryable_errors_fail_at_once() {
+        let (h, pid) = setup();
+        for (behavior, kind) in [
+            (TestBehavior::Fail(ProviderErrorKind::Auth), "auth"),
+            (TestBehavior::Fail(ProviderErrorKind::Blocked), "blocked"),
+            // `retryable: true` (the user may retry) but not an automatic retry kind.
+            (TestBehavior::NotAnImage, "bad_response"),
+        ] {
+            h.remote.set_behavior(behavior);
+            let id = remote(&h, &pid);
+            assert_eq!(tick_now(&h), 1);
+            let j = job(&h, &id);
+            assert_eq!((j.status, j.attempt), (JobStatus::Failed, 1), "{kind}");
+            assert_eq!(j.error.unwrap().kind, kind);
+        }
+        assert_eq!(h.remote.calls(), 3);
+    }
+
+    #[test]
+    fn key_removed_after_enqueue_fails_the_job_as_auth() {
+        let (h, pid) = setup();
+        let id = remote(&h, &pid);
+        provider_settings::clear_api_key(&h.core, TEST_PROVIDER).unwrap();
+        tick_now(&h);
+        let j = job(&h, &id);
+        assert_eq!(j.status, JobStatus::Failed);
+        let e = j.error.unwrap();
+        assert_eq!((e.kind.as_str(), e.retryable), ("auth", false));
+        assert_eq!(h.remote.calls(), 0);
+    }
+
+    #[test]
+    fn reference_removed_after_enqueue_fails_without_a_call() {
+        let (h, pid) = setup();
+        let r = test_import(&h.core, h.tmp.path(), &pid, "r.png", "regular_image");
+        let g = generations::submit(&h.core, test_request(&pid, TEST_PROVIDER, "full", &[&r.id], None)).unwrap();
+        assets::remove(&h.core, &pid, &r.id).unwrap();
+        tick_now(&h);
+        let j = job(&h, g.job_id.as_deref().unwrap());
+        assert_eq!((j.status, j.error.unwrap().kind.as_str()), (JobStatus::Failed, "invalid_request"));
+        assert_eq!(h.remote.calls(), 0);
+    }
+
+    #[test]
+    fn cancel_queued_and_retrying_jobs_at_once() {
+        let (h, pid) = setup();
+        let queued = remote(&h, &pid);
+        let c = cancel(&h.core, &queued).unwrap();
+        assert_eq!(c.status, JobStatus::Cancelled);
+        assert!(c.finished_at.is_some());
+        let g = generation(&h, &c);
+        assert_eq!(g.status, G::Cancelled);
+        assert!(g.started_at.is_none(), "never started");
+
+        h.remote.script(&[TestBehavior::Fail(ProviderErrorKind::RateLimited)]);
+        let retrying = remote(&h, &pid);
+        tick_now(&h);
+        assert_eq!(job(&h, &retrying).status, JobStatus::Retrying);
+        let c = cancel(&h.core, &retrying).unwrap();
+        assert_eq!((c.status, c.next_attempt_at.clone()), (JobStatus::Cancelled, None));
+        assert_eq!(generation(&h, &c).status, G::Cancelled);
+
+        h.clock.advance_secs(3600);
+        assert_eq!(tick_now(&h), 0, "cancelled jobs never run");
+        assert_eq!(h.remote.calls(), 1);
+        let err = cancel(&h.core, &retrying).unwrap_err();
+        assert_eq!(err.code, ErrorCode::InvalidState, "already terminal");
+        assert_eq!(cancel(&h.core, "JOB_nope").unwrap_err().code, ErrorCode::NotFound);
+    }
+
+    #[test]
+    fn cancel_while_running_discards_the_result_and_leaves_no_files() {
+        let (h, pid) = setup();
+        let id = remote(&h, &pid);
+        let weak = Arc::downgrade(&h.core);
+        let job_id = id.clone();
+        h.remote.set_hook(move || {
+            let core = weak.upgrade().unwrap();
+            let c = cancel(&core, &job_id).unwrap();
+            assert_eq!(c.status, JobStatus::Cancelled, "cancel answers at once while the call runs");
+        });
+        assert_eq!(tick_now(&h), 1);
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Cancelled, 1));
+        let g = generation(&h, &j);
+        assert_eq!(g.status, G::Cancelled);
+        assert!(g.output_asset_ids.is_empty());
+        for table in ["assets", "versions", "generation_outputs"] {
+            assert_eq!(count(&h, table), 0, "{table}");
+        }
+        assert_eq!(managed_files(&h, &pid), 0);
+        assert!(h.core.queue.running_jobs().is_empty(), "slot released");
+        let statuses = h.events.job_statuses(&id);
+        assert_eq!(statuses.last().map(String::as_str), Some("cancelled"));
+        assert!(!statuses.contains(&"completed".to_string()));
+    }
+
+    #[test]
+    fn cancel_landing_between_file_write_and_commit_removes_the_files() {
+        let (h, pid) = setup();
+        let id = remote(&h, &pid);
+        let weak = Arc::downgrade(&h.core);
+        let job_id = id.clone();
+        generations::BEFORE_COMMIT.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move || {
+                cancel(&weak.upgrade().unwrap(), &job_id).unwrap();
+            }))
+        });
+        tick_now(&h);
+        assert_eq!(job(&h, &id).status, JobStatus::Cancelled);
+        assert_eq!(count(&h, "assets"), 0);
+        assert_eq!(managed_files(&h, &pid), 0, "written outputs are removed");
+    }
+
+    #[test]
+    fn retry_copies_the_request_into_a_new_job() {
+        let (h, pid) = setup();
+        h.remote.set_behavior(TestBehavior::Fail(ProviderErrorKind::Auth));
+        let id = remote(&h, &pid);
+        assert_eq!(retry(&h.core, &id).unwrap_err().code, ErrorCode::InvalidState, "queued is not retryable");
+        tick_now(&h);
+        let failed = job(&h, &id);
+        assert_eq!(failed.status, JobStatus::Failed);
+
+        h.remote.set_behavior(TestBehavior::Images);
+        let again = retry(&h.core, &id).unwrap();
+        assert_ne!(again.id, id);
+        assert_ne!(again.generation_id, failed.generation_id);
+        assert_eq!((again.status, again.attempt), (JobStatus::Queued, 0));
+        assert_eq!((again.label.as_str(), again.priority), (failed.label.as_str(), failed.priority));
+        let (old_g, new_g) = (generation(&h, &failed), generation(&h, &again));
+        assert_eq!(new_g.prompt, old_g.prompt);
+        assert_eq!(new_g.params, old_g.params);
+        assert_eq!(new_g.reference_asset_ids, old_g.reference_asset_ids);
+        tick_now(&h);
+        assert_eq!(job(&h, &again.id).status, JobStatus::Completed);
+        assert_eq!(retry(&h.core, &again.id).unwrap_err().code, ErrorCode::InvalidState, "completed");
+        assert_eq!(job(&h, &id).status, JobStatus::Failed, "the old job keeps its history");
+    }
+
+    #[test]
+    fn job_list_covers_all_projects_or_one_newest_first() {
+        let (h, pid) = setup();
+        let other = test_create_villa(&h.core, "Other").id;
+        let a = remote(&h, &pid);
+        let b = local(&h, &other);
+        let c = remote(&h, &pid);
+        let all: Vec<String> = list(&h.core, None).unwrap().into_iter().map(|j| j.id).collect();
+        assert_eq!(all, [c.clone(), b, a.clone()]);
+        let mine: Vec<String> = list(&h.core, Some(&pid)).unwrap().into_iter().map(|j| j.id).collect();
+        assert_eq!(mine, [c, a]);
+        assert_eq!(list(&h.core, Some("PRJ_nope")).unwrap_err().code, ErrorCode::NotFound);
+        let req: JobListRequest = serde_json::from_value(serde_json::json!({ "projectId": null })).unwrap();
+        assert!(req.project_id.is_none());
+    }
+
+    #[test]
+    fn job_list_keeps_active_jobs_and_caps_finished_history() {
+        let (h, pid) = setup();
+        let total = TERMINAL_HISTORY as usize + 5;
+        for _ in 0..total {
+            let id = local(&h, &pid);
+            cancel(&h.core, &id).unwrap();
+        }
+        let active = remote(&h, &pid);
+        let listed = list(&h.core, None).unwrap();
+        assert_eq!(listed.len(), TERMINAL_HISTORY as usize + 1);
+        assert_eq!(listed[0].id, active);
+    }
+
+    #[test]
+    fn restart_interrupts_running_jobs_and_resumes_queued_and_retrying() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        let (pid, running, queued, retrying) = {
+            let (core, remote_double, _) = open_queue_core(&root);
+            provider_settings::set_api_key(&core, TEST_PROVIDER, "k").unwrap();
+            let pid = test_create_villa(&core, "Restart").id;
+            let submit = |provider: &str| {
+                generations::submit(&core, test_request(&pid, provider, "full", &[], None)).unwrap().job_id.unwrap()
+            };
+            remote_double.script(&[TestBehavior::Fail(ProviderErrorKind::RateLimited)]);
+            let retrying = submit(TEST_PROVIDER);
+            tick(&core, core.clock.now()).unwrap();
+            let running = submit(TEST_LOCAL_PROVIDER);
+            let claims = claim(&core, core.clock.now()).unwrap();
+            assert_eq!(claims.len(), 1);
+            let queued = submit(TEST_LOCAL_PROVIDER);
+            drop(claims); // the app dies mid-call: the attempt never reports back
+            (pid, running, queued, retrying)
+        };
+        let (core, _, _) = open_queue_core(&root);
+        let j = get(&core, &running).unwrap();
+        assert_eq!((j.status, j.attempt), (JobStatus::Interrupted, 1));
+        let e = j.error.unwrap();
+        assert_eq!((e.kind.as_str(), e.retryable), ("interrupted", true));
+        let g = generations::get(&core, &pid, &j.generation_id).unwrap();
+        assert_eq!(g.status, G::Interrupted);
+        assert_eq!(get(&core, &queued).unwrap().status, JobStatus::Queued);
+        let r = get(&core, &retrying).unwrap();
+        assert_eq!((r.status, r.attempt), (JobStatus::Retrying, 1));
+
+        // Interrupted jobs are never re-sent by themselves; the others run.
+        provider_settings::set_api_key(&core, TEST_PROVIDER, "k").unwrap(); // fresh memory store
+        let later = core.clock.now() + chrono::Duration::seconds(20);
+        while tick(&core, later).unwrap() > 0 {}
+        assert_eq!(get(&core, &running).unwrap().status, JobStatus::Interrupted);
+        assert_eq!(get(&core, &queued).unwrap().status, JobStatus::Completed);
+        assert_eq!(get(&core, &retrying).unwrap().status, JobStatus::Completed);
+        assert_eq!(retry(&core, &running).unwrap().status, JobStatus::Queued, "the user can retry it");
+    }
+
+    #[test]
+    fn events_follow_every_state_change() {
+        let (h, pid) = setup();
+        h.events.take();
+        let id = remote(&h, &pid);
+        let gid = job(&h, &id).generation_id;
+        tick_now(&h);
+        let expected: Vec<(&str, String, String)> = [
+            ("job", &id, "queued"),
+            ("generation", &gid, "queued"),
+            ("job", &id, "running"),
+            ("generation", &gid, "running"),
+            ("job", &id, "completed"),
+            ("generation", &gid, "completed"),
+        ]
+        .into_iter()
+        .map(|(e, i, s)| (e, i.clone(), s.to_string()))
+        .collect();
+        assert_eq!(h.events.take(), expected);
+        assert_eq!(JOB_UPDATED_EVENT, "job://updated");
+        assert_eq!(GENERATION_UPDATED_EVENT, "generation://updated");
+    }
+
+    #[test]
+    fn a_panicking_attempt_still_frees_its_slot() {
+        let (h, pid) = setup();
+        h.remote.set_hook(|| panic!("simulated adapter bug"));
+        let id = remote(&h, &pid);
+        let c = claim(&h.core, h.clock.now()).unwrap().pop().unwrap();
+        let core = h.core.clone();
+        assert!(std::thread::spawn(move || run(&core, c)).join().is_err());
+        assert!(h.core.queue.running_jobs().is_empty());
+        assert_eq!(job(&h, &id).status, JobStatus::Running, "becomes interrupted on the next start");
+    }
+
+    #[test]
+    fn job_dto_json_keys_match_zod_schema() {
+        let (h, pid) = setup();
+        let id = remote(&h, &pid);
+        let value = serde_json::to_value(job(&h, &id)).unwrap();
+        let mut keys: Vec<&str> = value.as_object().unwrap().keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            [
+                "attempt",
+                "batchId",
+                "cameraId",
+                "createdAt",
+                "error",
+                "finishedAt",
+                "generationId",
+                "id",
+                "label",
+                "maxAttempts",
+                "modelId",
+                "nextAttemptAt",
+                "priority",
+                "projectId",
+                "providerId",
+                "startedAt",
+                "status"
+            ]
+        );
+    }
+}

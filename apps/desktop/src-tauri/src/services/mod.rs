@@ -175,6 +175,59 @@ pub(crate) mod tests_support {
         crate::services::generations::get(core, &g.project_id, &g.id)
     }
 
+    /// A valid one-output request with an inline prompt (references and camera optional).
+    pub fn test_request(
+        project_id: &str,
+        provider: &str,
+        model: &str,
+        refs: &[&str],
+        camera_id: Option<&str>,
+    ) -> crate::services::generations::SubmitRequest {
+        serde_json::from_value(serde_json::json!({
+            "projectId": project_id, "providerId": provider, "modelId": model, "purpose": "hero",
+            "prompt": { "compilerVersion": "1", "positivePrompt": "Villa at dusk", "negativePrompt": "",
+                        "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+            "referenceAssetIds": refs,
+            "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null },
+            "cameraId": camera_id
+        }))
+        .unwrap()
+    }
+
+    /// Import a small PNG into the project.
+    pub fn test_import(core: &AppCore, dir: &Path, project_id: &str, name: &str, role: &str) -> crate::dto::AssetDto {
+        let rgb = [name.len() as u8 * 17, 80, 160];
+        crate::services::assets::import(
+            core,
+            crate::services::assets::ImportRequest {
+                project_id: project_id.into(),
+                source_path: write_png(dir, name, 24, 16, rgb).to_string_lossy().into_owned(),
+                source: "external".into(),
+                role: role.into(),
+                allow_duplicate: true,
+            },
+        )
+        .unwrap()
+    }
+
+    /// Replace the DNA cameras: `(id, name, isAnchorView)`.
+    pub fn set_cameras(core: &AppCore, project_id: &str, cameras: &[(&str, &str, bool)]) {
+        let mut dna = crate::services::dna::get(core, project_id).unwrap();
+        dna["cameras"] = cameras
+            .iter()
+            .map(|(id, name, anchor)| {
+                serde_json::json!({ "schemaVersion": 1, "id": id, "name": name, "viewType": "exterior_corner",
+                                    "isAnchorView": anchor, "notes": "" })
+            })
+            .collect();
+        crate::services::dna::update(core, project_id, dna).unwrap();
+    }
+
+    /// Camera ids that satisfy `CAM_<ULID>`.
+    pub const CAM_A: &str = "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA";
+    pub const CAM_B: &str = "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB";
+    pub const CAM_C: &str = "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZC";
+
     /// Settable clock; starts at a fixed instant.
     pub struct ManualClock(Mutex<chrono::DateTime<chrono::Utc>>);
 
