@@ -22,7 +22,7 @@ use crate::providers::{
     GenerationParams, ImageProvider, ModelCapabilities, PromptText, ProviderOutput, ProviderRequest, ReferenceImage,
 };
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, VersionRow};
-use crate::services::assets::{store_managed_image, StoredImage};
+use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
 use crate::services::provider_settings::{find_provider, key_for, not_configured};
 use crate::services::{ensure_not_archived, AppCore};
 use crate::util::{new_id, now_iso, prefix};
@@ -109,10 +109,7 @@ fn prepare(core: &AppCore, req: SubmitRequest) -> AppResult<Prepared> {
         let assets = req
             .reference_asset_ids
             .iter()
-            .map(|id| match repo::find_asset(&conn, id)? {
-                Some(a) if a.project_id == project.id => Ok(a),
-                _ => Err(AppError::not_found("Reference asset", id)),
-            })
+            .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
         (project, assets)
     };
@@ -213,19 +210,32 @@ fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> App
     Ok(())
 }
 
-fn read_reference(core: &AppCore, a: &AssetRow) -> AppResult<ReferenceImage> {
+fn missing_reference(a: &AssetRow) -> AppError {
     let name = a.original_name.as_deref().unwrap_or(&a.id);
-    let missing = || {
-        AppError::invalid_state(format!(
-            "Reference '{name}' has no image file in project storage. Re-import it or remove it from the references."
-        ))
-        .with_details(json!({ "assetId": a.id }))
+    AppError::invalid_state(format!(
+        "Reference '{name}' has no image file in project storage. Re-import it or remove it from the references."
+    ))
+    .with_details(json!({ "assetId": a.id }))
+}
+
+/// A reference must exist, belong to the project (`NOT_FOUND` otherwise) and be ready with
+/// its managed file present (`INVALID_STATE` otherwise). Runs at validation and again in the
+/// lock scope of the row insert, so a reference removed in between is never sent.
+fn check_reference(core: &AppCore, conn: &Connection, project_id: &str, asset_id: &str) -> AppResult<AssetRow> {
+    let asset = match repo::find_asset(conn, asset_id)? {
+        Some(a) if a.project_id == project_id => a,
+        _ => return Err(AppError::not_found("Reference asset", asset_id)),
     };
-    if a.status != "ready" {
-        return Err(missing());
+    let path = core.storage.resolve(&asset.project_id, &asset.managed_rel_path)?;
+    if asset.status != "ready" || !path.is_file() {
+        return Err(missing_reference(&asset));
     }
+    Ok(asset)
+}
+
+fn read_reference(core: &AppCore, a: &AssetRow) -> AppResult<ReferenceImage> {
     let path = core.storage.resolve(&a.project_id, &a.managed_rel_path)?;
-    let bytes = fs::read(&path).map_err(|_| missing())?;
+    let bytes = fs::read(&path).map_err(|_| missing_reference(a))?;
     let mime_type = a
         .mime_type
         .clone()
@@ -236,8 +246,18 @@ fn read_reference(core: &AppCore, a: &AssetRow) -> AppResult<ReferenceImage> {
 
 // ------------------------------------------------------------------ submit
 
+#[cfg(test)]
+thread_local! {
+    /// Runs between validation and the row insert (no lock held), to race the insert in tests.
+    static AFTER_PREPARE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) };
+}
+
 pub fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
     let prepared = prepare(core, req)?;
+    #[cfg(test)]
+    if let Some(hook) = AFTER_PREPARE.with(|h| h.borrow_mut().take()) {
+        hook();
+    }
 
     // 1. persist the running row (the project may have been archived since validation)
     let now = now_iso();
@@ -263,6 +283,10 @@ pub fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
     {
         let conn = core.conn()?;
         ensure_not_archived(&repo::get_project(&conn, &row.project_id)?)?;
+        // References may have been removed or lost their file since validation.
+        for id in &prepared.snapshot.reference_asset_ids {
+            check_reference(core, &conn, &row.project_id, id)?;
+        }
         repo::insert_generation(&conn, &row)?;
     } // DB lock released: the provider call below must never hold it.
 
@@ -309,7 +333,7 @@ fn elapsed_ms(clock: &Instant) -> i64 {
     i64::try_from(clock.elapsed().as_millis()).unwrap_or(i64::MAX)
 }
 
-/// Inspect every image, write the files, then commit all rows in one transaction.
+/// Fully decode every image, write the files, then commit all rows in one transaction.
 /// On any failure no asset row survives and every written file is removed.
 fn store_outputs(
     core: &AppCore,
@@ -323,26 +347,41 @@ fn store_outputs(
     }
     // A provider that returns more than asked for: keep the requested count only.
     let images: Vec<_> = output.images.into_iter().take(prepared.snapshot.params.output_count as usize).collect();
-    let inspected = images
+    // Header inspection alone accepts a PNG with corrupt pixel data; decoding proves it opens.
+    let checked = images
         .iter()
         .enumerate()
         .map(|(i, img)| {
-            imaging::inspect(&img.bytes, &format!("output {}", i + 1)).map_err(|_| {
+            let unreadable = || {
                 Failure::new(
                     "bad_response",
                     format!("The provider returned output {} that is not a readable JPEG, PNG or WebP image.", i + 1),
                     true,
                 )
-            })
+            };
+            let info = imaging::inspect(&img.bytes, &format!("output {}", i + 1)).map_err(|_| unreadable())?;
+            let decoded = imaging::decode(&img.bytes, info.format).map_err(|_| unreadable())?;
+            Ok((info, decoded))
         })
-        .collect::<Result<Vec<Inspection>, _>>()?;
+        .collect::<Result<Vec<_>, Failure>>()?;
 
-    let mut stored: Vec<(String, StoredImage)> = Vec::new();
-    let cleanup = |stored: &[(String, StoredImage)]| stored.iter().for_each(|(_, s)| s.remove_files());
-    for (img, info) in images.iter().zip(&inspected) {
+    let mut stored: Vec<StoredImage> = Vec::new();
+    let cleanup = |stored: &[StoredImage]| {
+        for s in stored {
+            s.remove_files();
+        }
+    };
+    for (img, (info, decoded)) in images.iter().zip(&checked) {
         let asset_id = new_id(prefix::ASSET);
-        match store_managed_image(&core.storage, &generation.project_id, &asset_id, &img.bytes, info) {
-            Ok(s) => stored.push((asset_id, s)),
+        match store_managed_image(
+            &core.storage,
+            &generation.project_id,
+            &asset_id,
+            &img.bytes,
+            info,
+            Thumbnail::Required(decoded),
+        ) {
+            Ok(s) => stored.push(s),
             Err(e) => {
                 cleanup(&stored);
                 return Err(e.into());
@@ -350,6 +389,7 @@ fn store_outputs(
         }
     }
 
+    let inspected: Vec<&Inspection> = checked.iter().map(|(info, _)| info).collect();
     let result = commit_outputs(core, prepared, generation, &stored, &inspected, clock);
     if result.is_err() {
         cleanup(&stored);
@@ -361,8 +401,8 @@ fn commit_outputs(
     core: &AppCore,
     prepared: &Prepared,
     generation: &GenerationRow,
-    stored: &[(String, StoredImage)],
-    inspected: &[Inspection],
+    stored: &[StoredImage],
+    inspected: &[&Inspection],
     clock: &Instant,
 ) -> Result<(), Failure> {
     let mut conn = core.conn()?;
@@ -385,7 +425,8 @@ fn commit_outputs(
         None => None,
     };
     let now = now_iso();
-    for (index, ((asset_id, files), info)) in stored.iter().zip(inspected).enumerate() {
+    for (index, (files, info)) in stored.iter().zip(inspected).enumerate() {
+        let asset_id = &files.asset_id;
         let index = index as u32;
         let name = format!("{} {} — {}", prepared.purpose.label(), index + 1, prepared.model.label);
         let operation_json = json!({
@@ -952,5 +993,134 @@ mod tests {
         let req: SubmitRequest = serde_json::from_value(raw).unwrap();
         assert_eq!(req.params.seed, Some(42));
         assert_eq!(req.reference_asset_ids, ["AST_1"]);
+    }
+
+    // ------------------------------------------------------------------ review round 1
+
+    fn managed_file_count(core: &AppCore, project_id: &str) -> usize {
+        ["assets/original", "previews"]
+            .iter()
+            .map(|d| std::fs::read_dir(core.storage.project_dir(project_id).join(d)).map(|r| r.count()).unwrap_or(0))
+            .sum()
+    }
+
+    fn assert_failed_and_clean(core: &AppCore, g: &GenerationDto, kind: &str) {
+        assert_eq!(g.status, GenerationStatus::Failed);
+        assert_eq!(g.error.as_ref().unwrap().kind, kind, "{:?}", g.error);
+        assert!(g.output_asset_ids.is_empty());
+        for table in ["assets", "versions", "generation_outputs"] {
+            assert_eq!(count(core, table), 0, "{table} must be rolled back");
+        }
+        assert_eq!(managed_file_count(core, &g.project_id), 0, "no stray files");
+    }
+
+    #[test]
+    fn header_valid_png_with_corrupt_pixels_is_bad_response() {
+        let bytes = crate::services::tests_support::corrupt_pixel_png();
+        assert!(imaging::inspect(&bytes, "x").is_ok(), "fixture must pass header inspection");
+
+        let (_tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let p = test_create_villa(&core, "A");
+        double.set_behavior(TestBehavior::CorruptPixels);
+        let g = submit(&core, request(&p.id, TEST_PROVIDER, "full", &[], params(1))).unwrap();
+        assert_failed_and_clean(&core, &g, "bad_response");
+    }
+
+    #[test]
+    fn thumbnail_write_failure_fails_the_whole_batch_as_io() {
+        let (_tmp, core, _) = core_with_double();
+        let p = test_create_villa(&core, "A");
+        assets::faults::FAIL_THUMBNAIL_AT.with(|c| c.set(2));
+        let g = submit(&core, local(&p.id, &[], 2)).unwrap();
+        assets::faults::FAIL_THUMBNAIL_AT.with(|c| c.set(0));
+        assert_failed_and_clean(&core, &g, "io");
+    }
+
+    #[test]
+    fn original_write_failure_mid_batch_rolls_back_everything() {
+        let (_tmp, core, _) = core_with_double();
+        let p = test_create_villa(&core, "A");
+        assets::faults::FAIL_ORIGINAL_AT.with(|c| c.set(2));
+        let g = submit(&core, local(&p.id, &[], 2)).unwrap();
+        assets::faults::FAIL_ORIGINAL_AT.with(|c| c.set(0));
+        assert_failed_and_clean(&core, &g, "io");
+    }
+
+    #[test]
+    fn sql_failure_on_second_output_rolls_back_everything() {
+        let (_tmp, core, _) = core_with_double();
+        let p = test_create_villa(&core, "A");
+        core.conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER fail_second_output BEFORE INSERT ON generation_outputs
+                 WHEN NEW.output_index = 1 BEGIN SELECT RAISE(ABORT, 'injected failure'); END;",
+            )
+            .unwrap();
+        let g = submit(&core, local(&p.id, &[], 2)).unwrap();
+        assert_failed_and_clean(&core, &g, "io");
+        assert_eq!(list(&core, &p.id).unwrap().len(), 1, "the failed generation stays in history");
+    }
+
+    #[test]
+    fn reference_removed_before_insert_is_rejected_without_a_row() {
+        for remove_master in [true, false] {
+            let (tmp, core, double) = core_with_double();
+            set_key(&core, "k");
+            let p = test_create_villa(&core, "A");
+            let master = import(&core, tmp.path(), &p.id, "m.png", "master_architecture", [9, 9, 9]);
+            let other = import(&core, tmp.path(), &p.id, "o.png", "regular_image", [8, 8, 8]);
+            let victim = if remove_master { master.id.clone() } else { other.id.clone() };
+
+            let weak = Arc::downgrade(&core);
+            let pid = p.id.clone();
+            AFTER_PREPARE.with(|h| {
+                *h.borrow_mut() = Some(Box::new(move || {
+                    assets::remove(&weak.upgrade().unwrap(), &pid, &victim).unwrap();
+                }))
+            });
+            let err =
+                submit(&core, request(&p.id, TEST_PROVIDER, "full", &[&master.id, &other.id], params(1))).unwrap_err();
+            assert_eq!(err.code, ErrorCode::NotFound, "remove_master={remove_master}: {}", err.message);
+            assert_eq!(count(&core, "generations"), 0);
+            assert_eq!(double.calls(), 0, "nothing may be sent");
+        }
+    }
+
+    #[test]
+    fn reference_file_lost_before_insert_is_invalid_state() {
+        let (tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let p = test_create_villa(&core, "A");
+        let r = import(&core, tmp.path(), &p.id, "r.png", "regular_image", [7, 7, 7]);
+        let path = r.absolute_path.clone();
+        AFTER_PREPARE.with(|h| *h.borrow_mut() = Some(Box::new(move || std::fs::remove_file(&path).unwrap())));
+        let err = submit(&core, request(&p.id, TEST_PROVIDER, "full", &[&r.id], params(1))).unwrap_err();
+        assert_eq!(err.code, ErrorCode::InvalidState);
+        assert_eq!(count(&core, "generations"), 0);
+        assert_eq!(double.calls(), 0);
+    }
+
+    #[test]
+    fn empty_capability_lists_require_null_values() {
+        // API_CONTRACTS §9 (main 8a06735): an empty aspectRatios/imageSizes list means
+        // "provider decides", so a value must be null.
+        let (_tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let p = test_create_villa(&core, "A");
+        let text_only = |f: &dyn Fn(&mut GenerationParams)| {
+            let mut params = params(1);
+            f(&mut params);
+            request(&p.id, TEST_PROVIDER, "text-only", &[], params)
+        };
+        for req in
+            [text_only(&|p| p.image_size = Some("1K".into())), text_only(&|p| p.aspect_ratio = Some("1:1".into()))]
+        {
+            assert_eq!(submit(&core, req).unwrap_err().code, ErrorCode::ValidationError);
+        }
+        assert_eq!(double.calls(), 0);
+        let ok = submit(&core, text_only(&|_| {})).unwrap();
+        assert_eq!(ok.status, GenerationStatus::Completed);
     }
 }

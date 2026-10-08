@@ -124,6 +124,22 @@ pub(crate) mod tests_support {
         /// Bytes that are not an image (e.g. an HTML error page).
         NotAnImage,
         NoImages,
+        /// A PNG whose header is valid but whose pixel data is corrupt.
+        CorruptPixels,
+    }
+
+    /// Valid PNG signature + IHDR (so `imaging::inspect` passes), garbage inside IDAT.
+    pub fn corrupt_pixel_png() -> Vec<u8> {
+        let img = image::RgbImage::from_fn(64, 48, |x, y| image::Rgb([(x * 7) as u8, (y * 13) as u8, (x ^ y) as u8]));
+        let mut bytes = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+        let idat = bytes.windows(4).position(|w| w == b"IDAT").unwrap();
+        let len = u32::from_be_bytes(bytes[idat - 4..idat].try_into().unwrap()) as usize;
+        // Keep the 2-byte zlib header, scramble the deflate stream.
+        for b in &mut bytes[idat + 6..idat + 4 + len] {
+            *b = !*b ^ 0x5A;
+        }
+        bytes
     }
 
     type Hook = Box<dyn Fn() + Send + Sync>;
@@ -202,6 +218,9 @@ pub(crate) mod tests_support {
             let images = match *self.behavior.lock().unwrap() {
                 TestBehavior::Fail(kind) => return Err(ProviderError::new(kind, "Test provider failure.")),
                 TestBehavior::NoImages => vec![],
+                TestBehavior::CorruptPixels => {
+                    vec![ProviderImage { mime_type: "image/png".into(), bytes: corrupt_pixel_png() }]
+                }
                 TestBehavior::NotAnImage => {
                     vec![ProviderImage { mime_type: "image/png".into(), bytes: b"<html>oops</html>".to_vec() }]
                 }

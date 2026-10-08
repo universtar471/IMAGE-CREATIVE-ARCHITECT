@@ -4,7 +4,7 @@
 use std::io::Cursor;
 use std::path::Path;
 
-use image::{ImageFormat, ImageReader};
+use image::{DynamicImage, ImageFormat, ImageReader};
 use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, AppResult, ErrorCode};
@@ -93,11 +93,20 @@ pub fn inspect(bytes: &[u8], display_name: &str) -> AppResult<Inspection> {
     Ok(Inspection { format, width, height, size_bytes: bytes.len() as u64, sha256: hex::encode(Sha256::digest(bytes)) })
 }
 
+/// Decode every pixel. `inspect` only reads the header, so this is what proves an image
+/// (e.g. a provider output) is actually readable.
+pub fn decode(bytes: &[u8], format: SupportedFormat) -> Result<DynamicImage, String> {
+    ImageReader::with_format(Cursor::new(bytes), format.image_format()).decode().map_err(|e| e.to_string())
+}
+
 /// Write a small JPEG thumbnail. Failure is reported to the caller, which treats it as
 /// non-fatal (the asset stays valid without a thumbnail).
 pub fn write_thumbnail(bytes: &[u8], format: SupportedFormat, target: &Path) -> Result<(), String> {
-    let img =
-        ImageReader::with_format(Cursor::new(bytes), format.image_format()).decode().map_err(|e| e.to_string())?;
+    save_thumbnail(&decode(bytes, format)?, target)
+}
+
+/// Thumbnail from an already decoded image.
+pub fn save_thumbnail(img: &DynamicImage, target: &Path) -> Result<(), String> {
     let thumb = img.thumbnail(THUMBNAIL_EDGE, THUMBNAIL_EDGE).to_rgb8();
     thumb.save_with_format(target, ImageFormat::Jpeg).map_err(|e| e.to_string())
 }
