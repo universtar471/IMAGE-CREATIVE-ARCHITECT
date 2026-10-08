@@ -3,7 +3,10 @@ import {
   COMPILER_VERSION,
   compilePrompt,
   createInitialDNA,
+  sortReferences,
+  type CameraDNA,
   type PromptCompileInput,
+  type PromptReference,
   type ProjectType,
 } from "../src";
 import { loadSeedRegistry } from "./helpers";
@@ -131,8 +134,166 @@ describe("prompt compiler", () => {
     const bundle = compilePrompt(input("interior"));
     expect(bundle.metadata).toMatchObject({
       projectType: "interior",
-      knowledgePack: "interior/default@1.0.0",
+      knowledgePack: "interior/default@1.1.0",
       referenceCount: 0,
     });
+  });
+});
+
+describe("camera section (pc-1.1.0)", () => {
+  const corner: CameraDNA = {
+    schemaVersion: 1,
+    id: "CAM_01J00000000000000000000001",
+    name: "Front-left corner",
+    viewType: "exterior_corner",
+    isAnchorView: true,
+    azimuthDeg: 45,
+    elevationDeg: 0,
+    heightM: 1.6,
+    distanceM: 25,
+    lensMm: 24,
+    composition: "two-point perspective",
+    notes: "keep the gate in frame",
+  };
+
+  const withCamera = (over: Partial<PromptCompileInput> = {}) => {
+    const i = input("villa", over);
+    i.dna.cameras = [corner];
+    return i;
+  };
+
+  it("adds a camera section right after context", () => {
+    const bundle = compilePrompt({ ...withCamera(), cameraId: corner.id });
+    const sections = bundle.metadata.sections as string[];
+    expect(sections.indexOf("camera")).toBe(sections.indexOf("context") + 1);
+    const paragraphs = bundle.positivePrompt.split("\n\n");
+    expect(paragraphs[sections.indexOf("camera")]).toBe(
+      "Camera: exterior corner view; viewpoint: front-left three-quarter view from eye level; lens: 24 mm wide-angle lens; distance: about 25 m from the building; composition: two-point perspective; camera notes: keep the gate in frame.",
+    );
+    expect(bundle.metadata.cameraId).toBe(corner.id);
+  });
+
+  it("omits the section without a camera or for an unknown camera", () => {
+    for (const cameraId of [undefined, null, "CAM_01J00000000000000000000099"]) {
+      const bundle = compilePrompt({ ...withCamera(), cameraId });
+      expect(bundle.metadata.sections).not.toContain("camera");
+      expect(bundle.metadata.cameraId).toBeNull();
+      expect(bundle.positivePrompt).not.toMatch(/^Camera:/m);
+    }
+  });
+
+  it("puts the camera section after the subject when there is no context", () => {
+    const bundle = compilePrompt({
+      project: { id: "PRJ_X", name: "Bare", projectType: "custom" },
+      dna: { ...createInitialDNA({ projectType: "custom", pack: null }), cameras: [corner] },
+      references: [],
+      cameraId: corner.id,
+    });
+    expect(bundle.metadata.sections).toEqual(["subject", "camera", "quality"]);
+  });
+
+  it("states a camera lock only when a camera is rendered", () => {
+    const i = withCamera();
+    i.dna.locks.camera = true;
+    expect(compilePrompt({ ...i, cameraId: corner.id }).preservationInstructions).toMatch(
+      /Camera DNA is LOCKED/,
+    );
+    expect(compilePrompt(i).preservationInstructions).not.toMatch(/Camera DNA/);
+  });
+
+  it("describes aerial and interior cameras", () => {
+    const aerial: CameraDNA = {
+      ...corner,
+      id: "CAM_01J00000000000000000000002",
+      viewType: "aerial",
+      azimuthDeg: -35,
+      elevationDeg: 32,
+      lensMm: 35,
+      composition: undefined,
+      notes: "",
+    };
+    const i = input("villa");
+    i.dna.cameras = [aerial];
+    expect(compilePrompt({ ...i, cameraId: aerial.id }).positivePrompt).toMatch(
+      /Camera: aerial view; viewpoint: front-right three-quarter view from an aerial viewpoint, about 32° down; lens: 35 mm natural standard lens; distance: about 25 m from the building\./,
+    );
+
+    const room: CameraDNA = {
+      schemaVersion: 1,
+      id: "CAM_01J00000000000000000000003",
+      name: "Wide",
+      viewType: "interior_wide",
+      isAnchorView: false,
+      azimuthDeg: 90,
+      heightM: 1.5,
+      lensMm: 16,
+      notes: "",
+    };
+    const ii = input("interior");
+    ii.dna.cameras = [room];
+    expect(compilePrompt({ ...ii, cameraId: room.id }).positivePrompt).toMatch(
+      /Camera: wide interior view; viewpoint: view from eye level; lens: 16 mm ultra-wide-angle lens\./,
+    );
+  });
+
+  it("is deterministic and independent of camera list order", () => {
+    const other = { ...corner, id: "CAM_01J00000000000000000000004", name: "Other" };
+    const a = withCamera();
+    a.dna.cameras = [corner, other];
+    const b = structuredClone(a);
+    b.dna.cameras = [other, corner];
+    expect(compilePrompt({ ...a, cameraId: corner.id })).toEqual(
+      compilePrompt({ ...b, cameraId: corner.id }),
+    );
+  });
+});
+
+describe("anchor references (pc-1.1.0)", () => {
+  const refs: PromptReference[] = [
+    { assetId: "AST_9", role: "material_reference" },
+    { assetId: "AST_1", role: "regular_image", label: "anchor.png", isAnchor: true },
+    { assetId: "AST_5", role: "architecture_reference" },
+    { assetId: "AST_7", role: "master_architecture", label: "hero.png" },
+  ];
+
+  it("numbers the anchor right after the master with its own instruction", () => {
+    const bundle = compilePrompt(input("villa", { references: refs }));
+    const lines = bundle.referenceInstructions.split("\n");
+    expect(lines[0]).toMatch(/^Image 1 \(hero\.png\) is the MASTER/);
+    expect(lines[1]).toMatch(/^Image 2 \(anchor\.png\) is the APPROVED ANCHOR view/);
+    expect(lines[1]).toMatch(/master stays authoritative for the architecture/);
+    expect(lines[2]).toMatch(/^Image 3 is an architecture reference/);
+    expect(lines[3]).toMatch(/^Image 4 is a material reference/);
+    expect(bundle.preservationInstructions).toMatch(/Preserve the architecture of Image 1/);
+    expect(bundle.preservationInstructions).toMatch(/composition of Image 2 \(anchor view\)/);
+    expect(bundle.metadata.anchorImage).toBe(2);
+    expect(sortReferences(refs).map((r) => r.assetId)).toEqual([
+      "AST_7",
+      "AST_1",
+      "AST_5",
+      "AST_9",
+    ]);
+  });
+
+  it("is independent of reference order with an anchor", () => {
+    const a = compilePrompt(input("villa", { references: refs }));
+    const b = compilePrompt(input("villa", { references: [...refs].reverse() }));
+    expect(a).toEqual(b);
+  });
+
+  it("without a master the anchor comes first; a master flagged as anchor stays the master", () => {
+    const noMaster = compilePrompt(
+      input("villa", { references: refs.filter((r) => r.role !== "master_architecture") }),
+    );
+    expect(noMaster.referenceInstructions.split("\n")[0]).toMatch(/^Image 1 .*APPROVED ANCHOR/);
+
+    const both = compilePrompt(
+      input("villa", {
+        references: [{ assetId: "AST_7", role: "master_architecture", isAnchor: true }],
+      }),
+    );
+    expect(both.referenceInstructions).toMatch(/is the MASTER/);
+    expect(both.referenceInstructions).not.toMatch(/ANCHOR/);
+    expect(both.metadata.anchorImage).toBeNull();
   });
 });
