@@ -1,14 +1,18 @@
 {
   "command": "generation_submit",
   "response": {
+    "batchId": null,
+    "cameraId": null,
+    "createdAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 1234,
     "error": {
-      "kind": "rate_limited",
+      "kind": "blocked",
       "message": "Test provider failure.",
-      "retryable": true
+      "retryable": false
     },
     "finishedAt": "2026-01-01T00:00:00.000Z",
     "id": "GEN_00000000000000000000000006",
+    "jobId": "JOB_01M4EEE3JRVJ84SW1R1M8NK32B",
     "modelId": "full",
     "outputAssetIds": [],
     "params": {

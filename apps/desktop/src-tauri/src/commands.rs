@@ -8,11 +8,11 @@ use serde_json::Value;
 use tauri::State;
 
 use crate::dto::{
-    AssetDto, AssetRemoveResult, GenerationDto, ProjectBundleDto, ProjectDto, ProjectSummaryDto, ProviderDescriptorDto,
-    ProviderTestResult, VersionDto,
+    AssetDto, AssetRemoveResult, BatchDto, CameraAnchorDto, GenerationDto, JobDto, ProjectBundleDto, ProjectDto,
+    ProjectSummaryDto, ProviderDescriptorDto, ProviderTestResult, VersionDto,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::services::{assets, dna, generations, projects, provider_settings, AppCore};
+use crate::services::{anchors, assets, batches, dna, generations, projects, provider_settings, queue, AppCore};
 
 type Core<'a> = State<'a, Arc<AppCore>>;
 
@@ -205,8 +205,8 @@ pub async fn provider_test(core: Core<'_>, request: ProviderRef) -> AppResult<Pr
 
 // ------------------------------------------------------------------ generation
 
-/// Runs the provider call synchronously off the UI thread (ADR-014); returns the finished
-/// generation (`completed` or `failed`).
+/// Validates and enqueues one job (ADR-017); returns the `queued` generation at once.
+/// Progress arrives as `job://updated` / `generation://updated` events.
 #[tauri::command]
 pub async fn generation_submit(core: Core<'_>, request: generations::SubmitRequest) -> AppResult<GenerationDto> {
     blocking(&core, move |c| generations::submit(c, request)).await
@@ -227,6 +227,57 @@ pub struct GenerationRef {
 #[tauri::command]
 pub async fn generation_get(core: Core<'_>, request: GenerationRef) -> AppResult<GenerationDto> {
     blocking(&core, move |c| generations::get(c, &request.project_id, &request.generation_id)).await
+}
+
+// ------------------------------------------------------------------ batches, jobs, anchors
+
+#[tauri::command]
+pub async fn batch_create(core: Core<'_>, request: batches::BatchCreateRequest) -> AppResult<BatchDto> {
+    blocking(&core, move |c| batches::create(c, request)).await
+}
+
+#[tauri::command]
+pub async fn batch_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<BatchDto>> {
+    blocking(&core, move |c| batches::list(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn job_list(core: Core<'_>, request: queue::JobListRequest) -> AppResult<Vec<JobDto>> {
+    blocking(&core, move |c| queue::list(c, request.project_id.as_deref())).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobRef {
+    job_id: String,
+}
+
+#[tauri::command]
+pub async fn job_cancel(core: Core<'_>, request: JobRef) -> AppResult<JobDto> {
+    blocking(&core, move |c| queue::cancel(c, &request.job_id)).await
+}
+
+#[tauri::command]
+pub async fn job_retry(core: Core<'_>, request: JobRef) -> AppResult<JobDto> {
+    blocking(&core, move |c| queue::retry(c, &request.job_id)).await
+}
+
+#[tauri::command]
+pub async fn camera_anchor_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<CameraAnchorDto>> {
+    blocking(&core, move |c| anchors::list(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn camera_anchor_set(core: Core<'_>, request: anchors::AnchorSetRequest) -> AppResult<Vec<CameraAnchorDto>> {
+    blocking(&core, move |c| anchors::set(c, request)).await
+}
+
+#[tauri::command]
+pub async fn camera_anchor_clear(
+    core: Core<'_>,
+    request: anchors::AnchorClearRequest,
+) -> AppResult<Vec<CameraAnchorDto>> {
+    blocking(&core, move |c| anchors::clear(c, request)).await
 }
 
 // ------------------------------------------------------------------ app

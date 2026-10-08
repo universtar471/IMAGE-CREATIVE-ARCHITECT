@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn upgrades_a_phase_1_database_to_v2_and_can_generate_from_its_master() {
         use crate::domain::GenerationStatus;
-        use crate::services::tests_support::{open_test_core, write_png};
+        use crate::services::tests_support::{open_test_core, submit_and_run, write_png};
         use crate::services::{assets, generations, DB_FILE};
 
         let tmp = tempfile::tempdir().unwrap();
@@ -245,7 +245,7 @@ mod tests {
         assert!(versions.iter().all(|v| v.generation_id.is_none()));
         assert!(generations::list(&core, "PRJ_V1").unwrap().is_empty());
 
-        let g = generations::submit(
+        let g = submit_and_run(
             &core,
             serde_json::from_value(serde_json::json!({
                 "projectId": "PRJ_V1", "providerId": "local_preview", "modelId": "placeholder-v1", "purpose": "hero",
@@ -262,5 +262,89 @@ mod tests {
         let versions = assets::list_versions(&core, "PRJ_V1").unwrap();
         let generated = versions.iter().find(|v| v.generation_id.as_deref() == Some(g.id.as_str())).unwrap();
         assert_eq!(generated.parent_version_id.as_deref(), Some("VER_M"));
+    }
+
+    #[test]
+    fn upgrades_a_phase_2_database_to_v3_keeping_history_and_queueing_new_work() {
+        use crate::domain::GenerationStatus;
+        use crate::services::tests_support::{open_test_core, run_queue};
+        use crate::services::{generations, queue, DB_FILE};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        std::fs::create_dir_all(&root).unwrap();
+        let dna = test_valid_dna();
+        {
+            // A database exactly as Phase 2 left it: migrations 1 and 2 applied, one finished
+            // generation and one that was running when the app closed.
+            let conn = Connection::open(root.join(DB_FILE)).unwrap();
+            configure(&conn).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+            )
+            .unwrap();
+            for (version, sql) in &MIGRATIONS[..2] {
+                conn.execute_batch(sql).unwrap();
+                conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version])
+                    .unwrap();
+            }
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, project_type, status, created_at, updated_at)
+                   VALUES ('PRJ_V2', 'Phase 2 villa', 'villa', 'draft', 't1', 't1');
+                 INSERT INTO generations (id, project_id, provider_id, model_id, purpose, status, request_json,
+                     started_at, finished_at, duration_ms, created_at, updated_at)
+                   VALUES ('GEN_OLD', 'PRJ_V2', 'local_preview', 'placeholder-v1', 'hero', 'completed',
+                     '{\"prompt\":{\"compilerVersion\":\"1\",\"positivePrompt\":\"p\",\"negativePrompt\":\"\",\"referenceInstructions\":\"\",\"preservationInstructions\":\"\",\"metadata\":{}},\"referenceAssetIds\":[],\"params\":{\"aspectRatio\":null,\"imageSize\":null,\"outputCount\":1,\"seed\":null}}',
+                     '2026-05-01T10:00:00.000Z', '2026-05-01T10:00:02.000Z', 2000,
+                     '2026-05-01T10:00:00.000Z', '2026-05-01T10:00:02.000Z'),
+                          ('GEN_RUN', 'PRJ_V2', 'local_preview', 'placeholder-v1', 'variation', 'running',
+                     '{\"prompt\":{\"compilerVersion\":\"1\",\"positivePrompt\":\"p\",\"negativePrompt\":\"\",\"referenceInstructions\":\"\",\"preservationInstructions\":\"\",\"metadata\":{}},\"referenceAssetIds\":[],\"params\":{\"aspectRatio\":null,\"imageSize\":null,\"outputCount\":1,\"seed\":null}}',
+                     '2026-05-02T10:00:00.000Z', NULL, NULL, '2026-05-02T10:00:00.000Z', '2026-05-02T10:00:00.000Z');",
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO project_dna (project_id, schema_version, dna_json, created_at, updated_at)
+                 VALUES ('PRJ_V2', 1, ?1, 't1', 't1')",
+                [dna.to_string()],
+            )
+            .unwrap();
+        }
+
+        let (core, _) = open_test_core(&root);
+        {
+            let conn = core.conn().unwrap();
+            assert_eq!(schema_version(&conn).unwrap(), 3);
+            let violations: i64 =
+                conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
+            assert_eq!(violations, 0);
+        }
+        let history = generations::list(&core, "PRJ_V2").unwrap();
+        assert_eq!(history.len(), 2);
+        let running = &history[0];
+        assert_eq!((running.id.as_str(), running.status), ("GEN_RUN", GenerationStatus::Interrupted));
+        let old = &history[1];
+        assert_eq!((old.id.as_str(), old.status), ("GEN_OLD", GenerationStatus::Completed));
+        assert_eq!(old.started_at.as_deref(), Some("2026-05-01T10:00:00.000Z"), "Phase 2 rows keep their start");
+        assert_eq!(old.created_at, "2026-05-01T10:00:00.000Z");
+        assert!(old.job_id.is_none() && old.camera_id.is_none() && old.batch_id.is_none());
+        assert!(queue::list(&core, None).unwrap().is_empty(), "history rows get no jobs");
+
+        let g = generations::submit(
+            &core,
+            serde_json::from_value(serde_json::json!({
+                "projectId": "PRJ_V2", "providerId": "local_preview", "modelId": "placeholder-v1", "purpose": "hero",
+                "prompt": { "compilerVersion": "1", "positivePrompt": "After the upgrade", "negativePrompt": "",
+                            "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+                "referenceAssetIds": [],
+                "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(g.status, GenerationStatus::Queued);
+        assert!(g.job_id.is_some() && g.started_at.is_none());
+        run_queue(&core);
+        let done = generations::get(&core, "PRJ_V2", &g.id).unwrap();
+        assert_eq!(done.status, GenerationStatus::Completed, "{:?}", done.error);
     }
 }

@@ -77,7 +77,7 @@ pub fn create(core: &AppCore, req: CreateProjectRequest) -> AppResult<ProjectDto
         updated_at: now.clone(),
         archived_at: None,
     };
-    row.status = status::derive(&row, status::dna_is_ready(&req.dna, project_type));
+    row.status = status::derive(&row, status::dna_is_ready(&req.dna, project_type), Default::default());
 
     core.storage.ensure_project_dirs(&row.id)?;
     let result = (|| {

@@ -5,7 +5,7 @@ use crate::error::AppResult;
 use crate::repositories as repo;
 use crate::services::dna_validation::validate_dna;
 use crate::services::projects::to_dto;
-use crate::services::{ensure_not_archived, status, AppCore};
+use crate::services::{anchors, ensure_not_archived, status, AppCore};
 use crate::util::now_iso;
 
 pub fn get(core: &AppCore, project_id: &str) -> AppResult<Value> {
@@ -14,7 +14,8 @@ pub fn get(core: &AppCore, project_id: &str) -> AppResult<Value> {
     repo::get_dna(&conn, project_id)
 }
 
-/// Replace the whole DNA aggregate after validation; atomically bumps project timestamp/status.
+/// Replace the whole DNA aggregate after validation; atomically drops anchors of removed
+/// cameras (ADR-016) and bumps project timestamp/status.
 pub fn update(core: &AppCore, project_id: &str, dna: Value) -> AppResult<ProjectDto> {
     validate_dna(&dna)?;
     let mut conn = core.conn()?;
@@ -23,6 +24,7 @@ pub fn update(core: &AppCore, project_id: &str, dna: Value) -> AppResult<Project
     ensure_not_archived(&project)?;
     let now = now_iso();
     repo::update_dna(&tx, project_id, &dna, &now)?;
+    anchors::drop_removed_cameras(&tx, project_id, &dna)?;
     let project = status::save_with_status(&tx, project, &now)?;
     tx.commit()?;
     Ok(to_dto(&project))

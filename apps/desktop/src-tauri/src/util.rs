@@ -29,6 +29,8 @@ pub mod prefix {
     pub const PROJECT: &str = "PRJ";
     pub const ASSET: &str = "AST";
     pub const VERSION: &str = "VER";
+    pub const JOB: &str = "JOB";
+    pub const BATCH: &str = "BAT";
 }
 
 #[cfg(test)]

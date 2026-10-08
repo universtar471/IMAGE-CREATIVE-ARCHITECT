@@ -1,12 +1,15 @@
 //! Application use cases. Each function is small and owns one invariant set;
 //! Tauri commands are thin wrappers around these.
 
+pub mod anchors;
 pub mod assets;
+pub mod batches;
 pub mod dna;
 pub mod dna_validation;
 pub mod generations;
 pub mod projects;
 pub mod provider_settings;
+pub mod queue;
 pub mod status;
 
 use std::path::Path;
@@ -24,12 +27,17 @@ use crate::storage::Storage;
 pub const DB_FILE: &str = "studio.db";
 
 /// Process-wide application state: one SQLite connection, managed storage, the compiled-in
-/// image providers and the API-key store.
+/// image providers, the API-key store and the job queue (slots, clock, event sink).
 pub struct AppCore {
     db: Mutex<Connection>,
     pub storage: Storage,
     pub providers: ProviderRegistry,
     pub secrets: Arc<dyn SecretStore>,
+    /// Time source of the job queue (timestamps, retry backoff). Tests inject a manual clock.
+    pub clock: Arc<dyn queue::Clock>,
+    /// Receives job/generation updates. The app sets a Tauri emitter before sharing the core.
+    pub notifier: Arc<dyn queue::Notifier>,
+    pub(crate) queue: queue::QueueState,
 }
 
 impl AppCore {
@@ -39,14 +47,28 @@ impl AppCore {
     }
 
     /// Explicit wiring (tests use a memory secret store and test-double providers).
-    /// Generations left `running` by a previous process become `interrupted` here.
+    /// Jobs and generations left `running` by a previous process become `interrupted` here;
+    /// `queued` and `retrying` jobs stay and resume once the worker runs.
     pub fn open_with(data_root: &Path, providers: ProviderRegistry, secrets: Arc<dyn SecretStore>) -> AppResult<Self> {
         let conn = db::open(&data_root.join(DB_FILE))?;
-        let interrupted = generations::recover_interrupted(&conn)?;
+        let interrupted = generations::recover_interrupted(&conn, &crate::util::now_iso())?;
         if interrupted > 0 {
             eprintln!("[generations] marked {interrupted} unfinished generation(s) as interrupted");
         }
-        Ok(Self { db: Mutex::new(conn), storage: Storage::new(data_root), providers, secrets })
+        Ok(Self {
+            db: Mutex::new(conn),
+            storage: Storage::new(data_root),
+            providers,
+            secrets,
+            clock: Arc::new(queue::SystemClock),
+            notifier: Arc::new(queue::NoopNotifier),
+            queue: queue::QueueState::default(),
+        })
+    }
+
+    /// Current time of the queue clock, as stored in the DB.
+    pub fn now_iso(&self) -> String {
+        queue::iso(self.clock.now())
     }
 
     pub fn conn(&self) -> AppResult<MutexGuard<'_, Connection>> {
@@ -97,10 +119,100 @@ pub(crate) mod tests_support {
 
     /// Open (or reopen) a test core at `root` with a new double and an empty memory store.
     pub fn open_test_core(root: &Path) -> (AppCore, Arc<TestProvider>) {
-        let double = Arc::new(TestProvider::default());
-        let registry = ProviderRegistry::new(vec![Arc::new(LocalPreviewProvider), double.clone()]);
-        let core = AppCore::open_with(root, registry, Arc::new(MemorySecretStore::default())).unwrap();
+        let (core, double, _) = open_queue_core(root);
         (core, double)
+    }
+
+    /// Like [`open_test_core`], plus a local-kind double (`test_local`, 2 slots).
+    pub fn open_queue_core(root: &Path) -> (AppCore, Arc<TestProvider>, Arc<TestProvider>) {
+        let double = Arc::new(TestProvider::default());
+        let local = Arc::new(TestProvider::local());
+        let registry = ProviderRegistry::new(vec![Arc::new(LocalPreviewProvider), double.clone(), local.clone()]);
+        let core = AppCore::open_with(root, registry, Arc::new(MemorySecretStore::default())).unwrap();
+        (core, double, local)
+    }
+
+    /// Everything a queue test needs: manual clock, event recorder, a remote and a local
+    /// double. Nothing runs until the test calls `queue::tick` / `run_queue`.
+    pub struct QueueHarness {
+        pub tmp: tempfile::TempDir,
+        pub core: Arc<AppCore>,
+        pub remote: Arc<TestProvider>,
+        pub local: Arc<TestProvider>,
+        pub clock: Arc<ManualClock>,
+        pub events: Arc<RecordingNotifier>,
+    }
+
+    pub fn queue_harness() -> QueueHarness {
+        let tmp = tempfile::tempdir().unwrap();
+        let (mut core, remote, local) = open_queue_core(&tmp.path().join("data"));
+        let clock = Arc::new(ManualClock::new());
+        let events = Arc::new(RecordingNotifier::default());
+        core.clock = clock.clone();
+        core.notifier = events.clone();
+        QueueHarness { tmp, core: Arc::new(core), remote, local, clock, events }
+    }
+
+    /// Run the queue on this thread at the core's clock until nothing more can start now.
+    pub fn run_queue(core: &AppCore) {
+        while crate::services::queue::tick(core, core.clock.now()).unwrap() > 0 {}
+    }
+
+    /// Submit and run to the end (Phase 2 tests: the old synchronous behaviour).
+    pub fn submit_and_run(
+        core: &AppCore,
+        req: crate::services::generations::SubmitRequest,
+    ) -> crate::error::AppResult<crate::dto::GenerationDto> {
+        let g = crate::services::generations::submit(core, req)?;
+        run_queue(core);
+        crate::services::generations::get(core, &g.project_id, &g.id)
+    }
+
+    /// Settable clock; starts at a fixed instant.
+    pub struct ManualClock(Mutex<chrono::DateTime<chrono::Utc>>);
+
+    impl ManualClock {
+        pub fn new() -> Self {
+            Self(Mutex::new("2026-10-01T08:00:00Z".parse().unwrap()))
+        }
+
+        pub fn advance_secs(&self, secs: i64) {
+            *self.0.lock().unwrap() += chrono::Duration::seconds(secs);
+        }
+    }
+
+    impl crate::services::queue::Clock for ManualClock {
+        fn now(&self) -> chrono::DateTime<chrono::Utc> {
+            *self.0.lock().unwrap()
+        }
+    }
+
+    /// Records every event as `(event name, id, status)`.
+    #[derive(Default)]
+    pub struct RecordingNotifier {
+        pub events: Mutex<Vec<(&'static str, String, String)>>,
+    }
+
+    impl RecordingNotifier {
+        pub fn take(&self) -> Vec<(&'static str, String, String)> {
+            std::mem::take(&mut *self.events.lock().unwrap())
+        }
+
+        /// Job statuses seen for one job, in order.
+        pub fn job_statuses(&self, job_id: &str) -> Vec<String> {
+            let events = self.events.lock().unwrap();
+            events.iter().filter(|(e, id, _)| *e == "job" && id == job_id).map(|(_, _, s)| s.clone()).collect()
+        }
+    }
+
+    impl crate::services::queue::Notifier for RecordingNotifier {
+        fn job_updated(&self, job: &crate::dto::JobDto) {
+            self.events.lock().unwrap().push(("job", job.id.clone(), job.status.as_str().to_string()));
+        }
+
+        fn generation_updated(&self, g: &crate::dto::GenerationDto) {
+            self.events.lock().unwrap().push(("generation", g.id.clone(), g.status.as_str().to_string()));
+        }
     }
 
     pub(crate) use crate::services::dna_validation::tests::minimal as test_valid_dna;
@@ -113,6 +225,8 @@ pub(crate) mod tests_support {
     }
 
     pub const TEST_PROVIDER: &str = "test_remote";
+    /// Local-kind double (no key, 2 slots).
+    pub const TEST_LOCAL_PROVIDER: &str = "test_local";
     /// Accepted by [`TestProvider::test_connection`].
     pub const GOOD_KEY: &str = "good-test-key";
 
@@ -142,11 +256,14 @@ pub(crate) mod tests_support {
         bytes
     }
 
-    type Hook = Box<dyn Fn() + Send + Sync>;
+    type Hook = Arc<dyn Fn() + Send + Sync>;
 
     /// Remote-style provider double: needs a key, records the request it received, and runs
     /// an optional hook *during* the call (to inspect or change state mid-generation).
     pub struct TestProvider {
+        local: bool,
+        /// Behaviours for the next calls, used before `behavior` (one per call).
+        script: Mutex<std::collections::VecDeque<TestBehavior>>,
         behavior: Mutex<TestBehavior>,
         pub last_request: Mutex<Option<ProviderRequest>>,
         calls: AtomicUsize,
@@ -156,6 +273,8 @@ pub(crate) mod tests_support {
     impl Default for TestProvider {
         fn default() -> Self {
             Self {
+                local: false,
+                script: Mutex::new(Default::default()),
                 behavior: Mutex::new(TestBehavior::Images),
                 last_request: Mutex::new(None),
                 calls: AtomicUsize::new(0),
@@ -165,12 +284,21 @@ pub(crate) mod tests_support {
     }
 
     impl TestProvider {
+        pub fn local() -> Self {
+            Self { local: true, ..Self::default() }
+        }
+
+        /// The next calls behave like this, one entry per call, then `behavior` again.
+        pub fn script(&self, behaviors: &[TestBehavior]) {
+            self.script.lock().unwrap().extend(behaviors.iter().copied());
+        }
+
         pub fn set_behavior(&self, b: TestBehavior) {
             *self.behavior.lock().unwrap() = b;
         }
 
         pub fn set_hook(&self, hook: impl Fn() + Send + Sync + 'static) {
-            *self.hook.lock().unwrap() = Some(Box::new(hook));
+            *self.hook.lock().unwrap() = Some(Arc::new(hook));
         }
 
         pub fn calls(&self) -> usize {
@@ -200,6 +328,15 @@ pub(crate) mod tests_support {
             full.image_sizes = vec!["1K".into(), "2K".into()];
             let mut text_only = model("text-only", true, false, 0, 1);
             text_only.supports_seed = true;
+            if self.local {
+                return ProviderInfo {
+                    id: TEST_LOCAL_PROVIDER,
+                    label: "Test local",
+                    kind: ProviderKind::Local,
+                    requires_api_key: false,
+                    models: vec![model("full", true, true, 2, 2)],
+                };
+            }
             ProviderInfo {
                 id: TEST_PROVIDER,
                 label: "Test remote",
@@ -212,10 +349,13 @@ pub(crate) mod tests_support {
         fn generate(&self, request: &ProviderRequest) -> Result<ProviderOutput, ProviderError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             *self.last_request.lock().unwrap() = Some(request.clone());
-            if let Some(hook) = self.hook.lock().unwrap().as_ref() {
+            // Cloned out of the lock so parallel calls can run their hooks at the same time.
+            let hook = self.hook.lock().unwrap().clone();
+            if let Some(hook) = hook {
                 hook();
             }
-            let images = match *self.behavior.lock().unwrap() {
+            let scripted = self.script.lock().unwrap().pop_front();
+            let images = match scripted.unwrap_or(*self.behavior.lock().unwrap()) {
                 TestBehavior::Fail(kind) => return Err(ProviderError::new(kind, "Test provider failure.")),
                 TestBehavior::NoImages => vec![],
                 TestBehavior::CorruptPixels => {

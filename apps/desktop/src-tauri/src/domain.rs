@@ -97,6 +97,8 @@ string_enum!(AssetSource {
 string_enum!(GenerationPurpose {
     Hero => "hero",
     Variation => "variation",
+    Anchor => "anchor",
+    Production => "production",
 });
 
 impl GenerationPurpose {
@@ -105,13 +107,47 @@ impl GenerationPurpose {
         match self {
             Self::Hero => "Hero",
             Self::Variation => "Variation",
+            Self::Anchor => "Anchor",
+            Self::Production => "Production",
         }
     }
 }
 
 string_enum!(GenerationStatus {
+    Queued => "queued",
     Running => "running",
     Completed => "completed",
     Failed => "failed",
     Interrupted => "interrupted",
+    Cancelled => "cancelled",
 });
+
+string_enum!(JobStatus {
+    Queued => "queued",
+    Running => "running",
+    Retrying => "retrying",
+    Completed => "completed",
+    Failed => "failed",
+    Cancelled => "cancelled",
+    Interrupted => "interrupted",
+});
+
+impl JobStatus {
+    /// Terminal states never change again (a retry creates a new job).
+    pub fn is_terminal(self) -> bool {
+        matches!(self, Self::Completed | Self::Failed | Self::Cancelled | Self::Interrupted)
+    }
+
+    /// The generation status that mirrors this job status. A `retrying` job's generation
+    /// is back to `queued`: it waits for its next attempt.
+    pub fn generation_status(self) -> GenerationStatus {
+        match self {
+            Self::Queued | Self::Retrying => GenerationStatus::Queued,
+            Self::Running => GenerationStatus::Running,
+            Self::Completed => GenerationStatus::Completed,
+            Self::Failed => GenerationStatus::Failed,
+            Self::Cancelled => GenerationStatus::Cancelled,
+            Self::Interrupted => GenerationStatus::Interrupted,
+        }
+    }
+}

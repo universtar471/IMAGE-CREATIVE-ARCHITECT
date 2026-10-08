@@ -1,10 +1,14 @@
 {
   "command": "generation_submit",
   "response": {
+    "batchId": null,
+    "cameraId": null,
+    "createdAt": "2026-01-01T00:00:00.000Z",
     "durationMs": 1234,
     "error": null,
     "finishedAt": "2026-01-01T00:00:00.000Z",
     "id": "GEN_00000000000000000000000001",
+    "jobId": "JOB_01M4EEE2VM5CPFSFDPHJ56GN5X",
     "modelId": "placeholder-v1",
     "outputAssetIds": [
       "AST_00000000000000000000000002",

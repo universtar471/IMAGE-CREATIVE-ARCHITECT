@@ -21,7 +21,9 @@ use crate::providers::{gemini::GeminiProvider, ProviderErrorKind, ProviderRegist
 use crate::secrets::MemorySecretStore;
 use crate::services::assets::{self, ImportRequest};
 use crate::services::generations::{self, SubmitRequest};
-use crate::services::tests_support::{test_create_villa, write_png, TestBehavior, TestProvider, TEST_PROVIDER};
+use crate::services::tests_support::{
+    submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, TEST_PROVIDER,
+};
 use crate::services::{projects, provider_settings, AppCore};
 
 const ULID_CHARS: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -164,7 +166,7 @@ fn build_fixtures() -> BTreeMap<String, Value> {
     )
     .unwrap();
     let done =
-        generations::submit(&core, submit_request(&p.id, local_preview::ID, local_preview::MODEL_ID, &[&master.id], 2))
+        submit_and_run(&core, submit_request(&p.id, local_preview::ID, local_preview::MODEL_ID, &[&master.id], 2))
             .unwrap();
     rec.record("generation_submit_completed", "generation_submit", &done);
 
@@ -173,8 +175,8 @@ fn build_fixtures() -> BTreeMap<String, Value> {
     rec.record_error("error_provider_not_configured", &missing_key);
 
     provider_settings::set_api_key(&core, TEST_PROVIDER, "fixture-test-key").unwrap();
-    double.set_behavior(TestBehavior::Fail(ProviderErrorKind::RateLimited));
-    let failed = generations::submit(&core, submit_request(&p.id, TEST_PROVIDER, "full", &[], 1)).unwrap();
+    double.set_behavior(TestBehavior::Fail(ProviderErrorKind::Blocked));
+    let failed = submit_and_run(&core, submit_request(&p.id, TEST_PROVIDER, "full", &[], 1)).unwrap();
     rec.record("generation_submit_failed", "generation_submit", &failed);
 
     rec.record("generation_list", "generation_list", &generations::list(&core, &p.id).unwrap());
