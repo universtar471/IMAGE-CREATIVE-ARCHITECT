@@ -43,11 +43,8 @@ pub fn parse_source(s: &str) -> AppResult<AssetSource> {
 
 pub(crate) fn asset_dto(storage: &Storage, a: &AssetRow) -> AppResult<AssetDto> {
     let abs = storage.resolve(&a.project_id, &a.managed_rel_path)?;
-    let thumb = a
-        .thumbnail_rel_path
-        .as_deref()
-        .and_then(|rel| storage.resolve(&a.project_id, rel).ok())
-        .filter(|p| p.exists());
+    let thumb =
+        a.thumbnail_rel_path.as_deref().and_then(|rel| storage.resolve(&a.project_id, rel).ok()).filter(|p| p.exists());
     Ok(AssetDto {
         id: a.id.clone(),
         project_id: a.project_id.clone(),
@@ -83,12 +80,9 @@ pub fn import(core: &AppCore, req: ImportRequest) -> AppResult<AssetDto> {
 
     // 2. validate + inspect the source file (read-only)
     let source_path = PathBuf::from(&req.source_path);
-    let display_name = source_path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| req.source_path.clone());
-    let meta = fs::metadata(&source_path)
-        .map_err(|e| AppError::io(&format!("Cannot read '{display_name}'"), e))?;
+    let display_name =
+        source_path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| req.source_path.clone());
+    let meta = fs::metadata(&source_path).map_err(|e| AppError::io(&format!("Cannot read '{display_name}'"), e))?;
     if !meta.is_file() {
         return Err(AppError::new(ErrorCode::UnsupportedFile, format!("'{display_name}' is not a file.")));
     }
@@ -234,7 +228,12 @@ fn get_owned_asset(conn: &Connection, project_id: &str, asset_id: &str) -> AppRe
 /// Single place that changes the master. Guarantees at most one master per project:
 /// the previous master becomes an architecture reference; approval is reset when the
 /// master actually changes.
-fn apply_master(conn: &Connection, mut project: ProjectRow, asset_id: Option<&str>, now: &str) -> AppResult<ProjectRow> {
+fn apply_master(
+    conn: &Connection,
+    mut project: ProjectRow,
+    asset_id: Option<&str>,
+    now: &str,
+) -> AppResult<ProjectRow> {
     if project.active_master_asset_id.as_deref() == asset_id {
         if let Some(id) = asset_id {
             repo::set_asset_role(conn, id, AssetRole::MasterArchitecture, now)?;
@@ -318,9 +317,8 @@ pub fn remove(core: &AppCore, project_id: &str, asset_id: &str) -> AppResult<Ass
     }
     Ok(AssetRemoveResult {
         asset_id: asset_id.to_string(),
-        file_cleanup_warning: (!warnings.is_empty()).then(|| {
-            format!("The asset was removed, but some files could not be deleted: {}", warnings.join("; "))
-        }),
+        file_cleanup_warning: (!warnings.is_empty())
+            .then(|| format!("The asset was removed, but some files could not be deleted: {}", warnings.join("; "))),
     })
 }
 
@@ -350,13 +348,16 @@ mod tests {
     use crate::services::tests_support::{core, write_png};
 
     fn import_file(core: &AppCore, project_id: &str, path: &Path, role: &str) -> AppResult<AssetDto> {
-        import(core, ImportRequest {
-            project_id: project_id.into(),
-            source_path: path.to_string_lossy().into_owned(),
-            source: "external".into(),
-            role: role.into(),
-            allow_duplicate: false,
-        })
+        import(
+            core,
+            ImportRequest {
+                project_id: project_id.into(),
+                source_path: path.to_string_lossy().into_owned(),
+                source: "external".into(),
+                role: role.into(),
+                allow_duplicate: false,
+            },
+        )
     }
 
     #[test]
@@ -403,10 +404,16 @@ mod tests {
         let err = import_file(&core, &p.id, &src, "regular_image").unwrap_err();
         assert_eq!(err.code, ErrorCode::DuplicateAsset);
         assert_eq!(err.details.unwrap()["existingAssetId"], json!(first.id));
-        let again = import(&core, ImportRequest {
-            project_id: p.id.clone(), source_path: src.to_string_lossy().into_owned(),
-            source: "external".into(), role: "regular_image".into(), allow_duplicate: true,
-        });
+        let again = import(
+            &core,
+            ImportRequest {
+                project_id: p.id.clone(),
+                source_path: src.to_string_lossy().into_owned(),
+                source: "external".into(),
+                role: "regular_image".into(),
+                allow_duplicate: true,
+            },
+        );
         assert!(again.is_ok());
         assert_eq!(list(&core, &p.id).unwrap().len(), 2);
     }
@@ -415,7 +422,8 @@ mod tests {
     fn at_most_one_master_and_old_master_is_demoted() {
         let (tmp, core) = core();
         let p = test_create_villa(&core, "A");
-        let a = import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "master_architecture").unwrap();
+        let a =
+            import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "master_architecture").unwrap();
         assert_eq!(a.role, AssetRole::MasterArchitecture);
         let b = import_file(&core, &p.id, &write_png(tmp.path(), "b.png", 8, 8, [0, 1, 0]), "mood_reference").unwrap();
 
@@ -443,7 +451,8 @@ mod tests {
     fn master_approval_resets_when_master_changes() {
         let (tmp, core) = core();
         let p = test_create_villa(&core, "A");
-        let a = import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "master_architecture").unwrap();
+        let a =
+            import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "master_architecture").unwrap();
         let b = import_file(&core, &p.id, &write_png(tmp.path(), "b.png", 8, 8, [0, 1, 0]), "regular_image").unwrap();
         assert_eq!(projects::approve_master(&core, &p.id, true).unwrap().status, ProjectStatus::MasterApproved);
         set_master(&core, &p.id, Some(&a.id)).unwrap();
@@ -493,7 +502,8 @@ mod tests {
         let (tmp, core) = core();
         let p = test_create_villa(&core, "A");
         projects::set_archived(&core, &p.id, true).unwrap();
-        let err = import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "regular_image").unwrap_err();
+        let err =
+            import_file(&core, &p.id, &write_png(tmp.path(), "a.png", 8, 8, [1, 0, 0]), "regular_image").unwrap_err();
         assert_eq!(err.code, ErrorCode::InvalidState);
     }
 }

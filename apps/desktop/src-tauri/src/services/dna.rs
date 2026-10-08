@@ -34,8 +34,8 @@ mod tests {
     use crate::domain::ProjectStatus;
     use crate::error::ErrorCode;
     use crate::services::projects::set_archived;
-    use crate::services::tests_support::test_create_villa;
     use crate::services::tests_support::core;
+    use crate::services::tests_support::test_create_villa;
     use serde_json::json;
 
     #[test]

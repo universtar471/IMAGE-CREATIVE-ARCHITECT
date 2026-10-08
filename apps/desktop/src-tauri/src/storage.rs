@@ -33,8 +33,7 @@ impl Storage {
     }
 
     pub fn ensure_projects_root(&self) -> AppResult<()> {
-        std::fs::create_dir_all(self.projects_root())
-            .map_err(|e| AppError::io("Cannot create the projects folder", e))
+        std::fs::create_dir_all(self.projects_root()).map_err(|e| AppError::io("Cannot create the projects folder", e))
     }
 
     /// Create the managed folder layout. Returns true if the project folder was newly created.
@@ -42,8 +41,7 @@ impl Storage {
         let dir = self.project_dir(project_id);
         let created = !dir.exists();
         for sub in [ORIGINALS_DIR, DERIVED_DIR, PREVIEWS_DIR, EXPORTS_DIR] {
-            std::fs::create_dir_all(dir.join(sub))
-                .map_err(|e| AppError::io("Cannot create project folder", e))?;
+            std::fs::create_dir_all(dir.join(sub)).map_err(|e| AppError::io("Cannot create project folder", e))?;
         }
         Ok(created)
     }

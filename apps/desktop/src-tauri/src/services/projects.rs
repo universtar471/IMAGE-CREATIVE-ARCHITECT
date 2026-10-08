@@ -109,11 +109,7 @@ pub fn list(core: &AppCore, include_archived: bool) -> AppResult<Vec<ProjectSumm
                     .map(|path| path.to_string_lossy().into_owned()),
                 None => None,
             };
-            Ok(ProjectSummaryDto {
-                project: to_dto(p),
-                asset_count: repo::count_assets(&conn, &p.id)?,
-                thumbnail_path,
-            })
+            Ok(ProjectSummaryDto { project: to_dto(p), asset_count: repo::count_assets(&conn, &p.id)?, thumbnail_path })
         })
         .collect()
 }
@@ -180,8 +176,8 @@ pub fn approve_master(core: &AppCore, project_id: &str, approved: bool) -> AppRe
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::services::tests_support::test_valid_dna;
     use crate::services::tests_support::core;
+    use crate::services::tests_support::test_valid_dna;
 
     pub(crate) fn create_villa(core: &AppCore, name: &str) -> ProjectDto {
         create(
@@ -211,19 +207,30 @@ pub(crate) mod tests {
     #[test]
     fn create_rejects_invalid_input_without_side_effects() {
         let (_tmp, core) = core();
-        let bad_type = create(&core, CreateProjectRequest {
-            name: "x".into(), project_type: "castle".into(), subtype: None, dna: test_valid_dna(),
-        });
+        let bad_type = create(
+            &core,
+            CreateProjectRequest {
+                name: "x".into(),
+                project_type: "castle".into(),
+                subtype: None,
+                dna: test_valid_dna(),
+            },
+        );
         assert_eq!(bad_type.unwrap_err().code, crate::error::ErrorCode::ValidationError);
-        let empty_name = create(&core, CreateProjectRequest {
-            name: "   ".into(), project_type: "villa".into(), subtype: None, dna: test_valid_dna(),
-        });
+        let empty_name = create(
+            &core,
+            CreateProjectRequest {
+                name: "   ".into(),
+                project_type: "villa".into(),
+                subtype: None,
+                dna: test_valid_dna(),
+            },
+        );
         assert!(empty_name.is_err());
         let mut dna = test_valid_dna();
         dna["building"]["floors"] = serde_json::json!(-1);
-        let bad_dna = create(&core, CreateProjectRequest {
-            name: "x".into(), project_type: "villa".into(), subtype: None, dna,
-        });
+        let bad_dna =
+            create(&core, CreateProjectRequest { name: "x".into(), project_type: "villa".into(), subtype: None, dna });
         assert!(bad_dna.is_err());
         assert!(list(&core, true).unwrap().is_empty());
         let leftover = std::fs::read_dir(core.storage.projects_root()).map(|d| d.count()).unwrap_or(0);

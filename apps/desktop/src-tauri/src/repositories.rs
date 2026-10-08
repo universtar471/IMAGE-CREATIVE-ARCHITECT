@@ -42,17 +42,23 @@ pub fn insert_project(conn: &Connection, p: &ProjectRow) -> AppResult<()> {
     conn.execute(
         &format!("INSERT INTO projects ({PROJECT_COLS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"),
         params![
-            p.id, p.name, p.project_type, p.subtype, p.status, p.active_master_asset_id,
-            p.master_approved_at, p.created_at, p.updated_at, p.archived_at
+            p.id,
+            p.name,
+            p.project_type,
+            p.subtype,
+            p.status,
+            p.active_master_asset_id,
+            p.master_approved_at,
+            p.created_at,
+            p.updated_at,
+            p.archived_at
         ],
     )?;
     Ok(())
 }
 
 pub fn find_project(conn: &Connection, id: &str) -> AppResult<Option<ProjectRow>> {
-    Ok(conn
-        .query_row(&format!("SELECT {PROJECT_COLS} FROM projects WHERE id = ?1"), [id], map_project)
-        .optional()?)
+    Ok(conn.query_row(&format!("SELECT {PROJECT_COLS} FROM projects WHERE id = ?1"), [id], map_project).optional()?)
 }
 
 pub fn get_project(conn: &Connection, id: &str) -> AppResult<ProjectRow> {
@@ -75,8 +81,14 @@ pub fn update_project(conn: &Connection, p: &ProjectRow) -> AppResult<()> {
              master_approved_at = ?6, updated_at = ?7, archived_at = ?8
          WHERE id = ?1",
         params![
-            p.id, p.name, p.subtype, p.status, p.active_master_asset_id, p.master_approved_at,
-            p.updated_at, p.archived_at
+            p.id,
+            p.name,
+            p.subtype,
+            p.status,
+            p.active_master_asset_id,
+            p.master_approved_at,
+            p.updated_at,
+            p.archived_at
         ],
     )?;
     if n == 0 {
@@ -112,9 +124,8 @@ pub fn get_dna(conn: &Connection, project_id: &str) -> AppResult<Value> {
         .query_row("SELECT dna_json FROM project_dna WHERE project_id = ?1", [project_id], |r| r.get(0))
         .optional()?;
     let text = text.ok_or_else(|| AppError::not_found("Project DNA", project_id))?;
-    serde_json::from_str(&text).map_err(|e| {
-        AppError::new(ErrorCode::DbError, format!("Stored DNA for '{project_id}' is not valid JSON: {e}"))
-    })
+    serde_json::from_str(&text)
+        .map_err(|e| AppError::new(ErrorCode::DbError, format!("Stored DNA for '{project_id}' is not valid JSON: {e}")))
 }
 
 fn schema_version_of(dna: &Value) -> i64 {
@@ -187,15 +198,12 @@ pub fn insert_asset(conn: &Connection, a: &AssetRow) -> AppResult<()> {
 }
 
 pub fn find_asset(conn: &Connection, id: &str) -> AppResult<Option<AssetRow>> {
-    Ok(conn
-        .query_row(&format!("SELECT {ASSET_COLS} FROM assets WHERE id = ?1"), [id], map_asset)
-        .optional()?)
+    Ok(conn.query_row(&format!("SELECT {ASSET_COLS} FROM assets WHERE id = ?1"), [id], map_asset).optional()?)
 }
 
 pub fn list_assets(conn: &Connection, project_id: &str) -> AppResult<Vec<AssetRow>> {
-    let mut stmt = conn.prepare(&format!(
-        "SELECT {ASSET_COLS} FROM assets WHERE project_id = ?1 ORDER BY created_at, id"
-    ))?;
+    let mut stmt =
+        conn.prepare(&format!("SELECT {ASSET_COLS} FROM assets WHERE project_id = ?1 ORDER BY created_at, id"))?;
     let rows = stmt.query_map([project_id], map_asset)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
@@ -207,7 +215,9 @@ pub fn count_assets(conn: &Connection, project_id: &str) -> AppResult<i64> {
 pub fn find_asset_by_sha(conn: &Connection, project_id: &str, sha: &str) -> AppResult<Option<AssetRow>> {
     Ok(conn
         .query_row(
-            &format!("SELECT {ASSET_COLS} FROM assets WHERE project_id = ?1 AND sha256 = ?2 ORDER BY created_at LIMIT 1"),
+            &format!(
+                "SELECT {ASSET_COLS} FROM assets WHERE project_id = ?1 AND sha256 = ?2 ORDER BY created_at LIMIT 1"
+            ),
             params![project_id, sha],
             map_asset,
         )
@@ -215,10 +225,7 @@ pub fn find_asset_by_sha(conn: &Connection, project_id: &str, sha: &str) -> AppR
 }
 
 pub fn set_asset_role(conn: &Connection, asset_id: &str, role: AssetRole, now: &str) -> AppResult<()> {
-    conn.execute(
-        "UPDATE assets SET role = ?2, updated_at = ?3 WHERE id = ?1",
-        params![asset_id, role, now],
-    )?;
+    conn.execute("UPDATE assets SET role = ?2, updated_at = ?3 WHERE id = ?1", params![asset_id, role, now])?;
     Ok(())
 }
 

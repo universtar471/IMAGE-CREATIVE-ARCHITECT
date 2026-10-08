@@ -68,12 +68,14 @@ mod tests {
 
     #[test]
     fn readiness_requires_style_floors_and_macro_context() {
-        let ready = json!({"building": {"architecturalStyle": "Modern", "floors": 2}, "context": {"macroContext": "suburb"}});
+        let ready =
+            json!({"building": {"architecturalStyle": "Modern", "floors": 2}, "context": {"macroContext": "suburb"}});
         assert!(dna_is_ready(&ready, ProjectType::Villa));
         let no_floors = json!({"building": {"architecturalStyle": "Modern"}, "context": {"macroContext": "suburb"}});
         assert!(!dna_is_ready(&no_floors, ProjectType::Villa));
         assert!(dna_is_ready(&no_floors, ProjectType::Interior), "interiors do not need floors");
-        let blank_style = json!({"building": {"architecturalStyle": " ", "floors": 1}, "context": {"macroContext": "x"}});
+        let blank_style =
+            json!({"building": {"architecturalStyle": " ", "floors": 1}, "context": {"macroContext": "x"}});
         assert!(!dna_is_ready(&blank_style, ProjectType::Villa));
     }
 

@@ -77,32 +77,27 @@ pub fn inspect(bytes: &[u8], display_name: &str) -> AppResult<Inspection> {
             format!("'{display_name}' is not a supported image. Supported formats: {SUPPORTED_FORMATS_TEXT}."),
         )
     })?;
-    let (width, height) = ImageReader::with_format(Cursor::new(bytes), format.image_format())
-        .into_dimensions()
-        .map_err(|e| {
+    let (width, height) =
+        ImageReader::with_format(Cursor::new(bytes), format.image_format()).into_dimensions().map_err(|e| {
             AppError::new(
                 ErrorCode::UnsupportedFile,
-                format!("'{display_name}' looks like {} but could not be read ({e}). The file may be damaged.", format.extension().to_uppercase()),
+                format!(
+                    "'{display_name}' looks like {} but could not be read ({e}). The file may be damaged.",
+                    format.extension().to_uppercase()
+                ),
             )
         })?;
     if width == 0 || height == 0 {
         return Err(AppError::new(ErrorCode::UnsupportedFile, format!("'{display_name}' has no pixels.")));
     }
-    Ok(Inspection {
-        format,
-        width,
-        height,
-        size_bytes: bytes.len() as u64,
-        sha256: hex::encode(Sha256::digest(bytes)),
-    })
+    Ok(Inspection { format, width, height, size_bytes: bytes.len() as u64, sha256: hex::encode(Sha256::digest(bytes)) })
 }
 
 /// Write a small JPEG thumbnail. Failure is reported to the caller, which treats it as
 /// non-fatal (the asset stays valid without a thumbnail).
 pub fn write_thumbnail(bytes: &[u8], format: SupportedFormat, target: &Path) -> Result<(), String> {
-    let img = ImageReader::with_format(Cursor::new(bytes), format.image_format())
-        .decode()
-        .map_err(|e| e.to_string())?;
+    let img =
+        ImageReader::with_format(Cursor::new(bytes), format.image_format()).decode().map_err(|e| e.to_string())?;
     let thumb = img.thumbnail(THUMBNAIL_EDGE, THUMBNAIL_EDGE).to_rgb8();
     thumb.save_with_format(target, ImageFormat::Jpeg).map_err(|e| e.to_string())
 }
