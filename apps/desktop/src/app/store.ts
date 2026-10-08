@@ -2,12 +2,28 @@
  * App state (zustand). Holds view state plus the open project's loaded data.
  * Persistence happens only through bridge commands; this store never owns truth for long:
  * after every command it adopts what the backend returned.
+ *
+ * Never put an API key here: provider state is the descriptor only (configured / key source).
  */
 import { create } from "zustand";
-import { validateProjectDNA, type AssetDTO, type ProjectDNA, type ProjectDTO } from "@arch/domain";
-import { BridgeError, call, fieldErrorsOf, toBridgeError } from "../lib/bridge";
+import {
+  orderReferenceIds,
+  validateProjectDNA,
+  type AppErrorCode,
+  type AssetDTO,
+  type GenerationDTO,
+  type GenerationParams,
+  type GenerationPurpose,
+  type GenerationSubmitRequest,
+  type ProjectDNA,
+  type ProjectDTO,
+  type PromptBundle,
+  type ProviderDescriptorDTO,
+} from "@arch/domain";
+import { BridgeError, call, fieldErrorsOf, providerNeedingKey, toBridgeError } from "../lib/bridge";
 import { setIn } from "../lib/path";
 import type { ModuleId, TrayTabId } from "../features/workspace/modules";
+import { compilePromptPreview } from "./services";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 export type CenterView = "canvas" | "prompt";
@@ -26,7 +42,44 @@ type WorkspaceData = {
   persistedDna: ProjectDNA;
   draftDna: ProjectDNA;
   assets: AssetDTO[];
+  /** Generation history, newest first (generation_list). */
+  generations: GenerationDTO[];
 };
+
+/**
+ * What the user changed in the Generate panel. `null` = use the default derived from the
+ * provider/model capabilities and the project's assets (see features/generate/form.ts).
+ */
+export type GenerateDraft = {
+  providerId: string | null;
+  modelId: string | null;
+  purpose: GenerationPurpose | null;
+  params: GenerationParams | null;
+  referenceAssetIds: string[] | null;
+};
+
+export const EMPTY_GENERATE_DRAFT: GenerateDraft = {
+  providerId: null,
+  modelId: null,
+  purpose: null,
+  params: null,
+  referenceAssetIds: null,
+};
+
+/** The single in-flight (or last finished) generation call, tagged with its project. */
+export type GenerationRun =
+  | { status: "running"; projectId: string; providerId: string; startedAt: number }
+  | { status: "done"; projectId: string; generation: GenerationDTO }
+  | {
+      status: "error";
+      projectId: string;
+      code: AppErrorCode;
+      message: string;
+      /** Set when the provider has no API key: the UI offers "Set API key". */
+      needsKeyFor: string | null;
+    };
+
+export type GenerationInput = Omit<GenerationSubmitRequest, "prompt">;
 
 type State = {
   route: Route;
@@ -42,6 +95,13 @@ type State = {
   toasts: Toast[];
   /** Bumped whenever persisted project data changes (prompt preview, hub refresh). */
   dataRevision: number;
+  /** Provider descriptors (never keys). null until loaded. */
+  providers: ProviderDescriptorDTO[] | null;
+  providersError: string | null;
+  /** Provider settings dialog; `focus` = provider to highlight. */
+  providerDialog: { focus: string | null } | null;
+  generateDraft: GenerateDraft;
+  run: GenerationRun | null;
 
   openProject: (projectId: string) => Promise<void>;
   goToHub: () => Promise<void>;
@@ -56,6 +116,23 @@ type State = {
   adoptAssets: (assets: AssetDTO[]) => Promise<void>;
   notify: (kind: Toast["kind"], message: string) => void;
   dismissToast: (id: number) => void;
+  loadProviders: () => Promise<void>;
+  adoptProvider: (p: ProviderDescriptorDTO) => void;
+  openProviderDialog: (focus?: string | null) => void;
+  closeProviderDialog: () => void;
+  setGenerateDraft: (patch: Partial<GenerateDraft>) => void;
+  /** Load a past generation's provider/model/params/references into the Generate panel. */
+  reuseGeneration: (g: GenerationDTO) => void;
+  refreshGenerations: () => Promise<void>;
+  /**
+   * Run one generation. Without `prompt`, DNA is flushed and the prompt is compiled from
+   * persisted data with exactly the chosen references (ADR-008). With `prompt` (Retry),
+   * the stored request snapshot is resent unchanged.
+   */
+  submitGeneration: (
+    input: GenerationInput,
+    prompt?: PromptBundle,
+  ) => Promise<GenerationDTO | undefined>;
 };
 
 export const AUTOSAVE_DELAY_MS = 700;
@@ -78,6 +155,11 @@ export const useStudio = create<State>((set, get) => ({
   save: SAVED,
   toasts: [],
   dataRevision: 0,
+  providers: null,
+  providersError: null,
+  providerDialog: null,
+  generateDraft: EMPTY_GENERATE_DRAFT,
+  run: null,
 
   openProject: async (projectId) => {
     set({
@@ -89,15 +171,27 @@ export const useStudio = create<State>((set, get) => ({
       centerView: "canvas",
       selectedAssetId: null,
       save: SAVED,
+      generateDraft: EMPTY_GENERATE_DRAFT,
     });
+    if (!get().providers) void get().loadProviders();
     try {
-      const bundle = await call("project_get", { projectId });
+      const [bundle, generations] = await Promise.all([
+        call("project_get", { projectId }),
+        // History is secondary: a failure here must not block opening the project.
+        call("generation_list", { projectId }).catch((err: unknown) => {
+          get().notify("error", `History unavailable: ${toBridgeError(err).message}`);
+          return [] as GenerationDTO[];
+        }),
+      ]);
+      const route = get().route;
+      if (route.name !== "workspace" || route.projectId !== projectId) return;
       set({
         workspace: {
           project: bundle.project,
           persistedDna: bundle.dna,
           draftDna: bundle.dna,
           assets: bundle.assets,
+          generations,
         },
         selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
         workspaceLoading: false,
@@ -214,6 +308,105 @@ export const useStudio = create<State>((set, get) => ({
     setTimeout(() => get().dismissToast(id), kind === "error" ? 8000 : 4000);
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  loadProviders: async () => {
+    try {
+      set({ providers: await call("provider_list", {}), providersError: null });
+    } catch (err) {
+      set({ providersError: toBridgeError(err).message });
+    }
+  },
+  adoptProvider: (p) =>
+    set((s) => ({
+      providers: s.providers ? s.providers.map((x) => (x.id === p.id ? p : x)) : [p],
+    })),
+  openProviderDialog: (focus = null) => {
+    set({ providerDialog: { focus } });
+    void get().loadProviders();
+  },
+  closeProviderDialog: () => set({ providerDialog: null }),
+
+  setGenerateDraft: (patch) => set((s) => ({ generateDraft: { ...s.generateDraft, ...patch } })),
+  reuseGeneration: (g) => {
+    set({
+      generateDraft: {
+        providerId: g.providerId,
+        modelId: g.modelId,
+        purpose: g.purpose,
+        params: g.params,
+        referenceAssetIds: [...g.referenceAssetIds],
+      },
+    });
+    get().setModule("generate");
+  },
+
+  refreshGenerations: async () => {
+    const projectId = get().workspace?.project.id;
+    if (!projectId) return;
+    try {
+      const generations = await call("generation_list", { projectId });
+      const ws = get().workspace;
+      if (ws && ws.project.id === projectId) set({ workspace: { ...ws, generations } });
+    } catch (err) {
+      get().notify("error", toBridgeError(err).message);
+    }
+  },
+
+  submitGeneration: async (input, prompt) => {
+    if (get().run?.status === "running") return undefined;
+    const { projectId } = input;
+    set({
+      run: { status: "running", projectId, providerId: input.providerId, startedAt: Date.now() },
+    });
+    // Only the project that is open *now* adopts the result; another project ignores it.
+    const isOpen = () => get().workspace?.project.id === projectId;
+    try {
+      let request: GenerationSubmitRequest;
+      if (prompt) {
+        request = { ...input, prompt };
+      } else {
+        if (!(await get().flushDna())) {
+          throw new BridgeError({
+            code: "VALIDATION_ERROR",
+            message: "Design DNA has unsaved or invalid changes. Fix them before generating.",
+          });
+        }
+        const assets = get().workspace?.assets ?? [];
+        const referenceAssetIds = orderReferenceIds(input.referenceAssetIds, assets);
+        const compiled = await compilePromptPreview(projectId, referenceAssetIds);
+        request = { ...input, referenceAssetIds, prompt: compiled };
+      }
+      const generation = await call("generation_submit", request);
+      set({ run: { status: "done", projectId, generation } });
+      if (isOpen()) {
+        const assets = await call("asset_list", { projectId }).catch(() => null);
+        if (assets && isOpen()) await get().adoptAssets(assets);
+        await get().refreshGenerations();
+        const first = generation.outputAssetIds[0];
+        if (first && isOpen()) set({ selectedAssetId: first, centerView: "canvas" });
+      }
+      if (generation.status === "completed") {
+        const n = generation.outputAssetIds.length;
+        get().notify("success", `Generation finished: ${n} image${n === 1 ? "" : "s"}.`);
+      } else {
+        get().notify("error", `Generation failed: ${generation.error?.message ?? "unknown error"}`);
+      }
+      return generation;
+    } catch (err) {
+      const e = toBridgeError(err);
+      set({
+        run: {
+          status: "error",
+          projectId,
+          code: e.code,
+          message: e.message,
+          needsKeyFor: providerNeedingKey(e, input.providerId),
+        },
+      });
+      if (isOpen()) void get().refreshGenerations();
+      return undefined;
+    }
+  },
 }));
 
 /** Run a bridge call and surface failures as a toast. Returns undefined on failure. */

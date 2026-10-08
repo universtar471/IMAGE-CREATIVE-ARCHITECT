@@ -20,6 +20,7 @@ import {
   type AssetRole,
   type GenerationDTO,
   type GenerationSubmitRequest,
+  type ModelCapabilities,
   type ProjectDNA,
   type ProjectDTO,
   type ProjectStatus,
@@ -45,6 +46,70 @@ export type MockOptions = {
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
 
+const RATIOS_EXTENDED = [
+  "1:1",
+  "1:4",
+  "1:8",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:1",
+  "4:3",
+  "4:5",
+  "5:4",
+  "8:1",
+  "9:16",
+  "16:9",
+  "21:9",
+];
+const RATIOS_STANDARD = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+
+/** Mirrors `providers/gemini/models.rs` (P2-B): one image per call, up to 4 sequential outputs. */
+const GEMINI_MODELS: ModelCapabilities[] = (
+  [
+    ["gemini-nano-banana-2.1", "Nano Banana 2.1 (Gemini)", 14, RATIOS_EXTENDED, ["1K", "2K", "4K"]],
+    [
+      "gemini-3-pro-image",
+      "Nano Banana Pro (Gemini 3 Pro Image)",
+      14,
+      RATIOS_STANDARD,
+      ["1K", "2K", "4K"],
+    ],
+    [
+      "gemini-3.1-flash-image",
+      "Nano Banana 2 (Gemini 3.1 Flash Image)",
+      14,
+      RATIOS_EXTENDED,
+      ["512", "1K", "2K", "4K"],
+    ],
+    [
+      "gemini-3.1-flash-lite-image",
+      "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+      14,
+      RATIOS_STANDARD,
+      ["1K"],
+    ],
+    [
+      "gemini-2.5-flash-image",
+      "Nano Banana (Gemini 2.5 Flash Image, legacy)",
+      3,
+      RATIOS_STANDARD,
+      [],
+    ],
+  ] as const
+).map(([id, label, maxReferenceImages, aspectRatios, imageSizes]) => ({
+  id,
+  label,
+  textToImage: true,
+  imageToImage: true,
+  maxReferenceImages,
+  maxOutputs: 4,
+  aspectRatios: [...aspectRatios],
+  imageSizes: [...imageSizes],
+  supportsNegativePrompt: false,
+  supportsSeed: false,
+}));
+
 /** Mirrors `ProviderRegistry::builtin()` in src-tauri/src/providers. */
 export const MOCK_PROVIDERS: readonly MockProvider[] = [
   {
@@ -52,20 +117,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
     label: "Google Gemini",
     kind: "remote",
     requiresApiKey: true,
-    models: [
-      {
-        id: "gemini-2.5-flash-image",
-        label: "Gemini 2.5 Flash Image",
-        textToImage: true,
-        imageToImage: true,
-        maxReferenceImages: 3,
-        maxOutputs: 1,
-        aspectRatios: [],
-        imageSizes: [],
-        supportsNegativePrompt: false,
-        supportsSeed: false,
-      },
-    ],
+    models: GEMINI_MODELS,
   },
   {
     id: "local_preview",

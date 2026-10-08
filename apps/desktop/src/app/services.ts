@@ -40,8 +40,13 @@ export async function createProject(input: NewProjectInput): Promise<ProjectDTO>
 /**
  * Compile from PERSISTED data only (never unsaved form state), so the preview always
  * reflects what is stored. Deterministic for identical stored data + compiler version.
+ * With `referenceAssetIds`, only those (ready) assets are described as references — the
+ * exact set a generation sends; otherwise every ready asset is (the Prompt Preview view).
  */
-export async function compilePromptPreview(projectId: string): Promise<PromptBundle> {
+export async function compilePromptPreview(
+  projectId: string,
+  referenceAssetIds?: readonly string[],
+): Promise<PromptBundle> {
   const { project, dna, assets } = await call("project_get", { projectId });
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
   return compilePrompt({
@@ -55,6 +60,7 @@ export async function compilePromptPreview(projectId: string): Promise<PromptBun
     pack,
     references: assets
       .filter((a) => a.status === "ready")
+      .filter((a) => !referenceAssetIds || referenceAssetIds.includes(a.id))
       .map((a) => ({ assetId: a.id, role: a.role, label: a.originalName })),
   });
 }
