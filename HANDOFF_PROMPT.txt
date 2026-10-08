@@ -1,0 +1,35 @@
+Open this repository in Claude Code.
+
+First read:
+- CLAUDE.md
+- docs/ARCHITECTURE.md
+- docs/DATA_MODEL.md
+- docs/API_CONTRACTS.md
+- docs/UI_UX_SPEC.md
+- docs/ROADMAP.md
+- tasks/PHASE_01.md
+
+Then inspect the existing repository before changing anything.
+
+Your task is to implement Phase 1 only.
+
+Rules:
+1. Treat structured DNA as the source of truth; prompts are compiled output.
+2. Keep the core provider-neutral.
+3. Build the Phase 1 UI/UX shell early: Project Hub + permanent Workspace shell + reusable Canvas + right Property Panel + bottom tray.
+4. Treat future Camera/Lighting/Mood/Generate/Enhance/QC/Export navigation as reserved product architecture; do not implement their backends yet.
+5. Do not implement real AI providers or browser automation yet.
+6. Preserve original imported images; use managed copies and lineage.
+7. Use SQLite migrations from the start.
+8. Work through PHASE_01 tasks in order unless the existing repository makes a small reordering necessary.
+9. After each meaningful milestone run the appropriate typecheck, lint, tests, Rust/Tauri check and migration verification.
+10. Update docs/PROGRESS.md as milestones are completed.
+11. If an architecture decision changes, record it in docs/DECISIONS.md.
+12. Do not start Phase 2 automatically.
+
+Begin by:
+A. summarizing the current repository state,
+B. comparing it to the requested architecture,
+C. identifying conflicts or reusable pieces,
+D. producing a short implementation plan for Phase 1,
+E. then start P1-01.
