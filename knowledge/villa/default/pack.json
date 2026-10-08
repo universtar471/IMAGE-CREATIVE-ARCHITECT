@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "villa",
   "subtype": "default",
   "label": "Detached villa",
@@ -64,6 +64,86 @@
         },
         "distantBackground": ["forested hills"]
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "front",
+      "label": "Front elevation",
+      "viewType": "exterior_front",
+      "azimuthDeg": 0,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 22,
+      "lensMm": 28,
+      "aspectRatio": "3:2",
+      "composition": "centered one-point perspective on the front facade, verticals kept straight",
+      "anchorRecommended": false
+    },
+    {
+      "id": "front_left_corner",
+      "label": "Front-left corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": 45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 25,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "anchorRecommended": true
+    },
+    {
+      "id": "front_right_corner",
+      "label": "Front-right corner",
+      "viewType": "exterior_corner",
+      "azimuthDeg": -45,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 25,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "anchorRecommended": false
+    },
+    {
+      "id": "aerial_three_quarter",
+      "label": "Aerial three-quarter",
+      "viewType": "aerial",
+      "azimuthDeg": 35,
+      "elevationDeg": 32,
+      "heightM": 32,
+      "distanceM": 60,
+      "lensMm": 35,
+      "aspectRatio": "16:9",
+      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "anchorRecommended": true
+    },
+    {
+      "id": "rear_garden",
+      "label": "Rear garden view",
+      "viewType": "exterior_rear",
+      "azimuthDeg": 180,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 20,
+      "lensMm": 24,
+      "aspectRatio": "3:2",
+      "composition": "rear facade seen from the garden, landscape in the foreground",
+      "anchorRecommended": false
+    },
+    {
+      "id": "facade_detail",
+      "label": "Facade detail",
+      "viewType": "detail",
+      "azimuthDeg": 20,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "distanceM": 5,
+      "lensMm": 50,
+      "aspectRatio": "4:5",
+      "composition": "close-up of entrance, materials and joinery",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["attached neighbouring buildings", "dense urban street"],

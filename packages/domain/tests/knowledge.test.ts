@@ -104,3 +104,116 @@ describe("createInitialDNA", () => {
     expect(JSON.stringify(dna)).not.toContain("undefined");
   });
 });
+
+describe("camera presets", () => {
+  const packs = [
+    ...new Set(
+      (
+        [
+          "townhouse",
+          "single_storey_house",
+          "villa",
+          "urban_villa",
+          "prefab_modular",
+          "interior",
+          "custom",
+        ] as const
+      ).flatMap((t) => registry.listSubtypes(t)),
+    ),
+  ];
+
+  it("every seed pack has 4–7 presets with unique ids and at least 2 anchor suggestions", () => {
+    expect(packs.length).toBe(registry.size);
+    for (const pack of packs) {
+      const where = `${pack.projectType}/${pack.subtype}`;
+      expect(pack.cameraPresets.length, where).toBeGreaterThanOrEqual(4);
+      expect(pack.cameraPresets.length, where).toBeLessThanOrEqual(7);
+      const ids = pack.cameraPresets.map((p) => p.id);
+      expect(new Set(ids).size, where).toBe(ids.length);
+      expect(
+        pack.cameraPresets.filter((p) => p.anchorRecommended).length,
+        where,
+      ).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("uses realistic architectural photography values", () => {
+    for (const pack of packs) {
+      const interior = pack.projectType === "interior";
+      for (const p of pack.cameraPresets) {
+        const where = `${pack.projectType}/${pack.subtype}/${p.id}`;
+        expect(p.lensMm, where).toBeDefined();
+        if (p.viewType === "detail" || p.viewType === "interior_detail") continue;
+        if (interior) {
+          expect(p.viewType, where).toMatch(/^interior_/);
+          expect(p.lensMm, where).toBeGreaterThanOrEqual(16);
+          expect(p.lensMm, where).toBeLessThanOrEqual(24);
+        } else {
+          expect(p.lensMm, where).toBeGreaterThanOrEqual(24);
+          expect(p.lensMm, where).toBeLessThanOrEqual(35);
+        }
+        if (p.viewType === "aerial") {
+          expect(p.elevationDeg, where).toBeGreaterThanOrEqual(25);
+          expect(p.elevationDeg, where).toBeLessThanOrEqual(40);
+        } else {
+          expect(p.heightM, where).toBeGreaterThanOrEqual(1.2);
+          expect(p.heightM, where).toBeLessThanOrEqual(1.7);
+        }
+      }
+    }
+  });
+
+  it("exterior packs cover front-left and front-right corners and an aerial or street view", () => {
+    for (const pack of packs.filter((p) => p.projectType !== "interior")) {
+      const ids = pack.cameraPresets.map((p) => p.id);
+      expect(ids).toContain("front_left_corner");
+      expect(ids).toContain("front_right_corner");
+      expect(ids.some((id) => id === "aerial_three_quarter" || id === "street_level")).toBe(true);
+    }
+  });
+
+  it("interior packs cover the entrance wide, opposite corner and a detail", () => {
+    for (const pack of registry.listSubtypes("interior")) {
+      const ids = pack.cameraPresets.map((p) => p.id);
+      expect(ids).toEqual(
+        expect.arrayContaining(["entrance_wide", "opposite_corner", "material_detail"]),
+      );
+    }
+  });
+
+  it("resolves presets like other pack content", () => {
+    expect(registry.cameraPresets("villa", "tropical").map((p) => p.id)).toContain("rear_pool");
+    expect(registry.cameraPresets("villa", "underwater")).toEqual(
+      registry.resolve("villa").pack!.cameraPresets,
+    );
+    expect(registry.cameraPresets("hotel")).toEqual(registry.resolve("custom").pack!.cameraPresets);
+    expect(new KnowledgeRegistry([]).cameraPresets("villa")).toEqual([]);
+  });
+
+  it("a subtype pack without presets inherits its type default's presets", () => {
+    const base = registry.resolve("villa").pack!;
+    const bare = { ...structuredClone(base), subtype: "bare", cameraPresets: [] };
+    const r = new KnowledgeRegistry([
+      { source: "villa/default", data: base },
+      { source: "villa/bare", data: bare },
+    ]);
+    expect(r.resolve("villa", "bare").pack?.subtype).toBe("bare");
+    expect(r.cameraPresets("villa", "bare")).toEqual(base.cameraPresets);
+  });
+
+  it("pack schema defaults cameraPresets and anchorRecommended", () => {
+    const r = new KnowledgeRegistry([
+      {
+        source: "x",
+        data: {
+          packVersion: "1",
+          projectType: "office",
+          subtype: "default",
+          label: "Office",
+          cameraPresets: [{ id: "a", label: "A", viewType: "aerial" }],
+        },
+      },
+    ]);
+    expect(r.resolve("office").pack?.cameraPresets[0]?.anchorRecommended).toBe(false);
+  });
+});

@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "projectType": "interior",
   "subtype": "default",
   "label": "Interior space",
@@ -27,6 +27,56 @@
       "context": {
         "distantBackground": ["garden visible through glazing"]
       }
+    }
+  ],
+  "cameraPresets": [
+    {
+      "id": "entrance_wide",
+      "label": "Wide from the entrance",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 6,
+      "lensMm": 16,
+      "aspectRatio": "4:3",
+      "composition": "one-point view from the doorway across the whole space, verticals straight",
+      "anchorRecommended": true
+    },
+    {
+      "id": "opposite_corner",
+      "label": "Opposite corner",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 6,
+      "lensMm": 18,
+      "aspectRatio": "4:3",
+      "composition": "two-point view from the far corner back toward the entrance",
+      "anchorRecommended": true
+    },
+    {
+      "id": "window_wall",
+      "label": "Toward the windows",
+      "viewType": "interior_wide",
+      "elevationDeg": 0,
+      "heightM": 1.5,
+      "distanceM": 5,
+      "lensMm": 20,
+      "aspectRatio": "4:3",
+      "composition": "view toward the main window wall with daylight entering",
+      "anchorRecommended": false
+    },
+    {
+      "id": "material_detail",
+      "label": "Material detail",
+      "viewType": "interior_detail",
+      "elevationDeg": 0,
+      "heightM": 1.2,
+      "distanceM": 1.5,
+      "lensMm": 35,
+      "aspectRatio": "4:5",
+      "composition": "close-up of furniture, materials and styling",
+      "anchorRecommended": false
     }
   ],
   "negativeConstraints": ["exterior facade", "fisheye distortion", "cluttered surfaces"],
