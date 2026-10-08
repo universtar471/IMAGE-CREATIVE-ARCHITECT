@@ -4,6 +4,8 @@
 //! (Tauri bridge). Storage and imaging are infrastructure helpers used by services.
 
 pub mod commands;
+#[cfg(test)]
+mod contract_fixtures;
 pub mod db;
 pub mod domain;
 pub mod dto;

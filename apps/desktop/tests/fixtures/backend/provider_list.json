@@ -1,0 +1,237 @@
+{
+  "command": "provider_list",
+  "response": [
+    {
+      "configured": false,
+      "id": "gemini",
+      "keySource": null,
+      "kind": "remote",
+      "label": "Google Gemini",
+      "models": [
+        {
+          "aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-nano-banana-2.1",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Nano Banana 2.1 (Gemini)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-3-pro-image",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Nano Banana Pro (Gemini 3 Pro Image)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-3.1-flash-image",
+          "imageSizes": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-3.1-flash-lite-image",
+          "imageSizes": [
+            "1K"
+          ],
+          "imageToImage": true,
+          "label": "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-2.5-flash-image",
+          "imageSizes": [],
+          "imageToImage": true,
+          "label": "Nano Banana (Gemini 2.5 Flash Image, legacy)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 3,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        }
+      ],
+      "requiresApiKey": true
+    },
+    {
+      "configured": true,
+      "id": "local_preview",
+      "keySource": null,
+      "kind": "local",
+      "label": "Local preview (offline)",
+      "models": [
+        {
+          "aspectRatios": [
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16"
+          ],
+          "id": "placeholder-v1",
+          "imageSizes": [
+            "1K"
+          ],
+          "imageToImage": true,
+          "label": "Placeholder renderer",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "supportsNegativePrompt": true,
+          "supportsSeed": true,
+          "textToImage": true
+        }
+      ],
+      "requiresApiKey": false
+    },
+    {
+      "configured": false,
+      "id": "test_remote",
+      "keySource": null,
+      "kind": "remote",
+      "label": "Test remote",
+      "models": [
+        {
+          "aspectRatios": [
+            "1:1",
+            "16:9"
+          ],
+          "id": "full",
+          "imageSizes": [
+            "1K",
+            "2K"
+          ],
+          "imageToImage": true,
+          "label": "Test full",
+          "maxOutputs": 2,
+          "maxReferenceImages": 2,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [],
+          "id": "text-only",
+          "imageSizes": [],
+          "imageToImage": false,
+          "label": "Test text-only",
+          "maxOutputs": 1,
+          "maxReferenceImages": 0,
+          "supportsNegativePrompt": false,
+          "supportsSeed": true,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [],
+          "id": "edit-only",
+          "imageSizes": [],
+          "imageToImage": true,
+          "label": "Test edit-only",
+          "maxOutputs": 1,
+          "maxReferenceImages": 1,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": false
+        }
+      ],
+      "requiresApiKey": true
+    }
+  ]
+}

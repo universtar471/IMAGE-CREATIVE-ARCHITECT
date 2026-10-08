@@ -1,0 +1,10 @@
+{
+  "command": "error",
+  "response": {
+    "code": "PROVIDER_NOT_CONFIGURED",
+    "details": {
+      "providerId": "gemini"
+    },
+    "message": "Google Gemini needs an API key. Add one in Provider settings (or set ARCH_STUDIO_GEMINI_API_KEY for development)."
+  }
+}

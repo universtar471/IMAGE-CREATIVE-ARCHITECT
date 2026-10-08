@@ -1,0 +1,38 @@
+{
+  "command": "generation_submit",
+  "response": {
+    "durationMs": 1234,
+    "error": {
+      "kind": "rate_limited",
+      "message": "Test provider failure.",
+      "retryable": true
+    },
+    "finishedAt": "2026-01-01T00:00:00.000Z",
+    "id": "GEN_00000000000000000000000006",
+    "modelId": "full",
+    "outputAssetIds": [],
+    "params": {
+      "aspectRatio": null,
+      "imageSize": null,
+      "outputCount": 1,
+      "seed": null
+    },
+    "parentAssetId": null,
+    "projectId": "PRJ_00000000000000000000000005",
+    "prompt": {
+      "compilerVersion": "pc-1.0.0",
+      "metadata": {
+        "projectType": "villa"
+      },
+      "negativePrompt": "people",
+      "positivePrompt": "Tropical villa at dusk",
+      "preservationInstructions": "Keep the massing.",
+      "referenceInstructions": "Image 1 is the master."
+    },
+    "providerId": "test_remote",
+    "purpose": "hero",
+    "referenceAssetIds": [],
+    "startedAt": "2026-01-01T00:00:00.000Z",
+    "status": "failed"
+  }
+}

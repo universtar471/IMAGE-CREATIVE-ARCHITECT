@@ -1,0 +1,7 @@
+{
+  "command": "provider_test",
+  "response": {
+    "message": "Offline provider, always available.",
+    "ok": true
+  }
+}

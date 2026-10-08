@@ -1,0 +1,35 @@
+{
+  "command": "version_list",
+  "response": [
+    {
+      "assetId": "AST_00000000000000000000000004",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": null,
+      "id": "VER_00000000000000000000000007",
+      "label": "master.png",
+      "operation": "import",
+      "parentVersionId": null,
+      "projectId": "PRJ_00000000000000000000000005"
+    },
+    {
+      "assetId": "AST_00000000000000000000000003",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_00000000000000000000000001",
+      "id": "VER_00000000000000000000000008",
+      "label": "Hero 2 — Placeholder renderer",
+      "operation": "generate",
+      "parentVersionId": "VER_00000000000000000000000007",
+      "projectId": "PRJ_00000000000000000000000005"
+    },
+    {
+      "assetId": "AST_00000000000000000000000002",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_00000000000000000000000001",
+      "id": "VER_00000000000000000000000009",
+      "label": "Hero 1 — Placeholder renderer",
+      "operation": "generate",
+      "parentVersionId": "VER_00000000000000000000000007",
+      "projectId": "PRJ_00000000000000000000000005"
+    }
+  ]
+}

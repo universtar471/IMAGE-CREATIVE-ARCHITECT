@@ -1,0 +1,135 @@
+{
+  "command": "project_get",
+  "response": {
+    "assets": [
+      {
+        "absolutePath": "/data/projects/PRJ_00000000000000000000000005/assets/original/AST_00000000000000000000000004.png",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "fileSizeBytes": 196,
+        "heightPx": 24,
+        "id": "AST_00000000000000000000000004",
+        "managedRelPath": "assets/original/AST_00000000000000000000000004.png",
+        "mimeType": "image/png",
+        "operation": "import",
+        "originalName": "master.png",
+        "parentAssetId": null,
+        "projectId": "PRJ_00000000000000000000000005",
+        "role": "master_architecture",
+        "sha256": "2d237683179680e9a243a376eeb49e858145512729de1bd878785df3876d1746",
+        "source": "external",
+        "status": "ready",
+        "thumbnailPath": "/data/projects/PRJ_00000000000000000000000005/previews/AST_00000000000000000000000004_thumb.jpg",
+        "updatedAt": "2026-01-01T00:00:00.000Z",
+        "widthPx": 32
+      },
+      {
+        "absolutePath": "/data/projects/PRJ_00000000000000000000000005/assets/original/AST_00000000000000000000000002.png",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "fileSizeBytes": 13534,
+        "heightPx": 768,
+        "id": "AST_00000000000000000000000002",
+        "managedRelPath": "assets/original/AST_00000000000000000000000002.png",
+        "mimeType": "image/png",
+        "operation": "generate",
+        "originalName": "Hero 1 — Placeholder renderer",
+        "parentAssetId": "AST_00000000000000000000000004",
+        "projectId": "PRJ_00000000000000000000000005",
+        "role": "regular_image",
+        "sha256": "a48979dce64f6d2387a276b1df5705627e4042d158b591877cab01dd34b8f93a",
+        "source": "ai_generated",
+        "status": "ready",
+        "thumbnailPath": "/data/projects/PRJ_00000000000000000000000005/previews/AST_00000000000000000000000002_thumb.jpg",
+        "updatedAt": "2026-01-01T00:00:00.000Z",
+        "widthPx": 1024
+      },
+      {
+        "absolutePath": "/data/projects/PRJ_00000000000000000000000005/assets/original/AST_00000000000000000000000003.png",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "fileSizeBytes": 13634,
+        "heightPx": 768,
+        "id": "AST_00000000000000000000000003",
+        "managedRelPath": "assets/original/AST_00000000000000000000000003.png",
+        "mimeType": "image/png",
+        "operation": "generate",
+        "originalName": "Hero 2 — Placeholder renderer",
+        "parentAssetId": "AST_00000000000000000000000004",
+        "projectId": "PRJ_00000000000000000000000005",
+        "role": "regular_image",
+        "sha256": "ec256e77950d363e22bb370ea0c3380689f82d205e02868a37dd315f457ca417",
+        "source": "ai_generated",
+        "status": "ready",
+        "thumbnailPath": "/data/projects/PRJ_00000000000000000000000005/previews/AST_00000000000000000000000003_thumb.jpg",
+        "updatedAt": "2026-01-01T00:00:00.000Z",
+        "widthPx": 1024
+      }
+    ],
+    "dna": {
+      "building": {
+        "buildingType": "villa",
+        "colorPalette": [],
+        "dimensions": {},
+        "massing": {
+          "voids": []
+        },
+        "materials": [],
+        "notes": "",
+        "openings": {},
+        "roof": {},
+        "schemaVersion": 1,
+        "specialFeatures": []
+      },
+      "cameras": [],
+      "context": {
+        "atmosphereNotes": "",
+        "distantBackground": [],
+        "front": {
+          "adjacentBuildings": [],
+          "elements": [],
+          "notes": "",
+          "vegetation": []
+        },
+        "left": {
+          "adjacentBuildings": [],
+          "elements": [],
+          "notes": "",
+          "vegetation": []
+        },
+        "negativeConstraints": [],
+        "rear": {
+          "adjacentBuildings": [],
+          "elements": [],
+          "notes": "",
+          "vegetation": []
+        },
+        "right": {
+          "adjacentBuildings": [],
+          "elements": [],
+          "notes": "",
+          "vegetation": []
+        },
+        "schemaVersion": 1
+      },
+      "locks": {
+        "building": false,
+        "camera": false,
+        "colorGrade": false,
+        "context": false,
+        "lighting": false,
+        "objectIds": [],
+        "weather": false
+      },
+      "schemaVersion": 1
+    },
+    "project": {
+      "activeMasterAssetId": "AST_00000000000000000000000004",
+      "archivedAt": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "id": "PRJ_00000000000000000000000005",
+      "name": "Fixture villa",
+      "projectType": "villa",
+      "status": "master_pending",
+      "subtype": "tropical",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  }
+}
