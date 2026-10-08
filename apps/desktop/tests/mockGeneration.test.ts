@@ -9,6 +9,7 @@ import {
   type Transport,
 } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
+import { settled } from "./helpers";
 
 const SECRET = "sk-test-0123456789-should-never-be-stored";
 let transport: Transport;
@@ -49,6 +50,7 @@ const request = (projectId: string, over: Partial<GenerationSubmitRequest> = {})
     prompt: prompt(),
     referenceAssetIds: [],
     params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: 3 },
+    cameraId: null,
     ...over,
   }) satisfies GenerationSubmitRequest;
 
@@ -165,10 +167,12 @@ describe("mock generation_submit", () => {
       createdAt: "2026-01-01T00:00:00Z",
     });
 
-    const g = await call(
+    const queued = await call(
       "generation_submit",
       request(p.id, { purpose: "hero", referenceAssetIds: ["AST_M"] }),
     );
+    expect(queued).toMatchObject({ status: "queued", startedAt: null, outputAssetIds: [] });
+    const g = await settled(p.id, queued.id);
     expect(g.status).toBe("completed");
     expect(g.parentAssetId).toBe("AST_M");
     expect(g.outputAssetIds).toHaveLength(2);
@@ -199,7 +203,8 @@ describe("mock generation_submit", () => {
 
   it("returns a failed generation (not an error) for a [fail] prompt", async () => {
     const p = await newProject();
-    const g = await call("generation_submit", request(p.id, { prompt: prompt("x [fail] y") }));
+    const q = await call("generation_submit", request(p.id, { prompt: prompt("x [fail] y") }));
+    const g = await settled(p.id, q.id);
     expect(g.status).toBe("failed");
     expect(g.error).toMatchObject({ kind: "bad_response", retryable: true });
     expect(g.outputAssetIds).toEqual([]);
@@ -233,6 +238,24 @@ describe("mock generation_submit", () => {
     ["unknown provider", { providerId: "nope" }, "NOT_FOUND"],
     ["unknown model", { modelId: "nope" }, "NOT_FOUND"],
     ["unknown reference", { referenceAssetIds: ["AST_nope"] }, "NOT_FOUND"],
+    // Review p2-ui PHẢI SỬA 1: a model without size/ratio lists only accepts null.
+    [
+      "an image size for a model without sizes",
+      {
+        providerId: "gemini",
+        modelId: "gemini-2.5-flash-image",
+        params: { aspectRatio: "16:9", imageSize: "8K", outputCount: 1, seed: null },
+      },
+      "VALIDATION_ERROR",
+    ],
+    [
+      "an aspect ratio the model does not offer",
+      {
+        modelId: "placeholder-v1",
+        params: { aspectRatio: "7:5", imageSize: "1K", outputCount: 1, seed: null },
+      },
+      "VALIDATION_ERROR",
+    ],
   ] as const)("rejects %s", async (_n, over, code) => {
     const p = await newProject();
     const req = request(p.id, over as Partial<GenerationSubmitRequest>);

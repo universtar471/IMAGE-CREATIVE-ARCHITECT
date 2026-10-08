@@ -12,7 +12,7 @@ import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, NumberField, SelectField } from "../../components/panels/fields";
 import { fileUrl } from "../../lib/files";
 import { GeneratePromptPreview } from "./GeneratePromptPreview";
-import { GenerationResult, RunningStatus } from "./GenerationResult";
+import { GenerationResult } from "./GenerationResult";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
@@ -29,6 +29,7 @@ export function GeneratePanel() {
   const submit = useStudio((s) => s.submitGeneration);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const setModule = useStudio((s) => s.setModule);
+  const queuedHere = useQueuedCount(ws.project.id);
 
   if (!providers) {
     if (providersError) {
@@ -46,10 +47,10 @@ export function GeneratePanel() {
 
   const project = ws.project;
   const form = resolveGenerateForm(draft, providers, ws.assets, project.activeMasterAssetId);
-  const running = run?.status === "running";
+  const running = run?.status === "submitting";
   const reason = generateDisabledReason(form, {
     readOnly,
-    running,
+    submitting: running,
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
@@ -65,6 +66,7 @@ export function GeneratePanel() {
       purpose: form.purpose,
       referenceAssetIds: form.referenceIds,
       params: form.params,
+      cameraId: null,
     });
   };
 
@@ -124,7 +126,12 @@ export function GeneratePanel() {
             )}
           </div>
         )}
-        {running && <RunningStatus />}
+        {queuedHere > 0 && (
+          <span className="field-hint" data-testid="queue-hint">
+            {queuedHere} job{queuedHere === 1 ? "" : "s"} of this project in the queue — Generate
+            adds another.
+          </span>
+        )}
         <button
           className="btn btn-primary generate-btn"
           disabled={reason !== null}
@@ -142,6 +149,18 @@ export function GeneratePanel() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Non-terminal jobs of one project (count is a primitive, so the selector is stable). */
+function useQueuedCount(projectId: string): number {
+  return useStudio(
+    (s) =>
+      s.jobs.filter(
+        (j) =>
+          j.projectId === projectId &&
+          (j.status === "queued" || j.status === "running" || j.status === "retrying"),
+      ).length,
   );
 }
 

@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon, ImagePlus } from "lucide-react";
+import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
 import { useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import { ErrorState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
@@ -6,6 +6,8 @@ import { PropertyPanel } from "../../components/panels/PropertyPanel";
 import { WorkspaceNav } from "../../components/shell/WorkspaceNav";
 import { WorkspaceTopBar } from "../../components/shell/WorkspaceTopBar";
 import { BottomTray } from "../assets/BottomTray";
+import { CameraDirector } from "../camera/CameraDirector";
+import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
 
@@ -56,7 +58,11 @@ function CenterArea() {
   const selectedId = useStudio((s) => s.selectedAssetId);
   const masterId = useStudio((s) => s.workspace!.project.activeMasterAssetId);
   const setModule = useStudio((s) => s.setModule);
+  const hasBatches = useStudio((s) => s.workspace!.batches.length > 0);
   const mod = moduleById(active);
+  const isCamera = active === "camera";
+  // The Camera Director only exists in the Camera module.
+  const view = centerView === "director" && !isCamera ? "canvas" : centerView;
 
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
@@ -65,18 +71,38 @@ function CenterArea() {
   return (
     <main className="center" aria-label="Workspace canvas">
       <div className="center-tabs" role="tablist">
+        {isCamera && (
+          <button
+            className="center-tab"
+            role="tab"
+            aria-selected={view === "director"}
+            onClick={() => setCenterView("director")}
+          >
+            <Camera size={14} /> Camera Director
+          </button>
+        )}
         <button
           className="center-tab"
           role="tab"
-          aria-selected={centerView === "canvas"}
+          aria-selected={view === "canvas"}
           onClick={() => setCenterView("canvas")}
         >
-          <ImageIcon size={14} /> Canvas
+          <ImageIcon size={14} /> {isCamera ? "Image" : "Canvas"}
         </button>
+        {(isCamera || hasBatches || view === "contact") && (
+          <button
+            className="center-tab"
+            role="tab"
+            aria-selected={view === "contact"}
+            onClick={() => setCenterView("contact")}
+          >
+            <LayoutGrid size={14} /> Contact Sheet
+          </button>
+        )}
         <button
           className="center-tab"
           role="tab"
-          aria-selected={centerView === "prompt"}
+          aria-selected={view === "prompt"}
           onClick={() => setCenterView("prompt")}
         >
           <FileText size={14} /> Prompt Preview
@@ -90,8 +116,12 @@ function CenterArea() {
             phase={mod.availableIn}
             description={mod.description}
           />
-        ) : centerView === "prompt" ? (
+        ) : view === "prompt" ? (
           <PromptPreview />
+        ) : view === "director" ? (
+          <CameraDirector />
+        ) : view === "contact" ? (
+          <ContactSheet />
         ) : (
           <WorkspaceCanvas
             mode={{ kind: "single", asset }}

@@ -54,7 +54,7 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
     const assets = await attempt(() =>
       call("asset_update_role", { projectId, assetId: asset.id, role }),
     );
-    if (assets) await adoptAssets(assets);
+    if (assets) await adoptAssets(projectId, assets);
   };
 
   const setMaster = async (makeMaster: boolean) => {
@@ -62,7 +62,7 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
       call("asset_set_master", { projectId, assetId: makeMaster ? asset.id : null }),
     );
     if (assets) {
-      await adoptAssets(assets);
+      await adoptAssets(projectId, assets);
       notify("success", makeMaster ? "Master architecture image updated." : "Master cleared.");
     }
   };
@@ -74,7 +74,7 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
     if (res.fileCleanupWarning) notify("warning", res.fileCleanupWarning);
     const assets = await attempt(() => call("asset_list", { projectId }));
     if (assets) {
-      await adoptAssets(assets);
+      await adoptAssets(projectId, assets);
       selectAsset(null);
     }
   };

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, ImagePlus, Lock } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { ASSET_ROLE_LABELS, AssetRoleSchema, type AssetRole } from "@arch/domain";
-import { selectReadOnly, useStudio } from "../../app/store";
+import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
-import { EmptyState, FutureModulePlaceholder } from "../../components/common/states";
+import { EmptyState } from "../../components/common/states";
+import { JobsTab } from "../jobs/JobsTab";
 import { HistoryTab } from "../history/HistoryTab";
 import { VersionsTab } from "../versions/VersionsTab";
 import { TRAY_TABS } from "../workspace/modules";
@@ -20,6 +21,7 @@ export function BottomTray() {
   const toggleTray = useStudio((s) => s.toggleTray);
   const assetCount = useStudio((s) => s.workspace?.assets.length ?? 0);
   const historyCount = useStudio((s) => s.workspace?.generations.length ?? 0);
+  const activeJobs = useStudio((s) => s.jobs.filter((j) => !isTerminalJob(j)).length);
 
   return (
     <section className="tray" aria-label="Production tray">
@@ -35,6 +37,9 @@ export function BottomTray() {
           >
             {t.label}
             {t.id === "assets" && <span className="badge badge-neutral">{assetCount}</span>}
+            {t.id === "jobs" && activeJobs > 0 && (
+              <span className="badge badge-info">{activeJobs}</span>
+            )}
             {t.id === "history" && historyCount > 0 && (
               <span className="badge badge-neutral">{historyCount}</span>
             )}
@@ -55,22 +60,10 @@ export function BottomTray() {
           {trayTab === "assets" && <AssetsTab />}
           {trayTab === "versions" && <VersionsTab />}
           {trayTab === "history" && <HistoryTab />}
-          {trayTab === "jobs" && <FutureTab id={trayTab} />}
+          {trayTab === "jobs" && <JobsTab />}
         </div>
       )}
     </section>
-  );
-}
-
-function FutureTab({ id }: { id: "jobs" }) {
-  const tab = TRAY_TABS.find((t) => t.id === id)!;
-  return (
-    <FutureModulePlaceholder
-      compact
-      title={tab.label}
-      phase={tab.availableIn!}
-      description={tab.note}
-    />
   );
 }
 
