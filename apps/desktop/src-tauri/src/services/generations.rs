@@ -1123,4 +1123,25 @@ mod tests {
         let ok = submit(&core, text_only(&|_| {})).unwrap();
         assert_eq!(ok.status, GenerationStatus::Completed);
     }
+
+    #[test]
+    fn three_outputs_list_in_output_order() {
+        // Outputs share one created_at; listing must still follow output order every run.
+        for _ in 0..5 {
+            let (_tmp, core, _) = core_with_double();
+            let p = test_create_villa(&core, "A");
+            let g = submit(&core, local(&p.id, &[], 3)).unwrap();
+            let names: Vec<String> =
+                assets::list(&core, &p.id).unwrap().into_iter().map(|a| a.original_name.unwrap()).collect();
+            assert_eq!(
+                names,
+                ["Hero 1 — Placeholder renderer", "Hero 2 — Placeholder renderer", "Hero 3 — Placeholder renderer"]
+            );
+            let asset_ids: Vec<String> = assets::list(&core, &p.id).unwrap().into_iter().map(|a| a.id).collect();
+            assert_eq!(asset_ids, g.output_asset_ids);
+            let version_assets: Vec<String> =
+                assets::list_versions(&core, &p.id).unwrap().into_iter().map(|v| v.asset_id).collect();
+            assert_eq!(version_assets, g.output_asset_ids);
+        }
+    }
 }
