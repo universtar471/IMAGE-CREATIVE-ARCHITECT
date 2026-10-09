@@ -6,6 +6,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Maximize, Minus, Plus, Scan } from "lucide-react";
 import { clampZoom, fitScale, MAX_ZOOM, MIN_ZOOM, zoomAround, type View } from "./viewMath";
+import { useT } from "../../i18n";
 
 export type ImageViewerProps = {
   src: string;
@@ -29,6 +30,7 @@ export function ImageViewer({
   extraTools,
   onError,
 }: ImageViewerProps) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [natural, setNatural] = useState({ w: naturalWidth ?? 0, h: naturalHeight ?? 0 });
@@ -127,36 +129,36 @@ export function ImageViewer({
           className="btn btn-ghost btn-sm btn-icon"
           onClick={() => zoomTo(view.scale / 1.25)}
           disabled={view.scale <= MIN_ZOOM}
-          aria-label="Zoom out"
-          title="Zoom out"
+          aria-label={t("canvas.zoomOut")}
+          title={t("canvas.zoomOut")}
         >
           <Minus size={14} />
         </button>
-        <span className="zoom-label" aria-label="Zoom level">
+        <span className="zoom-label" aria-label={t("canvas.zoomLevel")}>
           {Math.round(view.scale * 100)}%
         </span>
         <button
           className="btn btn-ghost btn-sm btn-icon"
           onClick={() => zoomTo(view.scale * 1.25)}
           disabled={view.scale >= MAX_ZOOM}
-          aria-label="Zoom in"
-          title="Zoom in"
+          aria-label={t("canvas.zoomIn")}
+          title={t("canvas.zoomIn")}
         >
           <Plus size={14} />
         </button>
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => setFitted(true)}
-          aria-label="Fit to view"
-          title="Fit to view (double-click)"
+          aria-label={t("canvas.fitLabel")}
+          title={t("canvas.fitTitle")}
         >
-          <Maximize size={14} /> Fit
+          <Maximize size={14} /> {t("canvas.fit")}
         </button>
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => zoomTo(1)}
-          aria-label="Actual size"
-          title="Actual pixels (100%)"
+          aria-label={t("canvas.actualLabel")}
+          title={t("canvas.actualTitle")}
         >
           <Scan size={14} /> 1:1
         </button>

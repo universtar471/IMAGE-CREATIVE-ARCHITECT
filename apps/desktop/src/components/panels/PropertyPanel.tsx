@@ -8,24 +8,29 @@ import { GeneratePanel } from "../../features/generate/GeneratePanel";
 import { OverviewPanel } from "../../features/overview/OverviewPanel";
 import { moduleById } from "../../features/workspace/modules";
 import { FutureModulePlaceholder } from "../common/states";
+import { useT } from "../../i18n";
 
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
   const active = useStudio((s) => s.activeModule);
   const readOnly = useStudio(selectReadOnly);
   const mod = moduleById(active);
+  const t = useT();
+  const label = t(`modules.${mod.id}.label`);
 
   return (
-    <aside className="panel" aria-label="Properties">
+    <aside className="panel" aria-label={t("workspace.properties")}>
       <div className="panel-header">
-        {mod.label}
+        {label}
         <span className="spacer" />
-        {active === "references" && <span className="field-hint">Selected asset</span>}
+        {active === "references" && (
+          <span className="field-hint">{t("workspace.selectedAsset")}</span>
+        )}
       </div>
       <div className="panel-body">
         {readOnly && (
           <div className="readonly-banner">
-            <Archive size={14} /> Archived — read-only. Restore to edit.
+            <Archive size={14} /> {t("workspace.readOnly")}
           </div>
         )}
         {active === "overview" && <OverviewPanel />}
@@ -37,9 +42,9 @@ export function PropertyPanel() {
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact
-            title={mod.label}
+            title={label}
             phase={mod.availableIn}
-            description={mod.description}
+            description={t(`modules.${mod.id}.description`)}
           />
         )}
       </div>
