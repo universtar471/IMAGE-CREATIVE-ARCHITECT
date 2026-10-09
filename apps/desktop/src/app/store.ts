@@ -798,7 +798,7 @@ export const useStudio = create<State>((set, get) => {
         });
         const assets = await call("asset_list", { projectId: ws.project.id });
         await get().adoptAssets(ws.project.id, assets);
-        get().selectAsset(asset.id);
+        if (get().workspace?.project.id === ws.project.id) get().selectAsset(asset.id);
         return asset;
       } catch (err) {
         get().notifyError(err);

@@ -42,3 +42,18 @@ export function buildMoodVariationItems(input: Input): BatchItem[] {
 export function adoptMoodPreset(dna: ProjectDNA, preset: MoodVariationPreset): ProjectDNA {
   return adoptDomainMoodPreset(dna, preset as never);
 }
+
+/** Return only the DNA sections changed by adopting a preset, for UI autosave wiring. */
+export function adoptMoodPresetSections(
+  dna: ProjectDNA,
+  preset: MoodVariationPreset,
+): Partial<Pick<ProjectDNA, "lighting" | "weather" | "mood">> {
+  const next = adoptMoodPreset(dna, preset);
+  const changed = <K extends "lighting" | "weather" | "mood">(key: K) =>
+    JSON.stringify(next[key]) !== JSON.stringify(dna[key]);
+  return {
+    ...(changed("lighting") ? { lighting: next.lighting } : {}),
+    ...(changed("weather") ? { weather: next.weather } : {}),
+    ...(changed("mood") ? { mood: next.mood } : {}),
+  };
+}
