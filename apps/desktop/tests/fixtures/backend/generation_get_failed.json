@@ -11,8 +11,8 @@
       "retryable": false
     },
     "finishedAt": "2026-01-01T00:00:00.000Z",
-    "id": "GEN_00000000000000000000000007",
-    "jobId": "JOB_00000000000000000000000008",
+    "id": "GEN_00000000000000000000000008",
+    "jobId": "JOB_00000000000000000000000009",
     "modelId": "full",
     "outputAssetIds": [],
     "params": {
@@ -23,7 +23,7 @@
       "seed": null
     },
     "parentAssetId": null,
-    "projectId": "PRJ_00000000000000000000000004",
+    "projectId": "PRJ_00000000000000000000000001",
     "prompt": {
       "compilerVersion": "pc-1.0.0",
       "metadata": {

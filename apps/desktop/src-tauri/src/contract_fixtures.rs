@@ -24,6 +24,7 @@ use crate::services::anchors::{self, AnchorClearRequest, AnchorSetRequest};
 use crate::services::assets::{self, ImportRequest};
 use crate::services::batches::{self, BatchCreateRequest};
 use crate::services::generations::{self, SubmitRequest};
+use crate::services::grade::{self, GradeApplyRequest};
 use crate::services::prompt_enhance::{self, EnhanceRequest};
 use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
@@ -195,6 +196,23 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     .unwrap();
     projects::approve_master(&core, &p.id, true).unwrap();
     set_cameras(&core, &p.id, &[(CAM_A, "Front corner", true), (CAM_B, "Rear garden", true), (CAM_C, "Detail", false)]);
+
+    let graded = grade::apply(
+        &core,
+        GradeApplyRequest {
+            project_id: p.id.clone(),
+            asset_id: master.id.clone(),
+            grade: serde_json::from_value(json!({
+                "schemaVersion": 1, "exposure": 0.5, "contrast": 12, "highlights": -8,
+                "shadows": 18, "whites": 4, "blacks": -6, "temperature": 16, "tint": -3,
+                "vibrance": 20, "saturation": 8, "clarity": 10, "dehaze": 5, "look": "warm_tropical"
+            }))
+            .unwrap(),
+            label: Some("Warm tropical grade".into()),
+        },
+    )
+    .unwrap();
+    rec.record("grade_apply", "grade_apply", &graded);
 
     // generation_submit returns the queued generation; the queue then completes it.
     let mut hero = submit_request(&p.id, local_preview::ID, local_preview::MODEL_ID, &[&master.id], 2);

@@ -13,7 +13,7 @@ use crate::dto::{
 };
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::{
-    anchors, assets, batches, dna, generations, projects, prompt_enhance, provider_settings, queue, AppCore,
+    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, queue, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -167,6 +167,11 @@ pub async fn asset_remove(core: Core<'_>, request: AssetRef) -> AppResult<AssetR
 #[tauri::command]
 pub async fn version_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<VersionDto>> {
     blocking(&core, move |c| assets::list_versions(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn grade_apply(core: Core<'_>, request: grade::GradeApplyRequest) -> AppResult<AssetDto> {
+    blocking(&core, move |c| grade::apply(c, request)).await
 }
 
 // ------------------------------------------------------------------ providers

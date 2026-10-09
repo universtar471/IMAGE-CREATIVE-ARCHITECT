@@ -5,71 +5,81 @@
       "assetId": "AST_00000000000000000000000003",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "generationId": null,
-      "id": "VER_0000000000000000000000000T",
+      "id": "VER_0000000000000000000000000V",
       "label": "master.png",
       "operation": "import",
       "parentVersionId": null,
-      "projectId": "PRJ_00000000000000000000000004"
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
-      "assetId": "AST_00000000000000000000000005",
+      "assetId": "AST_00000000000000000000000002",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_00000000000000000000000001",
-      "id": "VER_0000000000000000000000000V",
-      "label": "Hero 1 — Placeholder renderer",
-      "operation": "generate",
-      "parentVersionId": "VER_0000000000000000000000000T",
-      "projectId": "PRJ_00000000000000000000000004"
+      "generationId": null,
+      "id": "VER_0000000000000000000000000W",
+      "label": "Warm tropical grade",
+      "operation": "color_grade",
+      "parentVersionId": "VER_0000000000000000000000000V",
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
       "assetId": "AST_00000000000000000000000006",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_00000000000000000000000001",
-      "id": "VER_0000000000000000000000000W",
-      "label": "Hero 2 — Placeholder renderer",
+      "generationId": "GEN_00000000000000000000000004",
+      "id": "VER_0000000000000000000000000X",
+      "label": "Hero 1 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": "VER_0000000000000000000000000T",
-      "projectId": "PRJ_00000000000000000000000004"
+      "parentVersionId": "VER_0000000000000000000000000V",
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
-      "assetId": "AST_0000000000000000000000000P",
+      "assetId": "AST_00000000000000000000000007",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_0000000000000000000000000H",
-      "id": "VER_0000000000000000000000000X",
-      "label": "Anchor 1 — Placeholder renderer",
+      "generationId": "GEN_00000000000000000000000004",
+      "id": "VER_0000000000000000000000000Y",
+      "label": "Hero 2 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": "VER_0000000000000000000000000T",
-      "projectId": "PRJ_00000000000000000000000004"
+      "parentVersionId": "VER_0000000000000000000000000V",
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
       "assetId": "AST_0000000000000000000000000Q",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_0000000000000000000000000G",
-      "id": "VER_0000000000000000000000000Y",
+      "generationId": "GEN_0000000000000000000000000J",
+      "id": "VER_0000000000000000000000000Z",
       "label": "Anchor 1 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": "VER_0000000000000000000000000T",
-      "projectId": "PRJ_00000000000000000000000004"
+      "parentVersionId": "VER_0000000000000000000000000V",
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
       "assetId": "AST_0000000000000000000000000R",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_0000000000000000000000000J",
-      "id": "VER_0000000000000000000000000Z",
-      "label": "Hero 1 — Test full",
+      "generationId": "GEN_0000000000000000000000000H",
+      "id": "VER_00000000000000000000000010",
+      "label": "Anchor 1 — Placeholder renderer",
       "operation": "generate",
-      "parentVersionId": null,
-      "projectId": "PRJ_00000000000000000000000004"
+      "parentVersionId": "VER_0000000000000000000000000V",
+      "projectId": "PRJ_00000000000000000000000001"
     },
     {
       "assetId": "AST_0000000000000000000000000S",
       "createdAt": "2026-01-01T00:00:00.000Z",
-      "generationId": "GEN_0000000000000000000000000B",
-      "id": "VER_00000000000000000000000010",
+      "generationId": "GEN_0000000000000000000000000K",
+      "id": "VER_00000000000000000000000011",
+      "label": "Hero 1 — Test full",
+      "operation": "generate",
+      "parentVersionId": null,
+      "projectId": "PRJ_00000000000000000000000001"
+    },
+    {
+      "assetId": "AST_0000000000000000000000000T",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "generationId": "GEN_0000000000000000000000000C",
+      "id": "VER_00000000000000000000000012",
       "label": "Hero 1 — Placeholder renderer",
       "operation": "generate",
       "parentVersionId": null,
-      "projectId": "PRJ_00000000000000000000000004"
+      "projectId": "PRJ_00000000000000000000000001"
     }
   ]
 }
