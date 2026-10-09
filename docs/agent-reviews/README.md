@@ -31,4 +31,5 @@ Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend ro
 | P4-A domain | wt/p4-domain | Round 1: PHẢI SỬA (output-as-source role, mood presets drop lighting/weather, grade mutates input) → fix in wt/p4-integrate | Pending |
 | P4-B backend | wt/p4-backend | Round 1: PHẢI SỬA (parity test path misses the domain vectors, schemaVersion defaulted) → fix in wt/p4-integrate | Pending |
 | P4-C UI | wt/p4-ui | Round 1: PHẢI SỬA (no Adopt on Contact Sheet, adopt drops lighting/weather, preset select value, weather preset merge) → fix in wt/p4-integrate | Pending |
-| P4 integrate | wt/p4-integrate | Round 3: ĐẠT (round-1 and round-2 findings fixed; verify green at 671ac69) | Ready to merge |
+| P4 integrate | wt/p4-integrate | Round 3: ĐẠT; merged b2f528b | Merged |
+| WF (4B) | wt/wf-integrate | Round 1: WF-A ĐẠT; WF-B PHẢI SỬA (confirm accepts needs_review); WF-C PHẢI SỬA (Camera Director edits when locked, anchor/render still in DNA camera, cameraIds missing, reopen dialog list, Overview quick edits, vi mojibake, DNA nav group, skipped icon) | Pending |
