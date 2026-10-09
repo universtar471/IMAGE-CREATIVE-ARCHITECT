@@ -26,6 +26,7 @@
 //! | `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent without an aspect ratio (and for its ratio); `auto` omits it |
 //! | `HHTECH_IMAGE_QUALITY` | `medium` | `quality` field |
 //! | `HHTECH_CHAT_MODEL` | `claude-sonnet-5` | prompt enhancement |
+//! | `HHTECH_TIMEOUT_SECS` | `600` | per images call (30–3600); several outputs run as parallel calls |
 
 #[cfg(test)]
 mod tests;
@@ -43,10 +44,14 @@ pub const ENV_IMAGE_MODEL: &str = "HHTECH_IMAGE_MODEL";
 pub const ENV_IMAGE_SIZE: &str = "HHTECH_IMAGE_SIZE";
 pub const ENV_IMAGE_QUALITY: &str = "HHTECH_IMAGE_QUALITY";
 pub const ENV_CHAT_MODEL: &str = "HHTECH_CHAT_MODEL";
+pub const ENV_TIMEOUT_SECS: &str = "HHTECH_TIMEOUT_SECS";
 
 pub const DEFAULT_IMAGE_MODEL: &str = "gpt-image-2";
 pub const DEFAULT_IMAGE_SIZE: &str = "1024x1024";
 pub const DEFAULT_QUALITY: &str = "medium";
+/// A live 1024x1024 medium image took about 100 s through the gateway (2026-10-09); allow for
+/// a busy gateway and larger sizes.
+pub const DEFAULT_TIMEOUT_SECS: u64 = 600;
 pub const DEFAULT_CHAT_MODEL: &str = "claude-sonnet-5";
 
 const SETUP_HINT: &str = "Check HHTECH_BASE_URL (usually ends in /v1) and the model names in HHTECH_IMAGE_MODEL / \
@@ -118,6 +123,17 @@ pub fn config(env: &dyn EnvSource) -> Config {
         }
     };
 
+    let timeout_secs = match var(ENV_TIMEOUT_SECS) {
+        None => DEFAULT_TIMEOUT_SECS,
+        Some(v) => match v.parse::<u64>() {
+            Ok(secs) if (30..=3600).contains(&secs) => secs,
+            _ => {
+                problems.push(format!("{ENV_TIMEOUT_SECS} must be a number of seconds from 30 to 3600."));
+                DEFAULT_TIMEOUT_SECS
+            }
+        },
+    };
+
     // A bad optional setting blocks the provider too: silently using a default the user did
     // not ask for would bill the wrong model.
     let base_url = match (base_url, problems.into_iter().next()) {
@@ -136,6 +152,7 @@ pub fn config(env: &dyn EnvSource) -> Config {
         quality,
         chat_model: Some(chat_model),
         setup_hint: SETUP_HINT,
+        generate_timeout: std::time::Duration::from_secs(timeout_secs),
     }
 }
 
