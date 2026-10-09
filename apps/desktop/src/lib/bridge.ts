@@ -22,6 +22,13 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  WorkflowConfirmStepRequestSchema,
+  WorkflowDTOSchema,
+  WorkflowGetRequestSchema,
+  WorkflowReopenStepRequestSchema,
+  WorkflowStepStateSchema,
+  type WorkflowDTO,
+  type WorkflowStepState,
   type AppError,
   type AssetRole,
   type AssetSource,
@@ -34,6 +41,15 @@ import {
   type ProjectType,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
+
+export {
+  WorkflowConfirmStepRequestSchema,
+  WorkflowDTOSchema,
+  WorkflowGetRequestSchema,
+  WorkflowReopenStepRequestSchema,
+  WorkflowStepStateSchema,
+};
+export type { WorkflowDTO, WorkflowStepState };
 
 export const VersionDTOSchema = z.object({
   id: z.string(),
@@ -122,6 +138,9 @@ export type Requests = {
   camera_anchor_clear: { projectId: string; cameraId: string };
   grade_apply: z.infer<typeof GradeApplyRequestSchema>;
   asset_preview: AssetPreviewRequest;
+  workflow_get: z.infer<typeof WorkflowGetRequestSchema>;
+  workflow_confirm_step: z.infer<typeof WorkflowConfirmStepRequestSchema>;
+  workflow_reopen_step: z.infer<typeof WorkflowReopenStepRequestSchema>;
 };
 
 /** Response schemas per command. */
@@ -160,6 +179,9 @@ export const responses = {
   grade_apply: AssetDTOSchema,
   // Binary PNG response; consumed by assetPreview instead of the JSON call parser.
   asset_preview: z.unknown(),
+  workflow_get: WorkflowDTOSchema,
+  workflow_confirm_step: WorkflowDTOSchema,
+  workflow_reopen_step: WorkflowDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

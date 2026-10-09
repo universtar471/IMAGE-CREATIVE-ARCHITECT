@@ -269,6 +269,7 @@ export const vi: Dict = {
     historyUnavailable: "Không tải được lịch sử",
     anchorsUnavailable: "Không tải được Anchor",
     batchesUnavailable: "Không tải được Batch",
+    workflowUnavailable: "Không tải được quy trình",
     leaveUnsaved: "Một số thay đổi DNA thiết kế chưa lưu được. Rời dự án và bỏ các thay đổi này?",
     closeUnsaved:
       "Một số thay đổi DNA thiết kế không hợp lệ hoặc chưa lưu được. Vẫn đóng và bỏ các thay đổi này?",
@@ -308,7 +309,7 @@ export const vi: Dict = {
     futureTitle: "{label} — có ở Giai đoạn {phase}",
     overview: { label: "Tổng quan", description: "Tóm tắt dự án, mức sẵn sàng và xem prompt." },
     design_dna: {
-      label: "DNA thiết kế",
+      label: "Kiến trúc",
       description: "Hình khối, phong cách, vật liệu và màu sắc công trình.",
     },
     context: { label: "Bối cảnh", description: "Môi trường xung quanh khu đất theo từng hướng." },
@@ -334,6 +335,86 @@ export const vi: Dict = {
     export: {
       label: "Xuất",
       description: "Mẫu xuất cho thuyết trình, mạng xã hội và bảng ảnh.",
+    },
+  },
+
+  workflow: {
+    stepNumber: "Bước {number}/5",
+    howTo: "Cách dùng",
+    confirm: "Xác nhận & khóa bước",
+    reopen: "Mở khóa để sửa",
+    reopenConfirm: "Mở khóa bước này?",
+    reopenLater: "Các bước đã xác nhận phía sau sẽ cần kiểm tra:",
+    locked: "Hoàn thành '{step}' trước",
+    goThere: "Đến bước này",
+    needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
+    generateLabel: "Quy trình tạo ảnh",
+    generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    overviewTitle: "Quy trình theo bước",
+    open: "Mở",
+    reviewValues: "Kiểm tra các giá trị đã lưu của bước này.",
+    cameraSummary: "{cameras} góc · {anchors} Anchor",
+    masterApproved: "Master đã duyệt",
+    masterMissing: "Master chưa duyệt",
+    lights: "đèn",
+    gradeApplied: "Đã lưu thiết lập chỉnh màu",
+    stage: { dna: "DNA thiết kế", generate: "Tạo ảnh", post: "Hậu kỳ" },
+    status: {
+      locked: "Đang khóa",
+      available: "Có thể làm",
+      confirmed: "Đã xác nhận",
+      needs_review: "Cần kiểm tra",
+      done: "Đã xong",
+      skipped: "Bỏ qua",
+    },
+    steps: {
+      dna: {
+        building: {
+          name: "Kiến trúc",
+          guide:
+            "Đặt loại công trình và tính cách kiến trúc chính. Hoàn tất khi cấu trúc có thể được dùng nhất quán.",
+        },
+        context: {
+          name: "Bối cảnh",
+          guide:
+            "Mô tả khu đất, môi trường và các hướng quan trọng. Hoàn tất khi khung cảnh xung quanh đã rõ.",
+        },
+        references: {
+          name: "Tham chiếu",
+          guide:
+            "Nhập ảnh tham chiếu và chọn Master nếu có. Hoàn tất khi vai trò từng ảnh đã có chủ đích.",
+        },
+        camera: {
+          name: "Góc máy",
+          guide:
+            "Đặt góc nhìn, tiêu cự và bố cục. Hoàn tất khi các góc sẵn sàng render, kể cả 0 góc.",
+        },
+        lighting: {
+          name: "Ánh sáng",
+          guide:
+            "Đặt ánh sáng ngày, thời tiết và đèn nhân tạo. Hoàn tất khi giờ, bóng và không khí đã rõ.",
+        },
+      },
+      generate: {
+        master: {
+          name: "Ảnh Master",
+          guide: "Tạo và duyệt ảnh Master trước khi tạo Anchor hoặc biến thể.",
+        },
+        anchors: {
+          name: "Anchor",
+          guide: "Tạo và duyệt một Anchor cho mỗi góc Anchor, hoặc bỏ qua nếu không có góc.",
+        },
+        render: {
+          name: "Render các góc máy",
+          guide: "Render các góc đã định nghĩa sau khi Master và Anchor cần thiết đã sẵn sàng.",
+        },
+      },
+      post: {
+        grade: {
+          name: "Mood / Chỉnh màu",
+          guide: "Áp dụng mood hoặc chỉnh màu cho ảnh đã duyệt.",
+        },
+      },
     },
   },
 
@@ -532,6 +613,9 @@ export const vi: Dict = {
     lockTitle: "Khóa phần DNA này",
     locked: "Đã khóa",
     lock: "Khóa",
+    pinTitle: "Giữ nguyên phần này khi áp preset hoặc tạo biến thể",
+    pinned: "Đã ghim",
+    pin: "Ghim",
   },
 
   context: {
@@ -824,6 +908,11 @@ export const vi: Dict = {
   },
 
   camera: {
+    elevationHint: "Độ nghiêng trên hoặc dưới đường chân trời.",
+    heightHint: "Độ cao máy ảnh so với mặt đất, tính bằng mét.",
+    lensHint: "24 mm rộng · 35 mm tự nhiên · 50 mm tiêu chuẩn · 85 mm chi tiết.",
+    aspectHint: "Hình dạng khung đầu ra của góc máy này.",
+    compositionHint: "Mô tả vị trí chủ thể, cân bằng và các cạnh chính.",
     prompt: "Prompt góc máy",
     selectHint: "Chọn một góc máy trong danh sách hoặc trên sơ đồ.",
     reasonArchived: "Dự án đã lưu trữ chỉ xem, không sửa.",
@@ -883,6 +972,7 @@ export const vi: Dict = {
   },
 
   lighting: {
+    fieldHint: "Nêu rõ kết quả thị giác mong muốn để prompt cụ thể.",
     section: "Ánh sáng",
     timeOfDay: "Thời điểm trong ngày",
     sunDirection: "Hướng mặt trời",
@@ -946,6 +1036,7 @@ export const vi: Dict = {
     variations: "Biến thể mood",
     choosePresets: "Chọn 2–8 dựng sẵn",
     adopt: "Dùng mood này",
+    confirmLightingChange: "Thao tác này cập nhật Ánh sáng/Thời tiết đã xác nhận. Tiếp tục?",
     source: "Ảnh nguồn",
     locked: "Phần này đang bị khóa",
     noImage: "Chọn một ảnh để xem trước chỉnh màu.",

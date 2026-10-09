@@ -28,7 +28,7 @@ import {
 import { call, setTransport } from "../src/lib/bridge";
 import { knowledge } from "../src/lib/knowledge";
 import { createMockTransport, MOCK_PROVIDERS } from "../src/lib/mockBackend";
-import { asset } from "./helpers";
+import { asset, confirmAllDna } from "./helpers";
 
 const cam = (over: Partial<CameraDNA> = {}): CameraDNA => ({
   ...blankCamera(),
@@ -149,6 +149,7 @@ async function bundleWithCameras(): Promise<ProjectBundle> {
   ] as const)
     db.assets[id] = asset(p.id, id, { role });
   db.projects[p.id]!.activeMasterAssetId = "AST_M";
+  await confirmAllDna(p.id, { approveMaster: true });
   const cameras = [
     cam({
       id: newCameraId(),

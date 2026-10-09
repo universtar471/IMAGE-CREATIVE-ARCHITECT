@@ -41,6 +41,12 @@ describe("dictionaries", () => {
     for (const [key, value] of viLeaves) expect(value.trim(), `vi ${key}`).not.toBe("");
   });
 
+  it("contains no common mojibake sequences in Vietnamese strings", () => {
+    for (const { key, value } of leaves(vi)) {
+      expect(value, `vi ${key}`).not.toMatch(/Ã|Æ°|áº|á»/);
+    }
+  });
+
   it("keep every {placeholder} of English in Vietnamese", () => {
     for (const l of enLeaves) {
       const want = placeholders(l.value);
@@ -58,6 +64,13 @@ describe("dictionaries", () => {
 });
 
 describe("translate", () => {
+  it("uses the architecture label for the first DNA step in both locales", () => {
+    expect(translate("en", "modules.design_dna.label")).toBe("Architecture");
+    expect(translate("vi", "modules.design_dna.label")).toBe("Kiến trúc");
+    expect(translate("en", "workflow.stage.dna")).toBe("Design DNA");
+    expect(translate("vi", "workflow.stage.dna")).toBe("DNA thiết kế");
+  });
+
   it("fills placeholders and picks plural forms by count", () => {
     expect(translate("en", "common.images", { count: 1 })).toBe("1 image");
     expect(translate("en", "common.images", { count: 3 })).toBe("3 images");

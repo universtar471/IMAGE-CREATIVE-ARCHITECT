@@ -1,8 +1,21 @@
 /** Shared test helpers for the desktop UI tests (mock backend + store). */
-import type { AssetDTO, GenerationDTO } from "@arch/domain";
+import { DNA_STEP_IDS, type AssetDTO, type GenerationDTO } from "@arch/domain";
 import { call, type Transport } from "../src/lib/bridge";
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Establish the workflow state required by legacy generation/queue fixtures. */
+export async function confirmAllDna(
+  projectId: string,
+  options: { approveMaster?: boolean } = {},
+): Promise<void> {
+  for (const stepId of DNA_STEP_IDS) {
+    await call("workflow_confirm_step", { projectId, stepId });
+  }
+  if (options.approveMaster) {
+    await call("project_approve_master", { projectId, approved: true });
+  }
+}
 
 /** Poll `cond` until it is truthy (real timers). Throws with `what` on timeout. */
 export async function waitFor<T>(

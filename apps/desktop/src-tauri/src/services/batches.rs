@@ -167,10 +167,10 @@ mod tests {
     use crate::domain::{GenerationPurpose, JobStatus};
     use crate::error::ErrorCode;
     use crate::services::tests_support::{
-        queue_harness, run_queue, set_cameras, test_create_villa, test_import, QueueHarness, CAM_A, CAM_B,
-        TEST_LOCAL_PROVIDER, TEST_PROVIDER,
+        approve_master_for_generation, queue_harness, run_queue, set_cameras, test_create_villa, test_import,
+        QueueHarness, CAM_A, CAM_B, TEST_LOCAL_PROVIDER, TEST_PROVIDER,
     };
-    use crate::services::{generations, provider_settings};
+    use crate::services::{generations, projects, provider_settings};
 
     fn item(label: &str, camera: Option<&str>, refs: &[&str]) -> Value {
         json!({ "cameraId": camera, "label": label, "referenceAssetIds": refs,
@@ -197,6 +197,7 @@ mod tests {
         let p = test_create_villa(&h.core, "Batch villa");
         set_cameras(&h.core, &p.id, &[(CAM_A, "Front corner", true), (CAM_B, "Rear", true)]);
         let master = test_import(&h.core, h.tmp.path(), &p.id, "m.png", "master_architecture");
+        projects::approve_master(&h.core, &p.id, true).unwrap();
         let req = request(
             &p.id,
             TEST_LOCAL_PROVIDER,
@@ -228,6 +229,7 @@ mod tests {
     fn camera_removed_after_validation_rejects_the_whole_batch() {
         let h = queue_harness();
         let p = test_create_villa(&h.core, "Batch villa");
+        approve_master_for_generation(&h.core, &p.id);
         set_cameras(&h.core, &p.id, &[(CAM_A, "Front", true), (CAM_B, "Rear", true)]);
         let weak = std::sync::Arc::downgrade(&h.core);
         let pid = p.id.clone();
@@ -249,6 +251,7 @@ mod tests {
         let h = queue_harness();
         provider_settings::set_api_key(&h.core, TEST_PROVIDER, "k").unwrap();
         let p = test_create_villa(&h.core, "Batch villa");
+        approve_master_for_generation(&h.core, &p.id);
         set_cameras(&h.core, &p.id, &[(CAM_A, "Front", true)]);
         let ok = || item("ok", Some(CAM_A), &[]);
         let cases: Vec<(&str, Vec<Value>, ErrorCode)> = vec![
@@ -296,6 +299,7 @@ mod tests {
     fn items_fail_and_succeed_independently() {
         let h = queue_harness();
         let p = test_create_villa(&h.core, "Batch villa");
+        approve_master_for_generation(&h.core, &p.id);
         let b = create(&h.core, request(&p.id, TEST_LOCAL_PROVIDER, vec![item("a", None, &[]), item("b", None, &[])]))
             .unwrap();
         queue::cancel(&h.core, &b.job_ids[0]).unwrap();

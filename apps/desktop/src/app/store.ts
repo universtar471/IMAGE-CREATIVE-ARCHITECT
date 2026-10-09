@@ -23,6 +23,7 @@ import {
   type BatchDTO,
   type CameraAnchorDTO,
   type CameraDNA,
+  type DnaStepId,
   type GenerationDTO,
   type GenerationParams,
   type GenerationPurpose,
@@ -41,7 +42,9 @@ import {
   providerNeedingKey,
   subscribe,
   toBridgeError,
+  type WorkflowDTO,
 } from "../lib/bridge";
+import { deriveWorkflow, type DerivedWorkflow } from "../lib/workflow";
 import { setIn } from "../lib/path";
 import { t } from "../i18n";
 import { errorHeadline } from "../i18n/domain";
@@ -69,7 +72,7 @@ export type Toast = {
   title?: string;
 };
 
-type WorkspaceData = {
+export type WorkspaceData = {
   project: ProjectDTO;
   persistedDna: ProjectDNA;
   draftDna: ProjectDNA;
@@ -80,6 +83,7 @@ type WorkspaceData = {
   anchors: CameraAnchorDTO[];
   /** Batches of this project, newest first. */
   batches: BatchDTO[];
+  workflow?: WorkflowDTO;
 };
 
 /**
@@ -153,6 +157,7 @@ type State = {
   run: GenerationRun | null;
   /** Jobs of every project (job_list(null) + events), newest first. */
   jobs: JobDTO[];
+  workflowView: DerivedWorkflow | null;
 
   openProject: (projectId: string) => Promise<void>;
   goToHub: () => Promise<void>;
@@ -205,6 +210,9 @@ type State = {
   showContactSheet: (batchId: string | null) => void;
   setAnchor: (cameraId: string, assetId: string) => Promise<boolean>;
   clearAnchor: (cameraId: string) => Promise<boolean>;
+  refreshWorkflow: () => Promise<void>;
+  confirmWorkflowStep: (stepId: DnaStepId) => Promise<boolean>;
+  reopenWorkflowStep: (stepId: DnaStepId) => Promise<boolean>;
   /** Apply one backend event (also used by tests). */
   applyJobEvent: (job: JobDTO) => void;
   applyGenerationEvent: (g: GenerationDTO) => void;
@@ -342,6 +350,7 @@ export const useStudio = create<State>((set, get) => {
     generateDraft: EMPTY_GENERATE_DRAFT,
     run: null,
     jobs: [],
+    workflowView: null,
 
     openProject: async (projectId) => {
       set({
@@ -356,6 +365,7 @@ export const useStudio = create<State>((set, get) => {
         contactBatchId: null,
         save: SAVED,
         generateDraft: EMPTY_GENERATE_DRAFT,
+        workflowView: null,
       });
       if (!get().providers) void get().loadProviders();
       const stillWanted = () => {
@@ -371,7 +381,7 @@ export const useStudio = create<State>((set, get) => {
         // A generation event during the load means the snapshot may predate it: reload.
         for (let attemptNo = 0; ; attemptNo++) {
           const revision = eventRevision.get(projectId) ?? 0;
-          const [bundle, generations, anchors, batches] = await Promise.all([
+          const [bundle, generations, anchors, batches, workflow] = await Promise.all([
             call("project_get", { projectId }),
             // Secondary data must not block opening the project.
             secondary(
@@ -381,6 +391,9 @@ export const useStudio = create<State>((set, get) => {
             ),
             secondary(t("store.anchorsUnavailable"), call("camera_anchor_list", { projectId }), []),
             secondary(t("store.batchesUnavailable"), call("batch_list", { projectId }), []),
+            secondary(t("store.workflowUnavailable"), call("workflow_get", { projectId }), {
+              steps: [],
+            }),
           ]);
           if (!stillWanted()) return;
           if ((eventRevision.get(projectId) ?? 0) !== revision && attemptNo < 3) continue;
@@ -393,10 +406,21 @@ export const useStudio = create<State>((set, get) => {
               generations: [...generations].sort(byNewest),
               anchors,
               batches,
+              workflow,
             },
             selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
             selectedCameraId: bundle.dna.cameras[0]?.id ?? null,
             workspaceLoading: false,
+            workflowView: deriveWorkflow(workflow.steps, {
+              masterApproved: ["master_approved", "anchor_generation", "production"].includes(
+                bundle.project.status,
+              ),
+              anchorCameraIds: bundle.dna.cameras
+                .filter((camera) => camera.isAnchorView)
+                .map((camera) => camera.id),
+              cameraIds: bundle.dna.cameras.map((camera) => camera.id),
+              approvedAnchorCameraIds: anchors.map((anchor) => anchor.cameraId),
+            }),
           });
           return;
         }
@@ -412,7 +436,7 @@ export const useStudio = create<State>((set, get) => {
         const proceed = window.confirm(t("store.leaveUnsaved"));
         if (!proceed) return;
       }
-      set({ route: { name: "hub" }, workspace: null, save: SAVED });
+      set({ route: { name: "hub" }, workspace: null, save: SAVED, workflowView: null });
     },
 
     setModule: (id) => {
@@ -494,6 +518,7 @@ export const useStudio = create<State>((set, get) => {
             const after = get().workspace;
             if (anchors && after?.project.id === project.id)
               set({ workspace: { ...after, anchors } });
+            void get().refreshWorkflow();
           }
           return !stillDirty;
         } catch (err) {
@@ -825,6 +850,7 @@ export const useStudio = create<State>((set, get) => {
         if (ws && ws.project.id === projectId) set({ workspace: { ...ws, anchors } });
         const { project } = await call("project_get", { projectId });
         get().adoptProject(project);
+        void get().refreshWorkflow();
         return true;
       } catch (err) {
         get().notifyError(err);
@@ -841,6 +867,65 @@ export const useStudio = create<State>((set, get) => {
         if (ws && ws.project.id === projectId) set({ workspace: { ...ws, anchors } });
         const { project } = await call("project_get", { projectId });
         get().adoptProject(project);
+        void get().refreshWorkflow();
+        return true;
+      } catch (err) {
+        get().notifyError(err);
+        return false;
+      }
+    },
+
+    refreshWorkflow: async () => {
+      const projectId = get().workspace?.project.id;
+      if (!projectId) return;
+      try {
+        const workflow = await call("workflow_get", { projectId });
+        const ws = get().workspace;
+        if (!ws || ws.project.id !== projectId) return;
+        const masterApproved = ["master_approved", "anchor_generation", "production"].includes(
+          ws.project.status,
+        );
+        set({
+          workspace: { ...ws, workflow },
+          workflowView: deriveWorkflow(workflow.steps, {
+            masterApproved,
+            anchorCameraIds: ws.draftDna.cameras
+              .filter((camera) => camera.isAnchorView)
+              .map((camera) => camera.id),
+            cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
+            approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
+          }),
+        });
+      } catch (err) {
+        get().notifyError(err);
+      }
+    },
+
+    confirmWorkflowStep: async (stepId) => {
+      const projectId = get().workspace?.project.id;
+      if (!projectId) return false;
+      try {
+        const workflow = await call("workflow_confirm_step", { projectId, stepId });
+        const ws = get().workspace;
+        if (!ws || ws.project.id !== projectId) return false;
+        set({ workspace: { ...ws, workflow } });
+        await get().refreshWorkflow();
+        return true;
+      } catch (err) {
+        get().notifyError(err);
+        return false;
+      }
+    },
+
+    reopenWorkflowStep: async (stepId) => {
+      const projectId = get().workspace?.project.id;
+      if (!projectId) return false;
+      try {
+        const workflow = await call("workflow_reopen_step", { projectId, stepId });
+        const ws = get().workspace;
+        if (!ws || ws.project.id !== projectId) return false;
+        set({ workspace: { ...ws, workflow } });
+        await get().refreshWorkflow();
         return true;
       } catch (err) {
         get().notifyError(err);

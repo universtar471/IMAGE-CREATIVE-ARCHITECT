@@ -493,8 +493,8 @@ mod tests {
     use crate::error::ErrorCode;
     use crate::providers::local_preview;
     use crate::services::tests_support::{
-        open_queue_core, queue_harness, run_queue, test_create_villa, test_import, test_request, QueueHarness,
-        TestBehavior, TestProvider, TEST_LOCAL_PROVIDER, TEST_PROVIDER,
+        approve_master_for_generation, open_queue_core, queue_harness, run_queue, test_create_villa, test_import,
+        test_request, QueueHarness, TestBehavior, TestProvider, TEST_LOCAL_PROVIDER, TEST_PROVIDER,
     };
     use crate::services::{assets, batches, generations, provider_settings};
 
@@ -568,6 +568,7 @@ mod tests {
     #[test]
     fn picks_highest_priority_then_oldest() {
         let (h, pid) = setup();
+        approve_master_for_generation(&h.core, &pid);
         let first = remote(&h, &pid);
         let batch = |name: &str, priority: i64, labels: &[&str]| {
             let items: Vec<serde_json::Value> = labels.iter().map(|l| batch_item(l)).collect();

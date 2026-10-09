@@ -1,5 +1,18 @@
-import { AlertTriangle, ImageOff, KeyRound, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import {
+  AlertTriangle,
+  Anchor,
+  Clapperboard,
+  ImageOff,
+  KeyRound,
+  LayoutGrid,
+  Minus,
+  RotateCcw,
+  Settings2,
+  Sparkles,
+} from "lucide-react";
+import { useState } from "react";
+import {
+  anchorViews,
   costHintText,
   dnaReadiness,
   type AssetDTO,
@@ -20,6 +33,10 @@ import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
 import { QualityField } from "./QualityField";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
+import { isGenerationAllowed } from "../../lib/workflow";
+import { BatchDialog } from "../camera/BatchDialog";
+import type { BatchMode } from "../camera/batch";
+import { isMasterApproved } from "../camera/labels";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -35,6 +52,7 @@ export function GeneratePanel() {
   const submit = useStudio((s) => s.submitGeneration);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const setModule = useStudio((s) => s.setModule);
+  const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
 
@@ -63,6 +81,21 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
+  const workflowGate = form.purpose
+    ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
+        masterApproved: ["master_approved", "anchor_generation", "production"].includes(
+          project.status,
+        ),
+        anchorCameraIds: ws.draftDna.cameras
+          .filter((camera) => camera.isAnchorView)
+          .map((camera) => camera.id),
+        cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
+        approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
+      })
+    : { ok: true as const };
+  const disabledReason =
+    reason ??
+    (workflowGate.ok ? null : t("workflow.generationBlocked", { step: workflowGate.blockedBy }));
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
@@ -87,6 +120,8 @@ export function GeneratePanel() {
 
   return (
     <div className="generate-panel">
+      <GenerationStepper />
+      <GenerationActions onOpen={setBatchMode} />
       <ProviderSection form={form} disabled={running} />
       {form.model && (
         <OutputSection
@@ -155,7 +190,7 @@ export function GeneratePanel() {
         )}
         <button
           className="btn btn-primary generate-btn"
-          disabled={reason !== null}
+          disabled={disabledReason !== null}
           onClick={generate}
           data-testid="generate-button"
         >
@@ -168,12 +203,113 @@ export function GeneratePanel() {
             {cost}
           </span>
         )}
-        {reason && (
+        {disabledReason && (
           <span className="field-hint" data-testid="generate-disabled-reason">
-            {reason}
+            {disabledReason}
           </span>
         )}
       </div>
+      {batchMode && <BatchDialog mode={batchMode} onClose={() => setBatchMode(null)} />}
+    </div>
+  );
+}
+
+function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
+  const ws = useStudio((s) => s.workspace!);
+  const readOnly = useStudio(selectReadOnly);
+  const showContactSheet = useStudio((s) => s.showContactSheet);
+  const t = useT();
+  const facts = {
+    masterApproved: isMasterApproved(ws.project.status),
+    anchorCameraIds: ws.draftDna.cameras
+      .filter((camera) => camera.isAnchorView)
+      .map((camera) => camera.id),
+    cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
+    approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
+  };
+  const anchorGate = isGenerationAllowed("anchor", ws.workflow?.steps ?? [], facts);
+  const renderGate = isGenerationAllowed("production", ws.workflow?.steps ?? [], facts);
+  const reason = (gate: typeof anchorGate) =>
+    readOnly
+      ? t("camera.reasonArchived")
+      : gate.ok
+        ? null
+        : t("workflow.generationBlocked", { step: gate.blockedBy });
+  const anchorReason = reason(anchorGate);
+  const renderReason = reason(renderGate);
+  const anchorViewsCount = anchorViews(ws.draftDna).length;
+  return (
+    <SectionPanel title={t("camera.workflow")}>
+      <div className="btn-row">
+        <button
+          className="btn btn-sm btn-primary"
+          disabled={anchorReason !== null}
+          onClick={() => onOpen("anchor")}
+          data-testid="generate-anchors"
+        >
+          <Anchor size={13} /> {t("camera.generateAnchors")}
+        </button>
+        <button
+          className="btn btn-sm"
+          disabled={renderReason !== null}
+          onClick={() => onOpen("production")}
+          data-testid="render-cameras"
+        >
+          <Clapperboard size={13} /> {t("camera.renderCameras")}
+        </button>
+        <button
+          className="btn btn-sm"
+          disabled={ws.batches.length === 0}
+          onClick={() => showContactSheet(null)}
+        >
+          <LayoutGrid size={13} /> {t("camera.contactSheet")}
+        </button>
+      </div>
+      {(anchorReason ?? renderReason) ? (
+        <span className="field-hint" data-testid="anchor-disabled-reason">
+          {anchorReason ?? renderReason}
+        </span>
+      ) : anchorViewsCount === 0 ? (
+        <span className="field-hint">{t("workflow.steps.generate.anchors.guide")}</span>
+      ) : (
+        <span className="field-hint">{t("camera.approveHint")}</span>
+      )}
+    </SectionPanel>
+  );
+}
+
+function GenerationStepper() {
+  const workflow = useStudio((s) => s.workflowView);
+  const setModule = useStudio((s) => s.setModule);
+  const t = useT();
+  const steps = ["generate.master", "generate.anchors", "generate.render"] as const;
+  return (
+    <div className="workflow-stepper" aria-label={t("workflow.generateLabel")}>
+      {steps.map((id) => {
+        const step = workflow?.steps.find((item) => item.id === id);
+        const status = step?.status ?? "locked";
+        return (
+          <button
+            type="button"
+            className={`workflow-stepper-item workflow-stepper-${status}`}
+            key={id}
+            onClick={() => setModule("generate")}
+            title={t(`workflow.status.${status}`)}
+          >
+            <span>
+              {t(
+                `workflow.steps.${id === "generate.master" ? "generate.master" : id === "generate.anchors" ? "generate.anchors" : "generate.render"}.name`,
+              )}
+            </span>
+            <small>
+              {status === "skipped" && (
+                <Minus size={12} aria-label={t("workflow.status.skipped")} />
+              )}
+              {t(`workflow.status.${status}`)}
+            </small>
+          </button>
+        );
+      })}
     </div>
   );
 }

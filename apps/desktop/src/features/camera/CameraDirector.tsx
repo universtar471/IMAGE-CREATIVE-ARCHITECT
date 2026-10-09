@@ -27,6 +27,10 @@ export function CameraDirector() {
   const selectCamera = useStudio((s) => s.selectCamera);
   const setCameras = useStudio((s) => s.setCameras);
   const readOnly = useStudio(selectReadOnly);
+  const cameraWorkflow = useStudio((s) =>
+    s.workflowView?.steps.find((step) => step.id === "dna.camera"),
+  );
+  const workflowReadOnly = cameraWorkflow ? cameraWorkflow.status !== "available" : false;
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{ id: string; extent: number } | null>(null);
   const t = useT();
@@ -120,17 +124,17 @@ export function CameraDirector() {
             unit={unit}
             selected={c.id === selectedId}
             anchored={anchors.some((a) => a.cameraId === c.id)}
-            readOnly={readOnly}
+            readOnly={readOnly || workflowReadOnly}
             t={t}
             onSelect={() => selectCamera(c.id)}
             onDragStart={(e) => {
               selectCamera(c.id);
-              if (readOnly) return;
+              if (readOnly || workflowReadOnly) return;
               (e.target as Element).setPointerCapture?.(e.pointerId);
               setDrag({ id: c.id, extent });
             }}
             onKey={(e) => {
-              if (readOnly) return;
+              if (readOnly || workflowReadOnly) return;
               const p = placements[i]!;
               const next = nudge(p, e.key, e.shiftKey);
               if (!next) return;

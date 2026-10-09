@@ -132,7 +132,8 @@ mod tests {
     use crate::domain::ProjectStatus;
     use crate::error::ErrorCode;
     use crate::services::tests_support::{
-        core, set_cameras, test_create_villa, test_import, test_request, CAM_A, CAM_B, CAM_C, TEST_LOCAL_PROVIDER,
+        approve_master_for_generation, core, set_cameras, test_create_villa, test_import, test_request, CAM_A, CAM_B,
+        CAM_C, TEST_LOCAL_PROVIDER,
     };
     use crate::services::{assets, generations, projects};
 
@@ -264,6 +265,7 @@ mod tests {
     fn submit_checks_the_camera_and_labels_the_job_with_it() {
         let (_tmp, core) = core();
         let p = test_create_villa(&core, "A");
+        approve_master_for_generation(&core, &p.id);
         set_cameras(&core, &p.id, &[(CAM_A, "Front corner", true)]);
         let err =
             generations::submit(&core, test_request(&p.id, TEST_LOCAL_PROVIDER, "full", &[], Some(CAM_B))).unwrap_err();

@@ -1,4 +1,5 @@
 import { Archive } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
 import { CameraPanel } from "../../features/camera/CameraPanel";
@@ -11,6 +12,7 @@ import { FutureModulePlaceholder } from "../common/states";
 import { useT } from "../../i18n";
 import { LightingPanel } from "../../features/lighting/LightingPanel";
 import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
+import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
@@ -19,6 +21,11 @@ export function PropertyPanel() {
   const mod = moduleById(active);
   const t = useT();
   const label = t(`modules.${mod.id}.label`);
+  const panelBody = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (panelBody.current) panelBody.current.scrollTop = 0;
+  }, [active]);
 
   return (
     <aside className="panel" aria-label={t("workspace.properties")}>
@@ -29,20 +36,44 @@ export function PropertyPanel() {
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
       </div>
-      <div className="panel-body">
+      <div className="panel-body" ref={panelBody}>
         {readOnly && (
           <div className="readonly-banner">
             <Archive size={14} /> {t("workspace.readOnly")}
           </div>
         )}
         {active === "overview" && <OverviewPanel />}
-        {active === "design_dna" && <BuildingDnaPanel />}
-        {active === "context" && <ContextDnaPanel />}
-        {active === "references" && <AssetPropertyPanel />}
+        {active === "design_dna" && (
+          <StepFrame stepId="dna.building">
+            <BuildingDnaPanel />
+          </StepFrame>
+        )}
+        {active === "context" && (
+          <StepFrame stepId="dna.context">
+            <ContextDnaPanel />
+          </StepFrame>
+        )}
+        {active === "references" && (
+          <StepFrame stepId="dna.references">
+            <AssetPropertyPanel />
+          </StepFrame>
+        )}
         {active === "generate" && <GeneratePanel />}
-        {active === "camera" && <CameraPanel />}
-        {active === "lighting" && <LightingPanel />}
-        {active === "mood_grade" && <MoodGradePanel />}
+        {active === "camera" && (
+          <StepFrame stepId="dna.camera">
+            <CameraPanel />
+          </StepFrame>
+        )}
+        {active === "lighting" && (
+          <StepFrame stepId="dna.lighting">
+            <LightingPanel />
+          </StepFrame>
+        )}
+        {active === "mood_grade" && (
+          <PostStepFrame>
+            <MoodGradePanel />
+          </PostStepFrame>
+        )}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

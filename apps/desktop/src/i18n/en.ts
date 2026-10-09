@@ -273,6 +273,7 @@ export const en = {
     historyUnavailable: "History unavailable",
     anchorsUnavailable: "Anchors unavailable",
     batchesUnavailable: "Batches unavailable",
+    workflowUnavailable: "Workflow unavailable",
     leaveUnsaved: "Some Design DNA changes could not be saved. Leave the project and discard them?",
     closeUnsaved:
       "Some Design DNA changes are invalid or could not be saved. Close anyway and discard them?",
@@ -310,7 +311,10 @@ export const en = {
     navLabel: "Workspace modules",
     futureTitle: "{label} — coming in Phase {phase}",
     overview: { label: "Overview", description: "Project summary, readiness and prompt preview." },
-    design_dna: { label: "Design DNA", description: "Building form, style, materials and colors." },
+    design_dna: {
+      label: "Architecture",
+      description: "Building form, style, materials and colors.",
+    },
     context: { label: "Context", description: "Site surroundings by direction." },
     references: {
       label: "References",
@@ -331,6 +335,84 @@ export const en = {
     export: {
       label: "Export",
       description: "Presentation, social and contact-sheet export presets.",
+    },
+  },
+
+  workflow: {
+    stepNumber: "Step {number}/5",
+    howTo: "How to use",
+    confirm: "Confirm & lock step",
+    reopen: "Unlock to edit",
+    reopenConfirm: "Unlock this step?",
+    reopenLater: "Later confirmed steps will need review:",
+    locked: "Complete '{step}' first",
+    goThere: "Go there",
+    needsReview: "An earlier step changed — review and confirm again.",
+    generateLabel: "Image workflow",
+    generationBlocked: "Finish workflow step '{step}' before generating.",
+    overviewTitle: "Guided workflow",
+    open: "Open",
+    reviewValues: "Review the saved values for this step.",
+    cameraSummary: "{cameras} views · {anchors} Anchors",
+    masterApproved: "Master approved",
+    masterMissing: "Master not approved",
+    lights: "lights",
+    gradeApplied: "Grade settings saved",
+    stage: { dna: "Design DNA", generate: "Create images", post: "Post-production" },
+    status: {
+      locked: "Locked",
+      available: "Available",
+      confirmed: "Confirmed",
+      needs_review: "Needs review",
+      done: "Done",
+      skipped: "Skipped",
+    },
+    steps: {
+      dna: {
+        building: {
+          name: "Building",
+          guide:
+            "Set the building type and the main architectural character. Done means the structure can be referenced consistently.",
+        },
+        context: {
+          name: "Context",
+          guide:
+            "Describe the site, surroundings and key directions. Done means the scene has a clear environmental setting.",
+        },
+        references: {
+          name: "References",
+          guide:
+            "Import useful images and choose the optional Master image. Done means reference roles are intentional.",
+        },
+        camera: {
+          name: "Camera",
+          guide:
+            "Define the views, lens and composition. Done means each view is ready to render, even with zero cameras.",
+        },
+        lighting: {
+          name: "Lighting",
+          guide:
+            "Set daylight, weather and artificial lights. Done means the intended time, shadows and atmosphere are explicit.",
+        },
+      },
+      generate: {
+        master: {
+          name: "Master image",
+          guide: "Create and approve the Master image before making anchors or variations.",
+        },
+        anchors: {
+          name: "Anchors",
+          guide:
+            "Create and approve one Anchor for every Anchor-view camera, or skip when there are none.",
+        },
+        render: {
+          name: "Camera renders",
+          guide: "Render the defined camera views after the Master and required Anchors are ready.",
+        },
+      },
+      post: {
+        grade: { name: "Mood / Grade", guide: "Apply a mood or color grade to approved imagery." },
+      },
     },
   },
 
@@ -528,6 +610,9 @@ export const en = {
     lockTitle: "Lock this DNA section",
     locked: "Locked",
     lock: "Lock",
+    pinTitle: "Keep this section unchanged when applying a preset or creating a variation",
+    pinned: "Pinned",
+    pin: "Pin",
   },
 
   context: {
@@ -858,12 +943,17 @@ export const en = {
     azimuth: "Azimuth",
     azimuthHint: "0 = front, + = clockwise",
     elevation: "Elevation",
+    elevationHint: "Tilt above or below the horizon.",
     height: "Height",
+    heightHint: "Camera height above ground in metres.",
     distance: "Distance",
     distanceHint: "From the building centre",
     lens: "Lens",
+    lensHint: "24 mm wide · 35 mm natural · 50 mm standard · 85 mm detail.",
     aspectRatio: "Aspect ratio",
+    aspectHint: "Output frame shape for this view.",
     composition: "Composition",
+    compositionHint: "Describe subject placement, balance and key edges.",
     compositionPlaceholder: "e.g. rule of thirds, entrance on the left third",
     notes: "Notes",
     notSetYet: "Not set yet: {list}. The prompt describes only what is set.",
@@ -877,6 +967,7 @@ export const en = {
   },
 
   lighting: {
+    fieldHint: "State the intended visual result so prompts stay concrete.",
     section: "Lighting",
     timeOfDay: "Time of day",
     sunDirection: "Sun direction",
@@ -940,6 +1031,7 @@ export const en = {
     variations: "Mood variations",
     choosePresets: "Choose 2–8 presets",
     adopt: "Adopt this mood",
+    confirmLightingChange: "This updates confirmed Lighting/Weather. Continue?",
     source: "Source image",
     locked: "This section is locked",
     noImage: "Select an image to preview the grade.",

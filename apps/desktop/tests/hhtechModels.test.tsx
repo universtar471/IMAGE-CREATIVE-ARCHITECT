@@ -7,14 +7,14 @@ import { EMPTY_GENERATE_DRAFT, useStudio } from "../src/app/store";
 import { GeneratePanel } from "../src/features/generate/GeneratePanel";
 import { BridgeError, call, setTransport } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDERS } from "../src/lib/mockBackend";
+import { asset, confirmAllDna } from "./helpers";
+
+type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
+let db: Db;
 
 beforeEach(() => {
-  setTransport(
-    createMockTransport(
-      { projects: {}, dna: {}, assets: {}, versions: [] },
-      { generationDelayMs: 0 },
-    ),
-  );
+  db = { projects: {}, dna: {}, assets: {}, versions: [] };
+  setTransport(createMockTransport(db, { generationDelayMs: 0 }));
   useStudio.setState({
     route: { name: "hub" },
     workspace: null,
@@ -40,6 +40,10 @@ async function openWithHhtech() {
     subtype: "tropical",
     starter: { floors: 2 },
   });
+  const masterId = `AST_M_${p.id}`;
+  db.assets[masterId] = asset(p.id, masterId, { role: "master_architecture" });
+  await call("asset_set_master", { projectId: p.id, assetId: masterId });
+  await confirmAllDna(p.id, { approveMaster: true });
   await call("provider_set_api_key", { providerId: "hhtech", apiKey: "k" });
   await useStudio.getState().openProject(p.id);
   await useStudio.getState().loadProviders();

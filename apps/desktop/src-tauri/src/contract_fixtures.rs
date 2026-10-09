@@ -30,7 +30,7 @@ use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
 };
-use crate::services::{projects, provider_settings, queue, AppCore};
+use crate::services::{projects, provider_settings, queue, workflow, AppCore};
 
 const ULID_CHARS: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -183,6 +183,19 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
 
     // Project with a master (approved) and cameras: A and B are anchor views, C is not.
     let p = test_create_villa(&core, "Fixture villa");
+    rec.record("workflow_get", "workflow_get", &workflow::get(&core, &p.id).unwrap());
+    rec.record("workflow_reopen_step", "workflow_reopen_step", &workflow::reopen(&core, &p.id, "dna.context").unwrap());
+    workflow::confirm(&core, &p.id, "dna.context").unwrap();
+    workflow::reopen(&core, &p.id, "dna.references").unwrap();
+    workflow::confirm(&core, &p.id, "dna.references").unwrap();
+    workflow::reopen(&core, &p.id, "dna.camera").unwrap();
+    workflow::confirm(&core, &p.id, "dna.camera").unwrap();
+    workflow::reopen(&core, &p.id, "dna.lighting").unwrap();
+    rec.record(
+        "workflow_confirm_step",
+        "workflow_confirm_step",
+        &workflow::confirm(&core, &p.id, "dna.lighting").unwrap(),
+    );
     let master = assets::import(
         &core,
         ImportRequest {
