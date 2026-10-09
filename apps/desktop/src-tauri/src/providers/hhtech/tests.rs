@@ -71,6 +71,63 @@ fn assert_key_free(error: &ProviderError) {
     assert!(!format!("{error:?}").contains(KEY));
 }
 
+// ---------------------------------------------------------------- several outputs
+
+fn request_n(n: u32) -> ProviderRequest {
+    let mut r = request(vec![]);
+    r.params.output_count = n;
+    r
+}
+
+#[test]
+fn several_outputs_run_as_parallel_single_image_calls() {
+    let mut server = serve(vec![b64_reply(&[b"png-a"]), b64_reply(&[b"png-b"])]);
+    let out = gateway(&server, &[]).generate(&request_n(2)).unwrap();
+    assert_eq!(out.images.len(), 2);
+    assert_eq!(out.meta["requested"], 2);
+    assert_eq!(out.meta["returned"], 2);
+    assert!(out.meta.get("failedCalls").is_none());
+    let requests = server.requests();
+    assert_eq!(requests.len(), 2);
+    for r in &requests {
+        let body: Value = serde_json::from_str(&r.body).unwrap();
+        assert_eq!(body["n"], 1, "each call asks for one image: {body}");
+    }
+}
+
+#[test]
+fn a_failed_call_among_several_keeps_the_other_images() {
+    let mut server = serve(vec![
+        b64_reply(&[b"png-a"]),
+        Reply::Json(500, json!({ "error": { "message": "upstream busy" } }).to_string()),
+    ]);
+    let out = gateway(&server, &[]).generate(&request_n(2)).unwrap();
+    assert_eq!(out.images.len(), 1);
+    assert_eq!(out.meta["failedCalls"], 1);
+    assert_eq!(server.requests().len(), 2);
+}
+
+#[test]
+fn all_calls_failing_returns_the_error_kind() {
+    let reply = || Reply::Json(401, json!({ "error": { "message": "bad key" } }).to_string());
+    let mut server = serve(vec![reply(), reply()]);
+    let err = gateway(&server, &[]).generate(&request_n(2)).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::Auth, "{err:?}");
+    assert_key_free(&err);
+    assert_eq!(server.requests().len(), 2);
+}
+
+#[test]
+fn timeout_defaults_to_ten_minutes_and_is_configurable() {
+    let base = (ENV_BASE_URL, "https://gw.example.com/v1");
+    assert_eq!(config(&env(&[base])).generate_timeout.as_secs(), 600);
+    assert_eq!(config(&env(&[base, (ENV_TIMEOUT_SECS, " 900 ")])).generate_timeout.as_secs(), 900);
+    for bad in ["5", "abc", "99999"] {
+        let problem = config(&env(&[base, (ENV_TIMEOUT_SECS, bad)])).base_url.unwrap_err();
+        assert!(problem.contains("HHTECH_TIMEOUT_SECS"), "{bad}: {problem}");
+    }
+}
+
 // ---------------------------------------------------------------- config
 
 #[test]

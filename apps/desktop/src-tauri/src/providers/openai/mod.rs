@@ -54,7 +54,7 @@ pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
 /// The guide warns that "complex prompts may take up to 2 minutes"; several outputs with up to
 /// 16 reference uploads take longer, so allow 5 minutes.
-const GENERATE_TIMEOUT: Duration = Duration::from_secs(300);
+pub const GENERATE_TIMEOUT: Duration = Duration::from_secs(300);
 const TEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Prompt enhancement is one short chat completion.
 const CHAT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -86,6 +86,8 @@ pub struct Config {
     pub chat_model: Option<String>,
     /// Appended to 404 messages: where the user fixes the base URL / model names.
     pub setup_hint: &'static str,
+    /// How long one images call may take.
+    pub generate_timeout: Duration,
 }
 
 impl Config {
@@ -101,6 +103,7 @@ impl Config {
             quality: models::QUALITY.to_string(),
             chat_model: None,
             setup_hint: "",
+            generate_timeout: GENERATE_TIMEOUT,
         }
     }
 }
@@ -123,7 +126,7 @@ impl OpenAiProvider {
     }
 
     pub fn from_config(cfg: Config) -> Self {
-        Self { cfg, generate_timeout: GENERATE_TIMEOUT, test_timeout: TEST_TIMEOUT, chat_timeout: CHAT_TIMEOUT }
+        Self { generate_timeout: cfg.generate_timeout, cfg, test_timeout: TEST_TIMEOUT, chat_timeout: CHAT_TIMEOUT }
     }
 
     pub fn config(&self) -> &Config {
@@ -249,6 +252,79 @@ impl OpenAiProvider {
             return self.parse_json(status, &text, api_key);
         }
         self.parse_json(status, &text, api_key)
+    }
+
+    /// One images call, with any returned URLs downloaded, trimmed to `n` images.
+    fn one_call(
+        &self,
+        model: &str,
+        prompt: &str,
+        n: u32,
+        size: Option<&str>,
+        request: &ProviderRequest,
+        api_key: &str,
+    ) -> Result<(wire::CallResult, usize), ProviderError> {
+        let value = self.images_call(model, prompt, n, size, request, api_key)?;
+        let allow_urls = self.cfg.flavor == Flavor::Gateway;
+        let mut call = wire::parse_success(&value, self.cfg.vendor, api_key, allow_urls)?;
+        let mut downloaded = 0;
+        for url in std::mem::take(&mut call.urls) {
+            if call.images.len() >= n as usize {
+                break;
+            }
+            call.images.push(download::fetch(self.cfg.vendor, &url, self.generate_timeout)?);
+            downloaded += 1;
+        }
+        // The API may in principle return more than `n`; never store more than requested.
+        call.images.truncate(n as usize);
+        Ok((call, downloaded))
+    }
+
+    /// `n` single-image calls in parallel. Succeeds with whatever images came back when at
+    /// least one call did (the third value counts the failed calls); otherwise returns the first
+    /// call's error, so a quota or auth failure keeps its kind.
+    fn parallel_calls(
+        &self,
+        model: &str,
+        prompt: &str,
+        n: u32,
+        size: Option<&str>,
+        request: &ProviderRequest,
+        api_key: &str,
+    ) -> Result<(wire::CallResult, usize, usize), ProviderError> {
+        let results: Vec<Result<(wire::CallResult, usize), ProviderError>> = std::thread::scope(|scope| {
+            let handles: Vec<_> =
+                (0..n).map(|_| scope.spawn(|| self.one_call(model, prompt, 1, size, request, api_key))).collect();
+            handles
+                .into_iter()
+                .map(|h| {
+                    h.join().unwrap_or_else(|_| {
+                        Err(ProviderError::new(ProviderErrorKind::BadResponse, "An image request crashed."))
+                    })
+                })
+                .collect()
+        });
+        let mut merged: Option<wire::CallResult> = None;
+        let (mut downloaded, mut failed, mut first_error) = (0, 0, None);
+        for result in results {
+            match result {
+                Ok((call, d)) => {
+                    downloaded += d;
+                    match merged.as_mut() {
+                        None => merged = Some(call),
+                        Some(m) => m.images.extend(call.images),
+                    }
+                }
+                Err(e) => {
+                    failed += 1;
+                    first_error.get_or_insert(e);
+                }
+            }
+        }
+        match merged {
+            Some(call) => Ok((call, downloaded, failed)),
+            None => Err(first_error.expect("n > 1 calls ran")),
+        }
     }
 
     fn test_official(&self, api_key: &str) -> Result<String, ProviderError> {
@@ -427,19 +503,15 @@ impl ImageProvider for OpenAiProvider {
 
         let size = self.size_for(request.params.aspect_ratio.as_deref());
         let n = request.params.output_count;
-        let value = self.images_call(&model.id, &prompt, n, size.as_deref(), request, api_key)?;
-        let allow_urls = self.cfg.flavor == Flavor::Gateway;
-        let mut call = wire::parse_success(&value, self.cfg.vendor, api_key, allow_urls)?;
-        let mut downloaded = 0;
-        for url in std::mem::take(&mut call.urls) {
-            if call.images.len() >= n as usize {
-                break;
-            }
-            call.images.push(download::fetch(self.cfg.vendor, &url, self.generate_timeout)?);
-            downloaded += 1;
-        }
-        // The API may in principle return more than `n`; never store more than requested.
-        call.images.truncate(n as usize);
+        // Gateways tend to render `n` images one after another inside a single HTTP call (or
+        // ignore `n`), so several outputs are asked for as parallel single-image calls: the wall
+        // time stays that of one image, and one slow image does not time out the others.
+        let (call, downloaded, failed) = if self.cfg.flavor == Flavor::Gateway && n > 1 {
+            self.parallel_calls(&model.id, &prompt, n, size.as_deref(), request, api_key)?
+        } else {
+            let (call, downloaded) = self.one_call(&model.id, &prompt, n, size.as_deref(), request, api_key)?;
+            (call, downloaded, 0)
+        };
 
         let endpoint = if request.references.is_empty() { "generations" } else { "edits" };
         let mut meta = json!({
@@ -453,6 +525,9 @@ impl ImageProvider for OpenAiProvider {
         });
         if downloaded > 0 {
             meta["downloaded"] = json!(downloaded);
+        }
+        if failed > 0 {
+            meta["failedCalls"] = json!(failed);
         }
         Ok(ProviderOutput { images: call.images, meta })
     }
