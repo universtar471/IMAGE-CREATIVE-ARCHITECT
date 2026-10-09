@@ -13,7 +13,8 @@ use crate::dto::{
 };
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::{
-    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, queue, AppCore,
+    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, queue, workflow,
+    AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -113,6 +114,30 @@ pub struct DnaUpdateRequest {
 #[tauri::command]
 pub async fn dna_update(core: Core<'_>, request: DnaUpdateRequest) -> AppResult<ProjectDto> {
     blocking(&core, move |c| dna::update(c, &request.project_id, request.dna)).await
+}
+
+// ------------------------------------------------------------------ guided workflow
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowStepRequest {
+    project_id: String,
+    step_id: String,
+}
+
+#[tauri::command]
+pub async fn workflow_get(core: Core<'_>, request: ProjectRef) -> AppResult<crate::dto::WorkflowDto> {
+    blocking(&core, move |c| workflow::get(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn workflow_confirm_step(core: Core<'_>, request: WorkflowStepRequest) -> AppResult<crate::dto::WorkflowDto> {
+    blocking(&core, move |c| workflow::confirm(c, &request.project_id, &request.step_id)).await
+}
+
+#[tauri::command]
+pub async fn workflow_reopen_step(core: Core<'_>, request: WorkflowStepRequest) -> AppResult<crate::dto::WorkflowDto> {
+    blocking(&core, move |c| workflow::reopen(c, &request.project_id, &request.step_id)).await
 }
 
 // ------------------------------------------------------------------ assets

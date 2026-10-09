@@ -14,6 +14,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/0001_initial.sql")),
     (2, include_str!("../migrations/0002_generations.sql")),
     (3, include_str!("../migrations/0003_jobs.sql")),
+    (4, include_str!("../migrations/0004_workflow.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -106,7 +107,8 @@ mod tests {
                 "project_dna",
                 "projects",
                 "schema_migrations",
-                "versions"
+                "versions",
+                "workflow_steps"
             ]
         );
         let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
@@ -120,6 +122,46 @@ mod tests {
         migrate(&conn).unwrap();
         let rows: i64 = conn.query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0)).unwrap();
         assert_eq!(rows, MIGRATIONS.len() as i64);
+    }
+
+    #[test]
+    fn migration_0004_backfills_only_projects_with_approved_masters() {
+        let conn = Connection::open_in_memory().unwrap();
+        configure(&conn).unwrap();
+        conn.execute_batch("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);")
+            .unwrap();
+        for (version, sql) in MIGRATIONS.iter() {
+            if *version <= 3 {
+                conn.execute_batch(sql).unwrap();
+                conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version])
+                    .unwrap();
+            }
+        }
+        conn.execute_batch(
+            "INSERT INTO projects (id, name, project_type, status, active_master_asset_id, master_approved_at, created_at, updated_at)
+               VALUES ('PRJ_APPROVED', 'Approved', 'villa', 'master_approved', 'AST_A', '2026-10-01T00:00:00Z', 't', 't'),
+                      ('PRJ_OPEN', 'Open', 'villa', 'draft', NULL, NULL, 't', 't');
+             INSERT INTO project_dna (project_id, schema_version, dna_json, created_at, updated_at)
+               VALUES ('PRJ_APPROVED', 1, '{}', 't', 't'), ('PRJ_OPEN', 1, '{}', 't', 't');",
+        ).unwrap();
+
+        migrate(&conn).unwrap();
+        let approved: i64 = conn
+            .query_row("SELECT COUNT(*) FROM workflow_steps WHERE project_id = 'PRJ_APPROVED'", [], |r| r.get(0))
+            .unwrap();
+        let open: i64 = conn
+            .query_row("SELECT COUNT(*) FROM workflow_steps WHERE project_id = 'PRJ_OPEN'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(approved, 5);
+        assert_eq!(open, 0);
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM workflow_steps WHERE project_id = 'PRJ_APPROVED' AND step_id = 'dna.lighting'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "confirmed");
     }
 
     #[test]
@@ -289,8 +331,8 @@ mod tests {
                     .unwrap();
             }
             conn.execute_batch(
-                "INSERT INTO projects (id, name, project_type, status, created_at, updated_at)
-                   VALUES ('PRJ_V2', 'Phase 2 villa', 'villa', 'draft', 't1', 't1');
+                "INSERT INTO projects (id, name, project_type, status, active_master_asset_id, master_approved_at, created_at, updated_at)
+                   VALUES ('PRJ_V2', 'Phase 2 villa', 'villa', 'master_approved', 'AST_M', 't1', 't1', 't1');
                  INSERT INTO generations (id, project_id, provider_id, model_id, purpose, status, request_json,
                      started_at, finished_at, duration_ms, created_at, updated_at)
                    VALUES ('GEN_OLD', 'PRJ_V2', 'local_preview', 'placeholder-v1', 'hero', 'completed',
@@ -313,7 +355,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 3);
+            assert_eq!(schema_version(&conn).unwrap(), 4);
             let violations: i64 =
                 conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
             assert_eq!(violations, 0);

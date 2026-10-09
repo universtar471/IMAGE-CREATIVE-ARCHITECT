@@ -13,6 +13,7 @@ pub mod prompt_enhance;
 pub mod provider_settings;
 pub mod queue;
 pub mod status;
+pub mod workflow;
 
 use std::path::Path;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -278,7 +279,32 @@ pub(crate) mod tests_support {
     }
 
     pub(crate) use crate::services::dna_validation::tests::minimal as test_valid_dna;
-    pub(crate) use crate::services::projects::tests::create_villa as test_create_villa;
+    /// Existing backend tests exercise generation/queue behavior; put their projects through
+    /// the workflow explicitly so those tests do not bypass the production gates.
+    pub(crate) fn test_create_villa(core: &AppCore, name: &str) -> crate::dto::ProjectDto {
+        let project = crate::services::projects::tests::create_villa(core, name);
+        for step_id in crate::services::workflow::DNA_STEP_IDS {
+            crate::services::workflow::confirm(core, &project.id, step_id).unwrap();
+        }
+        project
+    }
+
+    /// A genuinely new project for workflow/gating tests.
+    pub(crate) fn test_create_villa_unconfirmed(core: &AppCore, name: &str) -> crate::dto::ProjectDto {
+        crate::services::projects::tests::create_villa(core, name)
+    }
+
+    /// Mark the persisted project fact used by anchor/production gate tests without needing
+    /// to create a managed image file. Tests that exercise asset approval use `test_import`
+    /// and the real `projects::approve_master` path instead.
+    pub(crate) fn approve_master_for_generation(core: &AppCore, project_id: &str) {
+        let conn = core.conn().unwrap();
+        conn.execute(
+            "UPDATE projects SET active_master_asset_id = 'AST_TEST_MASTER', master_approved_at = ?2 WHERE id = ?1",
+            rusqlite::params![project_id, core.now_iso()],
+        )
+        .unwrap();
+    }
 
     pub fn write_png(dir: &Path, name: &str, w: u32, h: u32, rgb: [u8; 3]) -> PathBuf {
         let path = dir.join(name);
