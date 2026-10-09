@@ -357,6 +357,17 @@ export async function assetPreview(request: AssetPreviewRequest): Promise<Blob> 
     copy.set(bytes);
     return new Blob([copy.buffer], { type: "image/png" });
   }
+  if (Array.isArray(raw)) {
+    for (const value of raw) {
+      if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 255) {
+        throw new BridgeError({
+          code: "IO_ERROR",
+          message: "The asset preview response was not binary data.",
+        });
+      }
+    }
+    return new Blob([new Uint8Array(raw).buffer], { type: "image/png" });
+  }
   throw new BridgeError({
     code: "IO_ERROR",
     message: "The asset preview response was not binary data.",

@@ -27,3 +27,9 @@ Fix the tainted-canvas Mood / Grade live preview in the Tauri desktop app.
 
 - The mock preview returns the source asset Blob; the bridge normalizes its MIME type to `image/png` for the canvas pipeline.
 - `fileUrl()` remains available for ordinary `<img>` display paths; `GradeCanvas` no longer uses it for pixel reads.
+
+## Round 2
+
+- Added `assetPreview` coverage for `ArrayBuffer`, an offset typed-array view, and a plain `number[]`.
+- `assetPreview` now validates every plain-array byte as an integer in `0..255`, then returns an `image/png` Blob; invalid arrays raise `BridgeError`.
+- Targeted preview tests pass; `npm.cmd run verify` and `npx.cmd prettier --check .` are green.
