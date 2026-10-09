@@ -44,6 +44,7 @@ import {
 import { setIn } from "../lib/path";
 import type { ModuleId, TrayTabId } from "../features/workspace/modules";
 import { isActiveGeneration } from "../features/generate/labels";
+import { withExtraPrompt } from "../features/generate/extraPrompt";
 import { compileFromBundle } from "./services";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
@@ -82,6 +83,8 @@ export type GenerateDraft = {
   purpose: GenerationPurpose | null;
   params: GenerationParams | null;
   referenceAssetIds: string[] | null;
+  /** Free text appended to the DNA-compiled positive prompt at submit (Generate panel). */
+  extraPrompt?: string;
 };
 
 export const EMPTY_GENERATE_DRAFT: GenerateDraft = {
@@ -111,6 +114,8 @@ export type GenerationRun =
 
 export type GenerationInput = Omit<GenerationSubmitRequest, "prompt" | "cameraId"> & {
   cameraId?: string | null;
+  /** Appended to the compiled positive prompt (ignored when a `prompt` is passed). */
+  extraPrompt?: string;
 };
 
 type State = {
@@ -527,7 +532,8 @@ export const useStudio = create<State>((set, get) => {
 
     submitGeneration: async (input, prompt) => {
       if (get().run?.status === "submitting") return undefined;
-      const { projectId } = input;
+      const { extraPrompt, ...submitInput } = input;
+      const { projectId } = submitInput;
       // Everything below is bound to this project; never read another project's data.
       if (!prompt && !isOpen(projectId)) return undefined;
       set({
@@ -542,7 +548,7 @@ export const useStudio = create<State>((set, get) => {
         let request: GenerationSubmitRequest;
         const cameraId = input.cameraId ?? null;
         if (prompt) {
-          request = { ...input, cameraId, prompt };
+          request = { ...submitInput, cameraId, prompt };
         } else {
           // flushDna saves the open project, which is `projectId` at this point (checked above).
           if (!(await get().flushDna())) {
@@ -558,8 +564,11 @@ export const useStudio = create<State>((set, get) => {
             resolveReferenceIds(input.referenceAssetIds, bundle.assets),
             bundle.assets,
           );
-          const compiled = compileFromBundle(bundle, { referenceAssetIds: ids, cameraId });
-          request = { ...input, cameraId, referenceAssetIds: ids, prompt: compiled };
+          const compiled = withExtraPrompt(
+            compileFromBundle(bundle, { referenceAssetIds: ids, cameraId }),
+            extraPrompt,
+          );
+          request = { ...submitInput, cameraId, referenceAssetIds: ids, prompt: compiled };
         }
         const queued = await call("generation_submit", request);
         // Events may already have moved it on; keep the most advanced snapshot.

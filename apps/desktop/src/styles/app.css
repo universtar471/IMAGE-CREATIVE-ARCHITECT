@@ -1394,6 +1394,25 @@ textarea {
 .provider-card header .spacer {
   flex: 1;
 }
+.extra-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.enhance-preview {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.enhance-preview pre {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 12px/1.5 var(--font);
+}
 .provider-help {
   margin: 0;
   padding-left: 16px;
