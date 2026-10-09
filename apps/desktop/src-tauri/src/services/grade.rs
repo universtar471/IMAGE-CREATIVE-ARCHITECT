@@ -73,6 +73,14 @@ pub struct GradeApplyRequest {
     pub label: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetPreviewRequest {
+    pub project_id: String,
+    pub asset_id: String,
+    pub max_edge: i64,
+}
+
 fn in_range(name: &str, value: f32, min: f32, max: f32) -> AppResult<()> {
     if !value.is_finite() || value < min || value > max {
         return Err(AppError::validation(format!("{name} must be between {min} and {max}.")));
@@ -183,10 +191,12 @@ pub fn apply_grade(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
     output
 }
 
-fn source_asset(core: &AppCore, project_id: &str, asset_id: &str) -> AppResult<AssetRow> {
+fn source_asset(core: &AppCore, project_id: &str, asset_id: &str, require_writable: bool) -> AppResult<AssetRow> {
     let conn = core.conn()?;
     let project = repo::get_project(&conn, project_id)?;
-    ensure_not_archived(&project)?;
+    if require_writable {
+        ensure_not_archived(&project)?;
+    }
     let asset = repo::find_asset(&conn, asset_id)?.ok_or_else(|| AppError::not_found("Asset", asset_id))?;
     if asset.project_id != project_id {
         return Err(AppError::not_found("Asset", asset_id));
@@ -197,9 +207,40 @@ fn source_asset(core: &AppCore, project_id: &str, asset_id: &str) -> AppResult<A
     Ok(asset)
 }
 
+/// Read and encode a bounded preview without holding the database mutex while doing image IO.
+pub fn asset_preview(core: &AppCore, request: AssetPreviewRequest) -> AppResult<Vec<u8>> {
+    let source = source_asset(core, &request.project_id, &request.asset_id, false)?;
+    if !source.mime_type.as_deref().is_some_and(|mime| mime.starts_with("image/")) {
+        return Err(AppError::invalid_state("Only a ready image asset can be previewed."));
+    }
+    let source_path = core.storage.resolve(&source.project_id, &source.managed_rel_path)?;
+    let source_bytes = fs::read(&source_path)
+        .map_err(|e| AppError::invalid_state(format!("The source image is not available: {e}")))?;
+    let source_info = imaging::inspect(&source_bytes, "source image")
+        .map_err(|e| AppError::invalid_state(format!("The source image is not readable: {}", e.message)))?;
+    let source_image = imaging::decode(&source_bytes, source_info.format)
+        .map_err(|e| AppError::new(ErrorCode::InvalidState, format!("The source image cannot be decoded: {e}")))?;
+
+    let max_edge = request.max_edge.clamp(256, 4096) as u32;
+    let longest = source_image.width().max(source_image.height());
+    let scale = (max_edge as f32 / longest as f32).min(1.0);
+    let width = (source_image.width() as f32 * scale).round().max(1.0) as u32;
+    let height = (source_image.height() as f32 * scale).round().max(1.0) as u32;
+    let preview = if width == source_image.width() && height == source_image.height() {
+        source_image
+    } else {
+        source_image.resize(width, height, image::imageops::FilterType::Lanczos3)
+    };
+    let mut output = Vec::new();
+    preview
+        .write_to(&mut Cursor::new(&mut output), ImageFormat::Png)
+        .map_err(|e| AppError::new(ErrorCode::IoError, format!("Could not encode the asset preview: {e}")))?;
+    Ok(output)
+}
+
 pub fn apply(core: &AppCore, request: GradeApplyRequest) -> AppResult<AssetDto> {
     validate_grade(&request.grade)?;
-    let source = source_asset(core, &request.project_id, &request.asset_id)?;
+    let source = source_asset(core, &request.project_id, &request.asset_id, true)?;
     let source_path = core.storage.resolve(&source.project_id, &source.managed_rel_path)?;
     let source_bytes = fs::read(&source_path)
         .map_err(|e| AppError::invalid_state(format!("The source image is not available: {e}")))?;
@@ -437,5 +478,67 @@ mod tests {
         );
         eprintln!("grade 4096x4096: {:?}", started.elapsed());
         assert_eq!((output.width(), output.height()), (4096, 4096));
+    }
+
+    #[test]
+    fn asset_preview_downscales_to_max_edge_and_preserves_aspect() {
+        let (tmp, core) = core();
+        let project = test_create_villa(&core, "Preview");
+        let source = assets::import(
+            &core,
+            assets::ImportRequest {
+                project_id: project.id.clone(),
+                source_path: crate::services::tests_support::write_png(
+                    tmp.path(),
+                    "source.png",
+                    400,
+                    200,
+                    [20, 40, 80],
+                )
+                .to_string_lossy()
+                .into_owned(),
+                source: "external".into(),
+                role: "regular_image".into(),
+                allow_duplicate: true,
+            },
+        )
+        .unwrap();
+        let bytes =
+            asset_preview(&core, AssetPreviewRequest { project_id: project.id, asset_id: source.id, max_edge: 10 })
+                .unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert_eq!((image.width(), image.height()), (256, 128));
+    }
+
+    #[test]
+    fn asset_preview_never_upscales() {
+        let (tmp, core) = core();
+        let project = test_create_villa(&core, "Preview");
+        let source = test_import(&core, tmp.path(), &project.id, "source.png", "regular_image");
+        let bytes =
+            asset_preview(&core, AssetPreviewRequest { project_id: project.id, asset_id: source.id, max_edge: 4096 })
+                .unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert_eq!((image.width(), image.height()), (24, 16));
+    }
+
+    #[test]
+    fn asset_preview_rejects_wrong_project_and_missing_asset() {
+        let (tmp, core) = core();
+        let project = test_create_villa(&core, "Preview");
+        let other = test_create_villa(&core, "Other");
+        let source = test_import(&core, tmp.path(), &project.id, "source.png", "regular_image");
+        let wrong_project = asset_preview(
+            &core,
+            AssetPreviewRequest { project_id: other.id, asset_id: source.id.clone(), max_edge: 1600 },
+        )
+        .unwrap_err();
+        assert_eq!(wrong_project.code, ErrorCode::NotFound);
+        let missing = asset_preview(
+            &core,
+            AssetPreviewRequest { project_id: project.id, asset_id: "AST_missing".into(), max_edge: 1600 },
+        )
+        .unwrap_err();
+        assert_eq!(missing.code, ErrorCode::NotFound);
     }
 }

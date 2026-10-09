@@ -462,3 +462,12 @@ Built-in looks (`look` ids, each a full slider set; selecting one fills the slid
   (no DB lock held while processing).
 
 Mood variations use `batch_create` unchanged (ADR-021).
+
+### 12.5 Asset preview (binary)
+
+`asset_preview` returns a PNG preview for the live color-grade canvas. The request is
+`{ projectId, assetId, maxEdge }`; `maxEdge` is clamped to `256..4096` (the UI uses `1600`).
+The asset must belong to the project, be a ready image, and its source file is never modified.
+The response is raw binary PNG data (`tauri::ipc::Response`), downscaled to fit the requested
+long edge without upscaling while preserving aspect ratio. This command is intentionally
+excluded from the JSON contract fixtures because its response is binary rather than JSON.

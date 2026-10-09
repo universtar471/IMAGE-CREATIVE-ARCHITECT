@@ -174,6 +174,12 @@ pub async fn grade_apply(core: Core<'_>, request: grade::GradeApplyRequest) -> A
     blocking(&core, move |c| grade::apply(c, request)).await
 }
 
+#[tauri::command]
+pub async fn asset_preview(core: Core<'_>, request: grade::AssetPreviewRequest) -> AppResult<tauri::ipc::Response> {
+    let bytes = blocking(&core, move |c| grade::asset_preview(c, request)).await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 // ------------------------------------------------------------------ providers
 
 #[tauri::command]

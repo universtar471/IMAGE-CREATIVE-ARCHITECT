@@ -943,6 +943,7 @@ export const en = {
     source: "Source image",
     locked: "This section is locked",
     noImage: "Select an image to preview the grade.",
+    previewError: "Unable to load the image preview.",
   },
 
   batch: {

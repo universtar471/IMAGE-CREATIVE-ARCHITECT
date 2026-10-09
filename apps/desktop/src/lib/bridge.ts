@@ -67,6 +67,13 @@ export const GradeApplyRequestSchema = z.object({
   label: z.string().optional(),
 });
 
+export const AssetPreviewRequestSchema = z.object({
+  projectId: z.string().min(1),
+  assetId: z.string().min(1),
+  maxEdge: z.number().int().min(256).max(4096),
+});
+export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
+
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
 export type Requests = {
   app_info: Record<string, never>;
@@ -114,6 +121,7 @@ export type Requests = {
   camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
   camera_anchor_clear: { projectId: string; cameraId: string };
   grade_apply: z.infer<typeof GradeApplyRequestSchema>;
+  asset_preview: AssetPreviewRequest;
 };
 
 /** Response schemas per command. */
@@ -150,6 +158,8 @@ export const responses = {
   camera_anchor_set: z.array(CameraAnchorDTOSchema),
   camera_anchor_clear: z.array(CameraAnchorDTOSchema),
   grade_apply: AssetDTOSchema,
+  // Binary PNG response; consumed by assetPreview instead of the JSON call parser.
+  asset_preview: z.unknown(),
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;
@@ -328,6 +338,29 @@ export async function call<C extends CommandName>(
     });
   }
   return parsed.data as CommandResponse<C>;
+}
+
+/** Fetch a tainted-canvas-safe PNG preview and expose it as a browser Blob. */
+export async function assetPreview(request: AssetPreviewRequest): Promise<Blob> {
+  const t = await getTransport();
+  let raw: unknown;
+  try {
+    raw = await t("asset_preview", { request });
+  } catch (err) {
+    throw toBridgeError(err);
+  }
+  if (raw instanceof Blob) return new Blob([raw], { type: "image/png" });
+  if (raw instanceof ArrayBuffer) return new Blob([raw], { type: "image/png" });
+  if (ArrayBuffer.isView(raw)) {
+    const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return new Blob([copy.buffer], { type: "image/png" });
+  }
+  throw new BridgeError({
+    code: "IO_ERROR",
+    message: "The asset preview response was not binary data.",
+  });
 }
 
 /** Field errors attached to a VALIDATION_ERROR (keys are dotted DNA paths). */
