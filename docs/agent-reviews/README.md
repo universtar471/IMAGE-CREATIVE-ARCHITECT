@@ -12,8 +12,8 @@ Pending reviews run against `main` after merge; findings are fixed in follow-up 
 
 | Task | Branch | Codex review | Merge |
 |---|---|---|---|
-| P3-B domain | wt/p3-domain | Pending (Codex quota ran out mid-review) | Merged 2026-10-09 on user's provisional approval |
-| P3-A backend | wt/p3-backend | Pending | Merged 2026-10-09 on user's provisional approval |
-| P3-C UI | wt/p3-ui | Pending | Merged 2026-10-09 on user's provisional approval |
+| P3-B domain | wt/p3-domain | Round 1: PHẢI SỬA (production batch silently drops the anchor when maxReferenceImages is too small) → fix in wt/p3-fixes | Merged 2026-10-09 on user's provisional approval |
+| P3-A backend | wt/p3-backend | Round 1: PHẢI SỬA (thread spawn failure strands a running job; cameraId not re-checked inside the insert transaction) → fix in wt/p3-fixes | Merged 2026-10-09 on user's provisional approval |
+| P3-C UI | wt/p3-ui | Round 1: PHẢI SỬA (stale poll responses overwrite newer event state) → fix in wt/p3-fixes | Merged 2026-10-09 on user's provisional approval |
 
 Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend round 2), wt/p3-ui (UI #2–4 and suggestions).
