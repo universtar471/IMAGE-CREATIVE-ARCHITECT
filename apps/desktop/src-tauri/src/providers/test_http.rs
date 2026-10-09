@@ -24,6 +24,8 @@ pub enum Reply {
     Json(u16, String),
     /// Wait before answering (client-timeout tests).
     Slow(Duration, u16, String),
+    /// Any content type and raw bytes (plain-text errors, image downloads).
+    Raw(u16, &'static str, Vec<u8>),
 }
 
 pub struct MockServer {
@@ -142,18 +144,20 @@ fn serve_one(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<Recorded>>) {
     let body = String::from_utf8_lossy(&raw).into_owned();
     log.lock().unwrap().push(Recorded { method, path, headers, body });
 
-    let (status, payload) = match reply {
-        Reply::Json(status, payload) => (*status, payload),
+    let (status, content_type, payload) = match reply {
+        Reply::Json(status, payload) => (*status, "application/json", payload.as_bytes()),
         Reply::Slow(delay, status, payload) => {
             thread::sleep(*delay);
-            (*status, payload)
+            (*status, "application/json", payload.as_bytes())
         }
+        Reply::Raw(status, content_type, bytes) => (*status, *content_type, bytes.as_slice()),
     };
-    let response = format!(
-        "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+    let head = format!(
+        "HTTP/1.1 {status} X\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         payload.len()
     );
     let mut stream = stream;
-    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.write_all(head.as_bytes());
+    let _ = stream.write_all(payload);
     let _ = stream.flush();
 }

@@ -373,7 +373,7 @@ fn default_timeouts_are_300s_generate_and_15s_test() {
     let provider = OpenAiProvider::new();
     assert_eq!(provider.generate_timeout, Duration::from_secs(300));
     assert_eq!(provider.test_timeout, Duration::from_secs(15));
-    assert_eq!(provider.base_url, "https://api.openai.com/v1");
+    assert_eq!(provider.base_url().unwrap(), "https://api.openai.com/v1");
 }
 
 #[test]

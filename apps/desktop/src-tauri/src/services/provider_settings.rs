@@ -15,8 +15,18 @@ pub fn find_provider(core: &AppCore, provider_id: &str) -> AppResult<Arc<dyn Ima
     core.providers.get(provider_id).ok_or_else(|| AppError::not_found("Provider", provider_id))
 }
 
-/// The key a provider would run with right now (`None` if it needs none or has none).
+/// The key a provider would run with right now: `None` if it needs none, has none, or cannot
+/// run at all (a [`ImageProvider::config_problem`] such as a missing base URL), so callers
+/// that check for a key also refuse a provider that is not set up.
 pub(crate) fn key_for(core: &AppCore, provider: &dyn ImageProvider) -> Option<ResolvedKey> {
+    if provider.config_problem().is_some() {
+        return None;
+    }
+    stored_key(core, provider)
+}
+
+/// The key wherever it is stored, regardless of the provider's other settings.
+fn stored_key(core: &AppCore, provider: &dyn ImageProvider) -> Option<ResolvedKey> {
     let info = provider.info();
     if !info.requires_api_key {
         return None;
@@ -24,29 +34,30 @@ pub(crate) fn key_for(core: &AppCore, provider: &dyn ImageProvider) -> Option<Re
     secrets::resolve_key(core.secrets.as_ref(), core.env.as_ref(), info.id)
 }
 
-/// `PROVIDER_NOT_CONFIGURED`, with an actionable message that names where a key can go.
+/// `PROVIDER_NOT_CONFIGURED`, with an actionable message: the provider's own setup problem,
+/// else where a key can go.
 pub(crate) fn not_configured(provider: &dyn ImageProvider) -> AppError {
     let info = provider.info();
-    AppError::new(
-        ErrorCode::ProviderNotConfigured,
+    let message = provider.config_problem().unwrap_or_else(|| {
         format!(
             "{} needs an API key. Add one in Provider settings (or set {} for development).",
             info.label,
-            secrets::env_var_name(info.id)
-        ),
-    )
-    .with_details(json!({ "providerId": info.id }))
+            secrets::env_var_names(info.id).join(" or ")
+        )
+    });
+    AppError::new(ErrorCode::ProviderNotConfigured, message).with_details(json!({ "providerId": info.id }))
 }
 
 fn descriptor(core: &AppCore, provider: &dyn ImageProvider) -> ProviderDescriptorDto {
     let info = provider.info();
-    let key_source = key_for(core, provider).map(|k| k.source);
+    let key_source = stored_key(core, provider).map(|k| k.source);
+    let set_up = provider.config_problem().is_none();
     ProviderDescriptorDto {
         id: info.id.to_string(),
         label: info.label.to_string(),
         kind: info.kind,
         requires_api_key: info.requires_api_key,
-        configured: !info.requires_api_key || key_source.is_some(),
+        configured: set_up && (!info.requires_api_key || key_source.is_some()),
         key_source,
         models: info.models,
     }
@@ -81,7 +92,7 @@ pub fn clear_api_key(core: &AppCore, provider_id: &str) -> AppResult<ProviderDes
 pub fn test(core: &AppCore, provider_id: &str) -> AppResult<ProviderTestResult> {
     let provider = find_provider(core, provider_id)?;
     let key = key_for(core, provider.as_ref());
-    if provider.info().requires_api_key && key.is_none() {
+    if provider.config_problem().is_some() || (provider.info().requires_api_key && key.is_none()) {
         return Ok(ProviderTestResult { ok: false, message: not_configured(provider.as_ref()).message });
     }
     Ok(match provider.test_connection(key.as_ref().map(|k| k.value.as_str())) {
@@ -155,7 +166,7 @@ mod tests {
         let mut core =
             AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
         let ids: Vec<String> = list(&core).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, ["gemini", "openai", "local_preview"]);
+        assert_eq!(ids, ["gemini", "openai", "hhtech", "local_preview"]);
         assert!(!find(&list(&core), "openai").configured);
 
         assert_eq!(crate::secrets::env_var_name("openai"), "ARCH_STUDIO_OPENAI_API_KEY");
@@ -166,6 +177,38 @@ mod tests {
         assert_eq!(openai.label, "OpenAI (GPT Image)");
         assert!(!find(&d, "gemini").configured, "one provider's env key does not configure another");
         assert!(!serde_json::to_string(&d).unwrap().contains("sk-env-key"));
+    }
+
+    #[test]
+    fn hhtech_without_base_url_is_not_configured_even_with_a_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let no_url = crate::secrets::FixedEnv::default();
+        let registry = crate::providers::ProviderRegistry::builtin_with_env(&no_url);
+        let mut core =
+            AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
+        core.env = Arc::new(crate::secrets::FixedEnv::with("HHTECH_API_KEY", "hh-env-key"));
+        let d = list(&core);
+        let hh = find(&d, "hhtech");
+        assert_eq!(hh.label, "HHTECH (OpenAI-compatible)");
+        assert_eq!((hh.configured, hh.key_source), (false, Some(KeySource::Env)), "key found, base URL missing");
+        let t = test(&core, "hhtech").unwrap();
+        assert!(!t.ok && t.message.contains("HHTECH_BASE_URL"), "{}", t.message);
+        let hh_provider = find_provider(&core, "hhtech").unwrap();
+        assert!(key_for(&core, hh_provider.as_ref()).is_none());
+        let err = not_configured(hh_provider.as_ref());
+        assert_eq!(err.code, ErrorCode::ProviderNotConfigured);
+        assert!(err.message.contains("HHTECH_BASE_URL"));
+        assert!(!serde_json::to_string(&d).unwrap().contains("hh-env-key"));
+
+        let with_url = crate::secrets::FixedEnv::with("HHTECH_BASE_URL", "http://127.0.0.1:9/v1/");
+        let registry = crate::providers::ProviderRegistry::builtin_with_env(&with_url);
+        let tmp2 = tempfile::tempdir().unwrap();
+        let mut core =
+            AppCore::open_with(tmp2.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
+        assert!(!find(&list(&core), "hhtech").configured, "no key yet");
+        assert!(not_configured(find_provider(&core, "hhtech").unwrap().as_ref()).message.contains("HHTECH_API_KEY"));
+        core.env = Arc::new(crate::secrets::FixedEnv::with("ARCH_STUDIO_HHTECH_API_KEY", "hh-env-key"));
+        assert!(find(&list(&core), "hhtech").configured);
     }
 
     #[test]

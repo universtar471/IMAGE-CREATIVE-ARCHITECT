@@ -50,6 +50,29 @@ pub fn api_size(aspect_ratio: Option<&str>) -> Option<&'static str> {
     SIZES.iter().find(|(r, _)| *r == ratio).map(|(_, size)| *size)
 }
 
+/// The reduced aspect ratio of a `WIDTHxHEIGHT` size, e.g. `1536x864` → `16:9`.
+pub fn ratio_of(size: &str) -> Option<String> {
+    let (w, h) = size.split_once('x')?;
+    let (w, h): (u32, u32) = (w.trim().parse().ok()?, h.trim().parse().ok()?);
+    if w == 0 || h == 0 {
+        return None;
+    }
+    let gcd = {
+        let (mut a, mut b) = (w, h);
+        while b != 0 {
+            (a, b) = (b, a % b);
+        }
+        a
+    };
+    Some(format!("{}:{}", w / gcd, h / gcd))
+}
+
+/// Capabilities of a model behind an OpenAI-compatible gateway: same request shape as GPT Image
+/// (ten aspect ratios, no size tiers, no seed or negative prompt), outputs capped at 4.
+pub fn gateway_model(id: &str) -> ModelCapabilities {
+    ModelCapabilities { id: id.into(), label: id.into(), ..to_capabilities(&SPECS[0]) }
+}
+
 struct Spec {
     id: &'static str,
     label: &'static str,
@@ -84,10 +107,6 @@ pub fn all() -> Vec<ModelCapabilities> {
     SPECS.iter().map(to_capabilities).collect()
 }
 
-pub fn find(model_id: &str) -> Option<ModelCapabilities> {
-    SPECS.iter().find(|s| s.id == model_id).map(to_capabilities)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,6 +136,15 @@ mod tests {
         assert_eq!(api_size(Some("16:9")), Some("1536x864"));
         assert_eq!(api_size(Some("3:2")), Some("1536x1024"));
         assert_eq!(api_size(Some("7:3")), None);
+    }
+
+    #[test]
+    fn ratio_of_reduces_sizes() {
+        assert_eq!(ratio_of("1024x1024").as_deref(), Some("1:1"));
+        assert_eq!(ratio_of("1536x864").as_deref(), Some("16:9"));
+        assert_eq!(ratio_of("1024x1536").as_deref(), Some("2:3"));
+        assert_eq!(ratio_of("auto"), None);
+        assert_eq!(ratio_of("0x10"), None);
     }
 
     #[test]

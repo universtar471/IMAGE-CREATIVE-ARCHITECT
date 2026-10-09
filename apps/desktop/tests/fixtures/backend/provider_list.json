@@ -229,6 +229,39 @@
       "requiresApiKey": true
     },
     {
+      "configured": false,
+      "id": "hhtech",
+      "keySource": null,
+      "kind": "remote",
+      "label": "HHTECH (OpenAI-compatible)",
+      "models": [
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2",
+          "imageSizes": [],
+          "imageToImage": true,
+          "label": "gpt-image-2",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        }
+      ],
+      "requiresApiKey": true
+    },
+    {
       "configured": true,
       "id": "local_preview",
       "keySource": null,

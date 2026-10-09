@@ -8,6 +8,7 @@ pub mod dna;
 pub mod dna_validation;
 pub mod generations;
 pub mod projects;
+pub mod prompt_enhance;
 pub mod provider_settings;
 pub mod queue;
 pub mod status;
@@ -326,6 +327,8 @@ pub(crate) mod tests_support {
         script: Mutex<std::collections::VecDeque<TestBehavior>>,
         behavior: Mutex<TestBehavior>,
         pub last_request: Mutex<Option<ProviderRequest>>,
+        /// `(system, user, api_key)` of the last `chat` call.
+        pub last_chat: Mutex<Option<(String, String, Option<String>)>>,
         calls: AtomicUsize,
         hook: Mutex<Option<Hook>>,
     }
@@ -337,6 +340,7 @@ pub(crate) mod tests_support {
                 script: Mutex::new(Default::default()),
                 behavior: Mutex::new(TestBehavior::Images),
                 last_request: Mutex::new(None),
+                last_chat: Mutex::new(None),
                 calls: AtomicUsize::new(0),
                 hook: Mutex::new(None),
             }
@@ -442,6 +446,19 @@ pub(crate) mod tests_support {
                 Some(GOOD_KEY) => Ok("Key accepted.".into()),
                 _ => Err(ProviderError::new(ProviderErrorKind::Auth, "The API key was rejected.")),
             }
+        }
+
+        fn chat_model(&self) -> Option<String> {
+            (!self.local).then(|| "test-chat".to_string())
+        }
+
+        /// Answers `Enhanced: <last line of the user message>`, or fails like `generate`.
+        fn chat(&self, system: &str, user: &str, api_key: Option<&str>) -> Result<String, ProviderError> {
+            *self.last_chat.lock().unwrap() = Some((system.into(), user.into(), api_key.map(str::to_string)));
+            if let TestBehavior::Fail(kind) = *self.behavior.lock().unwrap() {
+                return Err(ProviderError::new(kind, "Test provider failure."));
+            }
+            Ok(format!("Enhanced: {}", user.lines().last().unwrap_or_default()))
         }
     }
 }

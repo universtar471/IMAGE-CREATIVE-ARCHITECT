@@ -1,0 +1,10 @@
+{
+  "command": "error",
+  "response": {
+    "code": "PROVIDER_NOT_CONFIGURED",
+    "details": {
+      "providerId": "hhtech"
+    },
+    "message": "HHTECH (OpenAI-compatible) needs an API key. Add one in Provider settings (or set HHTECH_API_KEY or ARCH_STUDIO_HHTECH_API_KEY for development)."
+  }
+}
