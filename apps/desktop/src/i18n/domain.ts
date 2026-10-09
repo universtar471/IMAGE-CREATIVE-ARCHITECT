@@ -5,7 +5,7 @@
  * unknown message is shown as is, and backend messages are kept as the detail line.
  */
 import type { AppErrorCode } from "@arch/domain";
-import { t, type TFunction } from "./index";
+import { t, type TFunction, type TKey } from "./index";
 
 type Rule = [RegExp, (m: RegExpExecArray, tr: TFunction) => string];
 
@@ -129,4 +129,20 @@ export function errorHeadline(
   return CODES.includes(err.code as AppErrorCode)
     ? tr(`errors.code.${err.code as AppErrorCode}`)
     : tr("common.somethingWrong");
+}
+
+const READINESS_KEYS = {
+  "building.architecturalStyle": "readiness.architecturalStyle",
+  "building.floors": "readiness.floors",
+  "context.macroContext": "readiness.macroContext",
+  azimuthDeg: "readiness.azimuthDeg",
+  elevationDeg: "readiness.elevationDeg",
+  distanceM: "readiness.distanceM",
+  lensMm: "readiness.lensMm",
+} as const satisfies Record<string, TKey>;
+
+/** Label of a domain readiness item (DNA checklist, camera fields) by its stable key. */
+export function readinessLabel(item: { key: string; label: string }, tr: TFunction = t): string {
+  const key = READINESS_KEYS[item.key as keyof typeof READINESS_KEYS];
+  return key ? tr(key) : item.label;
 }

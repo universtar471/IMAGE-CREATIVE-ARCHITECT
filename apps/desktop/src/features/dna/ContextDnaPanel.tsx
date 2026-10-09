@@ -1,75 +1,80 @@
-import {
-  CONTEXT_DIRECTIONS,
-  DENSITY_LABELS,
-  DensitySchema,
-  type ContextDirection,
-} from "@arch/domain";
+import { CONTEXT_DIRECTIONS, DensitySchema } from "@arch/domain";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { DnaSelect, DnaTags, DnaText, DnaTextArea } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
-
-const DIRECTION_TITLES: Record<ContextDirection, string> = {
-  front: "Front",
-  rear: "Rear",
-  left: "Left side",
-  right: "Right side",
-};
-
-const DENSITY_OPTIONS = DensitySchema.options.map((d) => ({ value: d, label: DENSITY_LABELS[d] }));
+import { useT } from "../../i18n";
 
 export function ContextDnaPanel() {
+  const t = useT();
+  const densityOptions = DensitySchema.options.map((d) => ({
+    value: d,
+    label: t(`labels.density.${d}`),
+  }));
   return (
     <>
-      <SectionPanel title="Setting" aside={<LockToggle section="context" />}>
+      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <SectionPanel title={t("context.setting")} aside={<LockToggle section="context" />}>
         <DnaText
           path="context.macroContext"
-          label="Macro context"
-          placeholder="e.g. new urban residential area"
+          label={t("context.macro")}
+          placeholder={t("context.macroPlaceholder")}
         />
         <DnaText
           path="context.climateContext"
-          label="Climate"
-          placeholder="e.g. tropical monsoon"
+          label={t("context.climate")}
+          placeholder={t("context.climatePlaceholder")}
         />
-        <DnaSelect path="context.density" label="Density" options={DENSITY_OPTIONS} />
+        <DnaSelect path="context.density" label={t("context.density")} options={densityOptions} />
       </SectionPanel>
 
       {CONTEXT_DIRECTIONS.map((dir) => (
         <SectionPanel
           key={dir}
-          title={DIRECTION_TITLES[dir]}
+          title={t(`labels.contextDirection.${dir}`)}
           defaultOpen={dir === "front" || dir === "rear"}
         >
           <div className="field-row">
-            <DnaText path={`context.${dir}.spaceType`} label="Space" placeholder="e.g. garden" />
-            <DnaText path={`context.${dir}.roadType`} label="Road" placeholder="e.g. alley" />
+            <DnaText
+              path={`context.${dir}.spaceType`}
+              label={t("context.space")}
+              placeholder={t("context.spacePlaceholder")}
+            />
+            <DnaText
+              path={`context.${dir}.roadType`}
+              label={t("context.road")}
+              placeholder={t("context.roadPlaceholder")}
+            />
           </div>
           <DnaTags
             path={`context.${dir}.elements`}
-            label="Elements"
-            placeholder="e.g. gate, lamp posts"
+            label={t("context.elements")}
+            placeholder={t("context.elementsPlaceholder")}
           />
-          <DnaTags path={`context.${dir}.vegetation`} label="Vegetation" placeholder="e.g. palms" />
-          <DnaTags path={`context.${dir}.adjacentBuildings`} label="Adjacent buildings" />
-          <DnaTextArea path={`context.${dir}.notes`} label="Notes" />
+          <DnaTags
+            path={`context.${dir}.vegetation`}
+            label={t("context.vegetation")}
+            placeholder={t("context.vegetationPlaceholder")}
+          />
+          <DnaTags path={`context.${dir}.adjacentBuildings`} label={t("context.adjacent")} />
+          <DnaTextArea path={`context.${dir}.notes`} label={t("context.notes")} />
         </SectionPanel>
       ))}
 
-      <SectionPanel title="Background & atmosphere" defaultOpen={false}>
+      <SectionPanel title={t("context.background")} defaultOpen={false}>
         <DnaTags
           path="context.distantBackground"
-          label="Distant background"
-          placeholder="e.g. hills"
+          label={t("context.distant")}
+          placeholder={t("context.distantPlaceholder")}
         />
-        <DnaTextArea path="context.atmosphereNotes" label="Atmosphere notes" />
+        <DnaTextArea path="context.atmosphereNotes" label={t("context.atmosphere")} />
       </SectionPanel>
 
-      <SectionPanel title="Negative constraints">
+      <SectionPanel title={t("context.negative")}>
         <DnaTags
           path="context.negativeConstraints"
-          label="Must not appear"
-          hint="Compiled into the negative prompt."
-          placeholder="e.g. snow"
+          label={t("context.mustNotAppear")}
+          hint={t("context.negativeHint")}
+          placeholder={t("context.negativePlaceholder")}
         />
       </SectionPanel>
     </>

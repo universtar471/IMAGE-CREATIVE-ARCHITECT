@@ -1997,3 +1997,6 @@ textarea {
 .error-detail {
   overflow-wrap: anywhere;
 }
+.dna-hint {
+  margin: 0 var(--s-1);
+}

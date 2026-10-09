@@ -213,7 +213,7 @@ export const en = {
     floors: "Number of floors",
     macroContext: "Macro context",
     azimuthDeg: "Azimuth",
-    elevation: "Elevation or height",
+    elevationDeg: "Elevation or height",
     distanceM: "Distance",
     lensMm: "Lens",
   },

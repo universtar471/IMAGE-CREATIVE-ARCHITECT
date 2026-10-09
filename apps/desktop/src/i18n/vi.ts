@@ -210,7 +210,7 @@ export const vi: Dict = {
     floors: "Số tầng",
     macroContext: "Bối cảnh chung",
     azimuthDeg: "Góc phương vị",
-    elevation: "Góc ngẩng hoặc chiều cao",
+    elevationDeg: "Góc ngẩng hoặc độ cao",
     distanceM: "Khoảng cách",
     lensMm: "Tiêu cự",
   },
