@@ -471,3 +471,73 @@ The asset must belong to the project, be a ready image, and its source file is n
 The response is raw binary PNG data (`tauri::ipc::Response`), downscaled to fit the requested
 long edge without upscaling while preserving aspect ratio. This command is intentionally
 excluded from the JSON contract fixtures because its response is binary rather than JSON.
+
+## 13. Phase 4B contracts — guided workflow (ADR-022)
+
+### 13.1 Steps (ordered; ids are stable strings)
+
+| id | stage | module (ModuleId) | how it completes |
+|---|---|---|---|
+| `dna.building` | dna | `design_dna` (label "Kiến trúc") | manual confirm |
+| `dna.context` | dna | `context` | manual confirm |
+| `dna.references` | dna | `references` | manual confirm (a master is optional here) |
+| `dna.camera` | dna | `camera` | manual confirm (0 cameras allowed) |
+| `dna.lighting` | dna | `lighting` (lighting + weather) | manual confirm |
+| `generate.master` | generate | `generate` step 1 | derived: project has an approved master |
+| `generate.anchors` | generate | `generate` step 2 | derived: every anchor-view camera has an approved anchor; `skipped` if none |
+| `generate.render` | generate | `generate` step 3 | never completes (production step) |
+| `post.grade` | post | `mood_grade` | never completes |
+
+Persisted per project, only for the five `dna.*` steps: `WorkflowStepState = { stepId, status: "open" | "confirmed" | "needs_review", confirmedAt: string | null }`. A missing row means `open`.
+
+### 13.2 Derived view (domain, pure: `deriveWorkflow(persisted, facts)`)
+
+`facts = { masterApproved: boolean, anchorCameraIds: string[], approvedAnchorCameraIds: string[] }`
+
+Each step gets `status`:
+- `locked`
+- `available`
+- `confirmed` (dna steps)
+- `needs_review`
+- `done` (derived generate steps)
+- `skipped`
+
+A locked step also gets `blockedBy: StepId`.
+
+Unlock rules:
+- `dna.building` is always unlocked.
+- Each later `dna.*` step unlocks when the previous `dna.*` step is `confirmed`. `needs_review` does not count.
+- `generate.master` unlocks when all five `dna.*` are `confirmed`.
+- `generate.anchors` unlocks when `generate.master` is `done`.
+- `generate.render` unlocks when anchors are `done` or `skipped` and at least one camera exists. With 0 cameras it is `skipped`.
+- `post.grade` unlocks when `masterApproved`.
+
+Stage summary: `{ dna | generate | post: { unlocked: boolean, complete: boolean } }`.
+
+Helpers (also used by the mock backend):
+- `confirmStep(persisted, stepId, now)`: allowed only when the step is unlocked.
+- `reopenStep(persisted, stepId)`: sets the step `open` and every later `confirmed` dna step to `needs_review`.
+
+Both return a new `persisted` value and throw a clear error on an invalid step or a locked step.
+
+### 13.3 Commands
+
+- `workflow_get { projectId } -> { steps: WorkflowStepState[] }`. Always returns all five dna steps, filling missing rows as `open`.
+- `workflow_confirm_step { projectId, stepId } -> same shape`
+  - `validation_error` for a non-dna step id or a locked step: previous dna step not confirmed.
+  - Archived project → the existing archived error.
+- `workflow_reopen_step { projectId, stepId } -> same shape`
+  - Semantics as `reopenStep`.
+  - `validation_error` if the step is not `confirmed` / `needs_review`.
+
+### 13.4 Backend generation gating
+
+`generation_submit` and `batch_create` check the workflow before queuing any job. The error is `validation_error` with a message naming the step to finish first.
+- purpose `hero` needs all dna steps confirmed
+- `anchor` needs all dna steps confirmed + approved master
+- `production` needs all dna steps confirmed + approved master + every anchor-view camera anchored
+- `variation` needs an approved master
+
+### 13.5 Migration
+
+Migration `0004_workflow.sql`: table `workflow_steps(project_id, step_id, status, confirmed_at, PRIMARY KEY(project_id, step_id))`. Backfill: every existing project whose master is approved gets all five dna steps `confirmed` (confirmed_at = migration time), so existing work is not suddenly locked. Other projects start with no rows (= `open`).
