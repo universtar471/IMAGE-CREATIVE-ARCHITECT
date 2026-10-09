@@ -547,7 +547,12 @@ impl ImageProvider for OpenAiProvider {
         validate(&model, request, &prompt).map_err(|e| ProviderError::new(e.kind, sanitize(&e.message, api_key)))?;
 
         let route = self.route(&model.id);
-        let tier = request.params.image_size.as_deref();
+        // An id-suffix model always gets a tier (its first one when none was chosen): the bare
+        // base id is not one of its offered products.
+        let tier = request.params.image_size.as_deref().or_else(|| match route.tiers {
+            TierStrategy::IdSuffix => model.image_sizes.first().map(String::as_str),
+            _ => None,
+        });
         let size = self.request_size(route, request.params.aspect_ratio.as_deref(), tier);
         let request_model = tier_model_id(&model.id, route.tiers, tier);
         let quality =

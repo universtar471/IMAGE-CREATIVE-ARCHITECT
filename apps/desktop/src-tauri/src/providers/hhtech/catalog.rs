@@ -12,7 +12,9 @@
 //!   (`gemini-3-pro-image` + 2048x2048 → 1024x1024, 35 s; edits with one reference → 1024x1024,
 //!   30 s), `gemini-3-pro-image-2k` + 2048x1152 → 2752x1536 (47 s), edits with the `-2k` id →
 //!   2048x2048 (75 s). `gemini-3-pro-image-edit-2k` on `/images/edits` returned HTTP 502, so the
-//!   `-edit-*` ids are never used: `<base>` (1K), `<base>-2k`, `<base>-4k` on both endpoints.
+//!   `-edit-*` ids are never used. Like the gateway's published offer, Gemini exposes only 2K
+//!   and 4K: requests always use `<base>-2k` or `<base>-4k` on both endpoints (never the bare
+//!   base id), so every Gemini choice has a price and the default tier is 2K.
 //! - `quality` was never sent to Gemini, so it is not sent there.
 //!
 //! Unlike the official OpenAI provider (which keeps no tiers because the API has none), these
@@ -46,8 +48,8 @@ pub struct Entry {
 
 const GPT_2: &[(&str, Option<u32>)] = &[("1K", Some(180)), ("2K", Some(500)), ("4K", Some(800))];
 const GPT_25: &[(&str, Option<u32>)] = &[("1K", Some(280)), ("2K", Some(600)), ("4K", Some(900))];
-/// The base id is the 1K tier (1024 px); the price list shows no 1K price.
-const GEMINI: &[(&str, Option<u32>)] = &[("1K", None), ("2K", Some(500)), ("4K", Some(800))];
+/// Only the published tiers (the bare base id, 1024 px, is not offered).
+const GEMINI: &[(&str, Option<u32>)] = &[("2K", Some(500)), ("4K", Some(800))];
 
 /// Default picker order (best first).
 pub const CATALOG: [Entry; 6] = [
@@ -164,7 +166,7 @@ mod tests {
         let entry = find("gemini-3-pro-image").unwrap();
         let caps = entry.capabilities();
         assert_eq!(caps.label, "Gemini 3 Pro Image (Banana) · 2K 500đ / 4K 800đ");
-        assert_eq!(caps.image_sizes, ["1K", "2K", "4K"], "1K = the base id");
+        assert_eq!(caps.image_sizes, ["2K", "4K"], "only the published tiers; 2K is the default");
         assert!(caps.quality_options.is_empty());
         assert_eq!(caps.max_reference_images, GEMINI_MAX_REFERENCE_IMAGES);
         let hint = caps.price_hint.unwrap();

@@ -67,6 +67,7 @@ describe("HHTECH catalog (mock mirrors providers/hhtech/catalog.rs)", () => {
     expect(sunburst!.qualityOptions).toEqual(["low", "medium", "high"]);
     expect(banana!.label).toBe("Gemini 3 Pro Image (Banana) · 2K 500đ / 4K 800đ");
     expect(banana!.qualityOptions).toEqual([]);
+    expect(banana!.imageSizes).toEqual(["2K", "4K"]);
     expect(banana!.priceHint).toEqual({ "2K": 500, "4K": 800 });
     for (const p of MOCK_PROVIDERS.filter((x) => x.id !== "hhtech")) {
       for (const m of p.models) {
@@ -96,12 +97,14 @@ describe("Generate panel with HHTECH", () => {
     expect(draftParams()?.quality).toBeNull();
   });
 
-  it("hides quality for Gemini and prices only published tiers", async () => {
+  it("hides quality for Gemini, defaults to the priced 2K tier", async () => {
     await openWithHhtech();
     useStudio.getState().setGenerateDraft({ modelId: "gemini-3-pro-image", params: null });
     render(<GeneratePanel />);
     expect(qualityGroup()).toBeNull();
-    expect(cost()).toBe("No published price for 1K");
+    expect(cost()).toBe("≈ 500đ");
+    expect(draftParams() ?? null).toBeNull();
+    expect(screen.getByLabelText<HTMLSelectElement>("Image size").value).toBe("2K");
     fireEvent.change(screen.getByLabelText("Image size"), { target: { value: "4K" } });
     expect(cost()).toBe("≈ 800đ");
   });

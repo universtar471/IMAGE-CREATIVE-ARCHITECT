@@ -389,12 +389,13 @@ Provider `hhtech` ("HHTECH (OpenAI-compatible)", remote, key required) appears i
 `gpt-image-2.5-flare`, `gpt-image-2`, `gemini-3.1-flash-image`, `gemini-2.5-flash-image`),
 restricted and reordered by `HHTECH_IMAGE_MODEL` when set (ids outside the catalog: plain
 entries, no `imageSizes`, `priceHint: null`). Catalog models have the ten GPT Image aspect
-ratios, `imageSizes` `["1K","2K","4K"]` (real billed tiers on this gateway), labels with the
+ratios, `imageSizes` with the gateway's published, billed tiers (GPT `["1K","2K","4K"]`, Gemini
+`["2K","4K"]`), labels with the
 price list and a `priceHint`. GPT models: `qualityOptions` low/medium/high, 16 references, tier
 sent as `size` (long edge 1024/2048/3840 by aspect ratio, multiples of 16). Gemini models: no
-quality options, 14 references (unverified beyond 1), tier sent as the model id (`<base>` = 1K,
-`<base>-2k`, `<base>-4k`; never `-edit-*`) with the computed size for the aspect. No tier:
-`HHTECH_IMAGE_SIZE` as before. Generation `meta` records `tier` and `requestModel` (the id
+quality options, 14 references (unverified beyond 1), tier sent as the model id (`<base>-2k`,
+`<base>-4k`; 2K when no tier is given; never the bare base id or `-edit-*`) with the computed
+size for the aspect. GPT without a tier: `HHTECH_IMAGE_SIZE` as before. Generation `meta` records `tier` and `requestModel` (the id
 sent). `configured` is false while
 `HHTECH_BASE_URL` is missing or invalid, even if a key exists (`keySource` still says where the
 key is). Base URL, models, size, quality and chat model are read from the environment / `.env`

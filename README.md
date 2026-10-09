@@ -104,22 +104,25 @@ Built-in model catalog (in code, `providers/hhtech/catalog.rs`), offered in this
 | Model (base id) | Family | 1K | 2K | 4K | Quality choice | References |
 |---|---|---|---|---|---|---|
 | GPT Image 2.5 Sunburst (`gpt-image-2.5-sunburst`) | GPT | 280đ | 600đ | 900đ | low / medium / high | 16 |
-| Gemini 3 Pro Image "Banana" (`gemini-3-pro-image`) | Gemini | (no price) | 500đ | 800đ | — | 14 |
+| Gemini 3 Pro Image "Banana" (`gemini-3-pro-image`) | Gemini | — | 500đ | 800đ | — | 14 |
 | GPT Image 2.5 Flare (`gpt-image-2.5-flare`) | GPT | 280đ | 600đ | 900đ | low / medium / high | 16 |
 | GPT Image 2 (`gpt-image-2`) | GPT | 180đ | 500đ | 800đ | low / medium / high | 16 |
-| Gemini 3.1 Flash Image (`gemini-3.1-flash-image`) | Gemini | (no price) | 500đ | 800đ | — | 14 |
-| Gemini 2.5 Flash Image (`gemini-2.5-flash-image`) | Gemini | (no price) | 500đ | 800đ | — | 14 |
+| Gemini 3.1 Flash Image (`gemini-3.1-flash-image`) | Gemini | — | 500đ | 800đ | — | 14 |
+| Gemini 2.5 Flash Image (`gemini-2.5-flash-image`) | Gemini | — | 500đ | 800đ | — | 14 |
 
-Unlike the official OpenAI provider, the 1K / 2K / 4K **Image size** tiers here are real,
+Unlike the official OpenAI provider, the **Image size** tiers here (1K / 2K / 4K for GPT, 2K / 4K
+for Gemini, as the gateway publishes them) are real,
 separately billed products of the gateway. The pixel size follows the aspect ratio and the
 tier: long edge 1024 / 2048 / 3840, short edge by the ratio, rounded to a multiple of 16
 (e.g. 16:9 at 2K = 2048x1152).
 
 - **GPT models** get the tier through `size`: the base id plus the computed size (live:
-  `gpt-image-2` + 2048x2048 returned a 2048x2048 PNG). `quality` is your **Quality** choice,
+  `gpt-image-2` + 2048x2048 returned a 2048x2048 PNG; `gpt-image-2` + 1024x576, quality low,
+  returned 1024x576, so non-square 1K sizes work). `quality` is your **Quality** choice,
   or `HHTECH_IMAGE_QUALITY` on Default.
-- **Gemini models** ignore `size` for resolution, so the tier is a model-id suffix: the base
-  id for 1K, `<base>-2k`, `<base>-4k`, on both endpoints; `size` still sets the aspect (live:
+- **Gemini models** ignore `size` for resolution, so the tier is a model-id suffix:
+  `<base>-2k` or `<base>-4k` on both endpoints (2K by default; the bare base id, 1024 px, is
+  never sent); `size` still sets the aspect (live:
   `gemini-3-pro-image-2k` + 2048x1152 returned 2752x1536). The `-edit-*` ids returned HTTP 502
   and are never used. No `quality` is sent and no Quality control is shown.
 - The Generate button shows the estimated cost (`≈ images × tier price`); the camera batch
@@ -129,7 +132,7 @@ tier: long edge 1024 / 2048 / 3840, short edge by the ratio, rounded to a multip
 Requests: `POST {BASE}/images/generations` (JSON, `response_format: b64_json`) without
 references, `POST {BASE}/images/edits` (multipart; one reference as `image`, several as
 `image[]`, the latter unverified on this gateway) with references. A `data[].url` answer is
-downloaded (https only, max 50 MB). Generations take ~30 s (Gemini 1K) to ~3 min (GPT 2K) on
+downloaded (https only, max 50 MB). Generations take ~45–75 s (Gemini 2K) to ~3 min (GPT 2K) on
 the gateway; the timeout is `HHTECH_TIMEOUT_SECS`. **Test** in provider settings lists
 `GET {BASE}/models` and says whether the configured models are there. Existing `.env` files
 with `HHTECH_IMAGE_MODEL=gpt-image-2` keep working (that one model, now with tiers); remove the

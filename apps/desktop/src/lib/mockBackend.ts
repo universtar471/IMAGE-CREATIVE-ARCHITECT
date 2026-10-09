@@ -178,8 +178,8 @@ const OPENAI_MODELS: ModelCapabilities[] = (
 /**
  * Mirrors `providers/hhtech/catalog.rs` with no HHTECH_* settings besides the base URL (the
  * contract fixture's environment): the full catalog, best first. GPT models take the tier from
- * `size` and offer a quality choice; Gemini models take it from an id suffix (1K = base id, no
- * published 1K price) and send no quality.
+ * `size` and offer a quality choice; Gemini models offer only the published 2K / 4K tiers
+ * (sent as `<base>-2k` / `<base>-4k`) and send no quality.
  */
 const HHTECH_MODELS: ModelCapabilities[] = (
   [
@@ -191,8 +191,7 @@ const HHTECH_MODELS: ModelCapabilities[] = (
     ["gemini-2.5-flash-image", "Gemini 2.5 Flash Image", "gemini", [null, 500, 800]],
   ] as const
 ).map(([id, label, family, prices]) => {
-  const tiers = ["1K", "2K", "4K"] as const;
-  const priced = tiers.flatMap((tier, i) => {
+  const priced = (["1K", "2K", "4K"] as const).flatMap((tier, i) => {
     const price = prices[i];
     return price === null || price === undefined ? [] : [[tier, price] as const];
   });
@@ -204,7 +203,7 @@ const HHTECH_MODELS: ModelCapabilities[] = (
     maxReferenceImages: family === "gpt" ? 16 : 14,
     maxOutputs: 4,
     aspectRatios: [...RATIOS_STANDARD],
-    imageSizes: [...tiers],
+    imageSizes: priced.map(([tier]) => tier),
     supportsNegativePrompt: false,
     supportsSeed: false,
     qualityOptions: family === "gpt" ? ["low", "medium", "high"] : [],

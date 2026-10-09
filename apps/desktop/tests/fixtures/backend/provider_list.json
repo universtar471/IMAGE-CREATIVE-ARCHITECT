@@ -303,7 +303,6 @@
           ],
           "id": "gemini-3-pro-image",
           "imageSizes": [
-            "1K",
             "2K",
             "4K"
           ],
@@ -409,7 +408,6 @@
           ],
           "id": "gemini-3.1-flash-image",
           "imageSizes": [
-            "1K",
             "2K",
             "4K"
           ],
@@ -441,7 +439,6 @@
           ],
           "id": "gemini-2.5-flash-image",
           "imageSizes": [
-            "1K",
             "2K",
             "4K"
           ],

@@ -387,11 +387,9 @@ fn no_tier_falls_back_to_the_configured_size() {
 fn gemini_tiers_are_id_suffixes_on_both_endpoints_and_size_keeps_the_aspect() {
     for references in [vec![], vec![reference(1)]] {
         let endpoint = if references.is_empty() { "/v1/images/generations" } else { "/v1/images/edits" };
-        for (tier, model, size) in [
-            ("1K", "gemini-3-pro-image", "1024x576"),
-            ("2K", "gemini-3-pro-image-2k", "2048x1152"),
-            ("4K", "gemini-3-pro-image-4k", "3840x2160"),
-        ] {
+        for (tier, model, size) in
+            [("2K", "gemini-3-pro-image-2k", "2048x1152"), ("4K", "gemini-3-pro-image-4k", "3840x2160")]
+        {
             let sent = send_with("gemini-3-pro-image", Some("16:9"), Some(tier), None, references.clone(), &[]);
             assert_eq!(sent.path, endpoint);
             assert_eq!(sent.model.as_deref(), Some(model), "{endpoint} {tier}");
@@ -403,6 +401,16 @@ fn gemini_tiers_are_id_suffixes_on_both_endpoints_and_size_keeps_the_aspect() {
             assert_eq!(sent.meta["tier"], tier);
             assert_eq!(sent.meta["quality"], Value::Null);
         }
+    }
+}
+
+#[test]
+fn gemini_without_a_tier_still_sends_the_2k_id_never_the_bare_base_id() {
+    for references in [vec![], vec![reference(1)]] {
+        let sent = send_with("gemini-3.1-flash-image", Some("1:1"), None, None, references, &[]);
+        assert_eq!(sent.model.as_deref(), Some("gemini-3.1-flash-image-2k"));
+        assert_eq!(sent.size.as_deref(), Some("2048x2048"));
+        assert_eq!(sent.meta["tier"], "2K");
     }
 }
 
@@ -431,6 +439,7 @@ fn tiers_and_quality_the_model_lacks_are_rejected_before_any_call() {
         assert_eq!(err.kind, ProviderErrorKind::InvalidRequest, "{err:?}");
     };
     reject("gemini-3-pro-image", None, Some("high"), &[]);
+    reject("gemini-3-pro-image", Some("1K"), None, &[]);
     reject("gpt-image-2", Some("8K"), None, &[]);
     reject("gpt-image-2", None, Some("ultra"), &[]);
     reject("my-model", Some("2K"), None, &[(ENV_IMAGE_MODEL, "my-model")]);

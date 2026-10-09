@@ -75,7 +75,8 @@ pub enum TierStrategy {
     None,
     /// The tier sets the pixel `size` (HHTECH GPT Image models).
     Size,
-    /// The tier is a model-id suffix (`-2k`, `-4k`; 1K = the base id) and `size` only carries the
+    /// The tier is a model-id suffix (`-2k`, `-4k`; without a tier the model's first tier) and
+    /// `size` only carries the
     /// aspect (HHTECH Gemini models).
     IdSuffix,
 }
@@ -115,7 +116,7 @@ pub fn tier_size(ratio: &str, tier: &str) -> Option<String> {
 /// `-4k`; everything else sends the base id.
 pub fn tier_model_id(base: &str, tiers: TierStrategy, tier: Option<&str>) -> String {
     match (tiers, tier) {
-        (TierStrategy::IdSuffix, Some(tier)) if tier != "1K" => format!("{base}-{}", tier.to_ascii_lowercase()),
+        (TierStrategy::IdSuffix, Some(tier)) => format!("{base}-{}", tier.to_ascii_lowercase()),
         _ => base.to_string(),
     }
 }
@@ -227,7 +228,6 @@ mod tests {
 
     #[test]
     fn only_the_id_suffix_strategy_renames_the_model() {
-        assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, Some("1K")), "gemini-3-pro-image");
         assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, Some("2K")), "gemini-3-pro-image-2k");
         assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, Some("4K")), "gemini-3-pro-image-4k");
         assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, None), "gemini-3-pro-image");
