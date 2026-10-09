@@ -8,6 +8,7 @@ import { Maximize, Minus, Plus, Scan } from "lucide-react";
 import { clampZoom, fitScale, MAX_ZOOM, MIN_ZOOM, zoomAround, type View } from "./viewMath";
 import { useT } from "../../i18n";
 
+export type ImageDisplayRect = { left: number; top: number; width: number; height: number };
 export type ImageViewerProps = {
   src: string;
   alt: string;
@@ -15,7 +16,7 @@ export type ImageViewerProps = {
   naturalWidth?: number | null;
   naturalHeight?: number | null;
   info?: ReactNode;
-  overlay?: ReactNode;
+  overlay?: ReactNode | ((rect: ImageDisplayRect) => ReactNode);
   extraTools?: ReactNode;
   onError?: () => void;
 };
@@ -122,7 +123,14 @@ export function ImageViewer({
         }}
         onError={onError}
       />
-      {overlay}
+      {typeof overlay === "function"
+        ? overlay({
+            left: view.x,
+            top: view.y,
+            width: natural.w * view.scale,
+            height: natural.h * view.scale,
+          })
+        : overlay}
       {info && <div className="viewer-info">{info}</div>}
       <div className="viewer-toolbar" onPointerDown={(e) => e.stopPropagation()}>
         <button

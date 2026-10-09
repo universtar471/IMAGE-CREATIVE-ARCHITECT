@@ -2289,3 +2289,79 @@ textarea {
 .workflow-quick-edit > :last-child:nth-child(odd) {
   grid-column: 1 / -1;
 }
+.qc-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.qc-overlay-box {
+  position: absolute;
+  display: block;
+  border: 2px solid #f59e0b;
+  color: #fff;
+  background: rgb(245 158 11 / 0.16);
+  font-size: 11px;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+.qc-severity-low {
+  border-color: #22c55e;
+  background: rgb(34 197 94 / 0.14);
+}
+.qc-severity-medium {
+  border-color: #f59e0b;
+}
+.qc-severity-high {
+  border-color: #ef4444;
+  background: rgb(239 68 68 / 0.16);
+}
+.qc-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-inline: 2px;
+  vertical-align: middle;
+}
+.qc-dot-pass {
+  background: #22c55e;
+}
+.qc-dot-warn {
+  background: #f59e0b;
+}
+.qc-dot-fail {
+  background: #ef4444;
+}
+.qc-dot-unscored {
+  background: #94a3b8;
+}
+.qc-result-pass {
+  color: #15803d;
+}
+.qc-result-warn {
+  color: #b45309;
+}
+.qc-result-fail {
+  color: #b91c1c;
+}
+.qc-result-unscored {
+  color: #64748b;
+}
+.qc-score {
+  display: grid;
+  grid-template-columns: 80px 1fr 28px;
+  gap: 6px;
+  align-items: center;
+}
+.qc-score progress {
+  width: 100%;
+}
+.qc-history-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}

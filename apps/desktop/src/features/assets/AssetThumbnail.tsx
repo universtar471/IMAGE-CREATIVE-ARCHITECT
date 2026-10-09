@@ -5,6 +5,7 @@ import { RoleBadge } from "../../components/common/StatusBadge";
 import { fileUrl } from "../../lib/files";
 import { formatDimensions } from "../../lib/format";
 import { useT } from "../../i18n";
+import { QcBadge } from "../qc/QcBadge";
 
 /** Tray tile. Uses the small thumbnail only — never the original. */
 export const AssetThumbnail = memo(function AssetThumbnail({
@@ -46,6 +47,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
         <span className="name">{asset.originalName ?? asset.id}</span>
         <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {!isMaster && <RoleBadge role={asset.role} short />}
+          <QcBadge assetId={asset.id} projectId={asset.projectId} />
           <span style={{ color: "var(--c-text-3)" }}>
             {formatDimensions(asset.widthPx, asset.heightPx)}
           </span>
