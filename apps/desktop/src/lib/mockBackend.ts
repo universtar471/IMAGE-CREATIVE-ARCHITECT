@@ -31,7 +31,7 @@ import {
   type CameraAnchorDTO,
   type GenerationDTO,
   type GenerationError,
-  type GenerationPurpose,
+  type GenerationParams,
   type GenerationSubmitRequest,
   type JobCounts,
   type JobDTO,
@@ -84,11 +84,12 @@ export const MOCK_PROVIDER_SLOTS = { local: 2, remote: 1 } as const;
 export const MOCK_MAX_ATTEMPTS = 3;
 const RETRYABLE_KINDS: readonly GenerationError["kind"][] = ["rate_limited", "network", "timeout"];
 
-const PURPOSE_TITLES: Record<GenerationPurpose, string> = {
+const PURPOSE_TITLES: Record<string, string> = {
   hero: "Hero",
   variation: "Variation",
   anchor: "Anchor",
   production: "Production",
+  enhance: "Enhance",
 };
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
@@ -269,6 +270,28 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
       },
     ],
   },
+  {
+    id: "local_upscale",
+    label: "Conservative upscale (local)",
+    kind: "local",
+    requiresApiKey: false,
+    models: [
+      {
+        id: "lanczos3",
+        label: "Conservative upscale (local)",
+        textToImage: false,
+        imageToImage: true,
+        maxReferenceImages: 1,
+        maxOutputs: 1,
+        aspectRatios: [],
+        imageSizes: [],
+        supportsNegativePrompt: false,
+        supportsSeed: false,
+        qualityOptions: [],
+        priceHint: null,
+      },
+    ],
+  },
 ];
 
 const STORAGE_KEY = "arch-studio-mock-db-v1";
@@ -444,8 +467,13 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const parentVersion = parent
       ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
       : undefined;
-    const [w, h] = outputSize(req.params.aspectRatio, parent);
-    const purpose = PURPOSE_TITLES[req.purpose];
+    const enhance = (
+      req.params as GenerationParams & { enhance?: { targetLongEdge: number | null } }
+    ).enhance;
+    const [w, h] = enhance
+      ? enhanceOutputSize(enhance.targetLongEdge, parent)
+      : outputSize(req.params.aspectRatio, parent);
+    const purpose = PURPOSE_TITLES[req.purpose] ?? "Generation";
     const camera = req.cameraId
       ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
       : undefined;
@@ -470,13 +498,13 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         managedRelPath: `assets/generated/${id}.svg`,
         absolutePath: url,
         thumbnailPath: url,
-        mimeType: "image/svg+xml",
+        mimeType: enhance ? "image/png" : "image/svg+xml",
         fileSizeBytes: url.length,
         widthPx: w,
         heightPx: h,
         sha256: null,
         parentAssetId: gen.parentAssetId,
-        operation: "generate",
+        operation: enhance ? "enhance" : "generate",
         createdAt: t,
         updatedAt: t,
       };
@@ -486,7 +514,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         assetId: id,
         parentVersionId: parentVersion?.id ?? null,
         label: `${purpose} ${i + 1}/${req.params.outputCount}`,
-        operation: "generate",
+        operation: enhance ? "enhance" : "generate",
         generationId: gen.id,
         createdAt: t,
       });
@@ -512,11 +540,13 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
   const validateRequest = (req: GenerationSubmitRequest) => {
     writable(req.projectId);
-    const gate = isGenerationAllowed(
-      req.purpose,
-      workflowRows(req.projectId),
-      workflowFacts(req.projectId),
-    );
+    const facts = workflowFacts(req.projectId);
+    const gate =
+      req.purpose === ("enhance" as never)
+        ? facts.masterApproved
+          ? { ok: true as const }
+          : { ok: false as const, blockedBy: "generate.master" as const }
+        : isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
     if (!gate.ok) {
       fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
     }
@@ -532,7 +562,47 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       if (a.status !== "ready")
         fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
     }
-    const issues = validateGenerationRequest(req, model);
+    const enhance = (
+      req.params as GenerationParams & {
+        enhance?: {
+          mode: string;
+          targetLongEdge: number | null;
+          detailStrength: number;
+          architecturePreserve: boolean;
+        };
+      }
+    ).enhance;
+    if (req.purpose === ("enhance" as never)) {
+      if (req.referenceAssetIds.length !== 1)
+        fail("VALIDATION_ERROR", "Enhancement requires exactly one source reference.");
+      if (
+        enhance &&
+        (!Number.isInteger(enhance.detailStrength) ||
+          enhance.detailStrength < 0 ||
+          enhance.detailStrength > 100)
+      )
+        fail("VALIDATION_ERROR", "detailStrength must be an integer from 0 to 100.");
+      if (enhance?.mode === "conservative" && req.providerId !== "local_upscale")
+        fail("VALIDATION_ERROR", "Conservative enhancement uses local_upscale.");
+      const source = assets.find((item) => item.id === req.referenceAssetIds[0]);
+      const sourceEdge = Math.max(source?.widthPx ?? 0, source?.heightPx ?? 0);
+      if (enhance?.mode === "conservative" && enhance.targetLongEdge === null)
+        fail("VALIDATION_ERROR", "Conservative enhancement requires a target size.");
+      if (
+        enhance?.targetLongEdge !== null &&
+        enhance?.targetLongEdge !== undefined &&
+        enhance.targetLongEdge < sourceEdge
+      )
+        fail("VALIDATION_ERROR", "Enhancement never downsizes; pick a larger target.");
+      if (
+        enhance?.targetLongEdge !== null &&
+        enhance?.targetLongEdge !== undefined &&
+        enhance.targetLongEdge > 8192
+      )
+        fail("VALIDATION_ERROR", "Enhancement target cannot exceed 8192px.");
+    }
+    const issues =
+      req.purpose === ("enhance" as never) ? [] : validateGenerationRequest(req, model);
     if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
     // §9 / Rust: a model that lists no ratios or sizes only accepts null (the provider decides).
     if (!model.aspectRatios.length && req.params.aspectRatio !== null)
@@ -613,8 +683,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
       : undefined;
     return camera
-      ? `${camera.name} — ${PURPOSE_TITLES[req.purpose].toLowerCase()}`
-      : PURPOSE_TITLES[req.purpose];
+      ? `${camera.name} — ${(PURPOSE_TITLES[req.purpose] ?? "Generation").toLowerCase()}`
+      : (PURPOSE_TITLES[req.purpose] ?? "Generation");
   };
 
   /** Jobs whose provider call is in flight (a cancelled call keeps its slot until it returns). */
@@ -1316,6 +1386,17 @@ function outputSize(aspectRatio: string | null, parent: AssetDTO | undefined): [
   if (m) ratio = Number(m[1]) / Number(m[2]);
   else if (parent?.widthPx && parent.heightPx) ratio = parent.widthPx / parent.heightPx;
   return ratio >= 1 ? [LONG, Math.round(LONG / ratio)] : [Math.round(LONG * ratio), LONG];
+}
+
+function enhanceOutputSize(
+  targetLongEdge: number | null,
+  parent: AssetDTO | undefined,
+): [number, number] {
+  const sourceW = parent?.widthPx ?? 1024;
+  const sourceH = parent?.heightPx ?? 768;
+  const target = targetLongEdge ?? Math.max(sourceW, sourceH);
+  const scale = target / Math.max(sourceW, sourceH);
+  return [Math.max(1, Math.round(sourceW * scale)), Math.max(1, Math.round(sourceH * scale))];
 }
 
 /** A tiny, displayable placeholder image (no canvas needed, so it also works under jsdom). */

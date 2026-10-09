@@ -103,7 +103,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     label: "Enhance",
     icon: Wand2,
     group: "post",
-    availableIn: 5,
+    availableIn: null,
   },
   {
     id: "qc",

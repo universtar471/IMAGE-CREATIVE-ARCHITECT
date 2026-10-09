@@ -1456,6 +1456,60 @@ textarea {
   align-items: stretch;
   gap: 6px;
 }
+
+.compare-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+}
+.compare-canvas-stage {
+  position: relative;
+  min-height: 280px;
+  flex: 1;
+  overflow: hidden;
+  background: var(--c-surface-2);
+}
+.compare-canvas-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.compare-canvas-after {
+  z-index: 1;
+}
+.compare-canvas-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+.compare-canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.compare-canvas-toolbar input[type="range"] {
+  flex: 1;
+  min-width: 100px;
+}
+.enhance-source {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.enhance-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
 .enhance-preview pre {
   margin: 0;
   max-height: 160px;
