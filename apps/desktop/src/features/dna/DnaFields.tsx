@@ -134,8 +134,13 @@ export function DnaSelect<T extends string>({
   );
 }
 
-export function useDnaLock(section: "building" | "context") {
-  const locked = useStudio((s) => !!s.workspace?.draftDna.locks[section]);
+export type DnaLockSection =
+  "building" | "context" | "lighting" | "weather" | "mood" | "colorGrade";
+
+export function useDnaLock(section: DnaLockSection) {
+  const locked = useStudio(
+    (s) => !!(s.workspace?.draftDna.locks as Record<string, boolean> | undefined)?.[section],
+  );
   const readOnly = useStudio(selectReadOnly);
   const editDna = useStudio((s) => s.editDna);
   return { locked, readOnly, toggle: () => editDna(`locks.${section}`, !locked) };

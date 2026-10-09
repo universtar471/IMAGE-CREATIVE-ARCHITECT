@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "projectType": "townhouse",
   "subtype": "narrow_lot",
   "label": "Very narrow lot (4 m or less)",
@@ -109,6 +109,73 @@
       "aspectRatio": "4:5",
       "composition": "close-up of the narrow facade: balcony, screen and planter",
       "anchorRecommended": false
+    }
+  ],
+  "lightingPresets": [
+    {
+      "id": "daylight",
+      "label": "Alley daylight",
+      "tags": ["day"],
+      "values": { "timeOfDay": "morning", "intensity": "bright" }
+    },
+    {
+      "id": "golden_hour",
+      "label": "Golden hour facade",
+      "tags": ["warm"],
+      "values": { "timeOfDay": "golden_hour", "shadowSoftness": "soft" }
+    },
+    {
+      "id": "blue_hour",
+      "label": "Blue hour",
+      "tags": ["blue"],
+      "values": { "timeOfDay": "blue_hour", "ambientLight": "cool" }
+    },
+    {
+      "id": "night_street",
+      "label": "Night street lights",
+      "tags": ["night", "urban"],
+      "values": { "timeOfDay": "night", "ambientLight": "street lights" }
+    }
+  ],
+  "weatherPresets": [
+    { "id": "clear", "label": "Clear alley", "tags": ["clear"], "values": { "sky": "clear blue" } },
+    {
+      "id": "overcast",
+      "label": "Overcast alley",
+      "tags": ["soft"],
+      "values": { "sky": "bright overcast" }
+    },
+    {
+      "id": "rain",
+      "label": "Monsoon rain",
+      "tags": ["rain"],
+      "values": { "sky": "rain clouds", "groundWetness": "wet" }
+    }
+  ],
+  "moodPresets": [
+    {
+      "id": "calm",
+      "label": "Calm street",
+      "tags": ["quiet"],
+      "values": { "atmosphere": "quiet urban morning" }
+    },
+    {
+      "id": "warm",
+      "label": "Warm welcome",
+      "tags": ["warm"],
+      "values": { "atmosphere": "warm and inviting" }
+    },
+    {
+      "id": "cinematic",
+      "label": "Cinematic night",
+      "tags": ["cinematic"],
+      "values": { "atmosphere": "cinematic street dusk" }
+    },
+    {
+      "id": "fresh",
+      "label": "Fresh editorial",
+      "tags": ["bright"],
+      "values": { "atmosphere": "fresh editorial" }
     }
   ],
   "negativeConstraints": ["facade wider than one bay", "side windows on party walls"]

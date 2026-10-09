@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "projectType": "villa",
   "subtype": "default",
   "label": "Detached villa",
@@ -144,6 +144,76 @@
       "aspectRatio": "4:5",
       "composition": "close-up of entrance, materials and joinery",
       "anchorRecommended": false
+    }
+  ],
+  "lightingPresets": [
+    {
+      "id": "daylight",
+      "label": "Clear daylight",
+      "tags": ["day"],
+      "values": { "timeOfDay": "morning", "intensity": "bright" }
+    },
+    {
+      "id": "golden_hour",
+      "label": "Golden hour",
+      "tags": ["warm"],
+      "values": { "timeOfDay": "golden_hour", "shadowSoftness": "soft" }
+    },
+    {
+      "id": "blue_hour",
+      "label": "Blue hour",
+      "tags": ["blue"],
+      "values": { "timeOfDay": "blue_hour", "ambientLight": "cool" }
+    },
+    {
+      "id": "night",
+      "label": "Night garden",
+      "tags": ["night"],
+      "values": { "timeOfDay": "night", "intensity": "low" }
+    }
+  ],
+  "weatherPresets": [
+    { "id": "clear", "label": "Clear sky", "tags": ["clear"], "values": { "sky": "clear blue" } },
+    {
+      "id": "overcast",
+      "label": "Soft overcast",
+      "tags": ["soft"],
+      "values": { "sky": "bright overcast" }
+    },
+    {
+      "id": "rain",
+      "label": "Monsoon rain",
+      "tags": ["rain"],
+      "values": { "sky": "rain clouds", "groundWetness": "wet" }
+    }
+  ],
+  "moodPresets": [
+    {
+      "id": "calm",
+      "label": "Calm garden",
+      "tags": ["quiet"],
+      "values": { "atmosphere": "calm and natural" }
+    },
+    {
+      "id": "warm",
+      "label": "Warm welcome",
+      "tags": ["warm"],
+      "values": { "atmosphere": "warm and inviting" }
+    },
+    {
+      "id": "cinematic",
+      "label": "Cinematic dusk",
+      "tags": ["cinematic"],
+      "values": {
+        "atmosphere": "cinematic dusk",
+        "lighting": { "timeOfDay": "blue_hour" }
+      }
+    },
+    {
+      "id": "fresh",
+      "label": "Fresh editorial",
+      "tags": ["bright"],
+      "values": { "atmosphere": "fresh editorial" }
     }
   ],
   "negativeConstraints": ["attached neighbouring buildings", "dense urban street"],

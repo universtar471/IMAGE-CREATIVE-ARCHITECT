@@ -417,7 +417,9 @@ only and never appear in SQLite, logs or DTOs other than the model ids.
 ### 12.2 Knowledge pack 1.2.0
 
 `lightingPresets`, `weatherPresets`, `moodPresets`: arrays of
-`{ id, label, tags: string[], values: Partial<section> }`. Every pack ships at least
+`{ id, label, tags: string[], values: Partial<section> }`. A mood preset's `values` may also
+carry `lighting?: Partial<LightingDNA>` and `weather?: Partial<WeatherDNA>` so one mood can
+coordinate atmosphere with its light and weather. Every pack ships at least
 4 lighting, 3 weather and 4 mood presets; tropical packs include monsoon/rain and
 blue-hour presets. `KnowledgeRegistry` resolves them like camera presets
 (subtype pack, type default, custom fallback).

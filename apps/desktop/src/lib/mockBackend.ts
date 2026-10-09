@@ -42,6 +42,7 @@ import {
   type ProviderDescriptorDTO,
 } from "@arch/domain";
 import type { CommandName, EventSink, Requests, Transport, VersionDTO } from "./bridge";
+import { neutralGrade } from "./grade";
 
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
@@ -834,6 +835,54 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       refreshStatus(req.projectId);
       save();
       return publicProject(getProject(req.projectId));
+    },
+
+    grade_apply: (req) => {
+      writable(req.projectId);
+      const source = db.assets[req.assetId];
+      if (!source || source.projectId !== req.projectId)
+        fail("NOT_FOUND", "Asset not found in this project.");
+      const sourceAsset = source as AssetDTO;
+      if (sourceAsset.status !== "ready" || !sourceAsset.mimeType?.startsWith("image/"))
+        fail("INVALID_STATE", "Only a ready image asset can be graded.");
+      const grade = req.grade ?? neutralGrade();
+      const id = newId("AST");
+      const t = now();
+      const url = placeholderSvg(
+        sourceAsset.widthPx ?? 1024,
+        sourceAsset.heightPx ?? 768,
+        `${req.label ?? "Color grade"} · ${id.slice(-6)}`,
+        "grade",
+        JSON.stringify(grade).length,
+      );
+      db.assets[id] = {
+        ...sourceAsset,
+        id,
+        source: sourceAsset.source,
+        role: "regular_image",
+        originalName: `${sourceAsset.originalName ?? id} · ${req.label ?? "Color grade"}`,
+        managedRelPath: `assets/graded/${id}.svg`,
+        absolutePath: url,
+        thumbnailPath: url,
+        fileSizeBytes: url.length,
+        parentAssetId: sourceAsset.id,
+        operation: "color_grade",
+        createdAt: t,
+        updatedAt: t,
+      };
+      const parentVersion = db.versions.filter((v) => v.assetId === sourceAsset.id).at(-1);
+      db.versions.push({
+        id: newId("VER"),
+        projectId: req.projectId,
+        assetId: id,
+        parentVersionId: parentVersion?.id ?? null,
+        label: req.label ?? "Color grade",
+        operation: "color_grade",
+        generationId: null,
+        createdAt: t,
+      });
+      save();
+      return db.assets[id];
     },
 
     asset_import: async (req) => {

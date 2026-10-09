@@ -82,14 +82,14 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     label: "Lighting",
     icon: SunMedium,
     group: "scene",
-    availableIn: 4,
+    availableIn: null,
   },
   {
     id: "mood_grade",
     label: "Mood / Grade",
     icon: Palette,
     group: "scene",
-    availableIn: 4,
+    availableIn: null,
   },
   {
     id: "generate",

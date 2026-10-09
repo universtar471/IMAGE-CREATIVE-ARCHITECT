@@ -10,6 +10,7 @@ import {
   AssetDTOSchema,
   BatchDTOSchema,
   CameraAnchorDTOSchema,
+  ColorGradeDNASchema,
   GENERATION_UPDATED_EVENT,
   GenerationDTOSchema,
   JOB_UPDATED_EVENT,
@@ -58,6 +59,14 @@ export const AppInfoSchema = z.object({
   appVersion: z.string(),
 });
 
+/** Request schema for the non-destructive grade command (API §12.4). */
+export const GradeApplyRequestSchema = z.object({
+  projectId: z.string().min(1),
+  assetId: z.string().min(1),
+  grade: ColorGradeDNASchema,
+  label: z.string().optional(),
+});
+
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
 export type Requests = {
   app_info: Record<string, never>;
@@ -104,6 +113,7 @@ export type Requests = {
   camera_anchor_list: { projectId: string };
   camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
   camera_anchor_clear: { projectId: string; cameraId: string };
+  grade_apply: z.infer<typeof GradeApplyRequestSchema>;
 };
 
 /** Response schemas per command. */
@@ -139,6 +149,7 @@ export const responses = {
   camera_anchor_list: z.array(CameraAnchorDTOSchema),
   camera_anchor_set: z.array(CameraAnchorDTOSchema),
   camera_anchor_clear: z.array(CameraAnchorDTOSchema),
+  grade_apply: AssetDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

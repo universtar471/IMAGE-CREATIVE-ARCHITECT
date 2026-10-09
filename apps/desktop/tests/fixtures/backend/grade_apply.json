@@ -1,0 +1,23 @@
+{
+  "command": "grade_apply",
+  "response": {
+    "absolutePath": "/data/projects/PRJ_00000000000000000000000001/assets/original/AST_00000000000000000000000002.png",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "fileSizeBytes": 196,
+    "heightPx": 24,
+    "id": "AST_00000000000000000000000002",
+    "managedRelPath": "assets/original/AST_00000000000000000000000002.png",
+    "mimeType": "image/png",
+    "operation": "color_grade",
+    "originalName": "Warm tropical grade",
+    "parentAssetId": "AST_00000000000000000000000003",
+    "projectId": "PRJ_00000000000000000000000001",
+    "role": "regular_image",
+    "sha256": "46f93f86714218912b43fc09eec5d34d1c92361535089e4ed0590c3751875382",
+    "source": "external",
+    "status": "ready",
+    "thumbnailPath": "/data/projects/PRJ_00000000000000000000000001/previews/AST_00000000000000000000000002_thumb.jpg",
+    "updatedAt": "2026-01-01T00:00:00.000Z",
+    "widthPx": 32
+  }
+}

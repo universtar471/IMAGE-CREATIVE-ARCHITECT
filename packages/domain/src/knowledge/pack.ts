@@ -5,7 +5,12 @@
  */
 import { z } from "zod";
 import { DensitySchema, ProjectTypeSchema } from "../schemas/enums";
-import { CameraViewTypeSchema } from "../schemas/future";
+import {
+  CameraViewTypeSchema,
+  LightingDNASchema,
+  MoodDNASchema,
+  WeatherDNASchema,
+} from "../schemas/future";
 
 const textList = z.array(z.string().trim().min(1)).default([]);
 
@@ -99,6 +104,37 @@ export const CameraPresetSchema = z.object({
 });
 export type CameraPreset = z.infer<typeof CameraPresetSchema>;
 
+const LightingPartialSchema = LightingDNASchema.omit({ schemaVersion: true }).partial();
+const WeatherPartialSchema = WeatherDNASchema.omit({ schemaVersion: true }).partial();
+const MoodPartialSchema = MoodDNASchema.omit({ schemaVersion: true }).partial();
+
+export const LightingPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  tags: textList,
+  values: LightingPartialSchema,
+});
+export type LightingPreset = z.infer<typeof LightingPresetSchema>;
+
+export const WeatherPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  tags: textList,
+  values: WeatherPartialSchema,
+});
+export type WeatherPreset = z.infer<typeof WeatherPresetSchema>;
+
+export const MoodPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  tags: textList,
+  values: MoodPartialSchema.extend({
+    lighting: LightingPartialSchema.optional(),
+    weather: WeatherPartialSchema.optional(),
+  }),
+});
+export type MoodPreset = z.infer<typeof MoodPresetSchema>;
+
 export const KnowledgePackSchema = z.object({
   packVersion: z.string().min(1),
   projectType: ProjectTypeSchema,
@@ -114,6 +150,9 @@ export const KnowledgePackSchema = z.object({
   styleSuggestions: textList,
   contextPresets: z.array(ContextPresetSchema).default([]),
   cameraPresets: z.array(CameraPresetSchema).default([]),
+  lightingPresets: z.array(LightingPresetSchema).default([]),
+  weatherPresets: z.array(WeatherPresetSchema).default([]),
+  moodPresets: z.array(MoodPresetSchema).default([]),
   negativeConstraints: textList,
   /** Vocabulary the prompt compiler may use for this type (e.g. "street-facing facade"). */
   promptVocabulary: z

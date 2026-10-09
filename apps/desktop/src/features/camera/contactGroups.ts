@@ -1,6 +1,8 @@
 /** Contact Sheet grouping (pure): a batch's generations, grouped per camera in DNA order. */
 import type { BatchDTO, CameraDNA, GenerationDTO, JobDTO } from "@arch/domain";
 
+export type MoodPresetLabel = { id: string; label: string };
+
 export type ContactEntry = { generation: GenerationDTO; job: JobDTO | null };
 export type ContactGroup = {
   cameraId: string | null;
@@ -8,6 +10,42 @@ export type ContactGroup = {
   /** Oldest first, so a retry appears after the attempt it replaces. */
   entries: ContactEntry[];
 };
+
+export type MoodContactGroup = {
+  label: string;
+  entries: ContactEntry[];
+};
+
+/** Resolve the persisted job label back to the pack preset used for a variation. */
+export function resolveMoodPreset<T extends MoodPresetLabel>(
+  label: string,
+  presets: readonly T[],
+): T | undefined {
+  return presets.find((preset) => preset.label === label || preset.id === label);
+}
+
+/** Variation batches have no camera id; group their outputs by the preset/job label. */
+export function groupMoodContactSheet(
+  batch: Pick<BatchDTO, "id">,
+  generations: readonly GenerationDTO[],
+  jobs: readonly JobDTO[],
+): MoodContactGroup[] {
+  const groups = new Map<string, MoodContactGroup>();
+  generations
+    .filter((g) => g.batchId === batch.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    .forEach((generation) => {
+      const label =
+        jobs.find((job) => job.generationId === generation.id)?.label ?? "Mood variation";
+      const group = groups.get(label) ?? { label, entries: [] };
+      group.entries.push({
+        generation,
+        job: jobs.find((job) => job.generationId === generation.id) ?? null,
+      });
+      groups.set(label, group);
+    });
+  return [...groups.values()];
+}
 
 export function groupContactSheet(
   batch: Pick<BatchDTO, "id">,

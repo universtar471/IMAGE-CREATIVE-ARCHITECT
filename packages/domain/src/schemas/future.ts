@@ -4,6 +4,41 @@
  */
 import { z } from "zod";
 
+export const TIME_OF_DAY_VALUES = [
+  "dawn",
+  "morning",
+  "midday",
+  "afternoon",
+  "golden_hour",
+  "blue_hour",
+  "night",
+] as const;
+export const TimeOfDaySchema = z.enum(TIME_OF_DAY_VALUES);
+export type TimeOfDay = z.infer<typeof TimeOfDaySchema>;
+
+export const LIGHT_ZONES = [
+  "facade_uplights",
+  "interior_glow",
+  "landscape",
+  "pool",
+  "soffit_downlights",
+  "signage",
+  "street",
+] as const;
+export const LightZoneSchema = z.enum(LIGHT_ZONES);
+export type LightZone = z.infer<typeof LightZoneSchema>;
+
+export const GRADE_LOOK_IDS = [
+  "neutral",
+  "warm_tropical",
+  "cool_modern",
+  "soft_editorial",
+  "cinematic_dusk",
+  "bright_magazine",
+] as const;
+export const GradeLookIdSchema = z.enum(GRADE_LOOK_IDS);
+export type GradeLookId = z.infer<typeof GradeLookIdSchema>;
+
 /** What a camera looks at; drives presets, prompt wording and the Camera Director diagram. */
 export const CameraViewTypeSchema = z.enum([
   "exterior_front",
@@ -49,7 +84,8 @@ export type CameraDNA = z.infer<typeof CameraDNASchema>;
 
 export const LightingDNASchema = z.object({
   schemaVersion: z.literal(1),
-  timeOfDay: z.string().optional(),
+  presetId: z.string().optional(),
+  timeOfDay: TimeOfDaySchema.or(z.string()).optional(),
   sunDirection: z.string().optional(),
   sunElevation: z.string().optional(),
   intensity: z.string().optional(),
@@ -59,10 +95,15 @@ export const LightingDNASchema = z.object({
   artificialLighting: z
     .array(
       z.object({
+        id: z
+          .string()
+          .regex(/^LGT_[0-7][0-9A-HJKMNP-TV-Z]{25}$/)
+          .optional(),
         type: z.string(),
         temperatureK: z.number().int().positive().optional(),
         intensity: z.string().optional(),
         zone: z.string().optional(),
+        enabled: z.boolean().default(true),
       }),
     )
     .default([]),
@@ -71,6 +112,7 @@ export type LightingDNA = z.infer<typeof LightingDNASchema>;
 
 export const WeatherDNASchema = z.object({
   schemaVersion: z.literal(1),
+  presetId: z.string().optional(),
   preset: z.string().optional(),
   sky: z.string().optional(),
   humidity: z.string().optional(),
@@ -82,6 +124,7 @@ export type WeatherDNA = z.infer<typeof WeatherDNASchema>;
 
 export const MoodDNASchema = z.object({
   schemaVersion: z.literal(1),
+  presetId: z.string().optional(),
   preset: z.string().optional(),
   contrast: z.string().optional(),
   saturation: z.string().optional(),
@@ -95,7 +138,7 @@ const gradeSlider = z.number().min(-100).max(100).default(0);
 
 export const ColorGradeDNASchema = z.object({
   schemaVersion: z.literal(1),
-  exposure: z.number().min(-5).max(5).default(0),
+  exposure: z.number().min(-100).max(100).default(0),
   contrast: gradeSlider,
   highlights: gradeSlider,
   shadows: gradeSlider,
@@ -107,6 +150,6 @@ export const ColorGradeDNASchema = z.object({
   saturation: gradeSlider,
   clarity: gradeSlider,
   dehaze: gradeSlider,
-  look: z.string().optional(),
+  look: GradeLookIdSchema.or(z.string()).optional(),
 });
 export type ColorGradeDNA = z.infer<typeof ColorGradeDNASchema>;

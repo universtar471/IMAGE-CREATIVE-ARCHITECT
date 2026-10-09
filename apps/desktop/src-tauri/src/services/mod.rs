@@ -7,6 +7,7 @@ pub mod batches;
 pub mod dna;
 pub mod dna_validation;
 pub mod generations;
+pub mod grade;
 pub mod projects;
 pub mod prompt_enhance;
 pub mod provider_settings;

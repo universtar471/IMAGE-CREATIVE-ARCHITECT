@@ -569,8 +569,27 @@
           "type": "number",
           "const": 1
         },
-        "timeOfDay": {
+        "presetId": {
           "type": "string"
+        },
+        "timeOfDay": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "dawn",
+                "morning",
+                "midday",
+                "afternoon",
+                "golden_hour",
+                "blue_hour",
+                "night"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "sunDirection": {
           "type": "string"
@@ -596,6 +615,10 @@
           "items": {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^LGT_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+              },
               "type": {
                 "type": "string"
               },
@@ -609,10 +632,15 @@
               },
               "zone": {
                 "type": "string"
+              },
+              "enabled": {
+                "default": true,
+                "type": "boolean"
               }
             },
             "required": [
-              "type"
+              "type",
+              "enabled"
             ],
             "additionalProperties": false
           }
@@ -630,6 +658,9 @@
         "schemaVersion": {
           "type": "number",
           "const": 1
+        },
+        "presetId": {
+          "type": "string"
         },
         "preset": {
           "type": "string"
@@ -663,6 +694,9 @@
         "schemaVersion": {
           "type": "number",
           "const": 1
+        },
+        "presetId": {
+          "type": "string"
         },
         "preset": {
           "type": "string"
@@ -700,8 +734,8 @@
         "exposure": {
           "default": 0,
           "type": "number",
-          "minimum": -5,
-          "maximum": 5
+          "minimum": -100,
+          "maximum": 100
         },
         "contrast": {
           "default": 0,
@@ -770,7 +804,22 @@
           "maximum": 100
         },
         "look": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "neutral",
+                "warm_tropical",
+                "cool_modern",
+                "soft_editorial",
+                "cinematic_dusk",
+                "bright_magazine"
+              ]
+            },
+            {
+              "type": "string"
+            }
+          ]
         }
       },
       "required": [
@@ -797,6 +846,7 @@
         "camera": false,
         "lighting": false,
         "weather": false,
+        "mood": false,
         "colorGrade": false,
         "objectIds": []
       },
@@ -819,6 +869,10 @@
           "type": "boolean"
         },
         "weather": {
+          "default": false,
+          "type": "boolean"
+        },
+        "mood": {
           "default": false,
           "type": "boolean"
         },
