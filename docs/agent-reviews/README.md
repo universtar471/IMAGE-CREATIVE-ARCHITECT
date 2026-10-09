@@ -17,3 +17,9 @@ Pending reviews run against `main` after merge; findings are fixed in follow-up 
 | P3-C UI | wt/p3-ui | Round 1: PHẢI SỬA (stale poll responses overwrite newer event state) → fix in wt/p3-fixes | Merged 2026-10-09 on user's provisional approval |
 
 Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend round 2), wt/p3-ui (UI #2–4 and suggestions).
+
+## Providers
+
+| Task | Branch | Codex review | Merge |
+| --- | --- | --- | --- |
+| OpenAI provider | wt/openai-provider | Round 1: PHẢI SỬA (invented 1K/2K image-size tiers) → fix in wt/hhtech-provider (built on top) | Pending |
