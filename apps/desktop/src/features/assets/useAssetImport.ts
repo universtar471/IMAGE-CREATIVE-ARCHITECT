@@ -3,6 +3,8 @@ import type { AssetRole, AssetSource } from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { BridgeError, call, toBridgeError } from "../../lib/bridge";
 import { fileNameOf, pickImages } from "../../lib/files";
+import { t } from "../../i18n";
+import { errorHeadline } from "../../i18n/domain";
 
 export type DuplicatePrompt = {
   fileName: string;
@@ -42,7 +44,8 @@ export function useAssetImport() {
             lastId = asset.id;
           }
         } catch (err) {
-          notify("error", `${fileNameOf(path)}: ${toBridgeError(err).message}`);
+          const e = toBridgeError(err);
+          notify("error", `${fileNameOf(path)}: ${e.message}`, errorHeadline(e));
         }
         setBusy({ done: i + 1, total: paths.length });
       }
@@ -52,7 +55,7 @@ export function useAssetImport() {
         const assets = await call("asset_list", { projectId: ws.project.id });
         await adoptAssets(ws.project.id, assets);
         if (lastId) selectAsset(lastId);
-        notify("success", `Imported ${imported} image${imported > 1 ? "s" : ""}.`);
+        notify("success", t("assets.importedToast", { count: imported }));
       }
     },
     [],
@@ -64,7 +67,7 @@ export function useAssetImport() {
         const paths = await pickImages();
         await importPaths(paths, role);
       } catch (err) {
-        useStudio.getState().notify("error", toBridgeError(err).message);
+        useStudio.getState().notifyError(err);
       }
     },
     [importPaths],

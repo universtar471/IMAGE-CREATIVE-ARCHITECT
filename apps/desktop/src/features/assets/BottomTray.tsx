@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, ImagePlus, Lock } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
-import { ASSET_ROLE_LABELS, AssetRoleSchema, type AssetRole } from "@arch/domain";
+import { AssetRoleSchema, type AssetRole } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { EmptyState } from "../../components/common/states";
@@ -11,6 +11,7 @@ import { VersionsTab } from "../versions/VersionsTab";
 import { TRAY_TABS } from "../workspace/modules";
 import { AssetThumbnail } from "./AssetThumbnail";
 import { useAssetImport } from "./useAssetImport";
+import { useT } from "../../i18n";
 
 const ROLE_FILTERS = AssetRoleSchema.options;
 
@@ -22,35 +23,36 @@ export function BottomTray() {
   const assetCount = useStudio((s) => s.workspace?.assets.length ?? 0);
   const historyCount = useStudio((s) => s.workspace?.generations.length ?? 0);
   const activeJobs = useStudio((s) => s.jobs.filter((j) => !isTerminalJob(j)).length);
+  const t = useT();
 
   return (
-    <section className="tray" aria-label="Production tray">
+    <section className="tray" aria-label={t("tray.label")}>
       <div className="tray-tabs" role="tablist">
-        {TRAY_TABS.map((t) => (
+        {TRAY_TABS.map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             role="tab"
-            className={`tray-tab ${t.availableIn ? "is-future" : ""}`}
-            aria-selected={trayTab === t.id && !collapsed}
-            onClick={() => setTrayTab(t.id)}
-            title={t.availableIn ? `Coming in Phase ${t.availableIn}` : undefined}
+            className={`tray-tab ${tab.availableIn ? "is-future" : ""}`}
+            aria-selected={trayTab === tab.id && !collapsed}
+            onClick={() => setTrayTab(tab.id)}
+            title={tab.availableIn ? t("tray.comingIn", { phase: tab.availableIn }) : undefined}
           >
-            {t.label}
-            {t.id === "assets" && <span className="badge badge-neutral">{assetCount}</span>}
-            {t.id === "jobs" && activeJobs > 0 && (
+            {t(`tray.${tab.id}`)}
+            {tab.id === "assets" && <span className="badge badge-neutral">{assetCount}</span>}
+            {tab.id === "jobs" && activeJobs > 0 && (
               <span className="badge badge-info">{activeJobs}</span>
             )}
-            {t.id === "history" && historyCount > 0 && (
+            {tab.id === "history" && historyCount > 0 && (
               <span className="badge badge-neutral">{historyCount}</span>
             )}
-            {t.availableIn && <Lock size={11} />}
+            {tab.availableIn && <Lock size={11} />}
           </button>
         ))}
         <span className="spacer" />
         <button
           className="btn btn-ghost btn-sm"
           onClick={toggleTray}
-          aria-label={collapsed ? "Expand tray" : "Collapse tray"}
+          aria-label={collapsed ? t("tray.expand") : t("tray.collapse")}
         >
           {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
@@ -76,6 +78,7 @@ function AssetsTab() {
   const [importRole, setImportRole] = useState<AssetRole>("regular_image");
   const [dropping, setDropping] = useState(false);
   const { busy, duplicate, importPaths, pickAndImport } = useAssetImport();
+  const t = useT();
 
   const visible = useMemo(
     () => (filter === "all" ? assets : assets.filter((a) => a.role === filter)),
@@ -119,7 +122,7 @@ function AssetsTab() {
         }}
       >
         <label className="field-label" htmlFor="tray-filter">
-          Show
+          {t("assets.show")}
         </label>
         <select
           id="tray-filter"
@@ -127,15 +130,15 @@ function AssetsTab() {
           value={filter}
           onChange={(e) => setFilter(e.target.value as AssetRole | "all")}
         >
-          <option value="all">All roles</option>
+          <option value="all">{t("assets.allRoles")}</option>
           {ROLE_FILTERS.map((r) => (
             <option key={r} value={r}>
-              {ASSET_ROLE_LABELS[r]}
+              {t(`labels.assetRole.${r}`)}
             </option>
           ))}
         </select>
         <label className="field-label" htmlFor="tray-import-role">
-          Import as
+          {t("assets.importAs")}
         </label>
         <select
           id="tray-import-role"
@@ -146,20 +149,22 @@ function AssetsTab() {
         >
           {ROLE_FILTERS.map((r) => (
             <option key={r} value={r}>
-              {ASSET_ROLE_LABELS[r]}
+              {t(`labels.assetRole.${r}`)}
             </option>
           ))}
         </select>
       </div>
 
-      <div className="asset-strip" role="listbox" aria-label="Project assets">
+      <div className="asset-strip" role="listbox" aria-label={t("assets.listLabel")}>
         <button
           className="asset-import-tile"
           onClick={() => void pickAndImport(importRole)}
           disabled={readOnly || !!busy}
         >
           <ImagePlus size={22} />
-          {busy ? `Importing ${busy.done}/${busy.total}…` : "Import images"}
+          {busy
+            ? t("assets.importing", { done: busy.done, total: busy.total })
+            : t("assets.importImages")}
           <span className="field-hint">JPEG · PNG · WebP</span>
         </button>
         {visible.map((a) => (
@@ -171,33 +176,28 @@ function AssetsTab() {
           />
         ))}
         {assets.length > 0 && visible.length === 0 && (
-          <EmptyState title="No assets with this role">
-            Change the filter to see other images.
-          </EmptyState>
+          <EmptyState title={t("assets.noneWithRole")}>{t("assets.changeFilter")}</EmptyState>
         )}
         {assets.length === 0 && !busy && (
           <div className="state" style={{ alignItems: "flex-start" }}>
-            <p>
-              {readOnly
-                ? "This archived project has no images."
-                : "No images yet. Import renders, photos or references — or drop files here."}
-            </p>
+            <p>{readOnly ? t("assets.archivedEmpty") : t("assets.empty")}</p>
           </div>
         )}
       </div>
 
       {duplicate && (
         <ConfirmDialog
-          title="Duplicate image"
+          title={t("assets.duplicateTitle")}
           message={
             <>
-              <p style={{ marginTop: 0 }}>{duplicate.message}</p>
-              <p className="field-hint">
-                Keeping it creates a second logical asset that shares the same binary content.
+              <p style={{ marginTop: 0 }}>
+                {t("assets.duplicateLead", { file: duplicate.fileName })}
               </p>
+              <p className="field-hint">{duplicate.message}</p>
+              <p className="field-hint">{t("assets.duplicateHint")}</p>
             </>
           }
-          confirmLabel="Import anyway"
+          confirmLabel={t("assets.importAnyway")}
           onConfirm={() => duplicate.resolve(true)}
           onCancel={() => duplicate.resolve(false)}
         />
