@@ -34,6 +34,8 @@
         "label": "Nano Banana 2.1 (Gemini)",
         "maxOutputs": 4,
         "maxReferenceImages": 14,
+        "priceHint": null,
+        "qualityOptions": [],
         "supportsNegativePrompt": false,
         "supportsSeed": false,
         "textToImage": true
@@ -61,6 +63,8 @@
         "label": "Nano Banana Pro (Gemini 3 Pro Image)",
         "maxOutputs": 4,
         "maxReferenceImages": 14,
+        "priceHint": null,
+        "qualityOptions": [],
         "supportsNegativePrompt": false,
         "supportsSeed": false,
         "textToImage": true
@@ -93,6 +97,8 @@
         "label": "Nano Banana 2 (Gemini 3.1 Flash Image)",
         "maxOutputs": 4,
         "maxReferenceImages": 14,
+        "priceHint": null,
+        "qualityOptions": [],
         "supportsNegativePrompt": false,
         "supportsSeed": false,
         "textToImage": true
@@ -118,6 +124,8 @@
         "label": "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
         "maxOutputs": 4,
         "maxReferenceImages": 14,
+        "priceHint": null,
+        "qualityOptions": [],
         "supportsNegativePrompt": false,
         "supportsSeed": false,
         "textToImage": true
@@ -141,6 +149,8 @@
         "label": "Nano Banana (Gemini 2.5 Flash Image, legacy)",
         "maxOutputs": 4,
         "maxReferenceImages": 3,
+        "priceHint": null,
+        "qualityOptions": [],
         "supportsNegativePrompt": false,
         "supportsSeed": false,
         "textToImage": true

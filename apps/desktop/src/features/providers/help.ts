@@ -28,7 +28,7 @@ export const PROVIDER_KEY_HELP: Readonly<Record<string, ProviderKeyHelp>> = {
     keyUrl: "hhtechapi.com",
     notes: [
       "Also needs HHTECH_BASE_URL (e.g. https://hhtechapi.com/v1) in the environment or .env; restart the app after changing it.",
-      "Optional: HHTECH_IMAGE_MODEL (comma-separated), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY, HHTECH_CHAT_MODEL (used by Enhance prompt).",
+      "Optional: HHTECH_IMAGE_MODEL (comma-separated; restricts the built-in model list), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (the Default quality), HHTECH_CHAT_MODEL (used by Enhance prompt).",
     ],
   },
 };

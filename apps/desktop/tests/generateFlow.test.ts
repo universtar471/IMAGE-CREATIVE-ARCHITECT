@@ -69,7 +69,7 @@ const localInput = (projectId: string, refs: string[]): GenerationInput => ({
   modelId: "placeholder-v1",
   purpose: "hero",
   referenceAssetIds: refs,
-  params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: null },
+  params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: null, quality: null },
 });
 
 /** The open project's history entry once it is no longer queued/running. */
@@ -132,7 +132,7 @@ describe("generation flow through the store (queued, events)", () => {
       ...localInput(project.id, []),
       providerId: "gemini",
       modelId: "gemini-nano-banana-2.1",
-      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null },
+      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
     });
     expect(g).toBeUndefined();
     expect(useStudio.getState().run).toMatchObject({

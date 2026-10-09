@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   adaptGenerationParams,
   closestAspectRatio,
+  costHintText,
+  estimateCostVnd,
+  formatVnd,
+  GenerationParamsSchema,
   COMPILER_VERSION,
   defaultGenerationParams,
   defaultReferenceIds,
@@ -26,6 +30,8 @@ const model = (over: Partial<ModelCapabilities> = {}): ModelCapabilities => ({
   imageSizes: ["1K", "2K"],
   supportsNegativePrompt: true,
   supportsSeed: true,
+  qualityOptions: ["low", "high"],
+  priceHint: null,
   ...over,
 });
 
@@ -43,6 +49,7 @@ const params = (over: Partial<GenerationParams> = {}): GenerationParams => ({
   imageSize: "1K",
   outputCount: 1,
   seed: null,
+  quality: null,
   ...over,
 });
 
@@ -96,12 +103,14 @@ describe("default params", () => {
       imageSize: "1K",
       outputCount: 1,
       seed: null,
+      quality: null,
     });
     expect(defaultGenerationParams(model({ aspectRatios: [], imageSizes: [] }))).toEqual({
       aspectRatio: null,
       imageSize: null,
       outputCount: 1,
       seed: null,
+      quality: null,
     });
   });
 
@@ -112,8 +121,57 @@ describe("default params", () => {
       imageSize: "1K",
       outputCount: 1,
       seed: null,
+      quality: null,
     });
     expect(adaptGenerationParams(params({ seed: 7 }), model())).toEqual(params({ seed: 7 }));
+  });
+
+  it("keeps an offered quality and drops one the model lacks", () => {
+    expect(adaptGenerationParams(params({ quality: "high" }), model()).quality).toBe("high");
+    expect(adaptGenerationParams(params({ quality: "medium" }), model()).quality).toBeNull();
+    expect(
+      adaptGenerationParams(params({ quality: "high" }), model({ qualityOptions: [] })).quality,
+    ).toBeNull();
+  });
+});
+
+describe("quality and cost", () => {
+  const ok = { prompt: prompt(), referenceAssetIds: [] };
+
+  it("accepts an offered quality and flags others", () => {
+    expect(
+      validateGenerationRequest({ ...ok, params: params({ quality: "low" }) }, model()),
+    ).toEqual([]);
+    const fields = (m: ModelCapabilities, quality: GenerationParams["quality"]) =>
+      validateGenerationRequest({ ...ok, params: params({ quality }) }, m).map((i) => i.field);
+    expect(fields(model(), "medium")).toEqual(["quality"]);
+    expect(fields(model({ qualityOptions: [] }), "high")).toEqual(["quality"]);
+  });
+
+  it("parses params without quality as the provider default (older rows)", () => {
+    const parsed = GenerationParamsSchema.parse({
+      aspectRatio: null,
+      imageSize: null,
+      outputCount: 1,
+      seed: null,
+    });
+    expect(parsed.quality).toBeNull();
+    expect(() => GenerationParamsSchema.parse({ ...parsed, quality: "ultra" })).toThrow();
+  });
+
+  it("estimates the cost from the tier price list", () => {
+    const priced = model({ priceHint: { "1K": 280, "2K": 600, "4K": 900 } });
+    expect(estimateCostVnd(priced, "2K", 2)).toBe(1200);
+    expect(estimateCostVnd(priced, null, 2)).toBeNull();
+    expect(estimateCostVnd(model(), "1K", 1)).toBeNull();
+    expect(costHintText(priced, "2K", 2)).toBe("≈ 1.200đ");
+    expect(costHintText(priced, "4K", 4)).toBe("≈ 3.600đ");
+    expect(costHintText(model({ priceHint: { "2K": 500 } }), "1K", 1)).toBe(
+      "No published price for 1K",
+    );
+    expect(costHintText(model(), "1K", 1)).toBeNull();
+    expect(formatVnd(280)).toBe("280đ");
+    expect(formatVnd(1234567)).toBe("1.234.567đ");
   });
 });
 

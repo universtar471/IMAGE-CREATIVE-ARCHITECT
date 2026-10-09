@@ -153,7 +153,7 @@ describe("submit with an extra prompt", () => {
       modelId: "placeholder-v1",
       purpose: "variation",
       referenceAssetIds: [],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
       extraPrompt: "  wet street reflections  ",
     });
     expect(g).toBeDefined();

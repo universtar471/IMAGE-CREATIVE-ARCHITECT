@@ -87,6 +87,7 @@ fn request(outputs: u32) -> ProviderRequest {
             image_size: Some("2K".into()),
             output_count: outputs,
             seed: None,
+            quality: None,
         },
         api_key: Some(KEY.into()),
     }
@@ -596,6 +597,7 @@ fn info_lists_verified_models_with_honest_capabilities() {
         assert_eq!(model.max_outputs, 4);
         assert!(!model.supports_negative_prompt);
         assert!(!model.supports_seed);
+        assert!(model.quality_options.is_empty() && model.price_hint.is_none());
         assert!(model.aspect_ratios.contains(&"1:1".to_string()));
     }
     let pro = info.model("gemini-3-pro-image").unwrap();
@@ -668,7 +670,13 @@ fn gemini_live_smoke() {
             preservation_instructions: String::new(),
         },
         references: vec![],
-        params: GenerationParams { aspect_ratio: Some("1:1".into()), image_size: None, output_count: 1, seed: None },
+        params: GenerationParams {
+            aspect_ratio: Some("1:1".into()),
+            image_size: None,
+            output_count: 1,
+            seed: None,
+            quality: None,
+        },
         api_key: Some(key),
     };
     let out = provider.generate(&req).unwrap_or_else(|e| panic!("generate: {e}"));

@@ -91,19 +91,52 @@ models under one base URL. It is configured only from the environment (never SQL
 |---|---|---|
 | `HHTECH_API_KEY` | — | Bearer key. A key saved in provider settings wins; `ARCH_STUDIO_HHTECH_API_KEY` is also read. |
 | `HHTECH_BASE_URL` | — (required) | e.g. `https://hhtechapi.com/v1`; https only (http only for localhost). Without it the provider shows "not configured". |
-| `HHTECH_IMAGE_MODEL` | `gpt-image-2` | comma-separated model ids, each shown in the model picker |
-| `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent without an aspect ratio (and for its own ratio); `auto` omits it |
-| `HHTECH_IMAGE_QUALITY` | `medium` | `quality` field |
+| `HHTECH_IMAGE_MODEL` | — (full catalog below) | comma-separated base ids that restrict and order the model picker; an id outside the catalog is still offered as a plain entry (no tiers, no price) |
+| `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent when no tier is chosen, without an aspect ratio (and for its own ratio); `auto` omits it |
+| `HHTECH_IMAGE_QUALITY` | `medium` | `quality` sent to GPT models when the Quality control is on **Default** (never sent to Gemini) |
 | `HHTECH_CHAT_MODEL` | `claude-sonnet-5` | chat model used by **Enhance prompt** |
 | `HHTECH_TIMEOUT_SECS` | `600` | seconds one images call may take (30–3600); several outputs are sent as parallel single-image calls; a timed-out call is not retried automatically (press Retry) |
+
+Built-in model catalog (in code, `providers/hhtech/catalog.rs`), offered in this order when
+`HHTECH_IMAGE_MODEL` is unset. Prices are the gateway's published price per image (VND,
+2026-10-09) and only an estimate; the model picker shows them in the label:
+
+| Model (base id) | Family | 1K | 2K | 4K | Quality choice | References |
+|---|---|---|---|---|---|---|
+| GPT Image 2.5 Sunburst (`gpt-image-2.5-sunburst`) | GPT | 280đ | 600đ | 900đ | low / medium / high | 16 |
+| Gemini 3 Pro Image "Banana" (`gemini-3-pro-image`) | Gemini | — | 500đ | 800đ | — | 14 |
+| GPT Image 2.5 Flare (`gpt-image-2.5-flare`) | GPT | 280đ | 600đ | 900đ | low / medium / high | 16 |
+| GPT Image 2 (`gpt-image-2`) | GPT | 180đ | 500đ | 800đ | low / medium / high | 16 |
+| Gemini 3.1 Flash Image (`gemini-3.1-flash-image`) | Gemini | — | 500đ | 800đ | — | 14 |
+| Gemini 2.5 Flash Image (`gemini-2.5-flash-image`) | Gemini | — | 500đ | 800đ | — | 14 |
+
+Unlike the official OpenAI provider, the **Image size** tiers here (1K / 2K / 4K for GPT, 2K / 4K
+for Gemini, as the gateway publishes them) are real,
+separately billed products of the gateway. The pixel size follows the aspect ratio and the
+tier: long edge 1024 / 2048 / 3840, short edge by the ratio, rounded to a multiple of 16
+(e.g. 16:9 at 2K = 2048x1152).
+
+- **GPT models** get the tier through `size`: the base id plus the computed size (live:
+  `gpt-image-2` + 2048x2048 returned a 2048x2048 PNG; `gpt-image-2` + 1024x576, quality low,
+  returned 1024x576, so non-square 1K sizes work). `quality` is your **Quality** choice,
+  or `HHTECH_IMAGE_QUALITY` on Default.
+- **Gemini models** ignore `size` for resolution, so the tier is a model-id suffix:
+  `<base>-2k` or `<base>-4k` on both endpoints (2K by default; the bare base id, 1024 px, is
+  never sent); `size` still sets the aspect (live:
+  `gemini-3-pro-image-2k` + 2048x1152 returned 2752x1536). The `-edit-*` ids returned HTTP 502
+  and are never used. No `quality` is sent and no Quality control is shown.
+- The Generate button shows the estimated cost (`≈ images × tier price`); the camera batch
+  dialogs add the total to their summary. The tier and the id actually sent are recorded in
+  the generation's provider metadata (`tier`, `requestModel`).
 
 Requests: `POST {BASE}/images/generations` (JSON, `response_format: b64_json`) without
 references, `POST {BASE}/images/edits` (multipart; one reference as `image`, several as
 `image[]`, the latter unverified on this gateway) with references. A `data[].url` answer is
-downloaded (https only, max 50 MB). Generations take ~100 s on the gateway; the timeout is
-300 s. **Test** in provider settings lists `GET {BASE}/models` and says whether the configured
-models are there. The gateway also exposes tier/edit variants as model ids
-(`gpt-image-2-2k`, `gpt-image-2-edit-1k`, …); list them in `HHTECH_IMAGE_MODEL` to use them.
+downloaded (https only, max 50 MB). Generations take ~45–75 s (Gemini 2K) to ~3 min (GPT 2K) on
+the gateway; the timeout is `HHTECH_TIMEOUT_SECS`. **Test** in provider settings lists
+`GET {BASE}/models` and says whether the configured models are there. Existing `.env` files
+with `HHTECH_IMAGE_MODEL=gpt-image-2` keep working (that one model, now with tiers); remove the
+line to get the whole catalog.
 
 **Enhance prompt** (Generate panel, next to the extra prompt) sends your extra text plus the
 compiled DNA prompt to `POST {BASE}/chat/completions` and shows the rewrite to Accept or

@@ -55,7 +55,7 @@ describe("failed generation card", () => {
         metadata: {},
       },
       referenceAssetIds: [],
-      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null },
+      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
       parentAssetId: null,
       outputAssetIds: [],
       error,

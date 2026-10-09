@@ -66,7 +66,7 @@ const input = (projectId: string, refs: string[]) => ({
   modelId: "placeholder-v1",
   purpose: "hero" as const,
   referenceAssetIds: refs,
-  params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+  params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
 });
 
 describe("PHẢI SỬA 2 — submit is bound to its project", () => {
@@ -175,7 +175,7 @@ describe("NÊN SỬA 1 — result card after its output was deleted", () => {
         metadata: {},
       },
       referenceAssetIds: [],
-      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null },
+      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
       parentAssetId: null,
       outputAssetIds: ["AST_DELETED"],
       error: null,

@@ -95,6 +95,7 @@ fn request(outputs: u32) -> ProviderRequest {
             image_size: None,
             output_count: outputs,
             seed: None,
+            quality: None,
         },
         api_key: Some(KEY.into()),
     }
@@ -420,6 +421,8 @@ fn validation_rejects_before_calling_the_api() {
     check(&|r| r.params.aspect_ratio = Some(KEY.into()), InvalidRequest);
     check(&|r| r.params.image_size = Some("1K".into()), InvalidRequest);
     check(&|r| r.params.image_size = Some("4K".into()), InvalidRequest);
+    // Official OpenAI keeps its fixed `high`: no quality choice.
+    check(&|r| r.params.quality = Some("low".into()), InvalidRequest);
     check(&|r| r.references = (0..17).map(|_| references()[0].clone()).collect(), InvalidRequest);
     check(&|r| r.prompt.positive = "x".repeat(32_001), InvalidRequest);
     check(
@@ -452,6 +455,8 @@ fn info_lists_verified_models_with_honest_capabilities() {
         assert!(!model.supports_negative_prompt);
         assert!(!model.supports_seed);
         assert!(model.image_sizes.is_empty(), "no invented resolution tiers");
+        assert!(model.quality_options.is_empty(), "fixed quality, no choice");
+        assert_eq!(model.price_hint, None);
         assert_eq!(model.aspect_ratios.len(), 10);
         assert!(model.aspect_ratios.contains(&"3:2".to_string()));
     }
@@ -525,7 +530,13 @@ fn openai_live_smoke() {
             preservation_instructions: String::new(),
         },
         references: vec![],
-        params: GenerationParams { aspect_ratio: Some("1:1".into()), image_size: None, output_count: 1, seed: None },
+        params: GenerationParams {
+            aspect_ratio: Some("1:1".into()),
+            image_size: None,
+            output_count: 1,
+            seed: None,
+            quality: None,
+        },
         api_key: Some(key),
     };
     let out = provider.generate(&req).unwrap_or_else(|e| panic!("generate: {e}"));

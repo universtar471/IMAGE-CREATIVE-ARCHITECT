@@ -67,6 +67,60 @@ pub fn ratio_of(size: &str) -> Option<String> {
     Some(format!("{}:{}", w / gcd, h / gcd))
 }
 
+/// How a model turns the requested resolution tier (`imageSize`) into a request. Only gateways
+/// configure anything but [`TierStrategy::None`]; see `providers::hhtech` for the live facts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TierStrategy {
+    /// No tiers: the size follows the aspect ratio (official OpenAI, unknown gateway ids).
+    None,
+    /// The tier sets the pixel `size` (HHTECH GPT Image models).
+    Size,
+    /// The tier is a model-id suffix (`-2k`, `-4k`; without a tier the model's first tier) and
+    /// `size` only carries the
+    /// aspect (HHTECH Gemini models).
+    IdSuffix,
+}
+
+/// Per-model request routing of the adapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Route {
+    pub tiers: TierStrategy,
+    /// Whether the `quality` field is sent at all.
+    pub sends_quality: bool,
+}
+
+impl Default for Route {
+    fn default() -> Self {
+        Self { tiers: TierStrategy::None, sends_quality: true }
+    }
+}
+
+/// Long edge in pixels of each resolution tier (HHTECH bills per tier; 4K is 3840, not 4096).
+pub const TIER_LONG_EDGES: [(&str, u32); 3] = [("1K", 1024), ("2K", 2048), ("4K", 3840)];
+
+/// `WIDTHxHEIGHT` for an aspect ratio (`W:H`) at a tier: the long edge from
+/// [`TIER_LONG_EDGES`], the short edge by the ratio, rounded to a multiple of 16. `None` for an
+/// unknown tier or a ratio that does not parse.
+pub fn tier_size(ratio: &str, tier: &str) -> Option<String> {
+    let long = TIER_LONG_EDGES.iter().find(|(t, _)| *t == tier)?.1;
+    let (w, h) = ratio.split_once(':')?;
+    let (w, h): (f64, f64) = (w.trim().parse().ok()?, h.trim().parse().ok()?);
+    if !(w > 0.0 && h > 0.0 && w.is_finite() && h.is_finite()) {
+        return None;
+    }
+    let short = ((f64::from(long) * w.min(h) / w.max(h)) / 16.0).round().max(1.0) as u32 * 16;
+    Some(if w >= h { format!("{long}x{short}") } else { format!("{short}x{long}") })
+}
+
+/// The model id to send: with [`TierStrategy::IdSuffix`] the 2K / 4K tiers append `-2k` /
+/// `-4k`; everything else sends the base id.
+pub fn tier_model_id(base: &str, tiers: TierStrategy, tier: Option<&str>) -> String {
+    match (tiers, tier) {
+        (TierStrategy::IdSuffix, Some(tier)) => format!("{base}-{}", tier.to_ascii_lowercase()),
+        _ => base.to_string(),
+    }
+}
+
 /// Capabilities of a model behind an OpenAI-compatible gateway: same request shape as GPT Image
 /// (ten aspect ratios, no size tiers, no seed or negative prompt), outputs capped at 4.
 pub fn gateway_model(id: &str) -> ModelCapabilities {
@@ -100,6 +154,8 @@ fn to_capabilities(spec: &Spec) -> ModelCapabilities {
         // Neither endpoint has a negative-prompt or seed field; negatives go into the text.
         supports_negative_prompt: false,
         supports_seed: false,
+        quality_options: Vec::new(),
+        price_hint: None,
     }
 }
 
@@ -145,6 +201,38 @@ mod tests {
         assert_eq!(ratio_of("1024x1536").as_deref(), Some("2:3"));
         assert_eq!(ratio_of("auto"), None);
         assert_eq!(ratio_of("0x10"), None);
+    }
+
+    #[test]
+    fn tier_sizes_scale_the_long_edge_and_keep_the_ratio() {
+        assert_eq!(tier_size("1:1", "1K").as_deref(), Some("1024x1024"));
+        assert_eq!(tier_size("1:1", "2K").as_deref(), Some("2048x2048"));
+        assert_eq!(tier_size("1:1", "4K").as_deref(), Some("3840x3840"));
+        assert_eq!(tier_size("16:9", "1K").as_deref(), Some("1024x576"));
+        assert_eq!(tier_size("16:9", "2K").as_deref(), Some("2048x1152"));
+        assert_eq!(tier_size("16:9", "4K").as_deref(), Some("3840x2160"));
+        assert_eq!(tier_size("9:16", "2K").as_deref(), Some("1152x2048"));
+        assert_eq!(tier_size("3:2", "1K").as_deref(), Some("1024x688"), "682.7 rounds to 688");
+        assert_eq!(tier_size("21:9", "4K").as_deref(), Some("3840x1648"), "1645.7 rounds to 1648");
+        assert_eq!(tier_size("1:1", "8K"), None);
+        assert_eq!(tier_size("wide", "1K"), None);
+        assert_eq!(tier_size("0:1", "1K"), None);
+        for ratio in ASPECT_RATIOS {
+            for (tier, long) in TIER_LONG_EDGES {
+                let (w, h) = dims(&tier_size(ratio, tier).unwrap());
+                assert_eq!((w % 16, h % 16), (0, 0), "{ratio} {tier}");
+                assert_eq!(w.max(h), long, "{ratio} {tier}");
+            }
+        }
+    }
+
+    #[test]
+    fn only_the_id_suffix_strategy_renames_the_model() {
+        assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, Some("2K")), "gemini-3-pro-image-2k");
+        assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, Some("4K")), "gemini-3-pro-image-4k");
+        assert_eq!(tier_model_id("gemini-3-pro-image", TierStrategy::IdSuffix, None), "gemini-3-pro-image");
+        assert_eq!(tier_model_id("gpt-image-2", TierStrategy::Size, Some("4K")), "gpt-image-2");
+        assert_eq!(tier_model_id("gpt-image-2", TierStrategy::None, Some("2K")), "gpt-image-2");
     }
 
     #[test]

@@ -49,7 +49,7 @@ const request = (projectId: string, over: Partial<GenerationSubmitRequest> = {})
     purpose: "variation",
     prompt: prompt(),
     referenceAssetIds: [],
-    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: 3 },
+    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: 3, quality: null },
     cameraId: null,
     ...over,
   }) satisfies GenerationSubmitRequest;
@@ -221,7 +221,7 @@ describe("mock generation_submit", () => {
         request(p.id, {
           providerId: "gemini",
           modelId: "gemini-2.5-flash-image",
-          params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null },
+          params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
         }),
       ),
     );
@@ -234,7 +234,7 @@ describe("mock generation_submit", () => {
     ["empty prompt", { prompt: prompt(" ") }, "VALIDATION_ERROR"],
     [
       "too many outputs",
-      { params: { aspectRatio: null, imageSize: null, outputCount: 5, seed: null } },
+      { params: { aspectRatio: null, imageSize: null, outputCount: 5, seed: null, quality: null } },
       "VALIDATION_ERROR",
     ],
     ["unknown provider", { providerId: "nope" }, "NOT_FOUND"],
@@ -246,7 +246,7 @@ describe("mock generation_submit", () => {
       {
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image",
-        params: { aspectRatio: "16:9", imageSize: "8K", outputCount: 1, seed: null },
+        params: { aspectRatio: "16:9", imageSize: "8K", outputCount: 1, seed: null, quality: null },
       },
       "VALIDATION_ERROR",
     ],
@@ -254,7 +254,7 @@ describe("mock generation_submit", () => {
       "an aspect ratio the model does not offer",
       {
         modelId: "placeholder-v1",
-        params: { aspectRatio: "7:5", imageSize: "1K", outputCount: 1, seed: null },
+        params: { aspectRatio: "7:5", imageSize: "1K", outputCount: 1, seed: null, quality: null },
       },
       "VALIDATION_ERROR",
     ],

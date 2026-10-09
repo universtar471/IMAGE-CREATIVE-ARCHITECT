@@ -145,6 +145,8 @@ const GEMINI_MODELS: ModelCapabilities[] = (
   imageSizes: [...imageSizes],
   supportsNegativePrompt: false,
   supportsSeed: false,
+  qualityOptions: [],
+  priceHint: null,
 }));
 
 /**
@@ -168,15 +170,46 @@ const OPENAI_MODELS: ModelCapabilities[] = (
   imageSizes: [],
   supportsNegativePrompt: false,
   supportsSeed: false,
+  // Official OpenAI always sends `quality: high`; no choice.
+  qualityOptions: [],
+  priceHint: null,
 }));
 
 /**
- * Mirrors `providers/hhtech` with no HHTECH_* settings besides the base URL (the contract
- * fixture's environment): one gateway model, `gpt-image-2`, labelled by its id.
+ * Mirrors `providers/hhtech/catalog.rs` with no HHTECH_* settings besides the base URL (the
+ * contract fixture's environment): the full catalog, best first. GPT models take the tier from
+ * `size` and offer a quality choice; Gemini models offer only the published 2K / 4K tiers
+ * (sent as `<base>-2k` / `<base>-4k`) and send no quality.
  */
-const HHTECH_MODELS: ModelCapabilities[] = [
-  { ...OPENAI_MODELS[0]!, id: "gpt-image-2", label: "gpt-image-2" },
-];
+const HHTECH_MODELS: ModelCapabilities[] = (
+  [
+    ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst", "gpt", [280, 600, 900]],
+    ["gemini-3-pro-image", "Gemini 3 Pro Image (Banana)", "gemini", [null, 500, 800]],
+    ["gpt-image-2.5-flare", "GPT Image 2.5 Flare", "gpt", [280, 600, 900]],
+    ["gpt-image-2", "GPT Image 2", "gpt", [180, 500, 800]],
+    ["gemini-3.1-flash-image", "Gemini 3.1 Flash Image", "gemini", [null, 500, 800]],
+    ["gemini-2.5-flash-image", "Gemini 2.5 Flash Image", "gemini", [null, 500, 800]],
+  ] as const
+).map(([id, label, family, prices]) => {
+  const priced = (["1K", "2K", "4K"] as const).flatMap((tier, i) => {
+    const price = prices[i];
+    return price === null || price === undefined ? [] : [[tier, price] as const];
+  });
+  return {
+    id,
+    label: `${label} · ${priced.map(([tier, price]) => `${tier} ${price}đ`).join(" / ")}`,
+    textToImage: true,
+    imageToImage: true,
+    maxReferenceImages: family === "gpt" ? 16 : 14,
+    maxOutputs: 4,
+    aspectRatios: [...RATIOS_STANDARD],
+    imageSizes: priced.map(([tier]) => tier),
+    supportsNegativePrompt: false,
+    supportsSeed: false,
+    qualityOptions: family === "gpt" ? ["low", "medium", "high"] : [],
+    priceHint: Object.fromEntries(priced),
+  };
+});
 
 /** Providers whose chat model can enhance prompts (`prompt_enhance`). */
 export const MOCK_CHAT_PROVIDERS: readonly string[] = ["hhtech"];
@@ -221,6 +254,8 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
         imageSizes: ["1K"],
         supportsNegativePrompt: true,
         supportsSeed: true,
+        qualityOptions: [],
+        priceHint: null,
       },
     ],
   },

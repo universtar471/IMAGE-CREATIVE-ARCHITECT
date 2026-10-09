@@ -29,7 +29,8 @@ pub struct Fields<'a> {
     pub prompt: &'a str,
     pub n: u32,
     pub size: Option<&'a str>,
-    pub quality: &'a str,
+    /// `None` = not sent (HHTECH Gemini models).
+    pub quality: Option<&'a str>,
     pub flavor: Flavor,
 }
 
@@ -42,7 +43,9 @@ impl Fields<'_> {
         if let Some(size) = self.size {
             pairs.push(("size", size.to_string()));
         }
-        pairs.push(("quality", self.quality.to_string()));
+        if let Some(quality) = self.quality {
+            pairs.push(("quality", quality.to_string()));
+        }
         pairs.push(("n", self.n.to_string()));
         match self.flavor {
             Flavor::Official => pairs.push(("output_format", OUTPUT_FORMAT.to_string())),

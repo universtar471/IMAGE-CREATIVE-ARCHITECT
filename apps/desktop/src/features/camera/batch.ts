@@ -8,6 +8,7 @@ import {
   BatchReferenceLimitError,
   buildAnchorBatchItems,
   buildProductionBatchItems,
+  costHintText,
   MAX_BATCH_ITEMS,
   validateGenerationRequest,
   type BatchCreateRequest,
@@ -132,6 +133,13 @@ export function planBatch(
     }
   }
   const cost = costHint(provider, items.length, choices.params.outputCount);
+  // Priced models (HHTECH) add the estimated total: images × tier price.
+  const total = costHintText(
+    model,
+    choices.params.imageSize,
+    items.length * choices.params.outputCount,
+  );
+  if (total && items.length) cost.text = `${cost.text} ${total}.`;
   const request: BatchCreateRequest | null =
     issues.length || !items.length
       ? null

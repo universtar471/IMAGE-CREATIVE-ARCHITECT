@@ -164,7 +164,7 @@ async function bundleWithCameras(): Promise<ProjectBundle> {
   return call("project_get", { projectId: p.id });
 }
 
-const params = { aspectRatio: "1:1", imageSize: "1K", outputCount: 2, seed: null };
+const params = { aspectRatio: "1:1", imageSize: "1K", outputCount: 2, seed: null, quality: null };
 
 describe("batch dialog planning", () => {
   it("anchor batch: one item per anchor view, master only, camera aspect and section", async () => {
@@ -203,7 +203,7 @@ describe("batch dialog planning", () => {
         mode: "production",
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image", // max 3 references
-        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null, quality: null },
         cameraIds: [aerial!.id, front!.id],
         extraReferenceIds: ["AST_CTX", "AST_MAT"],
       },
@@ -222,6 +222,34 @@ describe("batch dialog planning", () => {
     );
     expect(plan.providerCalls).toBe(2);
     expect(plan.costHint).toMatch(/2 remote calls to Google Gemini/);
+  });
+
+  it("priced models (HHTECH) add the estimated total: images × tier price", async () => {
+    const b = await bundleWithCameras();
+    const plan = planBatch(
+      {
+        mode: "production",
+        providerId: "hhtech",
+        modelId: "gpt-image-2",
+        params: {
+          aspectRatio: "16:9",
+          imageSize: "4K",
+          outputCount: 2,
+          seed: null,
+          quality: "high",
+        },
+        cameraIds: b.dna.cameras.map((c) => c.id),
+        extraReferenceIds: [],
+      },
+      b,
+      [],
+      providers(true),
+    );
+    expect(plan.issues).toEqual([]);
+    expect(plan.items).toHaveLength(3);
+    expect(plan.items.every((i) => i.params.quality === "high")).toBe(true);
+    // 3 cameras × 2 images × 800đ (GPT Image 2, 4K).
+    expect(plan.costHint).toMatch(/6 remote calls to HHTECH .* ≈ 4\.800đ\.$/);
   });
 
   it("blocks with a reason when something is missing", async () => {
@@ -260,7 +288,7 @@ describe("batch dialog planning", () => {
         mode: "production",
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image",
-        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null, quality: null },
         cameraIds: [front!.id],
         extraReferenceIds: [],
       },
