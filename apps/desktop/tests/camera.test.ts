@@ -105,7 +105,7 @@ describe("camera presets in the Camera module", () => {
       expect(second.name).not.toBe(first.name);
       expect(CameraDNASchema.safeParse(second).success).toBe(true);
     }
-    expect(newCameraId()).toMatch(/^CAM_[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(newCameraId()).toMatch(/^CAM_[0-7][0-9A-HJKMNP-TV-Z]{25}$/);
   });
 });
 

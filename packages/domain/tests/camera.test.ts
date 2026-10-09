@@ -41,6 +41,13 @@ describe("ULID / camera ids", () => {
     expect(newCameraId()).not.toBe(id);
   });
 
+  it("rejects CAM_ ids whose ULID overflows 48 bits (first char above 7)", () => {
+    const parse = (id: string) => CameraDNASchema.shape.id.safeParse(id).success;
+    expect(parse(`CAM_7${"Z".repeat(25)}`)).toBe(true);
+    expect(parse(`CAM_8${"0".repeat(25)}`)).toBe(false);
+    expect(parse(`CAM_Z${"0".repeat(25)}`)).toBe(false);
+  });
+
   it("encodes the time prefix in Crockford base32", () => {
     const zero = createUlidGenerator(
       (b) => b.fill(0),
