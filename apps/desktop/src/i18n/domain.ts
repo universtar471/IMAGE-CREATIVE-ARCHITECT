@@ -106,11 +106,13 @@ const KINDS = [
 ] as const;
 type ErrorKind = (typeof KINDS)[number];
 
-/** Short headline for a provider error kind (`auth`, `timeout`, …). */
+/**
+ * Short headline for a provider error kind (`auth`, `timeout`, …). A kind this UI does not
+ * know yet is shown as the raw code, so nothing the backend says is hidden.
+ */
 export function errorKindLabel(kind: string | null | undefined, tr: TFunction = t): string {
-  return KINDS.includes(kind as ErrorKind)
-    ? tr(`errors.kind.${kind as ErrorKind}`)
-    : tr("errors.kind.unknown");
+  if (KINDS.includes(kind as ErrorKind)) return tr(`errors.kind.${kind as ErrorKind}`);
+  return kind?.trim() ? kind : tr("errors.kind.unknown");
 }
 
 /**

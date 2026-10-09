@@ -3,6 +3,7 @@
  * from Design DNA, and its optional AI enhancement (`prompt_enhance`). Pure helpers.
  */
 import type { PromptBundle, ProviderDescriptorDTO } from "@arch/domain";
+import { t } from "../../i18n";
 
 /** Provider whose chat model enhances prompts (HHTECH gateway). */
 export const ENHANCE_PROVIDER_ID = "hhtech";
@@ -35,13 +36,12 @@ export function enhanceDisabledReason(
   opts: { readOnly: boolean; busy: boolean },
 ): string | null {
   const provider = providers.find((p) => p.id === ENHANCE_PROVIDER_ID);
-  if (!provider) return "Prompt enhancement needs the HHTECH provider.";
-  if (!provider.configured)
-    return "Set up HHTECH first: HHTECH_BASE_URL in .env and an API key in provider settings.";
-  if (opts.readOnly) return "This project is archived (read-only).";
-  if (opts.busy) return "Enhancing…";
-  if (!text.trim()) return "Write an extra prompt first.";
+  if (!provider) return t("extra.needsHhtech");
+  if (!provider.configured) return t("extra.setupHhtech");
+  if (opts.readOnly) return t("extra.archived");
+  if (opts.busy) return t("extra.busy");
+  if (!text.trim()) return t("extra.empty");
   if (text.trim().length > MAX_EXTRA_PROMPT_CHARS)
-    return `The extra prompt is longer than ${MAX_EXTRA_PROMPT_CHARS} characters.`;
+    return t("extra.tooLong", { max: MAX_EXTRA_PROMPT_CHARS });
   return null;
 }

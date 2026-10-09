@@ -5,6 +5,7 @@ import { compilePromptPreview } from "../../app/services";
 import { useStudio } from "../../app/store";
 import { ErrorState, LoadingState } from "../../components/common/states";
 import { toBridgeError } from "../../lib/bridge";
+import { useT } from "../../i18n";
 
 /**
  * Read-only view of the compiled PromptBundle. Compiled from persisted data; the text is
@@ -17,6 +18,7 @@ export function PromptPreview() {
   const [bundle, setBundle] = useState<PromptBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const t = useT();
 
   useEffect(() => {
     let alive = true;
@@ -31,12 +33,12 @@ export function PromptPreview() {
   if (error)
     return (
       <ErrorState
-        title="Could not compile the prompt"
+        title={t("prompt.compileFailed")}
         message={error}
         onRetry={() => setNonce((n) => n + 1)}
       />
     );
-  if (!bundle) return <LoadingState label="Compiling prompt…" />;
+  if (!bundle) return <LoadingState label={t("prompt.compilingPrompt")} />;
 
   const all = [
     `POSITIVE\n${bundle.positivePrompt}`,
@@ -48,25 +50,26 @@ export function PromptPreview() {
   return (
     <div className="board" data-testid="prompt-preview">
       <div className="prompt-meta">
-        <span className="badge badge-info">Compiler {bundle.compilerVersion}</span>
+        <span className="badge badge-info">
+          {t("prompt.compiler", { version: bundle.compilerVersion })}
+        </span>
         <span>
-          Deterministic preview compiled from saved DNA and reference roles. Edit the DNA to change
-          it.
+          {t("prompt.deterministic")} {t("prompt.englishNote")}
         </span>
         {saveStatus !== "saved" && (
-          <span className="badge badge-warning">Unsaved edits not included yet</span>
+          <span className="badge badge-warning">{t("prompt.unsavedNotIncluded")}</span>
         )}
         <span className="spacer" style={{ flex: 1 }} />
         <button className="btn btn-sm" onClick={() => setNonce((n) => n + 1)}>
-          <RefreshCw size={13} /> Recompile
+          <RefreshCw size={13} /> {t("prompt.recompile")}
         </button>
-        <CopyButton text={all} label="Copy all" />
+        <CopyButton text={all} label={t("prompt.copyAll")} />
       </div>
-      <Block title="Positive prompt" text={bundle.positivePrompt} />
-      <Block title="Negative prompt" text={bundle.negativePrompt} />
-      <Block title="Reference instructions" text={bundle.referenceInstructions} />
-      <Block title="Preservation instructions" text={bundle.preservationInstructions} />
-      <Block title="Metadata" text={JSON.stringify(bundle.metadata, null, 2)} />
+      <Block title={t("prompt.positive")} text={bundle.positivePrompt} />
+      <Block title={t("prompt.negative")} text={bundle.negativePrompt} />
+      <Block title={t("prompt.references")} text={bundle.referenceInstructions} />
+      <Block title={t("prompt.preservation")} text={bundle.preservationInstructions} />
+      <Block title={t("prompt.metadata")} text={JSON.stringify(bundle.metadata, null, 2)} />
     </div>
   );
 }
@@ -79,14 +82,15 @@ function Block({ title, text }: { title: string; text: string }) {
         <span className="spacer" />
         <CopyButton text={text} />
       </header>
-      <pre>{text}</pre>
+      <pre lang="en">{text}</pre>
     </section>
   );
 }
 
-function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const notify = useStudio((s) => s.notify);
+  const t = useT();
   return (
     <button
       className="btn btn-ghost btn-sm"
@@ -96,11 +100,12 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           },
-          () => notify("error", "Could not access the clipboard."),
+          () => notify("error", t("prompt.clipboardFailed")),
         )
       }
     >
-      {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Copied" : label}
+      {copied ? <Check size={13} /> : <Copy size={13} />}{" "}
+      {copied ? t("common.copied") : (label ?? t("common.copy"))}
     </button>
   );
 }

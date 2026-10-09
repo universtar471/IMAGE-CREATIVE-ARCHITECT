@@ -123,7 +123,8 @@ describe("domain and backend text", () => {
       "Hết thời gian chờ",
     );
     expect(errorKindLabel("rate_limited")).toMatch(/giới hạn/);
-    expect(errorKindLabel("something_new")).toBe("Tạo ảnh thất bại");
+    expect(errorKindLabel("something_new")).toBe("something_new");
+    expect(errorKindLabel(null)).toBe("Tạo ảnh thất bại");
   });
 
   it("formats numbers and relative times in the active language", () => {

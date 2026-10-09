@@ -16,6 +16,8 @@ import {
   type ProviderDescriptorDTO,
 } from "@arch/domain";
 import type { GenerateDraft } from "../../app/store";
+import { t } from "../../i18n";
+import { translateDomainMessage } from "../../i18n/domain";
 
 export type GenerateForm = {
   provider: ProviderDescriptorDTO | null;
@@ -86,16 +88,17 @@ export type GenerateContext = {
 
 /** Why Generate is disabled, as text for the user; null when it can run. */
 export function generateDisabledReason(form: GenerateForm, ctx: GenerateContext): string | null {
-  if (ctx.readOnly) return "This project is archived (read-only). Restore it to generate.";
-  if (ctx.submitting) return "Submitting the previous request…";
-  if (!form.provider || !form.model) return "No image provider is available.";
-  if (!form.provider.configured) return `${form.provider.label} needs an API key first.`;
-  if (ctx.dnaInvalid) return "Fix the invalid Design DNA fields first.";
+  if (ctx.readOnly) return t("generate.reasonArchived");
+  if (ctx.submitting) return t("generate.reasonSubmitting");
+  if (!form.provider || !form.model) return t("generate.reasonNoProvider");
+  if (!form.provider.configured)
+    return t("generate.reasonNeedsKey", { provider: form.provider.label });
+  if (ctx.dnaInvalid) return t("generate.reasonDnaInvalid");
   const issues = validateGenerationRequest(
     // The prompt is compiled at submit time from persisted DNA; it is never empty.
     { prompt: { positivePrompt: "-" }, referenceAssetIds: form.referenceIds, params: form.params },
     form.model,
     ctx.assets,
   );
-  return issues[0]?.message ?? null;
+  return issues[0] ? translateDomainMessage(issues[0].message) : null;
 }

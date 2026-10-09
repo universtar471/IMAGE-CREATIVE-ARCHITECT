@@ -1,11 +1,6 @@
 import type { GenerationQuality, ModelCapabilities } from "@arch/domain";
 import { FieldGroup } from "../../components/panels/fields";
-
-const QUALITY_LABELS: Record<GenerationQuality, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
+import { useT } from "../../i18n";
 
 /**
  * Quality segmented control, shown only for models that offer a choice. "Default" sends null:
@@ -22,11 +17,12 @@ export function QualityField({
   disabled?: boolean;
   onChange: (quality: GenerationQuality | null) => void;
 }) {
+  const t = useT();
   if (model.qualityOptions.length === 0) return null;
   const options: (GenerationQuality | null)[] = [null, ...model.qualityOptions];
   return (
-    <FieldGroup label="Quality" hint="Default uses the provider's setting. Higher is slower.">
-      <div className="segmented" role="group" aria-label="Quality">
+    <FieldGroup label={t("generate.quality")} hint={t("generate.qualityHint")}>
+      <div className="segmented" role="group" aria-label={t("generate.quality")}>
         {options.map((q) => (
           <button
             key={q ?? "default"}
@@ -35,7 +31,7 @@ export function QualityField({
             disabled={disabled}
             onClick={() => onChange(q)}
           >
-            {q ? QUALITY_LABELS[q] : "Default"}
+            {q ? t(`labels.quality.${q}`) : t("generate.qualityDefault")}
           </button>
         ))}
       </div>

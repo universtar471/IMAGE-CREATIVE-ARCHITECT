@@ -4,6 +4,8 @@ import { compilePromptPreview } from "../../app/services";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { call, toBridgeError } from "../../lib/bridge";
+import { ErrorMessage } from "../../components/common/ErrorMessage";
+import { useT } from "../../i18n";
 import {
   ENHANCE_PROVIDER_ID,
   MAX_EXTRA_PROMPT_CHARS,
@@ -15,7 +17,7 @@ type Enhance =
   | { status: "idle" }
   | { status: "running" }
   | { status: "preview"; text: string }
-  | { status: "error"; message: string };
+  | { status: "error"; code: string; details?: unknown; message: string };
 
 /**
  * The user's own text, appended to the DNA-compiled positive prompt at submit. "Enhance
@@ -38,6 +40,7 @@ export function ExtraPromptSection({
   const [enhance, setEnhance] = useState<Enhance>({ status: "idle" });
   /** Text before the last Accept, for Undo. */
   const [undo, setUndo] = useState<string | null>(null);
+  const t = useT();
 
   const reason = enhanceDisabledReason(providers, text, {
     readOnly,
@@ -62,7 +65,8 @@ export function ExtraPromptSection({
       });
       setEnhance({ status: "preview", text: result.text });
     } catch (e) {
-      setEnhance({ status: "error", message: toBridgeError(e).message });
+      const err = toBridgeError(e);
+      setEnhance({ status: "error", code: err.code, details: err.details, message: err.message });
     }
   };
 
@@ -73,10 +77,10 @@ export function ExtraPromptSection({
   };
 
   return (
-    <SectionPanel title="Extra prompt">
+    <SectionPanel title={t("extra.title")}>
       <div className="field">
         <label className="field-label" htmlFor="extra-prompt">
-          Your words (added after the DNA prompt)
+          {t("extra.label")}
         </label>
         <textarea
           id="extra-prompt"
@@ -85,16 +89,15 @@ export function ExtraPromptSection({
           maxLength={MAX_EXTRA_PROMPT_CHARS}
           value={text}
           disabled={disabled || readOnly || enhance.status === "running"}
-          placeholder="e.g. late afternoon, wet street reflections, view from across the road"
+          placeholder={t("extra.placeholder")}
           onChange={(e) => setText(e.target.value)}
           data-testid="extra-prompt"
         />
+        <span className="field-hint">{t("extra.hint")}</span>
       </div>
       <div className="extra-prompt-actions">
         {/* A disabled button gets no hover events; the wrapper carries the tooltip. */}
-        <span
-          title={reason ?? "Rewrite with more specific materials, light, camera and atmosphere"}
-        >
+        <span title={reason ?? t("extra.enhanceTitle")}>
           <button
             className="btn btn-sm"
             disabled={reason !== null || disabled}
@@ -102,11 +105,11 @@ export function ExtraPromptSection({
             data-testid="enhance-button"
           >
             {enhance.status === "running" ? (
-              <Loader2 size={13} className="spin" aria-label="Enhancing" />
+              <Loader2 size={13} className="spin" aria-label={t("extra.enhancing")} />
             ) : (
               <Wand2 size={13} />
             )}
-            Enhance prompt
+            {t("extra.enhance")}
           </button>
         </span>
         {undo !== null && (
@@ -118,34 +121,34 @@ export function ExtraPromptSection({
             }}
             data-testid="enhance-undo"
           >
-            <Undo2 size={13} /> Undo enhance
+            <Undo2 size={13} /> {t("extra.undo")}
           </button>
         )}
       </div>
       {enhance.status === "preview" && (
         <div className="callout enhance-preview" data-testid="enhance-preview">
-          <pre>{enhance.text}</pre>
+          <pre lang="en">{enhance.text}</pre>
           <div className="extra-prompt-actions">
             <button
               className="btn btn-primary btn-sm"
               onClick={() => accept(enhance.text)}
               data-testid="enhance-accept"
             >
-              <Check size={13} /> Accept
+              <Check size={13} /> {t("common.accept")}
             </button>
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => setEnhance({ status: "idle" })}
               data-testid="enhance-discard"
             >
-              <X size={13} /> Discard
+              <X size={13} /> {t("common.discard")}
             </button>
           </div>
         </div>
       )}
       {enhance.status === "error" && (
         <div className="callout callout-error" role="alert">
-          <span>{enhance.message}</span>
+          <ErrorMessage code={enhance.code} details={enhance.details} message={enhance.message} />
         </div>
       )}
     </SectionPanel>
