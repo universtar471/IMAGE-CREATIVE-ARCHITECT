@@ -885,6 +885,19 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       return db.assets[id];
     },
 
+    asset_preview: async (req) => {
+      getProject(req.projectId);
+      const source = db.assets[req.assetId];
+      const sourceAsset = source ?? fail("NOT_FOUND", "Asset not found in this project.");
+      if (sourceAsset.projectId !== req.projectId)
+        fail("NOT_FOUND", "Asset not found in this project.");
+      if (sourceAsset.status !== "ready" || !sourceAsset.mimeType?.startsWith("image/"))
+        fail("INVALID_STATE", "Only a ready image asset can be previewed.");
+      const response = await fetch(sourceAsset.absolutePath);
+      if (!response.ok) fail("IO_ERROR", "The source image is not available.");
+      return response.blob();
+    },
+
     asset_import: async (req) => {
       writable(req.projectId);
       const file =

@@ -949,6 +949,7 @@ export const vi: Dict = {
     source: "Ảnh nguồn",
     locked: "Phần này đang bị khóa",
     noImage: "Chọn một ảnh để xem trước chỉnh màu.",
+    previewError: "Không thể tải bản xem trước hình ảnh.",
   },
 
   batch: {

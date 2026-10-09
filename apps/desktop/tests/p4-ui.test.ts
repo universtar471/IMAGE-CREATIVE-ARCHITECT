@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor as waitForDom } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { vi as vitest } from "vitest";
 import { COMPILER_VERSION, type BatchDTO, type GenerationDTO, type JobDTO } from "@arch/domain";
 import { createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
-import { call, setTransport } from "../src/lib/bridge";
+import { call, setTransport, type Transport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 import { applyGradePixel, neutralGrade } from "../src/lib/grade";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../src/features/mood/variation";
 import { adoptContactMood } from "../src/features/camera/ContactSheet";
 import { ContactSheet } from "../src/features/camera/ContactSheet";
+import { GradeCanvas } from "../src/features/mood/GradeCanvas";
 import { resolveMoodPreset } from "../src/features/camera/contactGroups";
 import {
   MoodGradePanel,
@@ -362,6 +364,83 @@ describe("mock grade_apply", () => {
     expect(created).toBeDefined();
     expect(useStudio.getState().workspace?.project.id).toBe(second.id);
     expect(useStudio.getState().selectedAssetId).toBe("SOURCE_B");
+  });
+});
+
+describe("GradeCanvas preview", () => {
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+  function installCanvasMocks() {
+    class TestImageData {
+      readonly data: Uint8ClampedArray;
+      readonly width: number;
+      readonly height: number;
+      constructor(data: Uint8ClampedArray, width: number, height: number) {
+        this.data = data;
+        this.width = width;
+        this.height = height;
+      }
+    }
+    const putImageData = vitest.fn();
+    vitest.stubGlobal("ImageData", TestImageData);
+    vitest.stubGlobal(
+      "createImageBitmap",
+      vitest.fn(async () => ({ width: 2, height: 1, close: vitest.fn() })),
+    );
+    HTMLCanvasElement.prototype.getContext = vitest.fn(() => ({
+      drawImage: vitest.fn(),
+      getImageData: vitest.fn(
+        () => new TestImageData(new Uint8ClampedArray([10, 20, 30, 255, 40, 50, 60, 255]), 2, 1),
+      ),
+      putImageData,
+      save: vitest.fn(),
+      restore: vitest.fn(),
+      beginPath: vitest.fn(),
+      rect: vitest.fn(),
+      clip: vitest.fn(),
+      fillRect: vitest.fn(),
+      fillStyle: "",
+    })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    return { putImageData };
+  }
+
+  afterEach(() => {
+    HTMLCanvasElement.prototype.getContext = originalGetContext;
+    vitest.unstubAllGlobals();
+  });
+
+  it("fetches one preview and regrades it as sliders change", async () => {
+    const { putImageData } = installCanvasMocks();
+    const preview = vitest.fn(async () => new Blob(["preview"], { type: "image/png" }));
+    const transport: Transport = (async (command) => {
+      if (command === "asset_preview") return preview();
+      throw new Error(`unexpected command ${command}`);
+    }) as Transport;
+    setTransport(transport);
+    const image = asset("P", "SOURCE");
+    const { rerender } = render(
+      createElement(GradeCanvas, { asset: image, grade: neutralGrade() }),
+    );
+    await waitForDom(() => expect(putImageData).toHaveBeenCalledTimes(1));
+    rerender(
+      createElement(GradeCanvas, { asset: image, grade: { ...neutralGrade(), temperature: 80 } }),
+    );
+    await waitForDom(() => expect(putImageData.mock.calls.length).toBeGreaterThan(1));
+    expect(preview).toHaveBeenCalledTimes(1);
+    const regraded = putImageData.mock.lastCall?.[0] as ImageData;
+    expect(regraded.data[0]).toBeGreaterThan(10);
+  });
+
+  it("shows an inline error when the preview cannot load", async () => {
+    installCanvasMocks();
+    const transport: Transport = (async (command) => {
+      if (command === "asset_preview") throw new Error("preview unavailable");
+      throw new Error(`unexpected command ${command}`);
+    }) as Transport;
+    setTransport(transport);
+    render(createElement(GradeCanvas, { asset: asset("P", "SOURCE"), grade: neutralGrade() }));
+    await screen.findByTestId("grade-preview-error");
+    expect(screen.getByTestId("grade-preview-error").textContent).toMatch(/preview/i);
   });
 });
 
