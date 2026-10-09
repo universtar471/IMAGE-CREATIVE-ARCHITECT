@@ -1,12 +1,20 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { createProject } from "../src/app/services";
+import { useStudio } from "../src/app/store";
 import { call, setTransport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 import { applyGradePixel, neutralGrade } from "../src/lib/grade";
-import { adoptMoodPreset, buildMoodVariationItems } from "../src/features/mood/variation";
+import {
+  adoptMoodPreset,
+  adoptMoodPresetSections,
+  buildMoodVariationItems,
+} from "../src/features/mood/variation";
+import { adoptContactMood } from "../src/features/camera/ContactSheet";
+import { resolveMoodPreset } from "../src/features/camera/contactGroups";
+import { presetSelectValue, weatherPresetValues } from "../src/features/mood/MoodGradePanel";
 import { en } from "../src/i18n/en";
 import { vi } from "../src/i18n/vi";
-import { asset } from "./helpers";
+import { asset, deferredTransport, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -77,6 +85,69 @@ describe("P4 grade and mood UI helpers", () => {
     expect(next.weather?.preset).toBe("Rain");
     expect(next.mood?.preset).toBe("Rain");
   });
+
+  it("returns every unlocked section changed by a preset", async () => {
+    const p = await createProject({
+      name: "Mood sections",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    const dna = (await call("project_get", { projectId: p.id })).dna;
+    const preset = {
+      id: "blue-hour",
+      label: "Blue hour",
+      values: {
+        lighting: { timeOfDay: "blue_hour" },
+        weather: { haze: "high" },
+        mood: { atmosphere: "cinematic" },
+      },
+    };
+    const sections = adoptMoodPresetSections(dna, preset);
+    expect(sections.lighting?.timeOfDay).toBe("blue_hour");
+    expect(sections.weather?.haze).toBe("high");
+    expect(sections.mood?.atmosphere).toBe("cinematic");
+  });
+
+  it("resolves a mood variation label to its preset id", () => {
+    expect(resolveMoodPreset("Blue hour", [{ id: "mood.blue", label: "Blue hour" }])).toEqual({
+      id: "mood.blue",
+      label: "Blue hour",
+    });
+  });
+
+  it("adopts the preset selected from a Contact Sheet group", async () => {
+    const p = await createProject({
+      name: "Contact mood",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    const dna = (await call("project_get", { projectId: p.id })).dna;
+    const next = adoptContactMood(dna, {
+      id: "rain",
+      label: "Rain",
+      values: { weather: { haze: "high" } },
+    });
+    expect(next.weather?.haze).toBe("high");
+  });
+
+  it("uses preset ids, never preset labels, for section selectors", () => {
+    expect(presetSelectValue({ presetId: "mood.blue", preset: "Blue hour" })).toBe("mood.blue");
+  });
+
+  it("merges weather preset values as a direct section partial", () => {
+    expect(weatherPresetValues({ id: "rain", label: "Rain", values: { haze: "high" } })).toEqual({
+      haze: "high",
+    });
+    expect(
+      weatherPresetValues({
+        id: "legacy-rain",
+        label: "Legacy rain",
+        values: { weather: { haze: "high" } },
+      } as never),
+    ).toEqual({ haze: "high" });
+  });
 });
 
 describe("mock grade_apply", () => {
@@ -105,6 +176,37 @@ describe("mock grade_apply", () => {
         (v) => v.assetId === created.id && v.operation === "color_grade",
       ),
     ).toBe(true);
+  });
+
+  it("does not select a grade result after switching projects", async () => {
+    const first = await createProject({
+      name: "First",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    const second = await createProject({
+      name: "Second",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    db.assets.SOURCE_A = asset(first.id, "SOURCE_A", { role: "master_architecture" });
+    db.assets.SOURCE_B = asset(second.id, "SOURCE_B", { role: "master_architecture" });
+    db.projects[first.id]!.activeMasterAssetId = "SOURCE_A";
+    db.projects[second.id]!.activeMasterAssetId = "SOURCE_B";
+    const delayed = deferredTransport(createMockTransport(db));
+    delayed.hold("grade_apply");
+    setTransport(delayed.transport);
+    await useStudio.getState().openProject(first.id);
+    const pending = useStudio.getState().applyGrade(neutralGrade());
+    await waitFor(() => delayed.pending("grade_apply") === 1, "grade_apply request");
+    await useStudio.getState().openProject(second.id);
+    delayed.release("grade_apply");
+    const created = await pending;
+    expect(created).toBeDefined();
+    expect(useStudio.getState().workspace?.project.id).toBe(second.id);
+    expect(useStudio.getState().selectedAssetId).toBe("SOURCE_B");
   });
 });
 

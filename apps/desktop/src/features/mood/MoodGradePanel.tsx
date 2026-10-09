@@ -5,6 +5,7 @@ import {
   type ColorGradeDNA,
   type GenerationParams,
   type WeatherPreset,
+  type WeatherDNA,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
@@ -13,7 +14,11 @@ import { FieldGroup, SelectField, TextAreaField, TextField } from "../../compone
 import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
 import { GRADE_LOOKS, neutralGrade } from "../../lib/grade";
-import { adoptMoodPreset, buildMoodVariationItems, type MoodVariationPreset } from "./variation";
+import {
+  adoptMoodPresetSections,
+  buildMoodVariationItems,
+  type MoodVariationPreset,
+} from "./variation";
 import { useT } from "../../i18n";
 
 const SLIDERS = [
@@ -31,6 +36,24 @@ const SLIDERS = [
   "dehaze",
 ] as const;
 type Preset = MoodVariationPreset;
+
+export function presetSelectValue(section: Record<string, unknown>): string | undefined {
+  return typeof section.presetId === "string" ? section.presetId : undefined;
+}
+
+/** API 12.2 stores a direct section partial; the nested shape is a legacy fallback. */
+export function weatherPresetValues(preset: {
+  id?: string;
+  label?: string;
+  values?: Record<string, unknown>;
+}): Partial<WeatherDNA> {
+  const values = (preset.values ?? {}) as Partial<WeatherDNA> & {
+    weather?: Partial<WeatherDNA>;
+  };
+  if (!values.weather) return values;
+  const { weather, ...direct } = values;
+  return { ...direct, ...weather };
+}
 
 export function MoodGradePanel() {
   const ws = useStudio((s) => s.workspace!);
@@ -105,7 +128,10 @@ export function MoodGradePanel() {
     if (id && looks[id]) editDna("colorGrade", { ...looks[id] });
   };
   const adopt = (preset: Preset) => {
-    if (!moodLocked) editDna("mood", adoptMoodPreset(ws.draftDna, preset).mood);
+    const sections = adoptMoodPresetSections(ws.draftDna, preset);
+    for (const [section, value] of Object.entries(sections)) {
+      if (value) editDna(section, value);
+    }
   };
   const queueVariations = async () => {
     if (!model || !sourceId || chosen.length < 2) return;
@@ -143,7 +169,7 @@ export function MoodGradePanel() {
       <SectionPanel title={t("moodGrade.mood")} aside={<LockToggle section="mood" />}>
         <SelectField
           label={t("moodGrade.preset")}
-          value={mood.preset}
+          value={presetSelectValue(mood as unknown as Record<string, unknown>)}
           disabled={moodLocked}
           options={moodPresets.map((p) => ({ value: p.id, label: p.label }))}
           onChange={(id) => {
@@ -188,10 +214,9 @@ export function MoodGradePanel() {
         {weatherPresets.length > 0 && (
           <SelectField
             label={t("moodGrade.weatherPreset")}
-            value={
-              (ws.draftDna.weather as Record<string, unknown> | undefined)?.presetId as
-                string | undefined
-            }
+            value={presetSelectValue(
+              (ws.draftDna.weather as Record<string, unknown> | undefined) ?? {},
+            )}
             disabled={!!locks.weather || readOnly}
             options={weatherPresets.map((p) => ({ value: p.id, label: p.label }))}
             onChange={(id) => {
@@ -199,7 +224,7 @@ export function MoodGradePanel() {
               if (p && !locks.weather)
                 editDna("weather", {
                   ...ws.draftDna.weather,
-                  ...(p.values ?? {}),
+                  ...weatherPresetValues(p),
                   presetId: p.id,
                   preset: p.label,
                 });

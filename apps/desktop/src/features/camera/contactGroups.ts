@@ -1,6 +1,8 @@
 /** Contact Sheet grouping (pure): a batch's generations, grouped per camera in DNA order. */
 import type { BatchDTO, CameraDNA, GenerationDTO, JobDTO } from "@arch/domain";
 
+export type MoodPresetLabel = { id: string; label: string };
+
 export type ContactEntry = { generation: GenerationDTO; job: JobDTO | null };
 export type ContactGroup = {
   cameraId: string | null;
@@ -13,6 +15,14 @@ export type MoodContactGroup = {
   label: string;
   entries: ContactEntry[];
 };
+
+/** Resolve the persisted job label back to the pack preset used for a variation. */
+export function resolveMoodPreset<T extends MoodPresetLabel>(
+  label: string,
+  presets: readonly T[],
+): T | undefined {
+  return presets.find((preset) => preset.label === label || preset.id === label);
+}
 
 /** Variation batches have no camera id; group their outputs by the preset/job label. */
 export function groupMoodContactSheet(

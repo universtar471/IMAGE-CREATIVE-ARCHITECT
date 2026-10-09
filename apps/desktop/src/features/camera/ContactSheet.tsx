@@ -5,21 +5,28 @@
  */
 import { useState } from "react";
 import { Anchor, Ban, Columns2, ImageOff, LayoutGrid, Maximize2, RotateCcw, X } from "lucide-react";
-import type { AssetDTO, BatchDTO } from "@arch/domain";
+import type { AssetDTO, BatchDTO, ProjectDNA } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
 import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
 import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
+import { knowledge } from "../../lib/knowledge";
+import { adoptMoodPresetSections, type MoodVariationPreset } from "../mood/variation";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
 import {
   groupContactSheet,
   groupMoodContactSheet,
+  resolveMoodPreset,
   type ContactEntry,
   type ContactGroup,
 } from "./contactGroups";
+
+export function adoptContactMood(dna: ProjectDNA, preset: MoodVariationPreset) {
+  return adoptMoodPresetSections(dna, preset);
+}
 
 export function ContactSheet() {
   const ws = useStudio((s) => s.workspace!);
@@ -81,42 +88,78 @@ export function ContactSheet() {
 function MoodGroups({ batch }: { batch: BatchDTO }) {
   const ws = useStudio((s) => s.workspace!);
   const jobs = useStudio((s) => s.jobs);
-  const selectAsset = useStudio((s) => s.selectAsset);
-  const t = useT();
+  const editDna = useStudio((s) => s.editDna);
+  const readOnly = useStudio(selectReadOnly);
+  const presets = knowledge.moodPresets(ws.project.projectType, ws.project.subtype);
   return (
     <>
       {groupMoodContactSheet(batch, ws.generations, jobs).map((group) => (
-        <section className="contact-group" key={group.label} aria-label={group.label}>
-          <header>
-            <strong>{group.label}</strong>
-          </header>
-          <div className="contact-cards">
-            {group.entries.map(({ generation, job }) =>
-              generation.outputAssetIds.map((id) => {
-                const asset = ws.assets.find((item) => item.id === id);
-                if (!asset)
-                  return (
-                    <div className="contact-card is-pending" key={id}>
-                      <span className="field-hint">{job?.status ?? t("contact.loading")}</span>
-                    </div>
-                  );
-                return (
-                  <button className="contact-card" key={id} onClick={() => selectAsset(id)}>
-                    <div className="contact-image">
-                      <img
-                        src={fileUrl(asset.thumbnailPath) ?? ""}
-                        alt={asset.originalName ?? group.label}
-                      />
-                    </div>
-                    <span>{t("contact.openInCanvas")}</span>
-                  </button>
-                );
-              }),
-            )}
-          </div>
-        </section>
+        <MoodGroup
+          key={group.label}
+          group={group}
+          presets={presets}
+          readOnly={readOnly}
+          onAdopt={(preset) => {
+            for (const [section, value] of Object.entries(adoptContactMood(ws.draftDna, preset))) {
+              if (value) editDna(section, value);
+            }
+          }}
+        />
       ))}
     </>
+  );
+}
+
+function MoodGroup({
+  group,
+  presets,
+  readOnly,
+  onAdopt,
+}: {
+  group: ReturnType<typeof groupMoodContactSheet>[number];
+  presets: ReturnType<typeof knowledge.moodPresets>;
+  readOnly: boolean;
+  onAdopt: (preset: (typeof presets)[number]) => void;
+}) {
+  const t = useT();
+  const preset = resolveMoodPreset(group.label, presets);
+  const ws = useStudio((s) => s.workspace!);
+  const selectAsset = useStudio((s) => s.selectAsset);
+  return (
+    <section className="contact-group" aria-label={group.label}>
+      <header>
+        <strong>{group.label}</strong>
+        {preset && (
+          <button className="btn btn-sm" disabled={readOnly} onClick={() => onAdopt(preset)}>
+            {t("moodGrade.adopt")}
+          </button>
+        )}
+      </header>
+      <div className="contact-cards">
+        {group.entries.map(({ generation, job }) =>
+          generation.outputAssetIds.map((id) => {
+            const asset = ws.assets.find((item) => item.id === id);
+            if (!asset)
+              return (
+                <div className="contact-card is-pending" key={id}>
+                  <span className="field-hint">{job?.status ?? t("contact.loading")}</span>
+                </div>
+              );
+            return (
+              <button className="contact-card" key={id} onClick={() => selectAsset(id)}>
+                <div className="contact-image">
+                  <img
+                    src={fileUrl(asset.thumbnailPath) ?? ""}
+                    alt={asset.originalName ?? group.label}
+                  />
+                </div>
+                <span>{t("contact.openInCanvas")}</span>
+              </button>
+            );
+          }),
+        )}
+      </div>
+    </section>
   );
 }
 
