@@ -32,3 +32,20 @@
 - `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`: đạt.
 - `npx.cmd prettier --check .`: đạt.
 - Parity test `services::grade::tests::parity_vectors_use_domain_file_when_available`: đạt.
+
+## Round 3
+
+- Finding: UI mood preset fixtures/adapters assumed nested `values.mood`, while API 12.2 and
+  the domain use flat mood values with optional `lighting` and `weather` partials. Change:
+  updated desktop mood adoption, lock detection, weather picker handling, Contact Sheet callers,
+  and tests to use the flat shape; removed the nested weather fallback. Tests:
+  `returns every unlocked section changed by a preset`, `adopts all unlocked sections from the
+  Mood / Grade panel and skips locked sections`, `merges direct weather preset values when its
+  picker is used`, `updates lighting, weather, and mood when Contact Sheet adopts a variation`.
+- Finding: Rust `ColorGrade.look` deserialization accepted JSON `null` although the Zod contract
+  permits only an omitted field or string. Change: added non-null string deserialization and a
+  validation regression test, `services::grade::tests::rejects_grade_apply_request_with_null_look`.
+- Commands: `npm.cmd run verify` (321 Vitest; 227 Rust passed, 5 ignored),
+  `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`,
+  `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`,
+  and `npx.cmd prettier --check .` all passed.

@@ -41,18 +41,13 @@ export function presetSelectValue(section: Record<string, unknown>): string | un
   return typeof section.presetId === "string" ? section.presetId : undefined;
 }
 
-/** API 12.2 stores a direct section partial; the nested shape is a legacy fallback. */
+/** API 12.2 stores weather preset values as a direct section partial. */
 export function weatherPresetValues(preset: {
   id?: string;
   label?: string;
   values?: Record<string, unknown>;
 }): Partial<WeatherDNA> {
-  const values = (preset.values ?? {}) as Partial<WeatherDNA> & {
-    weather?: Partial<WeatherDNA>;
-  };
-  if (!values.weather) return values;
-  const { weather, ...direct } = values;
-  return { ...direct, ...weather };
+  return (preset.values ?? {}) as Partial<WeatherDNA>;
 }
 
 export function MoodGradePanel() {
@@ -116,7 +111,7 @@ export function MoodGradePanel() {
     const sections = [
       values.lighting ? "lighting" : null,
       values.weather ? "weather" : null,
-      values.mood || Object.keys(values).length ? "mood" : null,
+      Object.keys(values).some((key) => key !== "lighting" && key !== "weather") ? "mood" : null,
     ].filter((section): section is string => !!section);
     return sections.length > 0 && sections.every((section) => !!locks[section]);
   };

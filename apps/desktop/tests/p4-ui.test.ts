@@ -1,4 +1,7 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createElement } from "react";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { COMPILER_VERSION, type BatchDTO, type GenerationDTO, type JobDTO } from "@arch/domain";
 import { createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
 import { call, setTransport } from "../src/lib/bridge";
@@ -10,8 +13,13 @@ import {
   buildMoodVariationItems,
 } from "../src/features/mood/variation";
 import { adoptContactMood } from "../src/features/camera/ContactSheet";
+import { ContactSheet } from "../src/features/camera/ContactSheet";
 import { resolveMoodPreset } from "../src/features/camera/contactGroups";
-import { presetSelectValue, weatherPresetValues } from "../src/features/mood/MoodGradePanel";
+import {
+  MoodGradePanel,
+  presetSelectValue,
+  weatherPresetValues,
+} from "../src/features/mood/MoodGradePanel";
 import { en } from "../src/i18n/en";
 import { vi } from "../src/i18n/vi";
 import { asset, deferredTransport, waitFor } from "./helpers";
@@ -23,7 +31,10 @@ beforeEach(() => {
   db = { projects: {}, dna: {}, assets: {}, versions: [] };
   setTransport(createMockTransport(db));
 });
-afterEach(() => setTransport(null));
+afterEach(() => {
+  cleanup();
+  setTransport(null);
+});
 
 describe("P4 grade and mood UI helpers", () => {
   it("keeps neutral grade pixel identity and changes a warm pixel", () => {
@@ -77,7 +88,7 @@ describe("P4 grade and mood UI helpers", () => {
         values: {
           lighting: { timeOfDay: "night" },
           weather: { preset: "Rain" },
-          mood: { preset: "Rain" },
+          atmosphere: "Rain",
         },
       },
     );
@@ -100,7 +111,7 @@ describe("P4 grade and mood UI helpers", () => {
       values: {
         lighting: { timeOfDay: "blue_hour" },
         weather: { haze: "high" },
-        mood: { atmosphere: "cinematic" },
+        atmosphere: "cinematic",
       },
     };
     const sections = adoptMoodPresetSections(dna, preset);
@@ -140,13 +151,157 @@ describe("P4 grade and mood UI helpers", () => {
     expect(weatherPresetValues({ id: "rain", label: "Rain", values: { haze: "high" } })).toEqual({
       haze: "high",
     });
-    expect(
-      weatherPresetValues({
-        id: "legacy-rain",
-        label: "Legacy rain",
-        values: { weather: { haze: "high" } },
-      } as never),
-    ).toEqual({ haze: "high" });
+  });
+
+  it("adopts all unlocked sections from the Mood / Grade panel", async () => {
+    const p = await createProject({
+      name: "Mood panel",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    await useStudio.getState().openProject(p.id);
+    render(createElement(MoodGradePanel));
+
+    fireEvent.change(screen.getByLabelText("Mood preset"), { target: { value: "cinematic" } });
+    const next = useStudio.getState().workspace!.draftDna;
+    expect(next.mood?.atmosphere).toBe("cinematic tropical dusk");
+    expect(next.lighting?.timeOfDay).toBe("blue_hour");
+    expect(next.weather?.haze).toBe("light");
+  });
+
+  it("skips locked lighting and weather when Mood / Grade adopts a preset", async () => {
+    const p = await createProject({
+      name: "Locked mood panel",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    await useStudio.getState().openProject(p.id);
+    const before = useStudio.getState().workspace!.draftDna;
+    useStudio.getState().editDna("locks", { ...before.locks, lighting: true, weather: true });
+    render(createElement(MoodGradePanel));
+
+    fireEvent.change(screen.getByLabelText("Mood preset"), { target: { value: "cinematic" } });
+    const next = useStudio.getState().workspace!.draftDna;
+    expect(next.mood?.atmosphere).toBe("cinematic tropical dusk");
+    expect(next.lighting).toEqual(before.lighting);
+    expect(next.weather).toEqual(before.weather);
+  });
+
+  it("merges direct weather preset values when its picker is used", async () => {
+    const p = await createProject({
+      name: "Weather picker",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    await useStudio.getState().openProject(p.id);
+    render(createElement(MoodGradePanel));
+
+    fireEvent.change(screen.getByLabelText("Weather preset"), {
+      target: { value: "monsoon_rain" },
+    });
+    expect(useStudio.getState().workspace!.draftDna.weather).toMatchObject({
+      presetId: "monsoon_rain",
+      sky: "heavy monsoon rain",
+      groundWetness: "soaked",
+      haze: "rain mist",
+    });
+  });
+
+  it("updates lighting, weather, and mood when Contact Sheet adopts a variation", async () => {
+    const p = await createProject({
+      name: "Contact panel",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    await useStudio.getState().openProject(p.id);
+    const ws = useStudio.getState().workspace!;
+    const batch = {
+      id: "BAT_MOOD",
+      projectId: p.id,
+      name: "Mood variations",
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      purpose: "variation",
+      createdAt: "2026-10-09T00:00:00Z",
+      jobIds: ["JOB_MOOD"],
+      counts: {
+        queued: 0,
+        running: 0,
+        retrying: 0,
+        completed: 1,
+        failed: 0,
+        cancelled: 0,
+        interrupted: 0,
+      },
+    } satisfies BatchDTO;
+    const generation = {
+      id: "GEN_MOOD",
+      projectId: p.id,
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      purpose: "variation",
+      status: "completed",
+      prompt: {
+        compilerVersion: COMPILER_VERSION,
+        positivePrompt: "",
+        negativePrompt: "",
+        referenceInstructions: "",
+        preservationInstructions: "",
+        metadata: {},
+      },
+      referenceAssetIds: [],
+      params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
+      parentAssetId: null,
+      outputAssetIds: ["OUT_MOOD"],
+      error: null,
+      cameraId: null,
+      batchId: batch.id,
+      jobId: "JOB_MOOD",
+      createdAt: "2026-10-09T00:00:00Z",
+      startedAt: "2026-10-09T00:00:00Z",
+      finishedAt: "2026-10-09T00:00:01Z",
+      durationMs: 1000,
+    } satisfies GenerationDTO;
+    const job = {
+      id: "JOB_MOOD",
+      projectId: p.id,
+      batchId: batch.id,
+      generationId: generation.id,
+      cameraId: null,
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      label: "Cinematic dusk",
+      status: "completed",
+      priority: 0,
+      attempt: 1,
+      maxAttempts: 1,
+      nextAttemptAt: null,
+      error: null,
+      createdAt: "2026-10-09T00:00:00Z",
+      startedAt: "2026-10-09T00:00:00Z",
+      finishedAt: "2026-10-09T00:00:01Z",
+    } satisfies JobDTO;
+    useStudio.setState({
+      workspace: {
+        ...ws,
+        batches: [batch],
+        generations: [generation],
+        assets: [...ws.assets, asset(p.id, "OUT_MOOD")],
+      },
+      jobs: [job],
+      contactBatchId: batch.id,
+    });
+    render(createElement(ContactSheet));
+
+    fireEvent.click(screen.getByRole("button", { name: "Adopt this mood" }));
+    const next = useStudio.getState().workspace!.draftDna;
+    expect(next.mood?.atmosphere).toBe("cinematic tropical dusk");
+    expect(next.lighting?.timeOfDay).toBe("blue_hour");
+    expect(next.weather?.haze).toBe("light");
   });
 });
 

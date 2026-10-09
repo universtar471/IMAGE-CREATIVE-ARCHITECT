@@ -23,6 +23,13 @@ fn zero() -> f32 {
     0.0
 }
 
+fn deserialize_non_null_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(String::deserialize(deserializer)?))
+}
+
 /// Mirrors `ColorGradeDNA`. Defaults are useful for callers that submit the parsed
 /// Zod shape as well as for tests that only exercise one slider.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,7 +60,7 @@ pub struct ColorGrade {
     pub clarity: f32,
     #[serde(default = "zero")]
     pub dehaze: f32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, deserialize_with = "deserialize_non_null_string", skip_serializing_if = "Option::is_none")]
     pub look: Option<String>,
 }
 
@@ -323,6 +330,16 @@ mod tests {
             "projectId": "PRJ_X",
             "assetId": "AST_X",
             "grade": { "temperature": 40 }
+        }));
+        assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn rejects_grade_apply_request_with_null_look() {
+        let parsed = serde_json::from_value::<GradeApplyRequest>(json!({
+            "projectId": "PRJ_X",
+            "assetId": "AST_X",
+            "grade": { "schemaVersion": 1, "look": null }
         }));
         assert!(parsed.is_err());
     }
