@@ -37,3 +37,37 @@ Không chạy Vitest hoặc Cargo theo giới hạn sandbox; các test được 
 
 - `npm run verify`: **ĐỎ** — `apps/desktop/tests/p4-ui.test.ts:109` mong `sections.mood.atmosphere = "cinematic"` nhưng nhận `undefined`. Nguyên nhân: test/adapter UI giả định preset mood dạng lồng `values.mood`, còn domain (`adoptMoodPreset`, batch.ts:93) và API §12.2 dùng dạng phẳng: `values` = partial của mood, kèm `lighting`/`weather` tuỳ chọn. Hai nhánh fix chạy song song nên không thấy nhau. PHẢI SỬA: UI theo đúng dạng phẳng của domain.
 - `prettier --check`, `cargo fmt --check`: đạt.
+
+---
+
+# Review p4-integrate — vòng 3
+
+## Kết luận: ĐẠT
+
+### PHẢI SỬA
+
+Không có.
+
+### NÊN SỬA
+
+Không có.
+
+### Đối chiếu các mục vòng 2
+
+- **Từ chối `look: null`: ĐÃ SỬA.** `grade.rs:63` dùng deserializer yêu cầu chuỗi khi trường `look` hiện diện; trường bị thiếu vẫn dùng giá trị mặc định. Test tại `grade.rs:337` gửi `look: null` và yêu cầu deserialize thất bại.
+- **Preset mood dùng shape phẳng trong UI: ĐÃ SỬA.** `MoodGradePanel.tsx:110` nhận diện các partial `lighting` và `weather`, rồi phân loại những key còn lại là mood. `weatherPresetValues` trả trực tiếp `preset.values` (`MoodGradePanel.tsx:44`). Kiểm tra `git grep` không thấy giả định `values.mood` hoặc `values.weather` còn lại trong các vùng UI, mock và domain được yêu cầu rà. Shape khớp với schema ở `packages/domain/src/knowledge/pack.ts:131` và cách domain tách các section trong `packages/domain/src/generation/batch.ts:71,95`.
+- **Component tests kiểm tra thao tác thật: ĐẠT.** Các test tại `p4-ui.test.ts:161` trở đi đổi lựa chọn preset trong Mood / Grade và Weather picker, rồi kiểm tra `draftDna`; test Contact Sheet bấm “Adopt this mood” và kiểm tra cả mood, lighting, weather. Nếu bỏ handler hoặc wiring cập nhật store, các assertion này sẽ thất bại.
+- **Locks được tôn trọng: ĐẠT.** Domain chỉ ghi các section chưa khóa (`batch.ts:96–108`); test component tại `p4-ui.test.ts:176` khóa lighting và weather, rồi xác nhận hai section đó giữ nguyên sau khi adopt. Test helper cũng kiểm tra lighting bị khóa không đổi (`p4-ui.test.ts:83`).
+
+### Rà soát hồi quy tích hợp
+
+- **ADR-004:** Không thấy hồi quy; test Rust tại `grade.rs:354` xác nhận tạo asset/version mới và bytes của source không đổi.
+- **i18n en/vi:** Các key Mood / Grade có mặt trong cả hai locale (`en.ts:923`, `vi.ts:929`); test parity đối chiếu keys ở `p4-ui.test.ts:367`.
+- **Thay đổi vòng 3:** Diff chỉ thêm kiểm tra `look: null`, cập nhật xử lý preset mood trong panel, bổ sung component tests và ghi chú bàn giao. Không thấy vấn đề mới trong các mục đã yêu cầu rà.
+
+Không chạy test theo yêu cầu; kết quả `npm run verify` do lead chạy riêng.
+
+## Lead verify (Claude, 671ac69)
+
+- `npm run verify`: xanh — 321 Vitest; 227 Rust pass, 5 ignored.
+- `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `npx prettier --check .`: đạt.
