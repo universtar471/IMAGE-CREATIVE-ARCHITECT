@@ -7,6 +7,7 @@ import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
 import { useT } from "../../i18n";
 import { buildVersionTree } from "./tree";
+import { resolveEnhancePair } from "../enhance/enhance";
 
 /** Version lineage: imports are roots, generated outputs hang under their parent's version. */
 export function VersionsTab() {
@@ -16,6 +17,7 @@ export function VersionsTab() {
   const generations = useStudio((s) => s.workspace!.generations);
   const selectedId = useStudio((s) => s.selectedAssetId);
   const selectAsset = useStudio((s) => s.selectAsset);
+  const setModule = useStudio((s) => s.setModule);
   const revision = useStudio((s) => s.dataRevision);
   const [loaded, setLoaded] = useState<{ key: string; versions?: VersionDTO[]; error?: string }>();
   const key = `${projectId}|${revision}`;
@@ -72,9 +74,11 @@ export function VersionsTab() {
               </span>
               <span className={`badge ${v.generationId ? "badge-info" : "badge-neutral"}`}>
                 {v.generationId && <Sparkles size={10} />}
-                {v.operation === "import" || v.operation === "generate"
-                  ? t(`labels.operation.${v.operation}`)
-                  : v.operation}
+                {v.operation === "enhance"
+                  ? enhanceVersionLabel(gen, t)
+                  : v.operation === "import" || v.operation === "generate"
+                    ? t(`labels.operation.${v.operation}`)
+                    : v.operation}
               </span>
               {v.generationId && (
                 <span className="field-hint version-gen">
@@ -89,9 +93,47 @@ export function VersionsTab() {
               <span className="spacer" />
               <span className="field-hint">{formatRelativeTime(v.createdAt)}</span>
             </button>
+            {asset && resolveEnhancePair(asset.id, generations, assets) && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                title={t("enhance.compareSource")}
+                onClick={() => {
+                  selectAsset(asset.id);
+                  setModule("enhance");
+                }}
+              >
+                <Sparkles size={10} /> {t("enhance.compareSource")}
+              </button>
+            )}
           </li>
         );
       })}
     </ul>
   );
+}
+
+function enhanceVersionLabel(
+  generation: { params: unknown } | undefined,
+  translate: ReturnType<typeof useT>,
+): string {
+  const enhance = (
+    generation?.params as
+      | { enhance?: { mode?: string; targetLongEdge?: number | null; detailStrength?: number } }
+      | undefined
+  )?.enhance;
+  if (!enhance) return translate("enhance.title");
+  const target = enhance.targetLongEdge
+    ? `${enhance.targetLongEdge}px`
+    : translate("enhance.keepSize");
+  const mode =
+    enhance.mode === "generative"
+      ? translate("enhance.aiDetail")
+      : translate("enhance.preserveDetail");
+  return translate("versions.enhanceSummary", {
+    count: 1,
+    target,
+    mode,
+    strength: enhance.detailStrength ?? 40,
+  });
 }

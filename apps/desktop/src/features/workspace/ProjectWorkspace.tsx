@@ -1,6 +1,8 @@
 import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
+import { useEffect } from "react";
 import { useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
+import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { ErrorState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
 import { PropertyPanel } from "../../components/panels/PropertyPanel";
 import { WorkspaceNav } from "../../components/shell/WorkspaceNav";
@@ -12,7 +14,28 @@ import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
-import type { ColorGradeDNA } from "@arch/domain";
+import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
+import { resolveEnhancePair } from "../enhance/enhance";
+
+export function findSubmittedEnhanceResult(
+  projectId: string,
+  submission: { projectId: string; generationId: string } | null,
+  generations: readonly GenerationDTO[],
+  assets: readonly AssetDTO[],
+): AssetDTO | null {
+  if (!submission || submission.projectId !== projectId) return null;
+  const generation = generations.find(
+    (item) =>
+      item.id === submission.generationId &&
+      item.projectId === projectId &&
+      item.purpose === "enhance" &&
+      item.status === "completed",
+  );
+  return (
+    generation?.outputAssetIds.map((id) => assets.find((asset) => asset.id === id)).find(Boolean) ??
+    null
+  );
+}
 
 /** Permanent four-zone workspace: top bar / nav | center | properties / bottom tray. */
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
@@ -72,6 +95,26 @@ function CenterArea() {
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
     assets.find((a) => a.id === selectedId) ?? assets.find((a) => a.id === masterId) ?? null;
+  const generations = useStudio((s) => s.workspace!.generations);
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const enhanceSubmission = useStudio((s) => s.enhanceSubmission);
+  const submittedResult = findSubmittedEnhanceResult(
+    projectId,
+    enhanceSubmission,
+    generations,
+    assets,
+  );
+  const enhanceGeneration = enhanceSubmission
+    ? generations.find((generation) => generation.id === enhanceSubmission.generationId)
+    : undefined;
+  const enhanceSource = enhanceGeneration
+    ? (assets.find((item) => item.id === enhanceGeneration.referenceAssetIds[0]) ?? null)
+    : null;
+  const selectedEnhancePair = selectedId
+    ? resolveEnhancePair(selectedId, generations, assets)
+    : null;
+  const enhanceSourceForView = selectedEnhancePair?.source ?? enhanceSource;
+  const enhanceResult = selectedEnhancePair?.result ?? submittedResult;
   const grade = (useStudio((s) => s.workspace!.draftDna.colorGrade) ?? {
     schemaVersion: 1,
     exposure: 0,
@@ -87,6 +130,13 @@ function CenterArea() {
     clarity: 0,
     dehaze: 0,
   }) as ColorGradeDNA;
+
+  useEffect(() => {
+    if (active === "enhance" && enhanceResult && selectedId !== enhanceResult.id) {
+      useStudio.getState().selectAsset(enhanceResult.id);
+      setCenterView("canvas");
+    }
+  }, [active, enhanceResult, selectedId, setCenterView, projectId, enhanceSubmission]);
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
@@ -144,6 +194,8 @@ function CenterArea() {
           <ContactSheet />
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
+        ) : active === "enhance" ? (
+          <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
         ) : (
           <WorkspaceCanvas
             mode={{ kind: "single", asset }}

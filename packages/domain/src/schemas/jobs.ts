@@ -68,15 +68,44 @@ export const BatchItemSchema = z.object({
 });
 export type BatchItem = z.infer<typeof BatchItemSchema>;
 
-export const BatchCreateRequestSchema = z.object({
-  projectId: z.string(),
-  name: z.string().trim().min(1),
-  providerId: z.string(),
-  modelId: z.string(),
-  purpose: GenerationPurposeSchema,
-  priority: z.number().int().min(-10).max(10).default(0),
-  items: z.array(BatchItemSchema).min(1).max(50),
-});
+export const BatchCreateRequestSchema = z
+  .object({
+    projectId: z.string(),
+    name: z.string().trim().min(1),
+    providerId: z.string(),
+    modelId: z.string(),
+    purpose: GenerationPurposeSchema,
+    priority: z.number().int().min(-10).max(10).default(0),
+    items: z.array(BatchItemSchema).min(1).max(50),
+  })
+  .superRefine((value, ctx) => {
+    if (value.purpose !== "enhance") return;
+    value.items.forEach((item, index) => {
+      const enhance = item.params.enhance;
+      if (!enhance) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["items", index, "params", "enhance"],
+          message: "params.enhance is required when purpose is enhance.",
+        });
+        return;
+      }
+      if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["items", index, "params", "enhance", "targetLongEdge"],
+          message: "Conservative enhancement requires targetLongEdge.",
+        });
+      }
+      if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["providerId"],
+          message: 'Conservative enhancement requires providerId "local_upscale".',
+        });
+      }
+    });
+  });
 export type BatchCreateRequest = z.infer<typeof BatchCreateRequestSchema>;
 
 export const JobCountsSchema = z.object(

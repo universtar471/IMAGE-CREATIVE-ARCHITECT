@@ -106,6 +106,7 @@ pub(crate) mod tests_support {
 
     use super::AppCore;
     use crate::providers::local_preview::LocalPreviewProvider;
+    use crate::providers::local_upscale::LocalUpscaleProvider;
     use crate::providers::{
         ImageProvider, ModelCapabilities, ProviderError, ProviderErrorKind, ProviderImage, ProviderInfo, ProviderKind,
         ProviderOutput, ProviderRegistry, ProviderRequest,
@@ -137,7 +138,12 @@ pub(crate) mod tests_support {
     pub fn open_queue_core(root: &Path) -> (AppCore, Arc<TestProvider>, Arc<TestProvider>) {
         let double = Arc::new(TestProvider::default());
         let local = Arc::new(TestProvider::local());
-        let registry = ProviderRegistry::new(vec![Arc::new(LocalPreviewProvider), double.clone(), local.clone()]);
+        let registry = ProviderRegistry::new(vec![
+            Arc::new(LocalPreviewProvider),
+            Arc::new(LocalUpscaleProvider),
+            double.clone(),
+            local.clone(),
+        ]);
         let core = AppCore::open_with(root, registry, Arc::new(MemorySecretStore::default())).unwrap();
         (core, double, local)
     }

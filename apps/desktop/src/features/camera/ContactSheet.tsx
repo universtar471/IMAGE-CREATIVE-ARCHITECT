@@ -4,7 +4,17 @@
  * canvas. Failed items can be retried here.
  */
 import { useState } from "react";
-import { Anchor, Ban, Columns2, ImageOff, LayoutGrid, Maximize2, RotateCcw, X } from "lucide-react";
+import {
+  Anchor,
+  Ban,
+  Columns2,
+  ImageOff,
+  LayoutGrid,
+  Layers,
+  Maximize2,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import type { AssetDTO, BatchDTO, ProjectDNA } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
@@ -15,6 +25,9 @@ import { useT } from "../../i18n";
 import { knowledge } from "../../lib/knowledge";
 import { adoptMoodPresetSections, type MoodVariationPreset } from "../mood/variation";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
+import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
+import { resolveEnhancePair, type EnhancePair } from "../enhance/enhance";
+import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
 import {
   groupContactSheet,
@@ -34,6 +47,8 @@ export function ContactSheet() {
   const chosenId = useStudio((s) => s.contactBatchId);
   const showContactSheet = useStudio((s) => s.showContactSheet);
   const [compareId, setCompareId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchOpen, setBatchOpen] = useState(false);
   const t = useT();
 
   const batch = ws.batches.find((b) => b.id === chosenId) ?? ws.batches[0] ?? null;
@@ -47,6 +62,10 @@ export function ContactSheet() {
   const groups = groupContactSheet(batch, ws.generations, jobs, ws.draftDna.cameras);
   const master = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
   const compare = compareId ? ws.assets.find((a) => a.id === compareId) : null;
+  const comparePair = compareId ? resolveEnhancePair(compareId, ws.generations, ws.assets) : null;
+  const selectedSources = ws.assets.filter(
+    (asset) => selectedIds.includes(asset.id) && asset.status === "ready",
+  );
 
   return (
     <div className="contact-sheet" data-testid="contact-sheet">
@@ -66,26 +85,65 @@ export function ContactSheet() {
         </select>
         <BatchCounts batch={batch} />
         <span className="field-hint">{formatRelativeTime(batch.createdAt)}</span>
+        {selectedSources.length >= 2 && (
+          <button className="btn btn-sm btn-primary" onClick={() => setBatchOpen(true)}>
+            <Layers size={12} /> {t("enhance.batch")} ({selectedSources.length})
+          </button>
+        )}
       </div>
       {compare ? (
-        <CompareView master={master} candidate={compare} onClose={() => setCompareId(null)} />
+        comparePair ? (
+          <EnhanceCompareView pair={comparePair} onClose={() => setCompareId(null)} />
+        ) : (
+          <CompareView master={master} candidate={compare} onClose={() => setCompareId(null)} />
+        )
       ) : (
         <div className="contact-groups">
           {groups.length === 0 && <span className="field-hint">{t("contact.loading")}</span>}
           {batch.purpose === "variation" ? (
-            <MoodGroups batch={batch} />
+            <MoodGroups
+              batch={batch}
+              selectedIds={selectedIds}
+              onToggle={(id) =>
+                setSelectedIds((current) =>
+                  current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+                )
+              }
+            />
           ) : (
             groups.map((g) => (
-              <CameraGroup key={g.cameraId ?? "none"} group={g} onCompare={setCompareId} />
+              <CameraGroup
+                key={g.cameraId ?? "none"}
+                group={g}
+                enhance={batch.purpose === "enhance"}
+                onCompare={setCompareId}
+                selectedIds={selectedIds}
+                onToggle={(id) =>
+                  setSelectedIds((current) =>
+                    current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+                  )
+                }
+              />
             ))
           )}
         </div>
+      )}
+      {batchOpen && selectedSources.length >= 2 && (
+        <EnhanceBatchDialog sources={selectedSources} onClose={() => setBatchOpen(false)} />
       )}
     </div>
   );
 }
 
-function MoodGroups({ batch }: { batch: BatchDTO }) {
+function MoodGroups({
+  batch,
+  selectedIds,
+  onToggle,
+}: {
+  batch: BatchDTO;
+  selectedIds: readonly string[];
+  onToggle: (assetId: string) => void;
+}) {
   const ws = useStudio((s) => s.workspace!);
   const jobs = useStudio((s) => s.jobs);
   const editDna = useStudio((s) => s.editDna);
@@ -99,6 +157,8 @@ function MoodGroups({ batch }: { batch: BatchDTO }) {
           group={group}
           presets={presets}
           readOnly={readOnly}
+          selectedIds={selectedIds}
+          onToggle={onToggle}
           onAdopt={(preset) => {
             for (const [section, value] of Object.entries(adoptContactMood(ws.draftDna, preset))) {
               if (value) editDna(section, value);
@@ -114,11 +174,15 @@ function MoodGroup({
   group,
   presets,
   readOnly,
+  selectedIds,
+  onToggle,
   onAdopt,
 }: {
   group: ReturnType<typeof groupMoodContactSheet>[number];
   presets: ReturnType<typeof knowledge.moodPresets>;
   readOnly: boolean;
+  selectedIds: readonly string[];
+  onToggle: (assetId: string) => void;
   onAdopt: (preset: (typeof presets)[number]) => void;
 }) {
   const t = useT();
@@ -146,15 +210,23 @@ function MoodGroup({
                 </div>
               );
             return (
-              <button className="contact-card" key={id} onClick={() => selectAsset(id)}>
-                <div className="contact-image">
+              <div className="contact-card" key={id}>
+                <label className="asset-select-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(asset.id)}
+                    onChange={() => onToggle(asset.id)}
+                  />{" "}
+                  {t("assets.batchSelect")}
+                </label>
+                <button className="contact-image" onClick={() => selectAsset(id)}>
                   <img
                     src={fileUrl(asset.thumbnailPath) ?? ""}
                     alt={asset.originalName ?? group.label}
                   />
-                </div>
+                </button>
                 <span>{t("contact.openInCanvas")}</span>
-              </button>
+              </div>
             );
           }),
         )}
@@ -192,10 +264,16 @@ function BatchCounts({ batch }: { batch: BatchDTO }) {
 
 function CameraGroup({
   group,
+  enhance,
   onCompare,
+  selectedIds,
+  onToggle,
 }: {
   group: ContactGroup;
+  enhance: boolean;
   onCompare: (assetId: string) => void;
+  selectedIds: readonly string[];
+  onToggle: (assetId: string) => void;
 }) {
   const anchor = useStudio((s) =>
     s.workspace!.anchors.find((a) => group.cameraId && a.cameraId === group.cameraId),
@@ -222,6 +300,9 @@ function CameraGroup({
             group={group}
             anchorAssetId={anchor?.assetId ?? null}
             onCompare={onCompare}
+            enhance={enhance}
+            selectedIds={selectedIds}
+            onToggle={onToggle}
           />
         ))}
       </div>
@@ -234,11 +315,17 @@ function EntryCards({
   group,
   anchorAssetId,
   onCompare,
+  enhance,
+  selectedIds,
+  onToggle,
 }: {
   entry: ContactEntry;
   group: ContactGroup;
   anchorAssetId: string | null;
   onCompare: (assetId: string) => void;
+  enhance: boolean;
+  selectedIds: readonly string[];
+  onToggle: (assetId: string) => void;
 }) {
   const assets = useStudio((s) => s.workspace!.assets);
   const retryJob = useStudio((s) => s.retryJob);
@@ -260,6 +347,9 @@ function EntryCards({
             cameraId={group.cameraId}
             isAnchor={a.id === anchorAssetId}
             onCompare={() => onCompare(a.id)}
+            enhance={enhance}
+            selected={selectedIds.includes(a.id)}
+            onToggle={() => onToggle(a.id)}
           />
         ))}
       </>
@@ -313,12 +403,18 @@ function OutputCard({
   cameraId,
   isAnchor,
   onCompare,
+  enhance,
+  selected,
+  onToggle,
 }: {
   asset: AssetDTO;
   canAnchor: boolean;
   cameraId: string | null;
   isAnchor: boolean;
   onCompare: () => void;
+  enhance: boolean;
+  selected: boolean;
+  onToggle: () => void;
 }) {
   const setAnchor = useStudio((s) => s.setAnchor);
   const selectAsset = useStudio((s) => s.selectAsset);
@@ -337,6 +433,9 @@ function OutputCard({
 
   return (
     <div className={`contact-card ${isAnchor ? "is-anchor" : ""}`} data-testid="contact-output">
+      <label className="asset-select-check">
+        <input type="checkbox" checked={selected} onChange={onToggle} /> {t("assets.batchSelect")}
+      </label>
       <button
         className="contact-image"
         onClick={() => selectAsset(asset.id)}
@@ -359,8 +458,12 @@ function OutputCard({
             <Anchor size={12} /> {isAnchor ? t("common.anchor") : t("contact.approve")}
           </button>
         )}
-        <button className="btn btn-sm" onClick={onCompare} title={t("contact.compareTitle")}>
-          <Columns2 size={12} /> {t("contact.compare")}
+        <button
+          className="btn btn-sm"
+          onClick={onCompare}
+          title={enhance ? t("enhance.compareSource") : t("contact.compareTitle")}
+        >
+          <Columns2 size={12} /> {enhance ? t("enhance.compareSource") : t("contact.compare")}
         </button>
         <button
           className="btn btn-sm btn-icon"
@@ -412,6 +515,22 @@ function CompareView({
         )}
         {pane(candidate, candidate.originalName ?? t("contact.candidate"))}
       </div>
+    </div>
+  );
+}
+
+function EnhanceCompareView({ pair, onClose }: { pair: EnhancePair; onClose: () => void }) {
+  const t = useT();
+  return (
+    <div className="compare" data-testid="compare-view">
+      <div className="compare-head">
+        <strong>{t("enhance.compareSource")}</strong>
+        <span className="spacer" />
+        <button className="btn btn-sm" onClick={onClose}>
+          <X size={13} /> {t("contact.back")}
+        </button>
+      </div>
+      <CompareCanvas source={pair.source} result={pair.result} />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::Value;
 use tauri::State;
 
@@ -18,6 +18,10 @@ use crate::services::{
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
+
+fn parse_validation<T: DeserializeOwned>(value: Value) -> AppResult<T> {
+    serde_json::from_value(value).map_err(|err| AppError::validation(format!("Invalid request: {err}")))
+}
 
 async fn blocking<T, F>(core: &Core<'_>, f: F) -> AppResult<T>
 where
@@ -255,7 +259,8 @@ pub async fn prompt_enhance(
 /// Validates and enqueues one job (ADR-017); returns the `queued` generation at once.
 /// Progress arrives as `job://updated` / `generation://updated` events.
 #[tauri::command]
-pub async fn generation_submit(core: Core<'_>, request: generations::SubmitRequest) -> AppResult<GenerationDto> {
+pub async fn generation_submit(core: Core<'_>, request: Value) -> AppResult<GenerationDto> {
+    let request: generations::SubmitRequest = parse_validation(request)?;
     blocking(&core, move |c| generations::submit(c, request)).await
 }
 
@@ -279,7 +284,8 @@ pub async fn generation_get(core: Core<'_>, request: GenerationRef) -> AppResult
 // ------------------------------------------------------------------ batches, jobs, anchors
 
 #[tauri::command]
-pub async fn batch_create(core: Core<'_>, request: batches::BatchCreateRequest) -> AppResult<BatchDto> {
+pub async fn batch_create(core: Core<'_>, request: Value) -> AppResult<BatchDto> {
+    let request: batches::BatchCreateRequest = parse_validation(request)?;
     blocking(&core, move |c| batches::create(c, request)).await
 }
 
@@ -347,4 +353,16 @@ pub async fn app_info(core: Core<'_>) -> AppResult<AppInfo> {
         })
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_validation;
+    use crate::error::ErrorCode;
+
+    #[test]
+    fn malformed_numeric_request_is_a_validation_error() {
+        let err = parse_validation::<i32>(serde_json::json!(40.5)).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+    }
 }

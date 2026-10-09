@@ -96,6 +96,7 @@ fn request(outputs: u32) -> ProviderRequest {
             output_count: outputs,
             seed: None,
             quality: None,
+            enhance: None,
         },
         api_key: Some(KEY.into()),
     }
@@ -536,6 +537,7 @@ fn openai_live_smoke() {
             output_count: 1,
             seed: None,
             quality: None,
+            enhance: None,
         },
         api_key: Some(key),
     };

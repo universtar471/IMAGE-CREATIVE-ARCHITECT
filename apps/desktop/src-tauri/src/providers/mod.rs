@@ -11,6 +11,7 @@
 pub mod gemini;
 pub mod hhtech;
 pub mod local_preview;
+pub mod local_upscale;
 pub mod openai;
 pub mod text;
 
@@ -82,6 +83,35 @@ pub struct GenerationParams {
     /// rows written before it existed.
     #[serde(default)]
     pub quality: Option<String>,
+    /// Enhancement-only controls. Kept nested under `params.enhance` to match the bridge contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enhance: Option<EnhanceParams>,
+}
+
+/// Mirrors `EnhanceParams` in API_CONTRACTS \u00a714.1.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EnhanceParams {
+    pub mode: EnhanceMode,
+    pub target_long_edge: Option<i32>,
+    #[serde(default = "default_detail_strength")]
+    pub detail_strength: i32,
+    #[serde(default = "default_architecture_preserve")]
+    pub architecture_preserve: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum EnhanceMode {
+    Conservative,
+    Generative,
+}
+
+fn default_detail_strength() -> i32 {
+    40
+}
+fn default_architecture_preserve() -> bool {
+    true
 }
 
 /// The text parts of a compiled `PromptBundle`, as adapters consume them.
@@ -226,6 +256,7 @@ impl ProviderRegistry {
             Arc::new(openai::OpenAiProvider::new()),
             Arc::new(hhtech::provider(env)),
             Arc::new(local_preview::LocalPreviewProvider),
+            Arc::new(local_upscale::LocalUpscaleProvider),
         ])
     }
 

@@ -155,6 +155,8 @@ type State = {
   providerDialog: { focus: string | null } | null;
   generateDraft: GenerateDraft;
   run: GenerationRun | null;
+  /** The exact enhance submission whose completed output may be auto-selected. */
+  enhanceSubmission: { projectId: string; generationId: string } | null;
   /** Jobs of every project (job_list(null) + events), newest first. */
   jobs: JobDTO[];
   workflowView: DerivedWorkflow | null;
@@ -349,6 +351,7 @@ export const useStudio = create<State>((set, get) => {
     providerDialog: null,
     generateDraft: EMPTY_GENERATE_DRAFT,
     run: null,
+    enhanceSubmission: null,
     jobs: [],
     workflowView: null,
 
@@ -365,6 +368,7 @@ export const useStudio = create<State>((set, get) => {
         contactBatchId: null,
         save: SAVED,
         generateDraft: EMPTY_GENERATE_DRAFT,
+        enhanceSubmission: null,
         workflowView: null,
       });
       if (!get().providers) void get().loadProviders();
@@ -673,7 +677,13 @@ export const useStudio = create<State>((set, get) => {
         // Events may already have moved it on; keep the most advanced snapshot.
         const known = get().workspace?.generations.find((g) => g.id === queued.id);
         const generation = known ?? queued;
-        set({ run: { status: "tracking", projectId, generation } });
+        set({
+          run: { status: "tracking", projectId, generation },
+          enhanceSubmission:
+            input.purpose === "enhance"
+              ? { projectId, generationId: generation.id }
+              : get().enhanceSubmission,
+        });
         const ws = get().workspace;
         if (ws && ws.project.id === projectId && !known) {
           // A command result counts like an event: an older poll must not drop it.

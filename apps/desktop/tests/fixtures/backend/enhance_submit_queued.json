@@ -2,36 +2,40 @@
   "command": "generation_submit",
   "response": {
     "batchId": null,
-    "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZC",
+    "cameraId": null,
     "createdAt": "2026-01-01T00:00:00.000Z",
     "durationMs": null,
     "error": null,
     "finishedAt": null,
-    "id": "GEN_00000000000000000000000007",
-    "jobId": "JOB_00000000000000000000000008",
-    "modelId": "placeholder-v1",
+    "id": "GEN_00000000000000000000000004",
+    "jobId": "JOB_00000000000000000000000005",
+    "modelId": "lanczos3",
     "outputAssetIds": [],
     "params": {
       "aspectRatio": null,
+      "enhance": {
+        "architecturePreserve": true,
+        "detailStrength": 40,
+        "mode": "conservative",
+        "targetLongEdge": 2048
+      },
       "imageSize": null,
-      "outputCount": 2,
+      "outputCount": 1,
       "quality": null,
       "seed": null
     },
     "parentAssetId": "AST_00000000000000000000000003",
     "projectId": "PRJ_00000000000000000000000001",
     "prompt": {
-      "compilerVersion": "pc-1.0.0",
-      "metadata": {
-        "projectType": "villa"
-      },
-      "negativePrompt": "people",
-      "positivePrompt": "Tropical villa at dusk",
-      "preservationInstructions": "Keep the massing.",
-      "referenceInstructions": "Image 1 is the master."
+      "compilerVersion": "",
+      "metadata": {},
+      "negativePrompt": "",
+      "positivePrompt": "",
+      "preservationInstructions": "",
+      "referenceInstructions": ""
     },
-    "providerId": "local_preview",
-    "purpose": "hero",
+    "providerId": "local_upscale",
+    "purpose": "enhance",
     "referenceAssetIds": [
       "AST_00000000000000000000000003"
     ],

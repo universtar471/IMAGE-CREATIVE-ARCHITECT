@@ -10,9 +10,11 @@
 //! provider call runs has its result discarded: no rows, no files.
 
 use std::fs;
+use std::io::Cursor;
 use std::sync::Arc;
 use std::time::Instant;
 
+use image::{DynamicImage, ImageFormat};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,7 +24,8 @@ use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
-    GenerationParams, ImageProvider, ModelCapabilities, PromptText, ProviderOutput, ProviderRequest, ReferenceImage,
+    EnhanceMode, GenerationParams, ImageProvider, ModelCapabilities, PromptText, ProviderOutput, ProviderRequest,
+    ReferenceImage,
 };
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
@@ -99,6 +102,13 @@ struct Prepared {
     api_key: Option<String>,
 }
 
+struct CheckedOutput {
+    bytes: Vec<u8>,
+    info: Inspection,
+    decoded: DynamicImage,
+    provider_long_edge: u32,
+}
+
 /// Why a job attempt ended without outputs.
 #[derive(Debug)]
 struct Failure(GenerationErrorRow);
@@ -152,7 +162,7 @@ pub fn parse_purpose(s: &str) -> AppResult<GenerationPurpose> {
 
 /// Every check of API_CONTRACTS §9/§10, before any row is written. Reads no image bytes and
 /// does not keep the key: both are fetched again when the job runs.
-pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validated> {
+pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Validated> {
     let purpose = parse_purpose(&req.purpose)?;
     let provider = find_provider(core, &req.provider_id)?;
     let info = provider.info();
@@ -160,7 +170,7 @@ pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validate
         .model(&req.model_id)
         .cloned()
         .ok_or_else(|| AppError::not_found(&format!("Model of {}", info.label), &req.model_id))?;
-    validate_against_model(&req, &model)?;
+    validate_against_model(&req, purpose, &model)?;
 
     let (project, assets, camera_name) = {
         let conn = core.conn()?;
@@ -179,6 +189,50 @@ pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validate
         (project, assets, camera_name)
     };
 
+    let enhance = req.params.enhance.clone();
+    if purpose == GenerationPurpose::Enhance {
+        let params = enhance
+            .as_ref()
+            .ok_or_else(|| AppError::validation("Enhancement parameters are required at params.enhance."))?;
+        let target_long_edge = params.target_long_edge;
+        if assets.len() != 1 {
+            return Err(AppError::validation("Enhancement requires exactly one ready reference image."));
+        }
+        let source_long_edge = source_long_edge(core, &assets[0])?;
+        if let Some(target) = params.target_long_edge {
+            if !matches!(target, 2048 | 3072 | 4096) {
+                return Err(AppError::validation("Enhancement target must be 2048, 3072 or 4096 pixels."));
+            }
+        }
+        let effective = params.target_long_edge.map(|target| target as u32).unwrap_or(source_long_edge);
+        if effective > 8192 {
+            return Err(AppError::validation("Enhancement target cannot exceed 8192 pixels on the long edge."));
+        }
+        if let Some(target) = params.target_long_edge {
+            if (target as u32) < source_long_edge {
+                return Err(AppError::validation("Enhancement never downsizes; pick a larger target."));
+            }
+        } else if params.mode == EnhanceMode::Conservative {
+            return Err(AppError::validation("Conservative enhancement requires a target long edge."));
+        }
+        if params.mode == EnhanceMode::Conservative && req.provider_id != crate::providers::local_upscale::ID {
+            return Err(AppError::validation("Conservative enhancement must use provider 'local_upscale'."));
+        }
+        if !(0..=100).contains(&params.detail_strength) {
+            return Err(AppError::validation("Enhancement detail strength must be an integer from 0 to 100."));
+        }
+        if req.provider_id == crate::providers::hhtech::ID
+            && req.model_id == "gemini-3-pro-image"
+            && req.params.image_size.is_none()
+        {
+            req.params.image_size = Some(
+                crate::providers::hhtech::catalog::enhance_tier(target_long_edge.map(|target| target as u32)).into(),
+            );
+        }
+    } else if enhance.is_some() {
+        return Err(AppError::validation("params.enhance is only valid when purpose is 'enhance'."));
+    }
+
     // Lineage anchor: the master if referenced, else the first reference.
     let master = project.active_master_asset_id.as_deref();
     let parent_asset_id =
@@ -188,16 +242,24 @@ pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validate
         return Err(not_configured(provider.as_ref()));
     }
 
+    let prompt = if conservative_prompt(&req, purpose) {
+        PromptBundle {
+            compiler_version: String::new(),
+            positive_prompt: String::new(),
+            negative_prompt: String::new(),
+            reference_instructions: String::new(),
+            preservation_instructions: String::new(),
+            metadata: Default::default(),
+        }
+    } else {
+        req.prompt
+    };
     Ok(Validated {
         project_id: project.id,
         provider_id: info.id.to_string(),
         model,
         purpose,
-        snapshot: RequestSnapshot {
-            prompt: req.prompt,
-            reference_asset_ids: req.reference_asset_ids,
-            params: req.params,
-        },
+        snapshot: RequestSnapshot { prompt, reference_asset_ids: req.reference_asset_ids, params: req.params },
         parent_asset_id,
         camera_id: req.camera_id,
         camera_name,
@@ -217,10 +279,12 @@ fn camera_name(dna: &Value, camera_id: &str) -> AppResult<String> {
     Ok(camera.get("name").and_then(Value::as_str).unwrap_or(camera_id).to_string())
 }
 
-fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> AppResult<()> {
+fn validate_against_model(req: &SubmitRequest, purpose: GenerationPurpose, model: &ModelCapabilities) -> AppResult<()> {
     let p = &req.params;
     let refs = &req.reference_asset_ids;
-    if req.prompt.positive_prompt.trim().is_empty() {
+    let conservative = purpose == GenerationPurpose::Enhance
+        && req.params.enhance.as_ref().is_some_and(|p| p.mode == EnhanceMode::Conservative);
+    if !conservative && req.prompt.positive_prompt.trim().is_empty() {
         return Err(AppError::validation("The prompt is empty. Describe what to generate first."));
     }
     if p.output_count < 1 || p.output_count > MAX_OUTPUT_COUNT {
@@ -241,6 +305,20 @@ fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> App
     }
     if refs.is_empty() && !model.text_to_image {
         return Err(AppError::validation(format!("{} needs at least one reference image.", model.label)));
+    }
+    if purpose == GenerationPurpose::Enhance {
+        if refs.len() != 1 {
+            return Err(AppError::validation("Enhancement requires exactly one ready reference image."));
+        }
+        if !model.image_to_image {
+            return Err(AppError::validation(format!(
+                "{} does not support image enhancement references.",
+                model.label
+            )));
+        }
+        if req.params.enhance.is_none() {
+            return Err(AppError::validation("Enhancement parameters are required at params.enhance."));
+        }
     }
     if refs.len() > model.max_reference_images as usize {
         return Err(AppError::validation(format!(
@@ -296,6 +374,21 @@ fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> App
         }
     }
     Ok(())
+}
+
+fn conservative_prompt(req: &SubmitRequest, purpose: GenerationPurpose) -> bool {
+    purpose == GenerationPurpose::Enhance
+        && req.params.enhance.as_ref().is_some_and(|params| params.mode == EnhanceMode::Conservative)
+}
+
+fn source_long_edge(core: &AppCore, asset: &AssetRow) -> AppResult<u32> {
+    if let (Some(width), Some(height)) = (asset.width_px, asset.height_px) {
+        return Ok(width.max(height).max(1) as u32);
+    }
+    let path = core.storage.resolve(&asset.project_id, &asset.managed_rel_path)?;
+    let bytes = fs::read(path).map_err(|_| missing_reference(asset))?;
+    let info = imaging::inspect(&bytes, "source image").map_err(|e| AppError::invalid_state(e.message))?;
+    Ok(info.width.max(info.height))
 }
 
 fn missing_reference(a: &AssetRow) -> AppError {
@@ -584,9 +677,33 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
                     true,
                 )
             };
-            let info = imaging::inspect(&img.bytes, &format!("output {}", i + 1)).map_err(|_| unreadable())?;
-            let decoded = imaging::decode(&img.bytes, info.format).map_err(|_| unreadable())?;
-            Ok((info, decoded))
+            let provider_info = imaging::inspect(&img.bytes, &format!("output {}", i + 1)).map_err(|_| unreadable())?;
+            let provider_decoded = imaging::decode(&img.bytes, provider_info.format).map_err(|_| unreadable())?;
+            let provider_long_edge = provider_info.width.max(provider_info.height);
+            let mut bytes = img.bytes.clone();
+            if prepared.purpose == GenerationPurpose::Enhance {
+                let source_long_edge = prepared.references.first().and_then(|reference| {
+                    imaging::inspect(&reference.bytes, "source image").ok().map(|info| info.width.max(info.height))
+                });
+                let target = prepared.snapshot.params.enhance.as_ref().and_then(|params| {
+                    params
+                        .target_long_edge
+                        .map(|target| target as u32)
+                        .or_else(|| (params.mode == EnhanceMode::Generative).then_some(source_long_edge).flatten())
+                });
+                if let Some(target) = target {
+                    let source_long_edge = provider_decoded.width().max(provider_decoded.height());
+                    let scale = target as f32 / source_long_edge as f32;
+                    let width = ((provider_decoded.width() as f32 * scale).round() as u32).max(1);
+                    let height = ((provider_decoded.height() as f32 * scale).round() as u32).max(1);
+                    let resized = provider_decoded.resize_exact(width, height, image::imageops::FilterType::Lanczos3);
+                    bytes.clear();
+                    resized.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|_| unreadable())?;
+                }
+            }
+            let info = imaging::inspect(&bytes, &format!("output {}", i + 1)).map_err(|_| unreadable())?;
+            let decoded = imaging::decode(&bytes, info.format).map_err(|_| unreadable())?;
+            Ok(CheckedOutput { bytes, info, decoded, provider_long_edge })
         })
         .collect::<Result<Vec<_>, Failure>>()?;
 
@@ -597,15 +714,15 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             s.remove_files();
         }
     };
-    for (img, (info, decoded)) in images.iter().zip(&checked) {
+    for item in &checked {
         let asset_id = new_id(prefix::ASSET);
         match store_managed_image(
             &core.storage,
             &generation.project_id,
             &asset_id,
-            &img.bytes,
-            info,
-            Thumbnail::Required(decoded),
+            &item.bytes,
+            &item.info,
+            Thumbnail::Required(&item.decoded),
         ) {
             Ok(s) => stored.push(s),
             Err(e) => {
@@ -619,8 +736,7 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
     if let Some(hook) = BEFORE_COMMIT.with(|h| h.borrow_mut().take()) {
         hook();
     }
-    let inspected: Vec<&Inspection> = checked.iter().map(|(info, _)| info).collect();
-    let result = commit_outputs(core, prepared, &stored, &inspected, clock);
+    let result = commit_outputs(core, prepared, &stored, &checked, clock);
     if result.is_err() {
         cleanup(&stored);
     }
@@ -631,7 +747,7 @@ fn commit_outputs(
     core: &AppCore,
     prepared: &Prepared,
     stored: &[StoredImage],
-    inspected: &[&Inspection],
+    checked: &[CheckedOutput],
     clock: &Instant,
 ) -> Result<(), Stop> {
     let generation = &prepared.generation;
@@ -660,16 +776,35 @@ fn commit_outputs(
         None => None,
     };
     let now = core.now_iso();
-    for (index, (files, info)) in stored.iter().zip(inspected).enumerate() {
+    let operation = if prepared.purpose == GenerationPurpose::Enhance { "enhance" } else { "generate" };
+    let source_long_edge = prepared
+        .references
+        .first()
+        .and_then(|reference| imaging::inspect(&reference.bytes, "source image").ok())
+        .map(|info| info.width.max(info.height));
+    for (index, (files, checked)) in stored.iter().zip(checked).enumerate() {
         let asset_id = &files.asset_id;
         let index = index as u32;
         let name = format!("{} {} — {}", prepared.purpose.label(), index + 1, prepared.model.label);
-        let operation_json = json!({
-            "generationId": generation.id,
-            "providerId": generation.provider_id,
-            "modelId": generation.model_id,
-            "outputIndex": index,
-        })
+        let operation_json = if prepared.purpose == GenerationPurpose::Enhance {
+            json!({
+                "params": prepared.snapshot.params,
+                "generationId": generation.id,
+                "providerId": generation.provider_id,
+                "modelId": generation.model_id,
+                "sourceLongEdge": source_long_edge,
+                "providerLongEdge": checked.provider_long_edge,
+                "finalLongEdge": checked.info.width.max(checked.info.height),
+                "outputIndex": index,
+            })
+        } else {
+            json!({
+                "generationId": generation.id,
+                "providerId": generation.provider_id,
+                "modelId": generation.model_id,
+                "outputIndex": index,
+            })
+        }
         .to_string();
         repo::insert_asset(
             &tx,
@@ -682,13 +817,13 @@ fn commit_outputs(
                 original_name: Some(name.clone()),
                 managed_rel_path: files.managed_rel.clone(),
                 thumbnail_rel_path: files.thumbnail_rel.clone(),
-                mime_type: Some(info.format.mime().into()),
-                file_size_bytes: Some(info.size_bytes as i64),
-                width_px: Some(info.width as i64),
-                height_px: Some(info.height as i64),
-                sha256: Some(info.sha256.clone()),
+                mime_type: Some(checked.info.format.mime().into()),
+                file_size_bytes: Some(checked.info.size_bytes as i64),
+                width_px: Some(checked.info.width as i64),
+                height_px: Some(checked.info.height as i64),
+                sha256: Some(checked.info.sha256.clone()),
                 parent_asset_id: parent_asset_id.clone(),
-                operation: Some("generate".into()),
+                operation: Some(operation.into()),
                 operation_json: Some(operation_json.clone()),
                 created_at: now.clone(),
                 updated_at: now.clone(),
@@ -702,7 +837,7 @@ fn commit_outputs(
                 asset_id: asset_id.clone(),
                 parent_version_id: parent_version_id.clone(),
                 label: Some(name),
-                operation: "generate".into(),
+                operation: operation.into(),
                 operation_json: Some(operation_json),
                 generation_id: Some(generation.id.clone()),
                 created_at: now.clone(),
@@ -809,6 +944,7 @@ mod tests {
     use super::*;
     use crate::dto::AssetDto;
     use crate::providers::local_preview;
+    use crate::providers::local_upscale;
     use crate::providers::ProviderErrorKind;
     use crate::services::assets::{self, ImportRequest};
     use crate::services::projects;
@@ -838,7 +974,14 @@ mod tests {
     }
 
     fn params(count: u32) -> GenerationParams {
-        GenerationParams { aspect_ratio: None, image_size: None, output_count: count, seed: None, quality: None }
+        GenerationParams {
+            aspect_ratio: None,
+            image_size: None,
+            output_count: count,
+            seed: None,
+            quality: None,
+            enhance: None,
+        }
     }
 
     fn request(
@@ -1496,5 +1639,185 @@ mod tests {
                 assets::list_versions(&core, &p.id).unwrap().into_iter().map(|v| v.asset_id).collect();
             assert_eq!(version_assets, g.output_asset_ids);
         }
+    }
+
+    fn enhance_request(
+        project_id: &str,
+        provider: &str,
+        model: &str,
+        source_id: &str,
+        mode: crate::providers::EnhanceMode,
+        target: Option<i32>,
+    ) -> SubmitRequest {
+        let mut req = request(project_id, provider, model, &[source_id], params(1));
+        req.purpose = "enhance".into();
+        req.params.enhance = Some(crate::providers::EnhanceParams {
+            mode,
+            target_long_edge: target,
+            detail_strength: 40,
+            architecture_preserve: true,
+        });
+        req
+    }
+
+    #[test]
+    fn conservative_enhance_is_local_exact_and_keeps_source_bytes_and_lineage() {
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Enhance");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        let source_bytes = std::fs::read(&source.absolute_path).unwrap();
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let generation = submit(
+            &core,
+            enhance_request(
+                &project.id,
+                local_upscale::ID,
+                local_upscale::MODEL_ID,
+                &source.id,
+                crate::providers::EnhanceMode::Conservative,
+                Some(2048),
+            ),
+        )
+        .unwrap();
+        let output = assets::list(&core, &project.id)
+            .unwrap()
+            .into_iter()
+            .find(|asset| generation.output_asset_ids.contains(&asset.id))
+            .unwrap();
+        assert_eq!(output.width_px.unwrap().max(output.height_px.unwrap()), 2048);
+        assert_eq!(std::fs::read(&source.absolute_path).unwrap(), source_bytes);
+        let version =
+            assets::list_versions(&core, &project.id).unwrap().into_iter().find(|v| v.asset_id == output.id).unwrap();
+        assert_eq!(version.operation, "enhance");
+        let source_version =
+            assets::list_versions(&core, &project.id).unwrap().into_iter().find(|v| v.asset_id == source.id).unwrap();
+        assert_eq!(version.parent_version_id.as_deref(), Some(source_version.id.as_str()));
+        let operation: Value = core
+            .conn()
+            .unwrap()
+            .query_row("SELECT operation_json FROM assets WHERE id = ?1", [&output.id], |row| row.get::<_, String>(0))
+            .map(|s| serde_json::from_str(&s).unwrap())
+            .unwrap();
+        assert_eq!(operation["sourceLongEdge"], 32);
+        assert_eq!(operation["finalLongEdge"], 2048);
+    }
+
+    #[test]
+    fn generative_enhance_sends_one_reference_and_resizes_provider_output() {
+        let (tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let project = test_create_villa(&core, "Enhance");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let generation = submit(
+            &core,
+            enhance_request(
+                &project.id,
+                TEST_PROVIDER,
+                "full",
+                &source.id,
+                crate::providers::EnhanceMode::Generative,
+                Some(2048),
+            ),
+        )
+        .unwrap();
+        let sent = double.last_request.lock().unwrap().clone().unwrap();
+        assert_eq!(sent.references.len(), 1);
+        assert_eq!(sent.references[0].asset_id, source.id);
+        assert_eq!(sent.params.enhance.as_ref().unwrap().mode, crate::providers::EnhanceMode::Generative);
+        let output = assets::list(&core, &project.id)
+            .unwrap()
+            .into_iter()
+            .find(|asset| generation.output_asset_ids.contains(&asset.id))
+            .unwrap();
+        assert_eq!(output.width_px.unwrap().max(output.height_px.unwrap()), 2048);
+    }
+
+    #[test]
+    fn enhance_validation_rejects_missing_params_multiple_refs_downsize_and_bad_target() {
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Enhance validation");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [1, 2, 3]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let mut missing = request(&project.id, local_upscale::ID, local_upscale::MODEL_ID, &[&source.id], params(1));
+        missing.purpose = "enhance".into();
+        assert!(validate(&core, missing).unwrap_err().message.contains("params.enhance"));
+        let mut many = enhance_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            crate::providers::EnhanceMode::Conservative,
+            Some(2048),
+        );
+        many.reference_asset_ids.push(source.id.clone());
+        let many_error = validate(&core, many).unwrap_err();
+        assert!(many_error.message.contains("exactly one") || many_error.message.contains("more than once"));
+        let mut down = enhance_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            crate::providers::EnhanceMode::Conservative,
+            Some(2048),
+        );
+        down.params.enhance.as_mut().unwrap().target_long_edge = Some(16);
+        assert!(validate(&core, down).unwrap_err().message.contains("target must be 2048"));
+        assert!(!tmp.path().as_os_str().is_empty());
+    }
+
+    #[test]
+    fn enhance_validation_rejects_negative_detail_strength() {
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Enhance detail strength");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [1, 2, 3]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let mut request = enhance_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            crate::providers::EnhanceMode::Conservative,
+            Some(2048),
+        );
+        request.params.enhance.as_mut().unwrap().detail_strength = -1;
+        let err = validate(&core, request).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("integer from 0 to 100"));
+    }
+
+    #[test]
+    fn enhance_request_with_fractional_detail_strength_cannot_be_deserialized() {
+        let raw = serde_json::json!({
+            "projectId": "p",
+            "providerId": "local_upscale",
+            "modelId": "lanczos3",
+            "purpose": "enhance",
+            "referenceAssetIds": ["a"],
+            "params": {
+                "aspectRatio": null,
+                "imageSize": null,
+                "outputCount": 1,
+                "seed": null,
+                "quality": null,
+                "enhance": {
+                    "mode": "conservative",
+                    "targetLongEdge": 2048,
+                    "detailStrength": 40.5,
+                    "architecturePreserve": true
+                }
+            },
+            "cameraId": null,
+            "prompt": {
+                "compilerVersion": "",
+                "positivePrompt": "",
+                "negativePrompt": "",
+                "referenceInstructions": "",
+                "preservationInstructions": "",
+                "metadata": {}
+            }
+        });
+        let err = serde_json::from_value::<SubmitRequest>(raw).unwrap_err();
+        assert!(err.to_string().contains("invalid type"));
     }
 }
