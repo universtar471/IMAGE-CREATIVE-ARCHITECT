@@ -22,14 +22,25 @@ List visible image-generation artifacts separately. Artifact severity must be lo
 Return JSON only, without markdown or prose, using exactly these top-level keys:
 {"scores":{"geometry":0,"material":0,"openings":0,"context":0,"lighting":0},"artifacts":[{"label":"","severity":"low","box":null}],"issues":[{"category":"geometry","text":""}],"repairInstruction":""}`;
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function facts(dna: ProjectDNA): string {
   return [
-    `Building DNA: ${JSON.stringify(dna.building)}`,
-    `Context DNA: ${JSON.stringify(dna.context)}`,
-    `Camera DNA: ${JSON.stringify(dna.cameras)}`,
-    `Lighting DNA: ${JSON.stringify(dna.lighting ?? null)}`,
-    `Weather DNA: ${JSON.stringify(dna.weather ?? null)}`,
-    `Mood DNA: ${JSON.stringify(dna.mood ?? null)}`,
+    `Building DNA: ${stableJson(dna.building)}`,
+    `Context DNA: ${stableJson(dna.context)}`,
+    `Camera DNA: ${stableJson(dna.cameras)}`,
+    `Lighting DNA: ${stableJson(dna.lighting ?? null)}`,
+    `Weather DNA: ${stableJson(dna.weather ?? null)}`,
+    `Mood DNA: ${stableJson(dna.mood ?? null)}`,
   ].join("\n");
 }
 

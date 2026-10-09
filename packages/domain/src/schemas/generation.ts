@@ -34,6 +34,8 @@ export const ModelCapabilitiesSchema = z.object({
    * tier missing from the map has no published price.
    */
   priceHint: z.record(z.string(), z.number().int().nonnegative()).nullable(),
+  /** True when the model can be selected for optional vision QC. */
+  vision: z.boolean(),
 });
 export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
 

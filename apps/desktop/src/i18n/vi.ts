@@ -166,6 +166,7 @@ export const vi: Dict = {
       variation: "Biến thể",
       anchor: "Anchor",
       production: "Sản xuất",
+      repair: "Sửa theo QC",
       enhance: "Nâng cấp",
     },
     generationStatus: {

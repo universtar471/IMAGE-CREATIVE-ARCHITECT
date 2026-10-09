@@ -214,7 +214,7 @@ impl Drop for SlotGuard<'_> {
 
 /// Run one claimed attempt to its end and record the outcome. A panicking attempt (an
 /// adapter bug) fails the job like any other error instead of leaving it `running`.
-pub fn run(core: &AppCore, claim: Claim) {
+pub fn run(core: &AppCore, claim: Claim) -> bool {
     let _slot = SlotGuard { core, job_id: &claim.job_id };
     let started = Instant::now();
     let outcome =
@@ -224,10 +224,20 @@ pub fn run(core: &AppCore, claim: Claim) {
                 duration_ms: i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX),
             }
         });
+    let completed = matches!(outcome, RunOutcome::Completed);
     if let Err(e) = settle(core, &claim.job_id, outcome) {
         eprintln!("[queue] could not record the result of job {}: {}", claim.job_id, e.message);
     }
     emit(core, &claim.job_id);
+    completed
+}
+
+/// Production worker entry point. The QC thread is detached after the generation is settled.
+fn run_background(core: Arc<AppCore>, claim: Claim) {
+    let job_id = claim.job_id.clone();
+    if run(&core, claim) {
+        crate::services::qc::spawn_after_generation(core, job_id);
+    }
 }
 
 /// The attempt ended for a reason of our own, not the provider's: the job fails (no automatic
@@ -255,7 +265,7 @@ where
         let job_id = c.job_id.clone();
         let task: Box<dyn FnOnce() + Send> = {
             let core = Arc::clone(core);
-            Box::new(move || run(&core, c))
+            Box::new(move || run_background(core, c))
         };
         if let Err(e) = spawn(format!("job-{job_id}"), task) {
             eprintln!("[queue] cannot start a thread for job {job_id}: {e}");
@@ -280,7 +290,10 @@ pub fn tick(core: &AppCore, now: DateTime<Utc>) -> AppResult<usize> {
     let claims = claim(core, now)?;
     let n = claims.len();
     for c in claims {
-        run(core, c);
+        let job_id = c.job_id.clone();
+        if run(core, c) {
+            crate::services::qc::automation_for_test(core, &job_id);
+        }
     }
     Ok(n)
 }

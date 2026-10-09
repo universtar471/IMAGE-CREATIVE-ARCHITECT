@@ -561,7 +561,7 @@
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true,
-          "vision": false
+          "vision": true
         },
         {
           "aspectRatios": [],

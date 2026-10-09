@@ -169,6 +169,7 @@ const GEMINI_MODELS: ModelCapabilities[] = (
   supportsSeed: false,
   qualityOptions: [],
   priceHint: null,
+  vision: false,
 }));
 
 /**
@@ -195,6 +196,7 @@ const OPENAI_MODELS: ModelCapabilities[] = (
   // Official OpenAI always sends `quality: high`; no choice.
   qualityOptions: [],
   priceHint: null,
+  vision: false,
 }));
 
 /**
@@ -230,6 +232,7 @@ const HHTECH_MODELS: ModelCapabilities[] = (
     supportsSeed: false,
     qualityOptions: family === "gpt" ? ["low", "medium", "high"] : [],
     priceHint: Object.fromEntries(priced),
+    vision: true,
   };
 });
 
@@ -278,6 +281,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
         supportsSeed: true,
         qualityOptions: [],
         priceHint: null,
+        vision: false,
       },
     ],
   },
@@ -300,6 +304,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
+        vision: false,
       },
     ],
   },

@@ -50,20 +50,11 @@ export function QcPanel() {
   const approved = isMasterApproved(ws.project.status);
 
   const visionProviders = providers.filter((provider) =>
-    provider.models.some(
-      (model) =>
-        (model as typeof model & { vision?: boolean }).vision ||
-        ["openai", "hhtech"].includes(provider.id),
-    ),
+    provider.models.some((model) => model.vision === true),
   );
   const provider =
     visionProviders.find((item) => item.id === providerId) ?? visionProviders[0] ?? null;
-  const visionModels =
-    provider?.models.filter(
-      (model) =>
-        (model as typeof model & { vision?: boolean }).vision ||
-        ["openai", "hhtech"].includes(provider.id),
-    ) ?? [];
+  const visionModels = provider?.models.filter((model) => model.vision === true) ?? [];
   const model = visionModels.find((item) => item.id === modelId) ?? visionModels[0] ?? null;
   const latest = useMemo(
     () => reports.find((report) => report.assetId === selected?.id) ?? null,

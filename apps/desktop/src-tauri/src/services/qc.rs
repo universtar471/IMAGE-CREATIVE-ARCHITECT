@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use image::DynamicImage;
 use rusqlite::OptionalExtension;
@@ -10,12 +12,22 @@ use crate::dto::{
     QcArtifactDto, QcIssueDto, QcLocalDto, QcReportDto, QcScoresDto, QcSettingsDto, QcThresholdsDto, QcVisionDto,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
+use crate::providers::RepairParams;
 use crate::repositories as repo;
+use crate::services::generations::{self, SubmitRequest};
 use crate::services::provider_settings::{find_provider, key_for, not_configured};
 use crate::services::{ensure_not_archived, AppCore};
 use crate::util::{new_id, prefix};
 
 pub mod local;
+
+static AUTOMATION_PROJECT_LOCKS: OnceLock<Mutex<HashMap<String, Arc<Mutex<()>>>>> = OnceLock::new();
+
+fn project_automation_lock(project_id: &str) -> Arc<Mutex<()>> {
+    let locks = AUTOMATION_PROJECT_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut locks = locks.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    locks.entry(project_id.to_string()).or_insert_with(|| Arc::new(Mutex::new(()))).clone()
+}
 
 impl Default for QcSettingsDto {
     fn default() -> Self {
@@ -73,7 +85,16 @@ pub fn score_report(
     let Some(vision) = vision else {
         return local
             .edge_alignment
-            .map(|value| (Some(value), if value >= thresholds.pass_min { "pass" } else { "warn" }.into()))
+            .map(|value| {
+                let result = if value < thresholds.pass_min {
+                    "fail"
+                } else if value < thresholds.pass_min + 10.0 {
+                    "warn"
+                } else {
+                    "pass"
+                };
+                (Some(value), result.into())
+            })
             .unwrap_or((None, "unscored".into()));
     };
     let values = [
@@ -99,31 +120,36 @@ pub fn score_report(
 }
 
 fn extract_json_object(text: &str) -> Option<&str> {
-    let start = text.find('{')?;
-    let mut depth = 0i32;
-    let mut quoted = false;
-    let mut escaped = false;
-    for (offset, ch) in text[start..].char_indices() {
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == '"' {
-                quoted = false;
-            }
-            continue;
-        }
-        match ch {
-            '"' => quoted = true,
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(&text[start..start + offset + 1]);
+    for (start, _) in text.match_indices('{') {
+        let mut depth = 0i32;
+        let mut quoted = false;
+        let mut escaped = false;
+        for (offset, ch) in text[start..].char_indices() {
+            if quoted {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    quoted = false;
                 }
+                continue;
             }
-            _ => {}
+            match ch {
+                '"' => quoted = true,
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let candidate = &text[start..start + offset + 1];
+                        if serde_json::from_str::<Value>(candidate).ok().is_some_and(|value| value.is_object()) {
+                            return Some(candidate);
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
         }
     }
     None
@@ -139,7 +165,7 @@ pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResu
         .and_then(Value::as_object)
         .ok_or_else(|| AppError::new(ErrorCode::ProviderError, "Vision judge response is missing scores."))?;
     let score = |key: &str| {
-        scores.get(key).and_then(Value::as_i64).map(clamp_score).ok_or_else(|| {
+        scores.get(key).and_then(Value::as_f64).map(|value| clamp_score(value.round() as i64)).ok_or_else(|| {
             AppError::new(ErrorCode::ProviderError, format!("Vision judge response is missing scores.{key}."))
         })
     };
@@ -182,7 +208,11 @@ pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResu
                 }
             };
             Ok(QcArtifactDto {
-                label: obj.get("label").and_then(Value::as_str).unwrap_or("artifact").to_string(),
+                label: obj
+                    .get("label")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| AppError::new(ErrorCode::ProviderError, "Vision artifact label is invalid."))?
+                    .to_string(),
                 severity: severity.into(),
                 box_,
             })
@@ -203,7 +233,11 @@ pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResu
             }
             Ok(QcIssueDto {
                 category: category.into(),
-                text: obj.get("text").and_then(Value::as_str).unwrap_or_default().into(),
+                text: obj
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| AppError::new(ErrorCode::ProviderError, "Vision issue text is invalid."))?
+                    .into(),
             })
         })
         .collect::<AppResult<Vec<_>>>()?;
@@ -219,8 +253,77 @@ pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResu
         },
         artifacts,
         issues,
-        repair_instruction: value.get("repairInstruction").and_then(Value::as_str).unwrap_or_default().into(),
+        repair_instruction: value
+            .get("repairInstruction")
+            .and_then(Value::as_str)
+            .ok_or_else(|| AppError::new(ErrorCode::ProviderError, "Vision repairInstruction is invalid."))?
+            .into(),
     })
+}
+
+/// Rust mirror of `packages/domain/src/qc/prompts.ts::buildRepairPrompt`.
+/// Keep the line order and JSON compactness stable: the shared test vector compares both sides.
+pub fn build_repair_prompt(dna: &Value, report: &QcReportDto) -> String {
+    let facts = |dna: &Value| {
+        let value = |key: &str| dna.get(key).cloned().unwrap_or(Value::Null);
+        format!(
+            "Building DNA: {}\nContext DNA: {}\nCamera DNA: {}\nLighting DNA: {}\nWeather DNA: {}\nMood DNA: {}",
+            value("building"),
+            value("context"),
+            value("cameras"),
+            value("lighting"),
+            value("weather"),
+            value("mood")
+        )
+    };
+    let (issues, artifacts, instruction) = match report.vision.as_ref() {
+        Some(vision) => {
+            let issues = if vision.issues.is_empty() {
+                "None listed.".to_string()
+            } else {
+                vision
+                    .issues
+                    .iter()
+                    .enumerate()
+                    .map(|(index, issue)| format!("{}. [{}] {}", index + 1, issue.category, issue.text))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            let artifacts = if vision.artifacts.is_empty() {
+                "None listed.".to_string()
+            } else {
+                vision
+                    .artifacts
+                    .iter()
+                    .enumerate()
+                    .map(|(index, artifact)| {
+                        format!(
+                            "{}. [{}] {}; box: {}",
+                            index + 1,
+                            artifact.severity,
+                            artifact.label,
+                            artifact.box_.map(|b| json!(b).to_string()).unwrap_or_else(|| "null".into())
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            let instruction = if vision.repair_instruction.is_empty() {
+                "No additional repair instruction.".to_string()
+            } else {
+                vision.repair_instruction.clone()
+            };
+            (issues, artifacts, instruction)
+        }
+        None => ("None listed.".into(), "None listed.".into(), "No additional repair instruction.".into()),
+    };
+    format!(
+        "Repair this architectural image. Fix only the QC issues and artifacts listed below.\nQC issues:\n{}\nQC artifacts:\n{}\nRepair instruction: {}\nKeep the architecture, camera and composition unchanged. Keep every element not explicitly listed above unchanged, including geometry, materials, openings, context, lighting, weather and mood.\nDo not redesign, restyle, reframe, crop, add or remove anything else.\nProject facts to preserve:\n{}",
+        issues,
+        artifacts,
+        instruction,
+        facts(dna)
+    )
 }
 
 fn image_for(core: &AppCore, asset: &repo::AssetRow) -> AppResult<DynamicImage> {
@@ -393,6 +496,115 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
     Ok(report)
 }
 
+/// Schedule post-generation QC without extending the generation job's critical path.
+/// Errors are deliberately logged and discarded; the original generation is already committed.
+pub(crate) fn spawn_after_generation(core: Arc<AppCore>, generation_id: String) {
+    let _ = std::thread::Builder::new().name(format!("qc-{generation_id}")).spawn(move || {
+        if let Err(error) = automation_after_generation(&core, &generation_id) {
+            eprintln!("[qc] automatic QC for {generation_id} failed: {}", error.message);
+        }
+    });
+}
+
+pub(crate) fn automation_for_test(core: &AppCore, job_id: &str) {
+    if let Err(error) = automation_after_generation(core, job_id) {
+        eprintln!("[qc] automatic QC for {job_id} failed: {}", error.message);
+    }
+}
+
+fn automation_after_generation(core: &AppCore, generation_id: &str) -> AppResult<()> {
+    let (generation, output_ids, settings, dna) = {
+        let conn = core.conn()?;
+        let generation_id = repo::get_job(&conn, generation_id)?.generation_id;
+        let generation = repo::find_generation(&conn, &generation_id)?
+            .ok_or_else(|| AppError::not_found("Generation", &generation_id))?;
+        if generation.purpose == crate::domain::GenerationPurpose::Repair {
+            return Ok(());
+        }
+        let settings = conn
+            .query_row("SELECT settings_json FROM qc_settings WHERE project_id = ?1", [&generation.project_id], |r| {
+                r.get::<_, String>(0)
+            })
+            .optional()?
+            .and_then(|raw| serde_json::from_str::<QcSettingsDto>(&raw).ok())
+            .unwrap_or_default();
+        if settings.auto_qc != "after_generation" {
+            return Ok(());
+        }
+        let output_ids = repo::list_generation_outputs(&conn, &generation.id)?;
+        let dna = repo::get_dna(&conn, &generation.project_id)?;
+        (generation, output_ids, settings, dna)
+    };
+    let lock = project_automation_lock(&generation.project_id);
+    let _guard = lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let vision = settings
+        .vision_provider_id
+        .clone()
+        .map(|provider_id| QcVisionRequest { provider_id, model: settings.vision_model.clone() });
+    let original_request = {
+        let conn = core.conn()?;
+        generations::request_of(&conn, &generation.id)?
+    };
+    for asset_id in output_ids {
+        let report = match run(
+            core,
+            QcRunRequest {
+                project_id: generation.project_id.clone(),
+                asset_id: asset_id.clone(),
+                vision: vision.clone(),
+            },
+        ) {
+            Ok(report) => report,
+            Err(error) => {
+                eprintln!("[qc] automatic QC for asset {asset_id} failed: {}", error.message);
+                continue;
+            }
+        };
+        if report.result != "fail" || settings.auto_repair_max == 0 {
+            continue;
+        }
+        let repair_depth = {
+            let conn = core.conn()?;
+            repo::find_asset(&conn, &asset_id)?
+                .and_then(|asset| asset.operation_json)
+                .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                .and_then(|value| value.get("repairDepth").and_then(Value::as_u64))
+                .unwrap_or(0)
+        };
+        if repair_depth >= u64::from(settings.auto_repair_max) {
+            continue;
+        }
+        let Some(primary_reference) = report.reference_asset_ids.first().cloned() else { continue };
+        let prompt = build_repair_prompt(&dna, &report);
+        let request = SubmitRequest {
+            project_id: generation.project_id.clone(),
+            provider_id: generation.provider_id.clone(),
+            model_id: generation.model_id.clone(),
+            purpose: "repair".into(),
+            prompt: crate::dto::PromptBundle {
+                compiler_version: "qc-domain".into(),
+                positive_prompt: prompt,
+                negative_prompt: String::new(),
+                reference_instructions: "Use the first reference as the primary comparison.".into(),
+                preservation_instructions: "Keep everything not explicitly listed in the QC repair prompt unchanged."
+                    .into(),
+                metadata: serde_json::Map::new(),
+            },
+            reference_asset_ids: vec![asset_id.clone(), primary_reference],
+            params: crate::providers::GenerationParams {
+                repair: Some(RepairParams { qc_report_id: report.id }),
+                enhance: None,
+                ..original_request.params.clone()
+            },
+            camera_id: generation.camera_id.clone(),
+        };
+        if let Err(error) = generations::submit(core, request) {
+            eprintln!("[qc] automatic repair for asset {asset_id} failed: {}", error.message);
+        }
+    }
+    Ok(())
+}
+
 pub fn list(core: &AppCore, request: QcListRequest) -> AppResult<Vec<QcReportDto>> {
     let conn = core.conn()?;
     repo::get_project(&conn, &request.project_id)?;
@@ -405,4 +617,18 @@ pub fn list(core: &AppCore, request: QcListRequest) -> AppResult<Vec<QcReportDto
     })
     .collect::<Result<Vec<_>, _>>()
     .map_err(AppError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repair_prompt_matches_domain_snapshot() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../packages/domain/test-vectors/repair-prompt.json");
+        let vector: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let report: QcReportDto = serde_json::from_value(vector["report"].clone()).unwrap();
+        assert_eq!(build_repair_prompt(&vector["dna"], &report), vector["expected"].as_str().unwrap());
+    }
 }

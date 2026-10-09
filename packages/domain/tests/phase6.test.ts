@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   BatchCreateRequestSchema,
   GenerationSubmitRequestSchema,
@@ -214,6 +216,19 @@ describe("vision reply parser", () => {
 });
 
 describe("QC prompts and repair gating", () => {
+  it("matches the shared repair prompt snapshot", () => {
+    const vector = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), "packages/domain/test-vectors/repair-prompt.json"),
+        "utf8",
+      ),
+    ) as {
+      dna: Parameters<typeof buildRepairPrompt>[0]["dna"];
+      report: QcReportDTO;
+      expected: string;
+    };
+    expect(buildRepairPrompt({ dna: vector.dna, report: vector.report })).toBe(vector.expected);
+  });
   it("builds deterministic vision prompts with DNA facts and same-view guidance", () => {
     const first = buildVisionPrompt({ dna, purpose: "enhance" });
     expect(first).toEqual(buildVisionPrompt({ dna, purpose: "enhance" }));
@@ -242,8 +257,8 @@ describe("QC prompts and repair gating", () => {
         "user": "Generation purpose: enhance.
       This output must keep the same viewpoint, camera, framing and composition as its primary reference. Treat any drift as a geometry issue.
       Project DNA facts:
-      Building DNA: {"schemaVersion":1,"buildingType":"Custom","dimensions":{},"massing":{"voids":[]},"roof":{},"openings":{},"materials":[],"colorPalette":[],"specialFeatures":[],"notes":""}
-      Context DNA: {"schemaVersion":1,"front":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"rear":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"left":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"right":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"distantBackground":[],"atmosphereNotes":"","negativeConstraints":[]}
+      Building DNA: {"buildingType":"Custom","colorPalette":[],"dimensions":{},"massing":{"voids":[]},"materials":[],"notes":"","openings":{},"roof":{},"schemaVersion":1,"specialFeatures":[]}
+      Context DNA: {"atmosphereNotes":"","distantBackground":[],"front":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"left":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"negativeConstraints":[],"rear":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"right":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"schemaVersion":1}
       Camera DNA: []
       Lighting DNA: null
       Weather DNA: null
@@ -278,8 +293,8 @@ describe("QC prompts and repair gating", () => {
       Keep the architecture, camera and composition unchanged. Keep every element not explicitly listed above unchanged, including geometry, materials, openings, context, lighting, weather and mood.
       Do not redesign, restyle, reframe, crop, add or remove anything else.
       Project facts to preserve:
-      Building DNA: {"schemaVersion":1,"buildingType":"Custom","dimensions":{},"massing":{"voids":[]},"roof":{},"openings":{},"materials":[],"colorPalette":[],"specialFeatures":[],"notes":""}
-      Context DNA: {"schemaVersion":1,"front":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"rear":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"left":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"right":{"elements":[],"vegetation":[],"adjacentBuildings":[],"notes":""},"distantBackground":[],"atmosphereNotes":"","negativeConstraints":[]}
+      Building DNA: {"buildingType":"Custom","colorPalette":[],"dimensions":{},"massing":{"voids":[]},"materials":[],"notes":"","openings":{},"roof":{},"schemaVersion":1,"specialFeatures":[]}
+      Context DNA: {"atmosphereNotes":"","distantBackground":[],"front":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"left":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"negativeConstraints":[],"rear":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"right":{"adjacentBuildings":[],"elements":[],"notes":"","vegetation":[]},"schemaVersion":1}
       Camera DNA: []
       Lighting DNA: null
       Weather DNA: null

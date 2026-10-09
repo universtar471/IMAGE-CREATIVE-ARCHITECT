@@ -15,7 +15,7 @@
       "referenceAssetIds": [
         "AST_00000000000000000000000003"
       ],
-      "result": "warn",
+      "result": "fail",
       "thresholds": {
         "categoryMin": 55.0,
         "highArtifactFails": true,
