@@ -1,17 +1,12 @@
 //! Adapter tests against a local mock HTTP server (std `TcpListener`, no network).
 
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
+use super::super::test_http::{closed_port, MockServer, Reply};
 use super::super::{
     GenerationParams, ImageProvider, PromptText, ProviderError, ProviderErrorKind, ProviderRequest, ReferenceImage,
 };
@@ -21,131 +16,15 @@ const KEY: &str = "AIzaTEST-secret-key-0123456789";
 const PNG_BYTES: &[u8] = b"\x89PNG\r\n\x1a\nfake-image-1";
 const PNG_BYTES_2: &[u8] = b"\x89PNG\r\n\x1a\nfake-image-2";
 
-// ---------------------------------------------------------------- mock server
-
-#[derive(Debug, Clone)]
-struct Recorded {
-    method: String,
-    path: String,
-    headers: HashMap<String, String>,
-    body: String,
+/// The shared mock server, under the Gemini `/v1beta` prefix.
+fn serve(replies: Vec<Reply>) -> MockServer {
+    MockServer::start("/v1beta", replies)
 }
-
-#[derive(Clone)]
-enum Reply {
-    Json(u16, String),
-    /// Wait before answering (client-timeout tests).
-    Slow(Duration, u16, String),
-}
-
-struct MockServer {
-    base_url: String,
-    requests: Arc<Mutex<Vec<Recorded>>>,
-    stop: Arc<AtomicBool>,
-    handle: Option<JoinHandle<()>>,
-}
-
-/// Longest the mock waits for the next connection before giving up on the remaining replies.
-const ACCEPT_DEADLINE: Duration = Duration::from_secs(5);
 
 impl MockServer {
-    /// Serves `replies` in order, one connection each. Stops when all replies are served, when
-    /// no connection arrives within `ACCEPT_DEADLINE`, or when `requests()` / drop asks it to.
-    fn start(replies: Vec<Reply>) -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let base_url = format!("http://{}/v1beta", listener.local_addr().unwrap());
-        let requests = Arc::new(Mutex::new(Vec::new()));
-        let stop = Arc::new(AtomicBool::new(false));
-        let (log, stop_flag) = (Arc::clone(&requests), Arc::clone(&stop));
-        let handle = thread::spawn(move || {
-            for reply in replies {
-                let deadline = Instant::now() + ACCEPT_DEADLINE;
-                let stream = loop {
-                    match listener.accept() {
-                        Ok((stream, _)) => break stream,
-                        Err(e) if e.kind() == ErrorKind::WouldBlock => {
-                            if stop_flag.load(Ordering::SeqCst) || Instant::now() > deadline {
-                                return;
-                            }
-                            thread::sleep(Duration::from_millis(5));
-                        }
-                        Err(_) => return,
-                    }
-                };
-                stream.set_nonblocking(false).unwrap();
-                stream.set_read_timeout(Some(ACCEPT_DEADLINE)).unwrap();
-                serve_one(stream, &reply, &log);
-            }
-        });
-        Self { base_url, requests, stop, handle: Some(handle) }
-    }
-
     fn provider(&self) -> GeminiProvider {
         GeminiProvider::with_base_url(&self.base_url)
     }
-
-    /// Requests served so far. Call after the adapter returned: every request it made has been
-    /// answered by then, so unserved replies mean missing requests (the caller asserts the count).
-    fn requests(&mut self) -> Vec<Recorded> {
-        self.shutdown();
-        self.requests.lock().unwrap().clone()
-    }
-
-    fn shutdown(&mut self) {
-        self.stop.store(true, Ordering::SeqCst);
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-    }
-}
-
-impl Drop for MockServer {
-    fn drop(&mut self) {
-        self.shutdown();
-    }
-}
-
-fn serve_one(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<Recorded>>) {
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
-    let mut request_line = String::new();
-    if reader.read_line(&mut request_line).unwrap_or(0) == 0 {
-        return; // connection opened and closed without a request
-    }
-    let mut parts = request_line.split_whitespace();
-    let method = parts.next().unwrap_or_default().to_string();
-    let path = parts.next().unwrap_or_default().to_string();
-    let mut headers = HashMap::new();
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
-            break;
-        }
-        if let Some((name, value)) = line.split_once(':') {
-            headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_string());
-        }
-    }
-    let length = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0usize);
-    let mut body = vec![0; length];
-    if reader.read_exact(&mut body).is_err() {
-        return;
-    }
-    log.lock().unwrap().push(Recorded { method, path, headers, body: String::from_utf8(body).unwrap() });
-
-    let (status, payload) = match reply {
-        Reply::Json(status, payload) => (*status, payload),
-        Reply::Slow(delay, status, payload) => {
-            thread::sleep(*delay);
-            (*status, payload)
-        }
-    };
-    let response = format!(
-        "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-        payload.len()
-    );
-    let mut stream = stream;
-    let _ = stream.write_all(response.as_bytes());
-    let _ = stream.flush();
 }
 
 // ---------------------------------------------------------------- fixtures
@@ -209,7 +88,7 @@ fn request(outputs: u32) -> ProviderRequest {
 }
 
 fn generate_error(replies: Vec<Reply>) -> ProviderError {
-    let server = MockServer::start(replies);
+    let server = serve(replies);
     server.provider().generate(&request(1)).unwrap_err()
 }
 
@@ -223,7 +102,7 @@ fn assert_key_free(error: &ProviderError) {
 
 #[test]
 fn request_has_model_path_key_header_parts_and_image_config() {
-    let mut server = MockServer::start(vec![image_response(PNG_BYTES)]);
+    let mut server = serve(vec![image_response(PNG_BYTES)]);
     server.provider().generate(&request(1)).unwrap();
     let recorded = server.requests();
     assert_eq!(recorded.len(), 1);
@@ -270,7 +149,7 @@ fn image_config_is_omitted_when_nothing_is_set() {
 
 #[test]
 fn parses_one_image_and_meta() {
-    let server = MockServer::start(vec![image_response(PNG_BYTES)]);
+    let server = serve(vec![image_response(PNG_BYTES)]);
     let out = server.provider().generate(&request(1)).unwrap();
     assert_eq!(out.images.len(), 1);
     assert_eq!(out.images[0].mime_type, "image/png");
@@ -285,7 +164,7 @@ fn parses_one_image_and_meta() {
 
 #[test]
 fn several_outputs_are_sequential_calls() {
-    let mut server = MockServer::start(vec![image_response(PNG_BYTES), image_response(PNG_BYTES_2)]);
+    let mut server = serve(vec![image_response(PNG_BYTES), image_response(PNG_BYTES_2)]);
     let out = server.provider().generate(&request(2)).unwrap();
     assert_eq!(out.images.iter().map(|i| i.bytes.as_slice()).collect::<Vec<_>>(), vec![PNG_BYTES, PNG_BYTES_2]);
     assert_eq!(out.meta["returned"], 2);
@@ -307,7 +186,7 @@ fn thought_images_are_skipped_and_extra_images_capped() {
             "finishReason": "STOP"
         }]
     });
-    let server = MockServer::start(vec![Reply::Json(200, body.to_string())]);
+    let server = serve(vec![Reply::Json(200, body.to_string())]);
     let out = server.provider().generate(&request(1)).unwrap();
     assert_eq!(out.images.len(), 1);
     assert_eq!(out.images[0].bytes, PNG_BYTES);
@@ -315,7 +194,7 @@ fn thought_images_are_skipped_and_extra_images_capped() {
 
 #[test]
 fn partial_failure_returns_successes_and_counts_failures() {
-    let server = MockServer::start(vec![
+    let server = serve(vec![
         image_response(PNG_BYTES),
         error_reply(503, "UNAVAILABLE", "The model is overloaded.", None),
         image_response(PNG_BYTES_2),
@@ -331,20 +210,16 @@ fn partial_failure_returns_successes_and_counts_failures() {
 
 #[test]
 fn all_outputs_failing_returns_the_error() {
-    let server = MockServer::start(vec![
-        error_reply(500, "INTERNAL", "boom", None),
-        error_reply(503, "UNAVAILABLE", "overloaded", None),
-    ]);
+    let server =
+        serve(vec![error_reply(500, "INTERNAL", "boom", None), error_reply(503, "UNAVAILABLE", "overloaded", None)]);
     let err = server.provider().generate(&request(2)).unwrap_err();
     assert_eq!(err.kind, ProviderErrorKind::Network);
 }
 
 #[test]
 fn auth_failure_stops_further_calls() {
-    let mut server = MockServer::start(vec![
-        error_reply(403, "PERMISSION_DENIED", "Permission denied.", None),
-        image_response(PNG_BYTES),
-    ]);
+    let mut server =
+        serve(vec![error_reply(403, "PERMISSION_DENIED", "Permission denied.", None), image_response(PNG_BYTES)]);
     let err = server.provider().generate(&request(2)).unwrap_err();
     assert_eq!(err.kind, ProviderErrorKind::Auth);
     assert_eq!(server.requests().len(), 1);
@@ -416,7 +291,7 @@ fn exhausted_or_free_tier_quota_is_not_retryable_and_says_billing() {
         }]),
     ];
     for violations in cases {
-        let mut server = MockServer::start(vec![quota_reply(violations.clone()), image_response(PNG_BYTES)]);
+        let mut server = serve(vec![quota_reply(violations.clone()), image_response(PNG_BYTES)]);
         let err = server.provider().generate(&request(2)).unwrap_err();
         assert_eq!(err.kind, ProviderErrorKind::Auth, "{violations}");
         assert!(!err.kind.retryable());
@@ -459,8 +334,7 @@ fn echoed_key_is_redacted_and_long_messages_truncated() {
 
 #[test]
 fn connection_failure_is_network() {
-    let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let provider = GeminiProvider::with_base_url(format!("http://127.0.0.1:{port}/v1beta"));
+    let provider = GeminiProvider::with_base_url(format!("http://127.0.0.1:{}/v1beta", closed_port()));
     let err = provider.generate(&request(1)).unwrap_err();
     assert_eq!(err.kind, ProviderErrorKind::Network);
     assert_key_free(&err);
@@ -472,7 +346,7 @@ fn one_response_with_two_images_fills_two_outputs_in_one_request() {
         "content": { "parts": [image_part(PNG_BYTES), image_part(PNG_BYTES_2)] },
         "finishReason": "STOP"
     }]);
-    let mut server = MockServer::start(vec![ok_body(candidates, "v1"), image_response(b"never-requested")]);
+    let mut server = serve(vec![ok_body(candidates, "v1"), image_response(b"never-requested")]);
     let out = server.provider().generate(&request(2)).unwrap();
     assert_eq!(out.images.iter().map(|i| i.bytes.as_slice()).collect::<Vec<_>>(), vec![PNG_BYTES, PNG_BYTES_2]);
     assert_eq!(out.meta["returned"], 2);
@@ -491,7 +365,7 @@ fn default_timeouts_are_180s_generate_and_15s_test() {
 #[test]
 fn test_connection_timeout_is_timeout() {
     let body = json!({ "name": "models/gemini-nano-banana-2.1" }).to_string();
-    let server = MockServer::start(vec![Reply::Slow(Duration::from_millis(1500), 200, body)]);
+    let server = serve(vec![Reply::Slow(Duration::from_millis(1500), 200, body)]);
     let mut provider = server.provider();
     provider.test_timeout = Duration::from_millis(300);
     let err = provider.test_connection(Some(KEY)).unwrap_err();
@@ -501,7 +375,7 @@ fn test_connection_timeout_is_timeout() {
 
 #[test]
 fn client_timeout_is_timeout() {
-    let server = MockServer::start(vec![Reply::Slow(Duration::from_millis(1500), 200, "{}".into())]);
+    let server = serve(vec![Reply::Slow(Duration::from_millis(1500), 200, "{}".into())]);
     let mut provider = server.provider();
     provider.generate_timeout = Duration::from_millis(300);
     let err = provider.generate(&request(1)).unwrap_err();
@@ -582,7 +456,7 @@ fn key_echoed_in_success_fields_never_reaches_meta() {
         "content": { "parts": [{ "text": format!("note {KEY}") }, image_part(PNG_BYTES)] },
         "finishReason": format!("STOP{KEY}")
     }]);
-    let server = MockServer::start(vec![ok_body(candidates, &format!("model-{KEY}"))]);
+    let server = serve(vec![ok_body(candidates, &format!("model-{KEY}"))]);
     let out = server.provider().generate(&request(1)).unwrap();
     assert_eq!(out.images.len(), 1);
     assert!(!out.meta.to_string().contains(KEY), "{}", out.meta);
@@ -592,7 +466,7 @@ fn key_echoed_in_success_fields_never_reaches_meta() {
 fn key_echoed_during_partial_failure_never_reaches_meta() {
     let good = json!([{ "content": { "parts": [{ "text": format!("ok {KEY}") }, image_part(PNG_BYTES)] }, "finishReason": "STOP" }]);
     let bad = json!([{ "content": { "parts": [{ "text": format!("no image, key {KEY}") }] }, "finishReason": "STOP" }]);
-    let server = MockServer::start(vec![ok_body(good, "v1"), ok_body(bad, &format!("v-{KEY}"))]);
+    let server = serve(vec![ok_body(good, "v1"), ok_body(bad, &format!("v-{KEY}"))]);
     let out = server.provider().generate(&request(2)).unwrap();
     assert_eq!(out.meta["failed"], 1);
     assert_eq!(out.meta["errors"][0]["kind"], "bad_response");
@@ -634,7 +508,7 @@ fn images_from_blocked_candidates_are_dropped() {
         { "content": { "parts": [image_part(b"unsafe")] }, "finishReason": "IMAGE_SAFETY" },
         { "content": { "parts": [image_part(PNG_BYTES)] }, "finishReason": "STOP" }
     ]);
-    let server = MockServer::start(vec![ok_body(candidates, "v1")]);
+    let server = serve(vec![ok_body(candidates, "v1")]);
     let out = server.provider().generate(&request(1)).unwrap();
     assert_eq!(out.images.len(), 1);
     assert_eq!(out.images[0].bytes, PNG_BYTES);
@@ -731,7 +605,7 @@ fn info_lists_verified_models_with_honest_capabilities() {
 #[test]
 fn test_connection_gets_model_metadata_with_header() {
     let body = json!({ "name": "models/gemini-nano-banana-2.1", "displayName": "Nano Banana 2.1" });
-    let mut server = MockServer::start(vec![Reply::Json(200, body.to_string())]);
+    let mut server = serve(vec![Reply::Json(200, body.to_string())]);
     let status = server.provider().test_connection(Some(KEY)).unwrap();
     assert!(status.contains("Nano Banana 2.1"), "{status}");
     let recorded = server.requests();
@@ -742,7 +616,7 @@ fn test_connection_gets_model_metadata_with_header() {
 
 #[test]
 fn test_connection_maps_errors_without_leaking_the_key() {
-    let server = MockServer::start(vec![error_reply(
+    let server = serve(vec![error_reply(
         400,
         "INVALID_ARGUMENT",
         "API key not valid. Please pass a valid API key.",
@@ -759,7 +633,7 @@ fn test_connection_maps_errors_without_leaking_the_key() {
 #[test]
 fn test_connection_rejects_bodies_that_are_not_model_metadata() {
     for body in ["<html>Sign in to your proxy</html>", "{}", r#"{"name": 42}"#, r#"{"name": "something-else"}"#] {
-        let server = MockServer::start(vec![Reply::Json(200, body.into())]);
+        let server = serve(vec![Reply::Json(200, body.into())]);
         let err = server.provider().test_connection(Some(KEY)).unwrap_err();
         assert_eq!(err.kind, ProviderErrorKind::BadResponse, "{body}");
         assert_key_free(&err);

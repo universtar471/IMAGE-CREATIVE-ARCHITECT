@@ -11,6 +11,9 @@
 pub mod gemini;
 pub mod local_preview;
 
+#[cfg(test)]
+mod test_http;
+
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
