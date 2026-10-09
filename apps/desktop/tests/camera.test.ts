@@ -245,6 +245,35 @@ describe("batch dialog planning", () => {
     expect(none.request).toBeNull();
   });
 
+  it("asks for another model instead of dropping a camera's anchor", async () => {
+    const b = await bundleWithCameras();
+    const [front] = b.dna.cameras;
+    const anchors = [
+      { projectId: b.project.id, cameraId: front!.id, assetId: "AST_A1", approvedAt: "" },
+    ];
+    const oneRef = providers(true).map((p) => ({
+      ...p,
+      models: p.models.map((m) => ({ ...m, maxReferenceImages: 1 })),
+    }));
+    const plan = planBatch(
+      {
+        mode: "production",
+        providerId: "gemini",
+        modelId: "gemini-2.5-flash-image",
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        cameraIds: [front!.id],
+        extraReferenceIds: [],
+      },
+      b,
+      anchors,
+      oneRef,
+    );
+    expect(plan.request).toBeNull();
+    expect(plan.items).toEqual([]);
+    expect(plan.issues[0]).toMatch(/Front needs the master and its approved anchor/);
+    expect(plan.issues[0]).toMatch(/Choose another model/);
+  });
+
   it("states remote calls per image and local renders as free", () => {
     expect(costHint({ kind: "remote", label: "G" }, 3, 2)).toMatchObject({ providerCalls: 6 });
     expect(costHint({ kind: "local", label: "L" }, 3, 2).text).toMatch(/no cost/);

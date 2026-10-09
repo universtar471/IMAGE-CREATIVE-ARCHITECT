@@ -58,10 +58,36 @@ export function buildAnchorBatchItems(input: BatchBuildInput): BatchItem[] {
 }
 
 /**
+ * Thrown by `buildProductionBatchItems` when the model cannot carry a camera's required
+ * references (the master and, when approved, that camera's anchor). The batch must not be
+ * queued; the UI shows `message` and asks for another model.
+ */
+export class BatchReferenceLimitError extends Error {
+  constructor(
+    readonly cameraId: string,
+    readonly cameraName: string,
+    /** Required references (master + anchor when present). */
+    readonly required: number,
+    /** References the model accepts (0 without image-to-image). */
+    readonly max: number,
+    modelLabel: string,
+  ) {
+    const needs = required > 1 ? "the master and its approved anchor" : "the master reference";
+    super(
+      max === 0
+        ? `${cameraName} needs ${needs}, but ${modelLabel} does not accept reference images. Choose another model.`
+        : `${cameraName} needs ${needs} (${required} images), but ${modelLabel} accepts at most ${max}. Choose another model.`,
+    );
+    this.name = "BatchReferenceLimitError";
+  }
+}
+
+/**
  * One `production` item per selected camera (DNA order; unknown ids skipped). References per
  * item: the master, then that camera's approved anchor, then the selected extras in compiler
- * order, capped at `maxReferenceImages`. Master and anchor are never dropped for extras; with
- * a cap of 1 only the master is sent.
+ * order, capped at `maxReferenceImages`. Master and anchor are required: when the model cannot
+ * take them all this throws `BatchReferenceLimitError` instead of dropping one. Extras that do
+ * not fit under the cap are trimmed (lowest compiler priority first).
  */
 export function buildProductionBatchItems(
   input: BatchBuildInput,
@@ -79,6 +105,16 @@ export function buildProductionBatchItems(
       const anchorAsset = anchorId ? byId.get(anchorId) : undefined;
       if (anchorAsset && anchorAsset.id !== master?.assetId) {
         fixed.push({ ...toReference(anchorAsset), isAnchor: true });
+      }
+      const cap = input.model.imageToImage ? input.model.maxReferenceImages : 0;
+      if (fixed.length > cap) {
+        throw new BatchReferenceLimitError(
+          camera.id,
+          camera.name,
+          fixed.length,
+          cap,
+          input.model.label,
+        );
       }
       const used = new Set(fixed.map((r) => r.assetId));
       const extras = sortReferences(
