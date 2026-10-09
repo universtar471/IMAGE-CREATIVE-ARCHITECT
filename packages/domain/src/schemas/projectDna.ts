@@ -15,6 +15,7 @@ export const LockStateSchema = z.object({
   camera: z.boolean().default(false),
   lighting: z.boolean().default(false),
   weather: z.boolean().default(false),
+  mood: z.boolean().default(false),
   colorGrade: z.boolean().default(false),
   objectIds: z.array(z.string()).default([]),
 });
@@ -26,6 +27,7 @@ export const defaultLockState = (): LockState => ({
   camera: false,
   lighting: false,
   weather: false,
+  mood: false,
   colorGrade: false,
   objectIds: [],
 });

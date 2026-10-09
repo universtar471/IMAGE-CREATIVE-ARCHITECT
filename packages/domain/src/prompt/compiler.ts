@@ -12,9 +12,9 @@ import type { PromptBundle } from "../schemas/prompt";
 import type { KnowledgePack } from "../knowledge/pack";
 import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
-import type { CameraDNA } from "../schemas/future";
+import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 
-export const COMPILER_VERSION = "pc-1.1.0";
+export const COMPILER_VERSION = "pc-1.2.0";
 
 export type PromptReference = {
   assetId: string;
@@ -40,6 +40,12 @@ export type PromptCompileInput = {
   pack?: KnowledgePack | null;
   /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
   cameraId?: string | null;
+};
+
+export type PromptSectionOverrides = {
+  lighting?: Partial<LightingDNA> | null;
+  weather?: Partial<WeatherDNA> | null;
+  mood?: Partial<MoodDNA> | null;
 };
 
 /** Order in which reference roles are described (and the role ranking for sorting). */
@@ -92,20 +98,52 @@ const BASE_NEGATIVES = [
 ];
 
 export function compilePrompt(input: PromptCompileInput): PromptBundle {
-  const { dna, project, pack } = input;
+  return compilePromptInternal(input, input.dna);
+}
+
+/** Compile a variation while preserving locked DNA sections. */
+export function compileWithOverrides(
+  input: PromptCompileInput | ProjectDNA,
+  overrides: PromptSectionOverrides,
+): PromptBundle {
+  const compileInput: PromptCompileInput =
+    "building" in input
+      ? { project: { id: "", name: "", projectType: "custom" }, dna: input, references: [] }
+      : input;
+  const dna = structuredClone(compileInput.dna);
+  if (!dna.locks.lighting && overrides.lighting)
+    dna.lighting = {
+      schemaVersion: 1,
+      artificialLighting: [],
+      ...(dna.lighting ?? {}),
+      ...overrides.lighting,
+    };
+  if (!dna.locks.weather && overrides.weather)
+    dna.weather = { schemaVersion: 1, notes: "", ...(dna.weather ?? {}), ...overrides.weather };
+  if (!dna.locks.mood && overrides.mood)
+    dna.mood = { schemaVersion: 1, notes: "", ...(dna.mood ?? {}), ...overrides.mood };
+  return compilePromptInternal(compileInput, dna);
+}
+
+function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): PromptBundle {
+  const { project, pack } = input;
   const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
 
+  // Positive section order is stable: subject, form, language, materials, context,
+  // lighting, weather, mood, camera, quality. Phase 4 deliberately keeps camera after mood.
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior)],
     ["form", formSection(dna, isInterior)],
     ["language", languageSection(dna)],
     ["materials", materialsSection(dna)],
     ["context", contextSection(dna, isInterior)],
-    ["camera", camera ? cameraSectionText(camera) : null],
     ["lighting", lightingSection(dna)],
+    ["weather", weatherSection(dna)],
+    ["mood", moodSection(dna)],
+    ["camera", camera ? cameraSectionText(camera) : null],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -140,6 +178,9 @@ export function compilePrompt(input: PromptCompileInput): PromptBundle {
         building: dna.locks.building,
         context: dna.locks.context,
         camera: dna.locks.camera,
+        lighting: dna.locks.lighting,
+        weather: dna.locks.weather,
+        mood: dna.locks.mood,
       },
     },
   };
@@ -268,27 +309,62 @@ function zoneText(z: ContextZone): string | null {
 }
 
 function lightingSection(dna: ProjectDNA): string | null {
-  // Lighting/weather/mood editing arrives in Phase 4; include only what is already present.
-  const parts: string[] = [];
   const l = dna.lighting;
-  if (l) {
-    const text = joinWords(
-      [l.timeOfDay, l.sunDirection && `sun from ${l.sunDirection}`, l.intensity, l.ambientLight],
-      ", ",
-    );
-    if (text) parts.push(`lighting: ${text}`);
+  if (!l) return null;
+  const parts = [
+    l.presetId && `preset ${l.presetId}`,
+    l.timeOfDay,
+    l.sunDirection && `sun from ${l.sunDirection}`,
+    l.sunElevation && `sun elevation ${l.sunElevation}`,
+    l.intensity,
+    l.shadowLength && `shadow length ${l.shadowLength}`,
+    l.shadowSoftness && `shadow softness ${l.shadowSoftness}`,
+    l.ambientLight && `ambient ${l.ambientLight}`,
+  ];
+  for (const light of l.artificialLighting) {
+    if (light.enabled === false) continue;
+    const zone = light.zone ?? light.type;
+    const temperature = light.temperatureK === undefined ? "unknown" : `${light.temperatureK}K`;
+    parts.push(`${zone} at ${temperature}, ${light.intensity ?? "unspecified intensity"}`);
   }
+  const text = joinWords(parts, ", ");
+  return text ? `Lighting: ${text}.` : null;
+}
+
+function weatherSection(dna: ProjectDNA): string | null {
   const w = dna.weather;
-  if (w) {
-    const text = joinWords([w.preset, w.sky, w.haze && `${w.haze} haze`], ", ");
-    if (text) parts.push(`weather: ${text}`);
-  }
+  if (!w) return null;
+  const text = joinWords(
+    [
+      w.presetId && `preset ${w.presetId}`,
+      w.preset,
+      w.sky,
+      w.humidity && `humidity ${w.humidity}`,
+      w.groundWetness && `ground wetness ${w.groundWetness}`,
+      w.haze && `${w.haze} haze`,
+      w.notes,
+    ],
+    ", ",
+  );
+  return text ? `Weather: ${text}.` : null;
+}
+
+function moodSection(dna: ProjectDNA): string | null {
   const m = dna.mood;
-  if (m) {
-    const text = joinWords([m.preset, m.atmosphere], ", ");
-    if (text) parts.push(`mood: ${text}`);
-  }
-  return parts.length ? `Lighting and mood: ${parts.join("; ")}.` : null;
+  if (!m) return null;
+  const text = joinWords(
+    [
+      m.presetId && `preset ${m.presetId}`,
+      m.preset,
+      m.contrast && `contrast ${m.contrast}`,
+      m.saturation && `saturation ${m.saturation}`,
+      m.warmth && `warmth ${m.warmth}`,
+      m.atmosphere,
+      m.notes,
+    ],
+    ", ",
+  );
+  return text ? `Mood: ${text}.` : null;
 }
 
 function referenceSection(references: readonly PromptReference[]): string {
@@ -337,6 +413,11 @@ function preservationSection(
     lines.push("Context DNA is LOCKED: keep the surroundings exactly as described.");
   if (camera && dna.locks.camera)
     lines.push("Camera DNA is LOCKED: keep the viewpoint, lens and framing exactly as described.");
+  if (dna.locks.lighting)
+    lines.push("Lighting DNA is LOCKED: preserve the lighting exactly as described.");
+  if (dna.locks.weather)
+    lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
+  if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
   return lines.join("\n");
 }
 

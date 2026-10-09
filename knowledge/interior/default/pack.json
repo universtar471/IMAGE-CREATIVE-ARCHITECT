@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "projectType": "interior",
   "subtype": "default",
   "label": "Interior space",
@@ -77,6 +77,78 @@
       "aspectRatio": "4:5",
       "composition": "close-up of furniture, materials and styling",
       "anchorRecommended": false
+    }
+  ],
+  "lightingPresets": [
+    {
+      "id": "window_day",
+      "label": "Window daylight",
+      "tags": ["day"],
+      "values": { "timeOfDay": "morning", "intensity": "soft daylight" }
+    },
+    {
+      "id": "warm_lamps",
+      "label": "Warm lamp light",
+      "tags": ["warm"],
+      "values": { "timeOfDay": "night", "ambientLight": "warm practicals" }
+    },
+    {
+      "id": "blue_hour",
+      "label": "Blue hour windows",
+      "tags": ["blue"],
+      "values": { "timeOfDay": "blue_hour", "ambientLight": "cool window light" }
+    },
+    {
+      "id": "night",
+      "label": "Evening interior",
+      "tags": ["night"],
+      "values": { "timeOfDay": "night", "intensity": "low" }
+    }
+  ],
+  "weatherPresets": [
+    {
+      "id": "clear",
+      "label": "Clear window view",
+      "tags": ["clear"],
+      "values": { "sky": "clear" }
+    },
+    {
+      "id": "overcast",
+      "label": "Overcast daylight",
+      "tags": ["soft"],
+      "values": { "sky": "overcast", "haze": "soft" }
+    },
+    {
+      "id": "rain",
+      "label": "Rainy window",
+      "tags": ["rain"],
+      "values": { "sky": "rain-streaked window", "groundWetness": "wet" }
+    }
+  ],
+  "moodPresets": [
+    {
+      "id": "serene",
+      "label": "Serene",
+      "tags": ["quiet"],
+      "values": { "atmosphere": "serene and quiet" }
+    },
+    {
+      "id": "cozy",
+      "label": "Cozy",
+      "tags": ["warm"],
+      "values": { "atmosphere": "cozy evening", "warmth": "high" }
+    },
+    {
+      "id": "minimal",
+      "label": "Minimal editorial",
+      "tags": ["editorial"],
+      "values": { "atmosphere": "clean editorial calm", "contrast": "low" }
+    },
+    {
+      "id": "cinematic",
+      "label": "Cinematic interior",
+      "tags": ["cinematic"],
+      "values": { "atmosphere": "cinematic shadows", "contrast": "medium" }
     }
   ],
   "negativeConstraints": ["exterior facade", "fisheye distortion", "cluttered surfaces"],

@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "projectType": "custom",
   "subtype": "default",
   "label": "Generic",
@@ -75,6 +75,73 @@
       "aspectRatio": "4:5",
       "composition": "close-up of the main entrance and materials",
       "anchorRecommended": false
+    }
+  ],
+  "lightingPresets": [
+    {
+      "id": "daylight",
+      "label": "Clear daylight",
+      "tags": ["day"],
+      "values": { "timeOfDay": "morning", "intensity": "bright", "ambientLight": "neutral" }
+    },
+    {
+      "id": "golden_hour",
+      "label": "Golden hour",
+      "tags": ["warm"],
+      "values": { "timeOfDay": "golden_hour", "intensity": "warm", "shadowSoftness": "long soft" }
+    },
+    {
+      "id": "blue_hour",
+      "label": "Blue hour",
+      "tags": ["blue"],
+      "values": { "timeOfDay": "blue_hour", "intensity": "cool", "ambientLight": "blue" }
+    },
+    {
+      "id": "night",
+      "label": "Night",
+      "tags": ["night"],
+      "values": { "timeOfDay": "night", "intensity": "low" }
+    }
+  ],
+  "weatherPresets": [
+    { "id": "clear", "label": "Clear sky", "tags": ["clear"], "values": { "sky": "clear blue" } },
+    {
+      "id": "overcast",
+      "label": "Soft overcast",
+      "tags": ["soft"],
+      "values": { "sky": "bright overcast", "haze": "light" }
+    },
+    {
+      "id": "rain",
+      "label": "After rain",
+      "tags": ["wet"],
+      "values": { "sky": "rain clouds", "groundWetness": "wet" }
+    }
+  ],
+  "moodPresets": [
+    {
+      "id": "calm",
+      "label": "Calm",
+      "tags": ["quiet"],
+      "values": { "atmosphere": "quiet and calm", "contrast": "low" }
+    },
+    {
+      "id": "warm",
+      "label": "Warm welcome",
+      "tags": ["warm"],
+      "values": { "atmosphere": "warm and inviting", "warmth": "high" }
+    },
+    {
+      "id": "cinematic",
+      "label": "Cinematic dusk",
+      "tags": ["cinematic"],
+      "values": { "atmosphere": "cinematic dusk", "contrast": "medium" }
+    },
+    {
+      "id": "fresh",
+      "label": "Fresh editorial",
+      "tags": ["bright"],
+      "values": { "atmosphere": "fresh editorial", "saturation": "medium" }
     }
   ],
   "negativeConstraints": ["cars blocking the facade", "people in the foreground"]
