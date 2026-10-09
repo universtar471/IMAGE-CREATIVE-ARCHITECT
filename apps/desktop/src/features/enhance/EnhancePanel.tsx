@@ -60,7 +60,7 @@ export function EnhancePanel() {
         : model.imageToImage && model.maxReferenceImages >= 1,
     ) ?? [];
   const model = models.find((item) => item.id === modelId) ?? models[0] ?? null;
-  const prompt = useMemo(() => enhancePrompt(params, ""), [params]);
+  const prompt = useMemo(() => enhancePrompt(params, ws.draftDna), [params, ws.draftDna]);
   const cost =
     model?.priceHint && params.targetLongEdge
       ? model.priceHint[params.targetLongEdge > 2048 ? "4K" : "2K"]
@@ -92,8 +92,9 @@ export function EnhancePanel() {
         sourceAssetId: source.id,
         params,
         baseParams: EMPTY_PARAMS,
+        dna: ws.draftDna,
       });
-      await submit(request as never, request.prompt);
+      await submit(request, request.prompt);
     } finally {
       setBusy(false);
     }
@@ -107,15 +108,18 @@ export function EnhancePanel() {
       params,
       assets: ws.assets,
       baseParams: EMPTY_PARAMS,
+      providerId: provider.id,
+      model,
+      dna: ws.draftDna,
     });
     await createBatch({
       projectId: ws.project.id,
       providerId: provider.id,
       modelId: model.id,
-      purpose: "enhance" as never,
+      purpose: "enhance",
       name: `${t("enhance.title")} · ${source.originalName ?? source.id}`,
       priority: 0,
-      items: items as never,
+      items,
     });
   };
 

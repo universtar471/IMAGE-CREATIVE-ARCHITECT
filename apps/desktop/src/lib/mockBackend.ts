@@ -272,7 +272,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
   },
   {
     id: "local_upscale",
-    label: "Conservative upscale (local)",
+    label: "Local upscale",
     kind: "local",
     requiresApiKey: false,
     models: [
@@ -542,7 +542,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     writable(req.projectId);
     const facts = workflowFacts(req.projectId);
     const gate =
-      req.purpose === ("enhance" as never)
+      req.purpose === "enhance"
         ? facts.masterApproved
           ? { ok: true as const }
           : { ok: false as const, blockedBy: "generate.master" as const }
@@ -572,37 +572,34 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         };
       }
     ).enhance;
-    if (req.purpose === ("enhance" as never)) {
+    if (req.purpose === "enhance") {
+      const enhancement =
+        enhance ??
+        fail("VALIDATION_ERROR", "Enhancement parameters are required at params.enhance.");
       if (req.referenceAssetIds.length !== 1)
         fail("VALIDATION_ERROR", "Enhancement requires exactly one source reference.");
       if (
-        enhance &&
-        (!Number.isInteger(enhance.detailStrength) ||
-          enhance.detailStrength < 0 ||
-          enhance.detailStrength > 100)
+        !Number.isInteger(enhancement.detailStrength) ||
+        enhancement.detailStrength < 0 ||
+        enhancement.detailStrength > 100
       )
         fail("VALIDATION_ERROR", "detailStrength must be an integer from 0 to 100.");
-      if (enhance?.mode === "conservative" && req.providerId !== "local_upscale")
+      if (enhancement.mode === "conservative" && req.providerId !== "local_upscale")
         fail("VALIDATION_ERROR", "Conservative enhancement uses local_upscale.");
       const source = assets.find((item) => item.id === req.referenceAssetIds[0]);
       const sourceEdge = Math.max(source?.widthPx ?? 0, source?.heightPx ?? 0);
-      if (enhance?.mode === "conservative" && enhance.targetLongEdge === null)
+      if (enhancement.mode === "conservative" && enhancement.targetLongEdge === null)
         fail("VALIDATION_ERROR", "Conservative enhancement requires a target size.");
-      if (
-        enhance?.targetLongEdge !== null &&
-        enhance?.targetLongEdge !== undefined &&
-        enhance.targetLongEdge < sourceEdge
-      )
+      if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge < sourceEdge)
         fail("VALIDATION_ERROR", "Enhancement never downsizes; pick a larger target.");
-      if (
-        enhance?.targetLongEdge !== null &&
-        enhance?.targetLongEdge !== undefined &&
-        enhance.targetLongEdge > 8192
-      )
+      if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge > 8192)
         fail("VALIDATION_ERROR", "Enhancement target cannot exceed 8192px.");
     }
-    const issues =
-      req.purpose === ("enhance" as never) ? [] : validateGenerationRequest(req, model);
+    const validationRequest =
+      req.purpose === "enhance" && enhance?.mode === "conservative"
+        ? { ...req, prompt: { ...req.prompt, positivePrompt: "local upscale" } }
+        : req;
+    const issues = validateGenerationRequest(validationRequest, model);
     if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
     // §9 / Rust: a model that lists no ratios or sizes only accepts null (the provider decides).
     if (!model.aspectRatios.length && req.params.aspectRatio !== null)

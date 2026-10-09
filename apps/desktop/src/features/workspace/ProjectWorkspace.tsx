@@ -77,10 +77,7 @@ function CenterArea() {
   const generations = useStudio((s) => s.workspace!.generations);
   const enhanceGeneration = [...generations]
     .reverse()
-    .find(
-      (generation) =>
-        generation.purpose === ("enhance" as never) && generation.status === "completed",
-    );
+    .find((generation) => generation.purpose === "enhance" && generation.status === "completed");
   const enhanceSource = enhanceGeneration
     ? (assets.find((item) => item.id === enhanceGeneration.referenceAssetIds[0]) ?? null)
     : null;

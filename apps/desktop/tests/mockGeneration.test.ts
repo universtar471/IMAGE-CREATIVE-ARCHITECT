@@ -120,13 +120,14 @@ describe("mock providers", () => {
     ).resolves.toMatchObject({ purpose: "variation" });
   });
 
-  it("lists gemini, openai and hhtech (unconfigured) and local_preview (always configured)", async () => {
+  it("lists gemini, openai and hhtech (unconfigured) plus both local providers", async () => {
     const list = await call("provider_list", {});
     expect(list.map((p) => [p.id, p.configured, p.keySource])).toEqual([
       ["gemini", false, null],
       ["openai", false, null],
       ["hhtech", false, null],
       ["local_preview", true, null],
+      ["local_upscale", true, null],
     ]);
   });
 

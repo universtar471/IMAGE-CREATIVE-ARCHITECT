@@ -1,14 +1,22 @@
-import type { AssetDTO, BatchItem, GenerationParams, PromptBundle } from "@arch/domain";
+import {
+  COMPILER_VERSION,
+  EnhanceParamsSchema,
+  ENHANCE_TARGETS,
+  MAX_ENHANCE_EDGE,
+  buildEnhanceItems as buildDomainEnhanceItems,
+  buildEnhancePrompt,
+  createInitialDNA,
+  type AssetDTO,
+  type BatchItem,
+  type EnhanceParams,
+  type GenerationParams,
+  type ModelCapabilities,
+  type ProjectDNA,
+} from "@arch/domain";
 
-/** §14.1. Keep this local until the domain package exports the Phase 5 schema. */
-export type EnhanceParams = {
-  mode: "conservative" | "generative";
-  targetLongEdge: 2048 | 3072 | 4096 | null;
-  detailStrength: number;
-  architecturePreserve: boolean;
-};
+export { EnhanceParamsSchema, ENHANCE_TARGETS, MAX_ENHANCE_EDGE, buildEnhancePrompt };
+export type { EnhanceParams };
 
-export const ENHANCE_TARGETS = [2048, 3072, 4096] as const;
 export const DEFAULT_ENHANCE_PARAMS: EnhanceParams = {
   mode: "conservative",
   targetLongEdge: 2048,
@@ -28,46 +36,99 @@ export function validateEnhanceParams(
   params: EnhanceParams,
   sourceLongEdge?: number,
 ): string | null {
+  const parsed = EnhanceParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const path = issue?.path.join(".");
+    return path
+      ? `${path}: ${issue?.message ?? "Invalid enhancement parameters."}`
+      : (issue?.message ?? "Invalid enhancement parameters.");
+  }
+  if (parsed.data.mode === "conservative" && parsed.data.targetLongEdge === null)
+    return "Conservative enhancement requires targetLongEdge.";
   if (
-    !Number.isInteger(params.detailStrength) ||
-    params.detailStrength < 0 ||
-    params.detailStrength > 100
+    parsed.data.targetLongEdge !== null &&
+    sourceLongEdge !== undefined &&
+    parsed.data.targetLongEdge < sourceLongEdge
   )
-    return "detailStrength must be an integer from 0 to 100.";
-  if (params.mode === "conservative" && params.targetLongEdge === null)
-    return "targetLongEdge is required for conservative enhancement.";
-  if (params.targetLongEdge !== null && sourceLongEdge && params.targetLongEdge < sourceLongEdge)
     return "Enhancement never downsizes; pick a larger target.";
-  if (params.targetLongEdge !== null && params.targetLongEdge > 8192)
+  if (parsed.data.targetLongEdge !== null && parsed.data.targetLongEdge > MAX_ENHANCE_EDGE)
     return "Enhancement target cannot exceed 8192px.";
   return null;
 }
 
-export function enhancePrompt(params: EnhanceParams, dnaSummary = ""): PromptBundle {
-  const strength =
-    params.detailStrength < 34 ? "low" : params.detailStrength < 67 ? "medium" : "high";
-  const preservation = params.architecturePreserve
-    ? "Keep geometry, openings, proportions, materials, camera and composition exactly; add only fine detail and texture, and fix soft or noisy areas. Architecture Preserve is on."
-    : "Do not change the building, geometry, openings, proportions, camera or composition; add richer fine material detail and texture. Architecture Preserve is off.";
+/** UI prompt bundle wrapper around the canonical domain prompt text. */
+export function enhancePrompt(
+  params: EnhanceParams,
+  dna?: ProjectDNA | string,
+): {
+  compilerVersion: string;
+  positivePrompt: string;
+  negativePrompt: string;
+  referenceInstructions: string;
+  preservationInstructions: string;
+  metadata: Record<string, unknown>;
+} {
+  const parsed = EnhanceParamsSchema.parse(params);
+  const projectDna =
+    dna && typeof dna !== "string" ? dna : createInitialDNA({ projectType: "custom", pack: null });
+  const text =
+    parsed.mode === "generative" ? buildEnhancePrompt({ dna: projectDna, params: parsed }) : "";
   return {
-    compilerVersion: "",
-    positivePrompt:
-      `Enhance the selected architecture image with ${strength} detail strength. ${dnaSummary}`.trim(),
+    compilerVersion: COMPILER_VERSION,
+    positivePrompt: text,
     negativePrompt: "",
     referenceInstructions:
-      "Image 1 is the source image and must remain the architectural reference.",
-    preservationInstructions: preservation,
-    metadata: { purpose: "enhance", mode: params.mode, detailStrength: params.detailStrength },
+      parsed.mode === "generative"
+        ? "Image 1 is the MASTER source image: preserve its architecture, camera and composition."
+        : "",
+    preservationInstructions: "",
+    metadata: { purpose: "enhance", mode: parsed.mode, detailStrength: parsed.detailStrength },
   };
 }
 
-type EnhanceItemInput = {
-  projectId: string;
+type LegacyEnhanceItemInput = {
+  projectId?: string;
   assetIds: readonly string[];
   params: EnhanceParams;
   baseParams?: GenerationParams;
   assets?: readonly AssetDTO[];
+  providerId?: string;
+  model?: Pick<ModelCapabilities, "imageToImage" | "maxReferenceImages" | "label">;
+  dna?: ProjectDNA;
 };
+
+type DomainEnhanceItemInput = Parameters<typeof buildDomainEnhanceItems>[0];
+
+/** Delegate batch construction to the canonical domain builder. */
+export function buildEnhanceItems(
+  input: DomainEnhanceItemInput | LegacyEnhanceItemInput,
+): BatchItem[] {
+  if ("sources" in input) return buildDomainEnhanceItems(input);
+  const model = input.model ?? {
+    imageToImage: true,
+    maxReferenceImages: 1,
+    label: "Conservative upscale (local)",
+  };
+  const items = buildDomainEnhanceItems({
+    sources: input.assetIds.map((id) => {
+      const asset = input.assets?.find((candidate) => candidate.id === id);
+      return {
+        id,
+        role: asset?.role ?? "regular_image",
+        status: asset?.status ?? "ready",
+        originalName: asset?.originalName,
+      };
+    }),
+    params: { ...(input.baseParams ?? defaultParams()), enhance: input.params },
+    providerId: input.providerId ?? "local_upscale",
+    model,
+    dna: input.dna,
+  });
+  return input.baseParams === undefined
+    ? items.map((item) => ({ ...item, params: { ...item.params, enhance: input.params } }))
+    : items;
+}
 
 export type EnhanceSubmitPayload = {
   projectId: string;
@@ -77,7 +138,7 @@ export type EnhanceSubmitPayload = {
   referenceAssetIds: [string];
   params: GenerationParams & { enhance: EnhanceParams };
   cameraId: null;
-  prompt: PromptBundle;
+  prompt: ReturnType<typeof enhancePrompt>;
 };
 
 export function buildEnhanceRequest(input: {
@@ -87,54 +148,28 @@ export function buildEnhanceRequest(input: {
   sourceAssetId: string;
   params: EnhanceParams;
   baseParams?: GenerationParams;
+  dna?: ProjectDNA;
 }): EnhanceSubmitPayload {
-  const base = input.baseParams ?? {
-    aspectRatio: null,
-    imageSize: null,
-    outputCount: 1,
-    seed: null,
-    quality: null,
-  };
+  const params = EnhanceParamsSchema.parse(input.params);
   return {
     projectId: input.projectId,
     providerId: input.providerId,
     modelId: input.modelId,
     purpose: "enhance",
     referenceAssetIds: [input.sourceAssetId],
-    params: { ...base, enhance: input.params },
+    params: { ...(input.baseParams ?? defaultParams()), enhance: params },
     cameraId: null,
-    prompt: input.params.mode === "generative" ? enhancePrompt(input.params) : emptyPrompt(),
+    prompt: enhancePrompt(params, input.dna),
   };
 }
 
-/** Build ordinary batch items, preserving one-and-only-one source reference per item. */
-export function buildEnhanceItems(
-  input: EnhanceItemInput,
-): Array<BatchItem & { params: GenerationParams & { enhance: EnhanceParams } }> {
-  const base: GenerationParams = input.baseParams ?? {
+function defaultParams(): GenerationParams {
+  return {
     aspectRatio: null,
     imageSize: null,
     outputCount: 1,
     seed: null,
     quality: null,
-  };
-  return input.assetIds.map((assetId) => ({
-    cameraId: null,
-    label: input.assets?.find((asset) => asset.id === assetId)?.originalName ?? assetId,
-    prompt: input.params.mode === "generative" ? enhancePrompt(input.params) : emptyPrompt(),
-    referenceAssetIds: [assetId],
-    params: { ...base, enhance: input.params },
-  })) as Array<BatchItem & { params: GenerationParams & { enhance: EnhanceParams } }>;
-}
-
-function emptyPrompt(): PromptBundle {
-  return {
-    compilerVersion: "enhance-v1",
-    positivePrompt: "",
-    negativePrompt: "",
-    referenceInstructions: "",
-    preservationInstructions: "",
-    metadata: {},
   };
 }
 

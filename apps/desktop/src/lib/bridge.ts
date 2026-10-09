@@ -13,8 +13,6 @@ import {
   ColorGradeDNASchema,
   GENERATION_UPDATED_EVENT,
   GenerationDTOSchema,
-  GenerationParamsSchema,
-  GenerationPurposeSchema,
   JOB_UPDATED_EVENT,
   JobDTOSchema,
   ProjectBundleDTOSchema,
@@ -35,7 +33,6 @@ import {
   type AssetRole,
   type AssetSource,
   type BatchCreateRequest,
-  type BatchDTO,
   type GenerationDTO,
   type GenerationSubmitRequest,
   type JobDTO,
@@ -92,18 +89,6 @@ export const AssetPreviewRequestSchema = z.object({
   maxEdge: z.number().int().min(256).max(4096),
 });
 export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
-
-// Phase 5 compatibility while @arch/domain's enhance schema lands on the integration branch.
-const EnhanceParamsBridgeSchema = GenerationParamsSchema.extend({
-  enhance: z.unknown().optional(),
-});
-const EnhanceGenerationBridgeSchema = GenerationDTOSchema.extend({
-  purpose: z.union([GenerationPurposeSchema, z.literal("enhance")]),
-  params: EnhanceParamsBridgeSchema,
-}) as unknown as z.ZodType<z.infer<typeof GenerationDTOSchema>>;
-const EnhanceBatchBridgeSchema = BatchDTOSchema.extend({
-  purpose: z.union([GenerationPurposeSchema, z.literal("enhance")]),
-}) as unknown as z.ZodType<BatchDTO>;
 
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
 export type Requests = {
@@ -180,11 +165,11 @@ export const responses = {
   provider_clear_api_key: ProviderDescriptorDTOSchema,
   provider_test: ProviderTestResultSchema,
   prompt_enhance: PromptEnhanceResultSchema,
-  generation_submit: EnhanceGenerationBridgeSchema,
-  generation_list: z.array(EnhanceGenerationBridgeSchema),
-  generation_get: EnhanceGenerationBridgeSchema,
-  batch_create: EnhanceBatchBridgeSchema,
-  batch_list: z.array(EnhanceBatchBridgeSchema),
+  generation_submit: GenerationDTOSchema,
+  generation_list: z.array(GenerationDTOSchema),
+  generation_get: GenerationDTOSchema,
+  batch_create: BatchDTOSchema,
+  batch_list: z.array(BatchDTOSchema),
   job_list: z.array(JobDTOSchema),
   job_cancel: JobDTOSchema,
   job_retry: JobDTOSchema,

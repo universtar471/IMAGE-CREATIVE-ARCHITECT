@@ -91,7 +91,7 @@ describe("enhance UI contract", () => {
       params: { ...base, mode: "generative" },
     });
     expect(generative.purpose).toBe("enhance");
-    expect(generative.prompt.positivePrompt).toContain("detail strength");
+    expect(generative.prompt.positivePrompt).toContain("detail level");
     expect(generative.params.enhance.mode).toBe("generative");
   });
 });

@@ -168,6 +168,7 @@ export const en = {
       variation: "Variation",
       anchor: "Anchor",
       production: "Production",
+      enhance: "Enhance",
     },
     generationStatus: {
       queued: "Queued",

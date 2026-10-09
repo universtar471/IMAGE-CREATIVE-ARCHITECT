@@ -218,7 +218,7 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         if params.mode == EnhanceMode::Conservative && req.provider_id != crate::providers::local_upscale::ID {
             return Err(AppError::validation("Conservative enhancement must use provider 'local_upscale'."));
         }
-        if params.detail_strength > 100 {
+        if !(0..=100).contains(&params.detail_strength) {
             return Err(AppError::validation("Enhancement detail strength must be an integer from 0 to 100."));
         }
         if req.provider_id == crate::providers::hhtech::ID
