@@ -9,6 +9,34 @@ export type ContactGroup = {
   entries: ContactEntry[];
 };
 
+export type MoodContactGroup = {
+  label: string;
+  entries: ContactEntry[];
+};
+
+/** Variation batches have no camera id; group their outputs by the preset/job label. */
+export function groupMoodContactSheet(
+  batch: Pick<BatchDTO, "id">,
+  generations: readonly GenerationDTO[],
+  jobs: readonly JobDTO[],
+): MoodContactGroup[] {
+  const groups = new Map<string, MoodContactGroup>();
+  generations
+    .filter((g) => g.batchId === batch.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    .forEach((generation) => {
+      const label =
+        jobs.find((job) => job.generationId === generation.id)?.label ?? "Mood variation";
+      const group = groups.get(label) ?? { label, entries: [] };
+      group.entries.push({
+        generation,
+        job: jobs.find((job) => job.generationId === generation.id) ?? null,
+      });
+      groups.set(label, group);
+    });
+  return [...groups.values()];
+}
+
 export function groupContactSheet(
   batch: Pick<BatchDTO, "id">,
   generations: readonly GenerationDTO[],

@@ -32,6 +32,7 @@ import {
   type ProjectDTO,
   type PromptBundle,
   type ProviderDescriptorDTO,
+  type ColorGradeDNA,
 } from "@arch/domain";
 import {
   BridgeError,
@@ -199,6 +200,7 @@ type State = {
   cancelJob: (jobId: string) => Promise<void>;
   retryJob: (jobId: string) => Promise<JobDTO | undefined>;
   createBatch: (request: BatchCreateRequest) => Promise<BatchDTO | undefined>;
+  applyGrade: (grade: ColorGradeDNA, label?: string) => Promise<AssetDTO | undefined>;
   refreshBatches: () => Promise<void>;
   showContactSheet: (batchId: string | null) => void;
   setAnchor: (cameraId: string, assetId: string) => Promise<boolean>;
@@ -777,6 +779,27 @@ export const useStudio = create<State>((set, get) => {
           t("store.batchQueued", { name: batch.name, count: batch.jobIds.length }),
         );
         return batch;
+      } catch (err) {
+        get().notifyError(err);
+        return undefined;
+      }
+    },
+
+    applyGrade: async (grade, label) => {
+      const ws = get().workspace;
+      const assetId = get().selectedAssetId ?? ws?.project.activeMasterAssetId;
+      if (!ws || !assetId) return undefined;
+      try {
+        const asset = await call("grade_apply", {
+          projectId: ws.project.id,
+          assetId,
+          grade,
+          label,
+        });
+        const assets = await call("asset_list", { projectId: ws.project.id });
+        await get().adoptAssets(ws.project.id, assets);
+        get().selectAsset(asset.id);
+        return asset;
       } catch (err) {
         get().notifyError(err);
         return undefined;

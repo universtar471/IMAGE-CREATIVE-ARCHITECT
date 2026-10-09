@@ -1,8 +1,8 @@
 import { Lock, Unlock } from "lucide-react";
-import { useDnaLock } from "./DnaFields";
+import { useDnaLock, type DnaLockSection } from "./DnaFields";
 import { useT } from "../../i18n";
 
-export function LockToggle({ section }: { section: "building" | "context" }) {
+export function LockToggle({ section }: { section: DnaLockSection }) {
   const { locked, readOnly, toggle } = useDnaLock(section);
   const t = useT();
   return (

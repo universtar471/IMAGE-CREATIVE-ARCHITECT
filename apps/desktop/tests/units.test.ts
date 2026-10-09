@@ -24,13 +24,15 @@ describe("workspace information architecture", () => {
     ]);
   });
 
-  it("marks exactly the Phase 1–3 modules as functional", () => {
+  it("marks the implemented modules as functional", () => {
     expect(WORKSPACE_MODULES.filter((m) => m.availableIn === null).map((m) => m.id)).toEqual([
       "overview",
       "design_dna",
       "context",
       "references",
       "camera",
+      "lighting",
+      "mood_grade",
       "generate",
     ]);
   });

@@ -14,7 +14,12 @@ import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
-import { groupContactSheet, type ContactEntry, type ContactGroup } from "./contactGroups";
+import {
+  groupContactSheet,
+  groupMoodContactSheet,
+  type ContactEntry,
+  type ContactGroup,
+} from "./contactGroups";
 
 export function ContactSheet() {
   const ws = useStudio((s) => s.workspace!);
@@ -60,12 +65,58 @@ export function ContactSheet() {
       ) : (
         <div className="contact-groups">
           {groups.length === 0 && <span className="field-hint">{t("contact.loading")}</span>}
-          {groups.map((g) => (
-            <CameraGroup key={g.cameraId ?? "none"} group={g} onCompare={setCompareId} />
-          ))}
+          {batch.purpose === "variation" ? (
+            <MoodGroups batch={batch} />
+          ) : (
+            groups.map((g) => (
+              <CameraGroup key={g.cameraId ?? "none"} group={g} onCompare={setCompareId} />
+            ))
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function MoodGroups({ batch }: { batch: BatchDTO }) {
+  const ws = useStudio((s) => s.workspace!);
+  const jobs = useStudio((s) => s.jobs);
+  const selectAsset = useStudio((s) => s.selectAsset);
+  const t = useT();
+  return (
+    <>
+      {groupMoodContactSheet(batch, ws.generations, jobs).map((group) => (
+        <section className="contact-group" key={group.label} aria-label={group.label}>
+          <header>
+            <strong>{group.label}</strong>
+          </header>
+          <div className="contact-cards">
+            {group.entries.map(({ generation, job }) =>
+              generation.outputAssetIds.map((id) => {
+                const asset = ws.assets.find((item) => item.id === id);
+                if (!asset)
+                  return (
+                    <div className="contact-card is-pending" key={id}>
+                      <span className="field-hint">{job?.status ?? t("contact.loading")}</span>
+                    </div>
+                  );
+                return (
+                  <button className="contact-card" key={id} onClick={() => selectAsset(id)}>
+                    <div className="contact-image">
+                      <img
+                        src={fileUrl(asset.thumbnailPath) ?? ""}
+                        alt={asset.originalName ?? group.label}
+                      />
+                    </div>
+                    <span>{t("contact.openInCanvas")}</span>
+                  </button>
+                );
+              }),
+            )}
+          </div>
+        </section>
+      ))}
+    </>
   );
 }
 

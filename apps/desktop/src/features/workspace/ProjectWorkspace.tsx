@@ -11,6 +11,8 @@ import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
 import { useT } from "../../i18n";
+import { GradeCanvas } from "../mood/GradeCanvas";
+import type { ColorGradeDNA } from "@arch/domain";
 
 /** Permanent four-zone workspace: top bar / nav | center | properties / bottom tray. */
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
@@ -70,6 +72,21 @@ function CenterArea() {
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
     assets.find((a) => a.id === selectedId) ?? assets.find((a) => a.id === masterId) ?? null;
+  const grade = (useStudio((s) => s.workspace!.draftDna.colorGrade) ?? {
+    schemaVersion: 1,
+    exposure: 0,
+    contrast: 0,
+    highlights: 0,
+    shadows: 0,
+    whites: 0,
+    blacks: 0,
+    temperature: 0,
+    tint: 0,
+    vibrance: 0,
+    saturation: 0,
+    clarity: 0,
+    dehaze: 0,
+  }) as ColorGradeDNA;
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
@@ -125,6 +142,8 @@ function CenterArea() {
           <CameraDirector />
         ) : view === "contact" ? (
           <ContactSheet />
+        ) : active === "mood_grade" ? (
+          <GradeCanvas asset={asset} grade={grade} />
         ) : (
           <WorkspaceCanvas
             mode={{ kind: "single", asset }}
