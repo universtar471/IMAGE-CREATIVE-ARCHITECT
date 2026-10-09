@@ -35,6 +35,7 @@ impl ImageProvider for LocalUpscaleProvider {
                 supports_seed: false,
                 quality_options: vec![],
                 price_hint: None,
+                vision: false,
             }],
         }
     }
@@ -146,6 +147,7 @@ mod tests {
                     detail_strength: detail as i32,
                     architecture_preserve: true,
                 }),
+                repair: None,
             },
             api_key: None,
         }

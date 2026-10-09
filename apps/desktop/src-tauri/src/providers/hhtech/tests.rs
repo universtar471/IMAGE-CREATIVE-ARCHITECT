@@ -68,6 +68,7 @@ fn request(references: Vec<ReferenceImage>) -> ProviderRequest {
             seed: None,
             quality: None,
             enhance: None,
+            repair: None,
         },
         api_key: Some(KEY.into()),
     }
@@ -724,6 +725,7 @@ fn live_request(key: &str, references: Vec<ReferenceImage>) -> ProviderRequest {
             seed: None,
             quality: None,
             enhance: None,
+            repair: None,
         },
         api_key: Some(key.to_string()),
     }

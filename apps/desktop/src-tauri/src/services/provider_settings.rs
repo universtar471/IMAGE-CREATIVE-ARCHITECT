@@ -247,7 +247,8 @@ mod tests {
                 "qualityOptions",
                 "supportsNegativePrompt",
                 "supportsSeed",
-                "textToImage"
+                "textToImage",
+                "vision"
             ]
         );
     }

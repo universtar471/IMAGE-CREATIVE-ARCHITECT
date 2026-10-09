@@ -15,6 +15,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (2, include_str!("../migrations/0002_generations.sql")),
     (3, include_str!("../migrations/0003_jobs.sql")),
     (4, include_str!("../migrations/0004_workflow.sql")),
+    (5, include_str!("../migrations/0005_qc.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -106,6 +107,8 @@ mod tests {
                 "jobs",
                 "project_dna",
                 "projects",
+                "qc_reports",
+                "qc_settings",
                 "schema_migrations",
                 "versions",
                 "workflow_steps"
@@ -113,6 +116,18 @@ mod tests {
         );
         let fk: i64 = conn.query_row("PRAGMA foreign_keys", [], |r| r.get(0)).unwrap();
         assert_eq!(fk, 1);
+    }
+
+    #[test]
+    fn migration_0005_creates_qc_storage_and_cascades() {
+        let conn = open_in_memory().unwrap();
+        let reports: i64 = conn.query_row("SELECT COUNT(*) FROM qc_reports", [], |r| r.get(0)).unwrap();
+        let settings: i64 = conn.query_row("SELECT COUNT(*) FROM qc_settings", [], |r| r.get(0)).unwrap();
+        assert_eq!((reports, settings), (0, 0));
+        let index: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_qc_reports_project_asset_created'",
+            [], |r| r.get(0)).unwrap();
+        assert_eq!(index, 1);
     }
 
     #[test]
@@ -355,7 +370,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 4);
+            assert_eq!(schema_version(&conn).unwrap(), 5);
             let violations: i64 =
                 conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
             assert_eq!(violations, 0);

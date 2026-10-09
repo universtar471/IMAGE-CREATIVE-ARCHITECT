@@ -156,6 +156,7 @@ fn to_capabilities(spec: &Spec) -> ModelCapabilities {
         supports_seed: false,
         quality_options: Vec::new(),
         price_hint: None,
+        vision: false,
     }
 }
 

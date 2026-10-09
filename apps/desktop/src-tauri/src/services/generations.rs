@@ -190,6 +190,35 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     };
 
     let enhance = req.params.enhance.clone();
+    let repair = req.params.repair.clone();
+    if purpose == GenerationPurpose::Repair {
+        let repair =
+            repair.as_ref().ok_or_else(|| AppError::validation("Repair parameters are required at params.repair."))?;
+        if assets.len() != 2 {
+            return Err(AppError::validation(
+                "Repair requires exactly two references: the report asset and its primary reference.",
+            ));
+        }
+        let conn = core.conn()?;
+        let raw: String = conn
+            .query_row(
+                "SELECT report_json FROM qc_reports WHERE id = ?1 AND project_id = ?2",
+                rusqlite::params![repair.qc_report_id, req.project_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| AppError::not_found("QC report", &repair.qc_report_id))?;
+        let report: crate::dto::QcReportDto = serde_json::from_str(&raw)
+            .map_err(|_| AppError::new(ErrorCode::DbError, "Stored QC report is invalid."))?;
+        if report.asset_id != req.reference_asset_ids[0]
+            || report.reference_asset_ids.first() != Some(&req.reference_asset_ids[1])
+        {
+            return Err(AppError::validation(
+                "Repair references must be the QC report asset followed by its primary reference.",
+            ));
+        }
+    } else if repair.is_some() {
+        return Err(AppError::validation("params.repair is only valid when purpose is 'repair'."));
+    }
     if purpose == GenerationPurpose::Enhance {
         let params = enhance
             .as_ref()
@@ -776,7 +805,13 @@ fn commit_outputs(
         None => None,
     };
     let now = core.now_iso();
-    let operation = if prepared.purpose == GenerationPurpose::Enhance { "enhance" } else { "generate" };
+    let operation = if prepared.purpose == GenerationPurpose::Enhance {
+        "enhance"
+    } else if prepared.purpose == GenerationPurpose::Repair {
+        "repair"
+    } else {
+        "generate"
+    };
     let source_long_edge = prepared
         .references
         .first()
@@ -795,6 +830,23 @@ fn commit_outputs(
                 "sourceLongEdge": source_long_edge,
                 "providerLongEdge": checked.provider_long_edge,
                 "finalLongEdge": checked.info.width.max(checked.info.height),
+                "outputIndex": index,
+            })
+        } else if prepared.purpose == GenerationPurpose::Repair {
+            let repair_of = prepared.references.first().map(|reference| reference.asset_id.clone());
+            let parent_depth = repair_of
+                .as_deref()
+                .and_then(|asset_id| repo::find_asset(&tx, asset_id).ok().flatten())
+                .and_then(|asset| asset.operation_json)
+                .and_then(|json| serde_json::from_str::<Value>(&json).ok())
+                .and_then(|value| value.get("repairDepth").and_then(Value::as_i64))
+                .unwrap_or(0);
+            json!({
+                "generationId": generation.id,
+                "providerId": generation.provider_id,
+                "modelId": generation.model_id,
+                "repairOf": repair_of,
+                "repairDepth": parent_depth + 1,
                 "outputIndex": index,
             })
         } else {
@@ -981,6 +1033,7 @@ mod tests {
             seed: None,
             quality: None,
             enhance: None,
+            repair: None,
         }
     }
 

@@ -48,6 +48,7 @@ pub const ENV_IMAGE_MODEL: &str = "HHTECH_IMAGE_MODEL";
 pub const ENV_IMAGE_SIZE: &str = "HHTECH_IMAGE_SIZE";
 pub const ENV_IMAGE_QUALITY: &str = "HHTECH_IMAGE_QUALITY";
 pub const ENV_CHAT_MODEL: &str = "HHTECH_CHAT_MODEL";
+pub const ENV_VISION_MODEL: &str = "HHTECH_VISION_MODEL";
 pub const ENV_TIMEOUT_SECS: &str = "HHTECH_TIMEOUT_SECS";
 
 pub const DEFAULT_IMAGE_SIZE: &str = "1024x1024";
@@ -132,6 +133,7 @@ pub fn config(env: &dyn EnvSource) -> Config {
             DEFAULT_CHAT_MODEL.to_string()
         }
     };
+    let vision_model = var(ENV_VISION_MODEL).filter(|id| valid_id(id)).or_else(|| Some(chat_model.clone()));
 
     let timeout_secs = match var(ENV_TIMEOUT_SECS) {
         None => DEFAULT_TIMEOUT_SECS,
@@ -162,6 +164,7 @@ pub fn config(env: &dyn EnvSource) -> Config {
         default_size,
         quality,
         chat_model: Some(chat_model),
+        vision_model,
         setup_hint: SETUP_HINT,
         generate_timeout: std::time::Duration::from_secs(timeout_secs),
     }
