@@ -2,36 +2,39 @@ import { Ban, Camera, History, RotateCcw, RotateCw } from "lucide-react";
 import type { GenerationDTO } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
-import { formatRelativeTime } from "../../lib/format";
+import { formatDateTime, formatRelativeTime } from "../../lib/format";
+import { ErrorMessage } from "../../components/common/ErrorMessage";
+import { useT } from "../../i18n";
 import { GenerationStatusBadge } from "../generate/GenerationStatusBadge";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
 import { OutputThumbs } from "../generate/OutputThumbs";
-import { PURPOSE_LABELS, formatDuration, isActiveGeneration } from "../generate/labels";
+import { formatDuration, isActiveGeneration } from "../generate/labels";
 
 /** Generation history of the open project, newest first. */
 export function HistoryTab() {
   const projectId = useStudio((s) => s.workspace!.project.id);
   const generations = useStudio((s) => s.workspace!.generations);
   const setModule = useStudio((s) => s.setModule);
+  const t = useT();
   const rows = generations;
 
   if (!rows.length) {
     return (
       <EmptyState
         icon={<History size={24} />}
-        title="No generations yet"
+        title={t("history.empty")}
         action={
           <button className="btn btn-sm" onClick={() => setModule("generate")}>
-            Open Generate
+            {t("history.openGenerate")}
           </button>
         }
       >
-        Every generation — completed or failed — is recorded here with its settings.
+        {t("history.emptyHint")}
       </EmptyState>
     );
   }
   return (
-    <ul className="history-list" aria-label="Generation history" data-project={projectId}>
+    <ul className="history-list" aria-label={t("history.label")} data-project={projectId}>
       {rows.map((g) => (
         <HistoryRow key={g.id} g={g} />
       ))}
@@ -50,6 +53,7 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
     g.cameraId ? s.workspace?.draftDna.cameras.find((c) => c.id === g.cameraId) : undefined,
   );
   const readOnly = useStudio(selectReadOnly);
+  const t = useT();
   const active = isActiveGeneration(g.status);
   const canRetry = g.status === "cancelled" || (!active && !!g.error?.retryable);
   const provider = providers?.find((p) => p.id === g.providerId);
@@ -60,23 +64,26 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
       <div className="history-main">
         <div className="history-head">
           <GenerationStatusBadge status={g.status} />
-          <strong>{PURPOSE_LABELS[g.purpose]}</strong>
+          <strong>{t(`labels.purpose.${g.purpose}`)}</strong>
           {g.cameraId && (
-            <span className="badge badge-neutral" title="Camera">
-              <Camera size={10} /> {camera?.name ?? "removed camera"}
+            <span className="badge badge-neutral" title={t("history.camera")}>
+              <Camera size={10} /> {camera?.name ?? t("history.removedCamera")}
             </span>
           )}
           <span title={`${g.providerId} / ${g.modelId}`}>
             {provider?.label ?? g.providerId} · {model?.label ?? g.modelId}
           </span>
-          <span className="field-hint" title={new Date(g.createdAt).toLocaleString()}>
+          <span className="field-hint" title={formatDateTime(g.createdAt)}>
             {formatRelativeTime(g.createdAt)}
           </span>
           {g.durationMs !== null && (
             <span className="field-hint">{formatDuration(g.durationMs)}</span>
           )}
           <span className="field-hint">
-            {g.referenceAssetIds.length} ref · {g.params.outputCount} out
+            {t("history.counts", {
+              refs: g.referenceAssetIds.length,
+              outputs: g.params.outputCount,
+            })}
             {g.params.aspectRatio ? ` · ${g.params.aspectRatio}` : ""}
             {g.params.imageSize ? ` · ${g.params.imageSize}` : ""}
           </span>
@@ -84,7 +91,7 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
         {active && <ActiveGenerationStatus generation={g} compact />}
         {g.error && (
           <div className="history-error">
-            <span className="badge badge-danger">{g.error.kind}</span> {g.error.message}
+            <ErrorMessage kind={g.error.kind} message={g.error.message} />
           </div>
         )}
       </div>
@@ -98,23 +105,21 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
       )}
       {active && g.jobId && (
         <button className="btn btn-sm" disabled={readOnly} onClick={() => void cancelJob(g.jobId!)}>
-          <Ban size={13} /> Cancel
+          <Ban size={13} /> {t("common.cancel")}
         </button>
       )}
       {canRetry && (
         <button className="btn btn-sm" disabled={readOnly} onClick={() => void retry(g)}>
-          <RotateCcw size={13} /> Retry
+          <RotateCcw size={13} /> {t("common.retry")}
         </button>
       )}
       <button
         className="btn btn-sm"
         onClick={() => reuse(g)}
         disabled={readOnly || !model}
-        title={
-          model ? "Load these settings into Generate" : "This provider/model is no longer available"
-        }
+        title={model ? t("history.reuseTitle") : t("history.reuseGone")}
       >
-        <RotateCw size={13} /> Reuse settings
+        <RotateCw size={13} /> {t("history.reuse")}
       </button>
     </li>
   );
