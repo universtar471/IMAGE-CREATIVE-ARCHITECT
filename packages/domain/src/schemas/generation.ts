@@ -56,8 +56,22 @@ export const ProviderTestResultSchema = z.object({
 });
 export type ProviderTestResult = z.infer<typeof ProviderTestResultSchema>;
 
-export const GenerationPurposeSchema = z.enum(["hero", "variation", "anchor", "production"]);
+export const GenerationPurposeSchema = z.enum([
+  "hero",
+  "variation",
+  "anchor",
+  "production",
+  "enhance",
+]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
+
+export const EnhanceParamsSchema = z.object({
+  mode: z.enum(["conservative", "generative"]),
+  targetLongEdge: z.union([z.literal(2048), z.literal(3072), z.literal(4096), z.null()]),
+  detailStrength: z.number().int().min(0).max(100).default(40),
+  architecturePreserve: z.boolean().default(true),
+});
+export type EnhanceParams = z.infer<typeof EnhanceParamsSchema>;
 
 /**
  * `queued` = waiting in the job queue (Phase 3); `interrupted` = the app closed while the
@@ -80,22 +94,55 @@ export const GenerationParamsSchema = z.object({
   seed: z.number().int().nonnegative().nullable(),
   /** One of the model's `qualityOptions`; null = provider default. Absent in older rows. */
   quality: GenerationQualitySchema.nullable().default(null),
+  enhance: EnhanceParamsSchema.optional(),
 });
 export type GenerationParams = z.infer<typeof GenerationParamsSchema>;
 
-export const GenerationSubmitRequestSchema = z.object({
-  projectId: z.string(),
-  providerId: z.string(),
-  modelId: z.string(),
-  purpose: GenerationPurposeSchema,
-  /** Compiled in the UI from persisted data (ADR-008); stored verbatim as the request snapshot. */
-  prompt: PromptBundleSchema,
-  /** Ordered; every ID must be a ready asset of this project. */
-  referenceAssetIds: z.array(z.string()),
-  params: GenerationParamsSchema,
-  /** Camera this render is for (Phase 3); must exist in the project's DNA. */
-  cameraId: z.string().nullable().default(null),
-});
+function addEnhanceContractIssues(
+  value: { purpose: GenerationPurpose; providerId: string; params: GenerationParams },
+  ctx: z.RefinementCtx,
+): void {
+  if (value.purpose !== "enhance") return;
+  const enhance = value.params.enhance;
+  if (!enhance) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["params", "enhance"],
+      message: "params.enhance is required when purpose is enhance.",
+    });
+    return;
+  }
+  if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["params", "enhance", "targetLongEdge"],
+      message: "Conservative enhancement requires targetLongEdge.",
+    });
+  }
+  if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["providerId"],
+      message: 'Conservative enhancement requires providerId "local_upscale".',
+    });
+  }
+}
+
+export const GenerationSubmitRequestSchema = z
+  .object({
+    projectId: z.string(),
+    providerId: z.string(),
+    modelId: z.string(),
+    purpose: GenerationPurposeSchema,
+    /** Compiled in the UI from persisted data (ADR-008); stored verbatim as the request snapshot. */
+    prompt: PromptBundleSchema,
+    /** Ordered; every ID must be a ready asset of this project. */
+    referenceAssetIds: z.array(z.string()),
+    params: GenerationParamsSchema,
+    /** Camera this render is for (Phase 3); must exist in the project's DNA. */
+    cameraId: z.string().nullable().default(null),
+  })
+  .superRefine((value, ctx) => addEnhanceContractIssues(value, ctx));
 export type GenerationSubmitRequest = z.infer<typeof GenerationSubmitRequestSchema>;
 
 export const GenerationErrorSchema = z.object({
@@ -106,31 +153,33 @@ export const GenerationErrorSchema = z.object({
 });
 export type GenerationError = z.infer<typeof GenerationErrorSchema>;
 
-export const GenerationDTOSchema = z.object({
-  id: z.string(),
-  projectId: z.string(),
-  providerId: z.string(),
-  modelId: z.string(),
-  purpose: GenerationPurposeSchema,
-  status: GenerationStatusSchema,
-  prompt: PromptBundleSchema,
-  referenceAssetIds: z.array(z.string()),
-  params: GenerationParamsSchema,
-  /** Lineage anchor: the master if referenced, else the first reference, else null. */
-  parentAssetId: z.string().nullable(),
-  /** Output assets still present in the project, in output order. */
-  outputAssetIds: z.array(z.string()),
-  error: GenerationErrorSchema.nullable(),
-  cameraId: z.string().nullable(),
-  batchId: z.string().nullable(),
-  /** The queue job that runs this generation (Phase 3). */
-  jobId: z.string().nullable(),
-  /** Time the generation was queued; `startedAt` is when the provider call began. */
-  createdAt: z.string(),
-  startedAt: z.string().nullable(),
-  finishedAt: z.string().nullable(),
-  durationMs: z.number().int().nonnegative().nullable(),
-});
+export const GenerationDTOSchema = z
+  .object({
+    id: z.string(),
+    projectId: z.string(),
+    providerId: z.string(),
+    modelId: z.string(),
+    purpose: GenerationPurposeSchema,
+    status: GenerationStatusSchema,
+    prompt: PromptBundleSchema,
+    referenceAssetIds: z.array(z.string()),
+    params: GenerationParamsSchema,
+    /** Lineage anchor: the master if referenced, else the first reference, else null. */
+    parentAssetId: z.string().nullable(),
+    /** Output assets still present in the project, in output order. */
+    outputAssetIds: z.array(z.string()),
+    error: GenerationErrorSchema.nullable(),
+    cameraId: z.string().nullable(),
+    batchId: z.string().nullable(),
+    /** The queue job that runs this generation (Phase 3). */
+    jobId: z.string().nullable(),
+    /** Time the generation was queued; `startedAt` is when the provider call began. */
+    createdAt: z.string(),
+    startedAt: z.string().nullable(),
+    finishedAt: z.string().nullable(),
+    durationMs: z.number().int().nonnegative().nullable(),
+  })
+  .superRefine((value, ctx) => addEnhanceContractIssues(value, ctx));
 export type GenerationDTO = z.infer<typeof GenerationDTOSchema>;
 
 /** `prompt_enhance` (see docs/API_CONTRACTS.md §11). Nothing is stored. */
