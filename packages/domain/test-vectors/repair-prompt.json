@@ -1,0 +1,33 @@
+{
+  "dna": {
+    "building": { "floors": 2, "type": "villa" },
+    "context": { "density": "medium", "site": "urban" },
+    "cameras": [{ "id": "front", "viewType": "exterior_corner" }],
+    "lighting": { "timeOfDay": "day" },
+    "weather": { "condition": "clear" },
+    "mood": { "style": "calm" }
+  },
+  "report": {
+    "id": "QC_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "projectId": "project-1",
+    "assetId": "asset-output",
+    "referenceAssetIds": ["asset-reference"],
+    "local": { "edgeAlignment": 61, "sharpness": 72, "clippedPct": 0.2 },
+    "vision": {
+      "providerId": "mock",
+      "model": "vision-1",
+      "scores": { "geometry": 52, "material": 81, "openings": 74, "context": 66, "lighting": 70 },
+      "artifacts": [{ "label": "extra window", "severity": "high", "box": [0.1, 0.2, 0.3, 0.4] }],
+      "issues": [
+        { "category": "openings", "text": "Remove the extra window." },
+        { "category": "artifact", "text": "Clean the seam." }
+      ],
+      "repairInstruction": "Correct the openings without changing the facade."
+    },
+    "overall": 68.6,
+    "result": "fail",
+    "thresholds": { "passMin": 70, "categoryMin": 55, "highArtifactFails": true },
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  "expected": "Repair this architectural image. Fix only the QC issues and artifacts listed below.\nQC issues:\n1. [openings] Remove the extra window.\n2. [artifact] Clean the seam.\nQC artifacts:\n1. [high] extra window; box: [0.1,0.2,0.3,0.4]\nRepair instruction: Correct the openings without changing the facade.\nKeep the architecture, camera and composition unchanged. Keep every element not explicitly listed above unchanged, including geometry, materials, openings, context, lighting, weather and mood.\nDo not redesign, restyle, reframe, crop, add or remove anything else.\nProject facts to preserve:\nBuilding DNA: {\"floors\":2,\"type\":\"villa\"}\nContext DNA: {\"density\":\"medium\",\"site\":\"urban\"}\nCamera DNA: [{\"id\":\"front\",\"viewType\":\"exterior_corner\"}]\nLighting DNA: {\"timeOfDay\":\"day\"}\nWeather DNA: {\"condition\":\"clear\"}\nMood DNA: {\"style\":\"calm\"}"
+}

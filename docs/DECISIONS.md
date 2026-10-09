@@ -342,7 +342,8 @@ QC scores a ready image against its references and stores a report. It never mod
 - Gating is the same as `variation`.
 
 **Automation** — per project, off by default because it spends credits:
-- `autoQc: "off" | "after_generation"`: when on, every successful output of a non-QC generation gets a QC run using the project's chosen vision provider/model, or local metrics only if none is set.
+- `autoQc: "off" | "after_generation"`: when on, every successful output of any generation, repair outputs included, gets a QC run using the project's chosen vision provider/model, or local metrics only if none is set.
 - `autoRepairMax` (0–2, default 0): when a report fails and the repair chain of that output is shorter than the max, a repair generation is queued with the same provider/model as the original. The chain depth is recorded in generation meta.
 
 QC lives in Hậu kỳ › QC. The canvas can overlay artifact boxes.
+- Operational note: QC work in flight on a detached automation thread is not resumed after an app restart; no automation state is persisted.

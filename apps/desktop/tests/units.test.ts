@@ -35,6 +35,7 @@ describe("workspace information architecture", () => {
       "generate",
       "mood_grade",
       "enhance",
+      "qc",
     ]);
   });
 

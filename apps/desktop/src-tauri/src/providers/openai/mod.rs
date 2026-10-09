@@ -39,6 +39,7 @@ mod tests;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use base64::Engine;
 use serde_json::{json, Value};
 
 use super::text::sanitize;
@@ -62,6 +63,7 @@ pub const GENERATE_TIMEOUT: Duration = Duration::from_secs(300);
 const TEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Prompt enhancement is one short chat completion.
 const CHAT_TIMEOUT: Duration = Duration::from_secs(60);
+const VISION_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Which dialect of the Images API the endpoint speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +95,8 @@ pub struct Config {
     pub quality: String,
     /// Chat model for prompt enhancement; `None` = not offered.
     pub chat_model: Option<String>,
+    /// Optional model selected for image-aware chat (HHTECH uses a separate env setting).
+    pub vision_model: Option<String>,
     /// Appended to 404 messages: where the user fixes the base URL / model names.
     pub setup_hint: &'static str,
     /// How long one images call may take.
@@ -112,6 +116,7 @@ impl Config {
             default_size: None,
             quality: models::QUALITY.to_string(),
             chat_model: None,
+            vision_model: None,
             setup_hint: "",
             generate_timeout: GENERATE_TIMEOUT,
         }
@@ -443,6 +448,35 @@ impl OpenAiProvider {
         let value = self.send(request, self.chat_timeout, api_key)?;
         wire::parse_chat(&value, vendor, api_key)
     }
+
+    pub fn vision_completion(
+        &self,
+        system: &str,
+        user: &str,
+        images: &[(&str, Vec<u8>)],
+        model: Option<&str>,
+        api_key: Option<&str>,
+    ) -> Result<String, ProviderError> {
+        let vendor = self.cfg.vendor;
+        let selected =
+            model.or(self.cfg.vision_model.as_deref()).or(self.cfg.chat_model.as_deref()).ok_or_else(|| {
+                ProviderError::new(
+                    ProviderErrorKind::InvalidRequest,
+                    format!("{} does not offer vision QC.", self.cfg.label),
+                )
+            })?;
+        let base = self.base_url()?;
+        let api_key = self.require_key(api_key)?;
+        let mut content = vec![json!({"type":"text", "text": user})];
+        for (mime, bytes) in images {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+            content.push(json!({"type":"image_url", "image_url":{"url": format!("data:{mime};base64,{encoded}")}}));
+        }
+        let body = json!({"model": selected, "messages":[{"role":"system","content":system},{"role":"user","content":content}]});
+        let request = self.client(VISION_TIMEOUT)?.post(format!("{base}/chat/completions")).json(&body);
+        let value = self.send(request, VISION_TIMEOUT, api_key)?;
+        wire::parse_chat(&value, vendor, api_key)
+    }
 }
 
 impl Default for OpenAiProvider {
@@ -609,8 +643,23 @@ impl ImageProvider for OpenAiProvider {
         self.cfg.chat_model.clone()
     }
 
+    fn vision_model(&self) -> Option<String> {
+        self.cfg.vision_model.clone().or_else(|| self.cfg.chat_model.clone())
+    }
+
     fn chat(&self, system: &str, user: &str, api_key: Option<&str>) -> Result<String, ProviderError> {
         self.chat_completion(system, user, api_key)
+    }
+
+    fn vision(
+        &self,
+        system: &str,
+        user: &str,
+        images: &[(&str, Vec<u8>)],
+        model: Option<&str>,
+        api_key: Option<&str>,
+    ) -> Result<String, ProviderError> {
+        self.vision_completion(system, user, images, model, api_key)
     }
 }
 

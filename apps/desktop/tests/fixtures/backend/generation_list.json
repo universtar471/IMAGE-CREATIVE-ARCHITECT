@@ -2,17 +2,17 @@
   "command": "generation_list",
   "response": [
     {
-      "batchId": "BAT_0000000000000000000000000H",
+      "batchId": "BAT_0000000000000000000000000J",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000M",
-      "jobId": "JOB_0000000000000000000000000K",
+      "id": "GEN_0000000000000000000000000N",
+      "jobId": "JOB_0000000000000000000000000M",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000V"
+        "AST_0000000000000000000000000W"
       ],
       "params": {
         "aspectRatio": null,
@@ -42,17 +42,17 @@
       "status": "completed"
     },
     {
-      "batchId": "BAT_0000000000000000000000000H",
+      "batchId": "BAT_0000000000000000000000000J",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000N",
-      "jobId": "JOB_0000000000000000000000000J",
+      "id": "GEN_0000000000000000000000000P",
+      "jobId": "JOB_0000000000000000000000000K",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000T"
+        "AST_0000000000000000000000000V"
       ],
       "params": {
         "aspectRatio": null,
@@ -88,11 +88,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000F",
-      "jobId": "JOB_0000000000000000000000000G",
+      "id": "GEN_0000000000000000000000000G",
+      "jobId": "JOB_0000000000000000000000000H",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000X"
+        "AST_0000000000000000000000000Y"
       ],
       "params": {
         "aspectRatio": null,
@@ -126,8 +126,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000D",
-      "jobId": "JOB_0000000000000000000000000E",
+      "id": "GEN_0000000000000000000000000E",
+      "jobId": "JOB_0000000000000000000000000F",
       "modelId": "placeholder-v1",
       "outputAssetIds": [],
       "params": {
@@ -162,11 +162,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000P",
-      "jobId": "JOB_0000000000000000000000000Q",
+      "id": "GEN_0000000000000000000000000Q",
+      "jobId": "JOB_0000000000000000000000000R",
       "modelId": "full",
       "outputAssetIds": [
-        "AST_0000000000000000000000000W"
+        "AST_0000000000000000000000000X"
       ],
       "params": {
         "aspectRatio": null,
@@ -200,8 +200,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": null,
-      "id": "GEN_0000000000000000000000000R",
-      "jobId": "JOB_0000000000000000000000000S",
+      "id": "GEN_0000000000000000000000000S",
+      "jobId": "JOB_0000000000000000000000000T",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -240,8 +240,8 @@
         "retryable": false
       },
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000B",
-      "jobId": "JOB_0000000000000000000000000C",
+      "id": "GEN_0000000000000000000000000C",
+      "jobId": "JOB_0000000000000000000000000D",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -276,12 +276,12 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000007",
-      "jobId": "JOB_00000000000000000000000008",
+      "id": "GEN_00000000000000000000000008",
+      "jobId": "JOB_00000000000000000000000009",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_00000000000000000000000009",
-        "AST_0000000000000000000000000A"
+        "AST_0000000000000000000000000A",
+        "AST_0000000000000000000000000B"
       ],
       "params": {
         "aspectRatio": null,
@@ -317,11 +317,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000004",
-      "jobId": "JOB_00000000000000000000000005",
+      "id": "GEN_00000000000000000000000005",
+      "jobId": "JOB_00000000000000000000000006",
       "modelId": "lanczos3",
       "outputAssetIds": [
-        "AST_00000000000000000000000006"
+        "AST_00000000000000000000000007"
       ],
       "params": {
         "aspectRatio": null,

@@ -110,7 +110,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     label: "QC",
     icon: ScanSearch,
     group: "post",
-    availableIn: 6,
+    availableIn: null,
   },
   {
     id: "export",

@@ -79,30 +79,47 @@ export const BatchCreateRequestSchema = z
     items: z.array(BatchItemSchema).min(1).max(50),
   })
   .superRefine((value, ctx) => {
-    if (value.purpose !== "enhance") return;
     value.items.forEach((item, index) => {
-      const enhance = item.params.enhance;
-      if (!enhance) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["items", index, "params", "enhance"],
-          message: "params.enhance is required when purpose is enhance.",
-        });
-        return;
+      if (value.purpose === "enhance") {
+        const enhance = item.params.enhance;
+        if (!enhance) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "params", "enhance"],
+            message: "params.enhance is required when purpose is enhance.",
+          });
+          return;
+        }
+        if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "params", "enhance", "targetLongEdge"],
+            message: "Conservative enhancement requires targetLongEdge.",
+          });
+        }
+        if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["providerId"],
+            message: 'Conservative enhancement requires providerId "local_upscale".',
+          });
+        }
       }
-      if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["items", index, "params", "enhance", "targetLongEdge"],
-          message: "Conservative enhancement requires targetLongEdge.",
-        });
-      }
-      if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["providerId"],
-          message: 'Conservative enhancement requires providerId "local_upscale".',
-        });
+      if (value.purpose === "repair") {
+        if (!item.params.repair) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "params", "repair"],
+            message: "params.repair is required when purpose is repair.",
+          });
+        }
+        if (item.referenceAssetIds.length !== 2) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "referenceAssetIds"],
+            message: "Repair generation requires exactly two reference assets.",
+          });
+        }
       }
     });
   });

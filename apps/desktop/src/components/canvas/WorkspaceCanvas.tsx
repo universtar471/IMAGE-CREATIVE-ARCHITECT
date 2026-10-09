@@ -10,7 +10,7 @@ import { fileUrl } from "../../lib/files";
 import { formatDimensions } from "../../lib/format";
 import { RoleBadge } from "../common/StatusBadge";
 import { EmptyState, ErrorState } from "../common/states";
-import { ImageViewer } from "./ImageViewer";
+import { ImageViewer, type ImageDisplayRect } from "./ImageViewer";
 import { useT } from "../../i18n";
 
 export type CanvasMode = { kind: "single"; asset: AssetDTO | null };
@@ -19,10 +19,14 @@ export function WorkspaceCanvas({
   mode,
   emptyAction,
   emptyMessage,
+  overlay,
+  extraTools,
 }: {
   mode: CanvasMode;
   emptyAction?: React.ReactNode;
   emptyMessage?: string;
+  overlay?: React.ReactNode | ((rect: ImageDisplayRect) => React.ReactNode);
+  extraTools?: React.ReactNode;
 }) {
   const asset = mode.asset;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -55,6 +59,8 @@ export function WorkspaceCanvas({
       naturalWidth={asset.widthPx}
       naturalHeight={asset.heightPx}
       onError={() => setFailedSrc(src)}
+      overlay={overlay}
+      extraTools={extraTools}
       info={
         <>
           <RoleBadge role={asset.role} />

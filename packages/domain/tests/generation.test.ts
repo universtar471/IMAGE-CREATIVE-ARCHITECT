@@ -32,6 +32,7 @@ const model = (over: Partial<ModelCapabilities> = {}): ModelCapabilities => ({
   supportsSeed: true,
   qualityOptions: ["low", "high"],
   priceHint: null,
+  vision: false,
   ...over,
 });
 

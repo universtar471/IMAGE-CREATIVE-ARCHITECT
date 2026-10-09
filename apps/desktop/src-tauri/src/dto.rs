@@ -10,7 +10,7 @@ use crate::domain::{
 use crate::providers::{GenerationParams, ModelCapabilities, ProviderKind};
 use crate::secrets::KeySource;
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectDto {
     pub id: String,
@@ -113,6 +113,87 @@ pub struct ProviderDescriptorDto {
     pub configured: bool,
     pub key_source: Option<KeySource>,
     pub models: Vec<ModelCapabilities>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcScoresDto {
+    pub geometry: i32,
+    pub material: i32,
+    pub openings: i32,
+    pub context: i32,
+    pub lighting: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcArtifactDto {
+    pub label: String,
+    pub severity: String,
+    #[serde(rename = "box")]
+    pub box_: Option<[f64; 4]>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcIssueDto {
+    pub category: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcVisionDto {
+    pub provider_id: String,
+    pub model: String,
+    pub scores: QcScoresDto,
+    pub artifacts: Vec<QcArtifactDto>,
+    pub issues: Vec<QcIssueDto>,
+    pub repair_instruction: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcLocalDto {
+    pub edge_alignment: Option<f64>,
+    pub sharpness: f64,
+    pub clipped_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcThresholdsDto {
+    pub pass_min: f64,
+    pub category_min: f64,
+    pub high_artifact_fails: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcSettingsDto {
+    pub schema_version: u32,
+    pub pass_min: f64,
+    pub category_min: f64,
+    pub high_artifact_fails: bool,
+    pub auto_qc: String,
+    pub auto_repair_max: u8,
+    pub vision_provider_id: Option<String>,
+    pub vision_model: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct QcReportDto {
+    pub id: String,
+    pub project_id: String,
+    pub asset_id: String,
+    pub reference_asset_ids: Vec<String>,
+    pub local: QcLocalDto,
+    pub vision: Option<QcVisionDto>,
+    pub overall: Option<f64>,
+    pub result: String,
+    pub thresholds: QcThresholdsDto,
+    pub created_at: String,
 }
 
 /// Mirrors `ProviderTestResultSchema`; `ok: false` is a normal answer, not an error.

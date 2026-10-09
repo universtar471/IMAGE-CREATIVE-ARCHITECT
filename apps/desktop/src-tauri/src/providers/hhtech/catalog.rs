@@ -106,6 +106,7 @@ impl Entry {
             image_sizes: self.tiers.iter().map(|(tier, _)| tier.to_string()).collect(),
             quality_options,
             price_hint: Some(price_hint),
+            vision: true,
             ..gateway_model(self.id)
         }
     }
@@ -114,7 +115,11 @@ impl Entry {
 /// An id outside the catalog (from `HHTECH_IMAGE_MODEL`): a plain GPT-style entry, as before
 /// the catalog existed — no tiers, no price, `quality` sent and selectable.
 pub fn plain_capabilities(id: &str) -> ModelCapabilities {
-    ModelCapabilities { quality_options: QUALITY_VALUES.iter().map(|q| q.to_string()).collect(), ..gateway_model(id) }
+    ModelCapabilities {
+        quality_options: QUALITY_VALUES.iter().map(|q| q.to_string()).collect(),
+        vision: true,
+        ..gateway_model(id)
+    }
 }
 
 /// VND with a dot as thousands separator: 280 → "280đ", 1200 → "1.200đ".

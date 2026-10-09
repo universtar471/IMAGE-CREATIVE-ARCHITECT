@@ -51,6 +51,14 @@ import {
   type WorkflowFacts,
   type WorkflowStepState,
 } from "./workflow";
+import {
+  DEFAULT_QC_SETTINGS,
+  createQcId,
+  scoreReport,
+  type QcReportDTO,
+  type QcSettings,
+  type QcVision,
+} from "./qc";
 
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
@@ -66,6 +74,8 @@ type Db = {
   batches?: MockBatch[];
   anchors?: CameraAnchorDTO[];
   workflow?: Record<string, WorkflowStepState[]>;
+  qcReports?: QcReportDTO[];
+  qcSettings?: Record<string, QcSettings>;
 };
 
 /** A job plus what the mock needs to run and retry it (never sent to the UI). */
@@ -90,6 +100,7 @@ const PURPOSE_TITLES: Record<string, string> = {
   anchor: "Anchor",
   production: "Production",
   enhance: "Enhance",
+  repair: "Repair",
 };
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
@@ -158,6 +169,7 @@ const GEMINI_MODELS: ModelCapabilities[] = (
   supportsSeed: false,
   qualityOptions: [],
   priceHint: null,
+  vision: false,
 }));
 
 /**
@@ -184,6 +196,7 @@ const OPENAI_MODELS: ModelCapabilities[] = (
   // Official OpenAI always sends `quality: high`; no choice.
   qualityOptions: [],
   priceHint: null,
+  vision: false,
 }));
 
 /**
@@ -219,6 +232,7 @@ const HHTECH_MODELS: ModelCapabilities[] = (
     supportsSeed: false,
     qualityOptions: family === "gpt" ? ["low", "medium", "high"] : [],
     priceHint: Object.fromEntries(priced),
+    vision: true,
   };
 });
 
@@ -267,6 +281,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
         supportsSeed: true,
         qualityOptions: [],
         priceHint: null,
+        vision: false,
       },
     ],
   },
@@ -289,6 +304,7 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
+        vision: false,
       },
     ],
   },
@@ -356,6 +372,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const batches = (db.batches ??= []);
   db.anchors ??= [];
   db.workflow ??= {};
+  db.qcReports ??= [];
+  db.qcSettings ??= {};
   // Migration stand-in: projects that already had an approved master are grandfathered in.
   const workflowMigrationTime = new Date().toISOString();
   for (const [projectId, project] of Object.entries(db.projects)) {
@@ -541,12 +559,15 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const validateRequest = (req: GenerationSubmitRequest) => {
     writable(req.projectId);
     const facts = workflowFacts(req.projectId);
+    const purpose = req.purpose as string;
     const gate =
-      req.purpose === "enhance"
+      purpose === "enhance"
         ? facts.masterApproved
           ? { ok: true as const }
           : { ok: false as const, blockedBy: "generate.master" as const }
-        : isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
+        : purpose === "repair"
+          ? isGenerationAllowed("variation", workflowRows(req.projectId), facts)
+          : isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
     if (!gate.ok) {
       fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
     }
@@ -598,7 +619,9 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const validationRequest =
       req.purpose === "enhance" && enhance?.mode === "conservative"
         ? { ...req, prompt: { ...req.prompt, positivePrompt: "local upscale" } }
-        : req;
+        : purpose === "repair"
+          ? ({ ...req, purpose: "variation" } as GenerationSubmitRequest)
+          : req;
     const issues = validateGenerationRequest(validationRequest, model);
     if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
     // §9 / Rust: a model that lists no ratios or sizes only accepts null (the provider decides).
@@ -631,7 +654,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       projectId: req.projectId,
       providerId: req.providerId,
       modelId: req.modelId,
-      purpose: req.purpose,
+      purpose: req.purpose as GenerationDTO["purpose"],
       status: "queued",
       prompt: req.prompt,
       referenceAssetIds: [...req.referenceAssetIds],
@@ -832,6 +855,72 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           confirmedAt: null,
         },
     );
+  const qcSettings = (projectId: string): QcSettings => ({
+    ...DEFAULT_QC_SETTINGS,
+    ...(db.qcSettings![projectId] ?? {}),
+  });
+  const qcForProject = (projectId: string) =>
+    db.qcReports!.filter((report) => report.projectId === projectId);
+  const runQc = (req: Requests["qc_run"]): QcReportDTO => {
+    const project = writable(req.projectId);
+    if (!project.masterApprovedAt)
+      fail("VALIDATION_ERROR", "Finish workflow step 'generate.master' before running QC.");
+    const asset = db.assets[req.assetId];
+    if (!asset || asset.projectId !== req.projectId)
+      fail("NOT_FOUND", "Asset not found in this project.");
+    const sourceAsset = asset!;
+    if (sourceAsset.status !== "ready") fail("INVALID_STATE", "The image file is missing.");
+    const generation = generations
+      .filter(
+        (item) => item.projectId === req.projectId && item.outputAssetIds.includes(req.assetId),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const references = generation?.referenceAssetIds?.length
+      ? generation.referenceAssetIds
+      : project.activeMasterAssetId
+        ? [project.activeMasterAssetId]
+        : [];
+    const local = {
+      edgeAlignment:
+        generation && ["enhance", "variation", "repair"].includes(generation.purpose) ? 82 : null,
+      sharpness: 72,
+      clippedPct: 0.2,
+    };
+    let vision: QcVision | null = null;
+    if (req.vision) {
+      vision = {
+        providerId: req.vision.providerId,
+        model: req.vision.model ?? "mock-vision",
+        scores: req.assetId.toLowerCase().includes("fail")
+          ? { geometry: 40, material: 70, openings: 70, context: 70, lighting: 70 }
+          : { geometry: 86, material: 82, openings: 84, context: 80, lighting: 88 },
+        artifacts: [],
+        issues: [],
+        repairInstruction: "Preserve the composition and correct only the listed QC issues.",
+      };
+    }
+    const settings = qcSettings(req.projectId);
+    const scored = scoreReport(local, vision, settings);
+    const report: QcReportDTO = {
+      id: createQcId(),
+      projectId: req.projectId,
+      assetId: req.assetId,
+      referenceAssetIds: references,
+      local,
+      vision,
+      overall: scored.overall,
+      result: scored.result,
+      thresholds: {
+        passMin: settings.passMin,
+        categoryMin: settings.categoryMin,
+        highArtifactFails: settings.highArtifactFails,
+      },
+      createdAt: now(),
+    };
+    db.qcReports!.push(report);
+    save();
+    return report;
+  };
   const workflowFacts = (projectId: string): WorkflowFacts => {
     const dna = db.dna[projectId]!;
     const anchors = projectAnchors(projectId);
@@ -958,6 +1047,40 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       } catch (error) {
         fail("VALIDATION_ERROR", error instanceof Error ? error.message : String(error));
       }
+    },
+
+    qc_run: (req) => runQc(req),
+
+    qc_list: (req) =>
+      qcForProject(req.projectId)
+        .filter((report) => !req.assetId || report.assetId === req.assetId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)),
+
+    qc_settings_get: (req) => {
+      getProject(req.projectId);
+      return qcSettings(req.projectId);
+    },
+
+    qc_settings_set: (req) => {
+      writable(req.projectId);
+      const settings: QcSettings = {
+        ...DEFAULT_QC_SETTINGS,
+        ...req.settings,
+        schemaVersion: 1,
+      };
+      if (!Number.isFinite(settings.passMin) || settings.passMin < 0 || settings.passMin > 100)
+        fail("VALIDATION_ERROR", "passMin must be a number from 0 to 100.");
+      if (
+        !Number.isFinite(settings.categoryMin) ||
+        settings.categoryMin < 0 ||
+        settings.categoryMin > 100
+      )
+        fail("VALIDATION_ERROR", "categoryMin must be a number from 0 to 100.");
+      if (![0, 1, 2].includes(settings.autoRepairMax))
+        fail("VALIDATION_ERROR", "autoRepairMax must be 0, 1 or 2.");
+      db.qcSettings![req.projectId] = settings;
+      save();
+      return settings;
     },
 
     dna_get: (req) => {

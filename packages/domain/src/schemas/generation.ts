@@ -34,6 +34,8 @@ export const ModelCapabilitiesSchema = z.object({
    * tier missing from the map has no published price.
    */
   priceHint: z.record(z.string(), z.number().int().nonnegative()).nullable(),
+  /** True when the model can be selected for optional vision QC. */
+  vision: z.boolean(),
 });
 export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
 
@@ -62,6 +64,7 @@ export const GenerationPurposeSchema = z.enum([
   "anchor",
   "production",
   "enhance",
+  "repair",
 ]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 
@@ -72,6 +75,11 @@ export const EnhanceParamsSchema = z.object({
   architecturePreserve: z.boolean().default(true),
 });
 export type EnhanceParams = z.infer<typeof EnhanceParamsSchema>;
+
+export const RepairParamsSchema = z.object({
+  qcReportId: z.string().regex(/^QC_[0-7][0-9A-HJKMNP-TV-Z]{25}$/),
+});
+export type RepairParams = z.infer<typeof RepairParamsSchema>;
 
 /**
  * `queued` = waiting in the job queue (Phase 3); `interrupted` = the app closed while the
@@ -95,36 +103,59 @@ export const GenerationParamsSchema = z.object({
   /** One of the model's `qualityOptions`; null = provider default. Absent in older rows. */
   quality: GenerationQualitySchema.nullable().default(null),
   enhance: EnhanceParamsSchema.optional(),
+  repair: RepairParamsSchema.optional(),
 });
 export type GenerationParams = z.infer<typeof GenerationParamsSchema>;
 
-function addEnhanceContractIssues(
-  value: { purpose: GenerationPurpose; providerId: string; params: GenerationParams },
+function addPurposeContractIssues(
+  value: {
+    purpose: GenerationPurpose;
+    providerId: string;
+    params: GenerationParams;
+    referenceAssetIds: string[];
+  },
   ctx: z.RefinementCtx,
 ): void {
-  if (value.purpose !== "enhance") return;
-  const enhance = value.params.enhance;
-  if (!enhance) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["params", "enhance"],
-      message: "params.enhance is required when purpose is enhance.",
-    });
-    return;
+  if (value.purpose === "enhance") {
+    const enhance = value.params.enhance;
+    if (!enhance) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["params", "enhance"],
+        message: "params.enhance is required when purpose is enhance.",
+      });
+      return;
+    }
+    if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["params", "enhance", "targetLongEdge"],
+        message: "Conservative enhancement requires targetLongEdge.",
+      });
+    }
+    if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["providerId"],
+        message: 'Conservative enhancement requires providerId "local_upscale".',
+      });
+    }
   }
-  if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["params", "enhance", "targetLongEdge"],
-      message: "Conservative enhancement requires targetLongEdge.",
-    });
-  }
-  if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["providerId"],
-      message: 'Conservative enhancement requires providerId "local_upscale".',
-    });
+  if (value.purpose === "repair") {
+    if (!value.params.repair) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["params", "repair"],
+        message: "params.repair is required when purpose is repair.",
+      });
+    }
+    if (value.referenceAssetIds.length !== 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["referenceAssetIds"],
+        message: "Repair generation requires exactly two reference assets.",
+      });
+    }
   }
 }
 
@@ -142,7 +173,7 @@ export const GenerationSubmitRequestSchema = z
     /** Camera this render is for (Phase 3); must exist in the project's DNA. */
     cameraId: z.string().nullable().default(null),
   })
-  .superRefine((value, ctx) => addEnhanceContractIssues(value, ctx));
+  .superRefine((value, ctx) => addPurposeContractIssues(value, ctx));
 export type GenerationSubmitRequest = z.infer<typeof GenerationSubmitRequestSchema>;
 
 export const GenerationErrorSchema = z.object({
@@ -179,7 +210,7 @@ export const GenerationDTOSchema = z
     finishedAt: z.string().nullable(),
     durationMs: z.number().int().nonnegative().nullable(),
   })
-  .superRefine((value, ctx) => addEnhanceContractIssues(value, ctx));
+  .superRefine((value, ctx) => addPurposeContractIssues(value, ctx));
 export type GenerationDTO = z.infer<typeof GenerationDTOSchema>;
 
 /** `prompt_enhance` (see docs/API_CONTRACTS.md §11). Nothing is stored. */

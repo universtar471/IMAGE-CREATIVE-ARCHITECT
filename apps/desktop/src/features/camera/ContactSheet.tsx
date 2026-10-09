@@ -29,6 +29,7 @@ import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
 import { resolveEnhancePair, type EnhancePair } from "../enhance/enhance";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
+import { QcBadge } from "../qc/QcBadge";
 import {
   groupContactSheet,
   groupMoodContactSheet,
@@ -442,6 +443,7 @@ function OutputCard({
         title={t("contact.openInCanvas")}
       >
         {src ? <img src={src} alt={asset.originalName ?? ""} /> : <ImageOff size={22} />}
+        <QcBadge assetId={asset.id} projectId={asset.projectId} />
         {isAnchor && (
           <span className="badge badge-success contact-anchor-badge">
             <Anchor size={10} /> {t("common.anchor")}
