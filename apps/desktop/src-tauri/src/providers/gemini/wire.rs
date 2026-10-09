@@ -7,11 +7,10 @@ use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
 use serde_json::{json, Value};
 
+pub use super::super::text::sanitize;
+use super::super::text::truncate;
 use super::super::{GenerationParams, PromptText, ProviderError, ProviderErrorKind, ProviderImage, ReferenceImage};
 use super::prompt::{compose_prompt, reference_label};
-
-/// Max characters of vendor text (model notes, error messages) copied into a user message.
-pub const MAX_VENDOR_TEXT: usize = 200;
 
 /// Body for `POST models/{model}:generateContent`. Part order: the composed prompt, then for
 /// each reference (in request order) a label text part followed by its inline image.
@@ -229,18 +228,4 @@ fn quota_exhausted(error: Option<&Value>) -> bool {
                 || id.contains("PerDay")
                 || field("quotaValue") == "0"
         })
-}
-
-/// Collapse whitespace, strip the key if it was echoed, and cap the length.
-pub fn sanitize(text: &str, api_key: &str) -> String {
-    let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let redacted = if api_key.is_empty() { collapsed } else { collapsed.replace(api_key, "[redacted]") };
-    truncate(&redacted, MAX_VENDOR_TEXT)
-}
-
-fn truncate(text: &str, max_chars: usize) -> String {
-    match text.char_indices().nth(max_chars) {
-        Some((cut, _)) => format!("{}…", &text[..cut]),
-        None => text.to_string(),
-    }
 }

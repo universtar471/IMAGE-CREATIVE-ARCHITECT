@@ -10,6 +10,7 @@
 
 pub mod gemini;
 pub mod local_preview;
+pub mod text;
 
 #[cfg(test)]
 mod test_http;
