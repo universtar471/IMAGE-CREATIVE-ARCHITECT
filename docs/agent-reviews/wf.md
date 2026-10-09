@@ -31,3 +31,45 @@ Transaction cho confirm/reopen, kiểm tra dự án archived, kiểm tra gate tr
 - **`apps/desktop/src/i18n/vi.ts:341-367`** — Nhiều chuỗi workflow tiếng Việt bị mojibake, ví dụ `BÆ°á»›c`, `CÃ¡ch dÃ¹ng`, `XÃ¡c nháº­n`. Người dùng chọn tiếng Việt sẽ thấy chữ lỗi dù các key đã tồn tại.
 
 - **`apps/desktop/src/features/workspace/modules.ts:44-86` và `apps/desktop/src/components/shell/WorkspaceNav.tsx:21-22`** — Overview và năm mục DNA cùng thuộc group `project`; nav chỉ chèn vạch ngăn khi group đổi. Vì vậy DNA không được thể hiện thành nhóm riêng như yêu cầu. Ngoài ra, trạng thái `skipped` đang rơi vào icon mặc định hình tròn thay vì dấu gạch ngang (`WorkspaceNav.tsx:66-71`).
+---
+
+# Review Phase 4B — vòng 2
+
+## Kết luận: PHẢI SỬA
+
+### Đối chiếu các mục vòng 1
+
+| Mục vòng 1 | Kết quả |
+|---|---|
+| Backend từ chối xác nhận trực tiếp bước `needs_review` | **ĐÃ SỬA** — [workflow.rs](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src-tauri/src/services/workflow.rs:89) chỉ cho xác nhận khi trạng thái là `open`. |
+| Camera Director phải read-only khi bước Góc máy chưa mở hoặc đã xác nhận | **ĐÃ SỬA** — [CameraDirector.tsx](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src/features/camera/CameraDirector.tsx:30) áp dụng trạng thái workflow cho kéo và phím chỉnh góc. |
+| Anchor, render và Contact Sheet phải thuộc Tạo ảnh | **ĐÃ SỬA** — các hành động được chuyển vào [GeneratePanel.tsx](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src/features/generate/GeneratePanel.tsx:216); CameraPanel không còn chứa chúng. |
+| Truyền `cameraIds` để phân biệt không có camera với không có anchor camera | **ĐÃ SỬA** — store truyền danh sách camera khi mở và làm mới workflow; domain dùng danh sách này để suy ra trạng thái Render. |
+| Hộp thoại mở khóa liệt kê các bước sẽ bị cascade sang `needs_review` | **ĐÃ SỬA** — [StepFrame.tsx](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src/features/workflow/StepFrame.tsx:25) tính các bước đang `confirmed` trước khi gọi backend. |
+| Overview có tóm tắt và quick edit cho các bước DNA | **ĐÃ SỬA** — [OverviewPanel.tsx](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src/features/overview/OverviewPanel.tsx:147) hiển thị tóm tắt và trường sửa, chỉ bật khi bước ở trạng thái `available`. |
+| Chuỗi workflow tiếng Việt không bị mojibake | **ĐÃ SỬA** — các chuỗi ở `vi.ts` đọc được bằng UTF-8; diff cũng thêm kiểm tra từ điển. |
+| Nav chia nhóm và trạng thái `skipped` có biểu tượng gạch ngang | **ĐÃ SỬA** — nhóm được tách trong `modules.ts`, nav hiển thị nhãn DNA/Hậu kỳ và dấu gạch ngang cho `skipped`. |
+
+### Lỗi mới — PHẢI SỬA
+
+- **[packages/domain/src/workflow/workflow.ts](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/packages/domain/src/workflow/workflow.ts:82)** — `generate.master` được đặt `done` chỉ dựa vào `facts.masterApproved`, kể cả khi một bước DNA đã bị mở lại. Ví dụ: dự án có Master đã duyệt, mở lại Bối cảnh rồi xác nhận lại; các bước DNA phía sau vẫn `needs_review`, nhưng Master vẫn hiện `done`. Điều này trái tiêu chí “Tạo ảnh (Master) khóa đến khi các bước được xác nhận lại”. Do `anchorsStatus` và `renderStatus` cũng dựa vào trạng thái duyệt Master thay vì việc DNA đã hoàn tất, stepper có thể tiếp tục hiển thị các bước tạo ảnh sau là mở hoặc xong trong lúc chuỗi DNA chưa được xác nhận lại. Cần để trạng thái Master bị khóa khi DNA chưa hoàn tất, rồi suy ra trạng thái các bước sau từ điều kiện đó.
+
+### Rà soát các tiêu chí chấp nhận
+
+- Chuỗi dự án mới: domain và UI có các bước DNA lần lượt; bước tạo Master mở khi DNA đã xác nhận.
+- Sau khi duyệt Master: Anchor được bỏ qua khi không có anchor camera; Hậu kỳ mở theo trạng thái Master.
+- Mở lại Bối cảnh: backend cascade các bước DNA sau sang `needs_review`, không xóa ảnh. **Còn lỗi trạng thái `generate.master` nêu trên.**
+- Backend: `generation_submit` và `batch_create` đều kiểm tra gate trước khi đưa job vào hàng đợi; batch kiểm tra lại trong transaction.
+- Migration: tạo `workflow_steps`, backfill đủ năm bước cho dự án có `master_approved_at`.
+- Overview hub: có trạng thái, tóm tắt, mở bước, xác nhận/mở khóa và quick edit.
+- “Ghim” dùng cho pin prompt; nút xác nhận dùng “Xác nhận & khóa bước”; chuỗi workflow có cả vi/en.
+- Nav có nhóm Overview, DNA, Tạo ảnh, Hậu kỳ và Export.
+
+Không chạy test theo yêu cầu. Tôi không tìm thấy ADR-022 trong các file được track trên `main`; phần đối chiếu ADR dựa trên mô tả trong `PHASE_04B.md` và hợp đồng API §13.
+
+## Lead check (Claude, 80d7fdb)
+
+- `npm run verify` xanh: 364 Vitest, 235 Rust; fmt, clippy, prettier sạch.
+- Thử trên bản mock (port 1422): nav nhóm đúng, StepFrame + Cách dùng + Ghim hiện đúng, xác nhận bước 1 mở bước 2, bước 4 khoá có banner "Hoàn thành Tham chiếu trước" và các ô nằm trong fieldset disabled.
+- NÊN SỬA (lead): mục nav bước 1 và tiêu đề panel vẫn ghi "DNA thiết kế" (trùng tên nhóm) — phải là "Kiến trúc" / "Architecture"; panel bên phải giữ vị trí cuộn cũ khi đổi bước — cuộn về đầu.
+- Ghi chú: ADR-022 có trên main (docs/DECISIONS.md:231); nhận xét "không tìm thấy" của reviewer là nhầm.
