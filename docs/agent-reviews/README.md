@@ -34,3 +34,4 @@ Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend ro
 | P4 integrate | wt/p4-integrate | Round 3: ĐẠT; merged b2f528b | Merged |
 | WF (4B) | wt/wf-integrate | Round 3: ĐẠT (verify green at 059757d) | Merged |
 | P5 enhance | wt/p5-integrate | Round 3: ĐẠT (verify green at c91fa7b) | Merged |
+| P6 QC | wt/p6-integrate | Round 1: PHẢI SỬA (domain integer thresholds; backend local fail rule, lenient parser, vision prompt lacks DNA; UI vision model filter, missing vision settings, stale responses; vi strings) | Pending |
