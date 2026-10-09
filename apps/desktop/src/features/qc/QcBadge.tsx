@@ -18,7 +18,9 @@ export function QcBadge({ assetId, projectId }: { assetId: string; projectId?: s
         const latest = latestQcByAsset(value as QcReportDTO[]).get(assetId);
         setResult(latest?.result ?? null);
       })
-      .catch(() => setResult(null));
+      .catch(() => {
+        if (alive) setResult(null);
+      });
     return () => {
       alive = false;
     };

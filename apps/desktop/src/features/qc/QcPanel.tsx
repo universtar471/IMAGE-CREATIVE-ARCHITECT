@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Circle, Eye, Wrench } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GenerationParams } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { call } from "../../lib/bridge";
@@ -7,6 +7,7 @@ import {
   buildRepairGenerationRequest,
   buildRepairPrompt,
   DEFAULT_QC_SETTINGS,
+  isQcResponseCurrent,
   type QcReportDTO,
   type QcSettings,
 } from "../../lib/qc";
@@ -46,6 +47,8 @@ export function QcPanel() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const loadToken = useRef(0);
+  const [reportsProjectId, setReportsProjectId] = useState<string | null>(null);
   const t = useT();
   const approved = isMasterApproved(ws.project.status);
 
@@ -56,21 +59,38 @@ export function QcPanel() {
     visionProviders.find((item) => item.id === providerId) ?? visionProviders[0] ?? null;
   const visionModels = provider?.models.filter((model) => model.vision === true) ?? [];
   const model = visionModels.find((item) => item.id === modelId) ?? visionModels[0] ?? null;
+  const settingsProvider =
+    visionProviders.find((item) => item.id === settings.visionProviderId) ?? null;
+  const settingsModels = settingsProvider?.models.filter((item) => item.vision === true) ?? [];
   const latest = useMemo(
-    () => reports.find((report) => report.assetId === selected?.id) ?? null,
-    [reports, selected?.id],
+    () =>
+      reportsProjectId === ws.project.id
+        ? (reports.find((report) => report.assetId === selected?.id) ?? null)
+        : null,
+    [reports, reportsProjectId, selected?.id, ws.project.id],
   );
 
   const load = useCallback(async () => {
+    const token = ++loadToken.current;
+    const projectId = ws.project.id;
     try {
       const [nextReports, nextSettings] = await Promise.all([
-        call("qc_list", { projectId: ws.project.id }),
-        call("qc_settings_get", { projectId: ws.project.id }),
+        call("qc_list", { projectId }),
+        call("qc_settings_get", { projectId }),
       ]);
+      if (token !== loadToken.current || useStudio.getState().workspace?.project.id !== projectId)
+        return;
       setReports(nextReports as QcReportDTO[]);
-      setSettings(nextSettings as QcSettings);
+      setReportsProjectId(projectId);
+      const loaded = nextSettings as QcSettings;
+      setSettings(loaded);
+      setProviderId(loaded.visionProviderId ?? "");
+      setModelId(loaded.visionModel ?? "");
     } catch {
-      setReports([]);
+      if (token === loadToken.current && useStudio.getState().workspace?.project.id === projectId) {
+        setReports([]);
+        setReportsProjectId(projectId);
+      }
     }
   }, [ws.project.id]);
 
@@ -81,12 +101,19 @@ export function QcPanel() {
   }, [load, loadProviders, providers.length]);
 
   const run = async (assetId: string, useVision: boolean) => {
+    const projectId = ws.project.id;
     const report = (await call("qc_run", {
-      projectId: ws.project.id,
+      projectId,
       assetId,
       vision: useVision && provider ? { providerId: provider.id, model: model?.id } : null,
     })) as QcReportDTO;
-    setReports((current) => [report, ...current.filter((item) => item.id !== report.id)]);
+    const current = useStudio.getState();
+    const currentAssetId =
+      current.selectedAssetId ?? current.workspace?.project.activeMasterAssetId;
+    if (isQcResponseCurrent(projectId, assetId, current.workspace?.project.id, currentAssetId)) {
+      setReportsProjectId(projectId);
+      setReports((current) => [report, ...current.filter((item) => item.id !== report.id)]);
+    }
     return report;
   };
 
@@ -101,16 +128,25 @@ export function QcPanel() {
   };
 
   const runBatch = async () => {
-    const ids = batchIds.length
-      ? batchIds
+    const selectedBatchIds = batchIds.filter((id) => ws.assets.some((asset) => asset.id === id));
+    const ids = selectedBatchIds.length
+      ? selectedBatchIds
       : ws.assets.filter((asset) => asset.status === "ready").map((asset) => asset.id);
     if (!ids.length || busy || readOnly || !approved) return;
     setBusy(true);
     setBatchProgress({ done: 0, total: ids.length });
+    const batchKey = `${ws.project.id}:${selectedId ?? ""}`;
     try {
       for (const id of ids) {
+        const current = useStudio.getState();
+        const currentKey = `${current.workspace?.project.id ?? ""}:${current.selectedAssetId ?? current.workspace?.project.activeMasterAssetId ?? ""}`;
+        if (currentKey !== batchKey) return;
         await run(id, visionMode);
-        setBatchProgress((current) => ({ done: (current?.done ?? 0) + 1, total: ids.length }));
+        const after = useStudio.getState();
+        const afterKey = `${after.workspace?.project.id ?? ""}:${after.selectedAssetId ?? after.workspace?.project.activeMasterAssetId ?? ""}`;
+        if (afterKey === batchKey) {
+          setBatchProgress((current) => ({ done: (current?.done ?? 0) + 1, total: ids.length }));
+        }
       }
     } finally {
       setBusy(false);
@@ -293,6 +329,7 @@ export function QcPanel() {
                 type="number"
                 min="0"
                 max="100"
+                step="any"
                 value={settings.passMin}
                 onChange={(event) =>
                   setSettings({ ...settings, passMin: Number(event.target.value) })
@@ -305,6 +342,7 @@ export function QcPanel() {
                 type="number"
                 min="0"
                 max="100"
+                step="any"
                 value={settings.categoryMin}
                 onChange={(event) =>
                   setSettings({ ...settings, categoryMin: Number(event.target.value) })
@@ -333,7 +371,49 @@ export function QcPanel() {
                 <option value="off">{t("qc.autoOff")}</option>
                 <option value="after_generation">{t("qc.autoAfterGeneration")}</option>
               </select>
+              <span className="field-hint">{t("qc.costWarning")}</span>
             </label>
+            <div className="field-row">
+              <label className="field">
+                <span>{t("qc.provider")}</span>
+                <select
+                  className="select"
+                  value={settings.visionProviderId ?? ""}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      visionProviderId: event.target.value || null,
+                      visionModel: null,
+                    })
+                  }
+                >
+                  <option value="">{t("qc.provider")}</option>
+                  {visionProviders.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>{t("qc.model")}</span>
+                <select
+                  className="select"
+                  value={settings.visionModel ?? ""}
+                  onChange={(event) =>
+                    setSettings({ ...settings, visionModel: event.target.value || null })
+                  }
+                  disabled={!settingsProvider}
+                >
+                  <option value="">{t("qc.model")}</option>
+                  {settingsModels.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="field">
               <span>{t("qc.autoRepairMax")}</span>
               <select
@@ -351,9 +431,6 @@ export function QcPanel() {
                 <option value="2">2</option>
               </select>
             </label>
-            <p className="callout callout-warning">
-              <AlertTriangle size={14} /> {t("qc.costWarning")}
-            </p>
             <button className="btn" disabled={readOnly} onClick={() => void saveSettings()}>
               {t("qc.saveSettings")}
             </button>

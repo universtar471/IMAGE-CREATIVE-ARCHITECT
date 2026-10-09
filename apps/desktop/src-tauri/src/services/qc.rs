@@ -119,7 +119,8 @@ pub fn score_report(
     (Some(overall), result.into())
 }
 
-fn extract_json_object(text: &str) -> Option<&str> {
+fn extract_json_objects(text: &str) -> Vec<&str> {
+    let mut candidates = Vec::new();
     for (start, _) in text.match_indices('{') {
         let mut depth = 0i32;
         let mut quoted = false;
@@ -142,9 +143,7 @@ fn extract_json_object(text: &str) -> Option<&str> {
                     depth -= 1;
                     if depth == 0 {
                         let candidate = &text[start..start + offset + 1];
-                        if serde_json::from_str::<Value>(candidate).ok().is_some_and(|value| value.is_object()) {
-                            return Some(candidate);
-                        }
+                        candidates.push(candidate);
                         break;
                     }
                 }
@@ -152,12 +151,10 @@ fn extract_json_object(text: &str) -> Option<&str> {
             }
         }
     }
-    None
+    candidates
 }
 
-pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResult<QcVisionDto> {
-    let object = extract_json_object(text)
-        .ok_or_else(|| AppError::new(ErrorCode::ProviderError, "Vision judge returned no JSON object."))?;
+fn parse_vision_object(object: &str, provider_id: &str, model: &str) -> AppResult<QcVisionDto> {
     let value: Value = serde_json::from_str(object)
         .map_err(|_| AppError::new(ErrorCode::ProviderError, "Vision judge returned invalid JSON."))?;
     let scores = value
@@ -261,21 +258,80 @@ pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResu
     })
 }
 
+pub fn parse_vision_reply(text: &str, provider_id: &str, model: &str) -> AppResult<QcVisionDto> {
+    let mut last_error = AppError::new(ErrorCode::ProviderError, "Vision judge returned no JSON object.");
+    for candidate in extract_json_objects(text) {
+        match parse_vision_object(candidate, provider_id, model) {
+            Ok(reply) => return Ok(reply),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
+}
+
+fn stable_json(value: &Value) -> String {
+    match value {
+        Value::Object(object) => {
+            let mut keys = object.keys().collect::<Vec<_>>();
+            keys.sort();
+            format!(
+                "{{{}}}",
+                keys.into_iter()
+                    .map(|key| format!("{}:{}", serde_json::to_string(key).unwrap(), stable_json(&object[key])))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        }
+        Value::Array(items) => format!("[{}]", items.iter().map(stable_json).collect::<Vec<_>>().join(",")),
+        Value::Number(number) => number.as_f64().map(|value| value.to_string()).unwrap_or_else(|| number.to_string()),
+        _ => value.to_string(),
+    }
+}
+
+fn dna_facts(dna: &Value) -> String {
+    let value = |key: &str| dna.get(key).cloned().unwrap_or(Value::Null);
+    format!(
+        "Building DNA: {}\nContext DNA: {}\nCamera DNA: {}\nLighting DNA: {}\nWeather DNA: {}\nMood DNA: {}",
+        stable_json(&value("building")),
+        stable_json(&value("context")),
+        stable_json(&value("cameras")),
+        stable_json(&value("lighting")),
+        stable_json(&value("weather")),
+        stable_json(&value("mood")),
+    )
+}
+
+const VISION_SYSTEM_PROMPT: &str = r#"You are a strict architectural image quality-control judge. Compare the evaluated image with its reference images and the supplied project DNA facts.
+
+Score exactly these five categories from 0 to 100:
+- geometry: building massing, proportions, floor count, roof form, perspective and structural consistency.
+- material: specified facade, roof and surface materials, colors, texture fidelity and finish consistency.
+- openings: window and door count, placement, rhythm, frames, glazing and alignment.
+- context: site layout, streets, neighbouring buildings, landscape, vegetation and background consistency.
+- lighting: time of day, direction, intensity, shadows, artificial lights, weather and atmosphere consistency.
+
+List visible image-generation artifacts separately. Artifact severity must be low, medium or high. Each box must be [x,y,w,h] normalized to 0..1, or null when no useful box can be given. Issue category must be geometry, material, openings, context, lighting or artifact.
+
+Return JSON only, without markdown or prose, using exactly these top-level keys:
+{"scores":{"geometry":0,"material":0,"openings":0,"context":0,"lighting":0},"artifacts":[{"label":"","severity":"low","box":null}],"issues":[{"category":"geometry","text":""}],"repairInstruction":""}"#;
+
+/// Rust mirror of `packages/domain/src/qc/prompts.ts::buildVisionPrompt`.
+pub fn build_vision_prompt(dna: &Value, purpose: &str) -> (String, String) {
+    let same_view = if ["enhance", "variation", "repair", "color_grade"].contains(&purpose) {
+        "This output must keep the same viewpoint, camera, framing and composition as its primary reference. Treat any drift as a geometry issue."
+    } else {
+        "Judge the requested viewpoint on its own terms; do not require it to match the primary reference camera."
+    };
+    (
+        VISION_SYSTEM_PROMPT.to_string(),
+        format!("Generation purpose: {purpose}.\n{same_view}\nProject DNA facts:\n{}", dna_facts(dna)),
+    )
+}
+
 /// Rust mirror of `packages/domain/src/qc/prompts.ts::buildRepairPrompt`.
 /// Keep the line order and JSON compactness stable: the shared test vector compares both sides.
 pub fn build_repair_prompt(dna: &Value, report: &QcReportDto) -> String {
-    let facts = |dna: &Value| {
-        let value = |key: &str| dna.get(key).cloned().unwrap_or(Value::Null);
-        format!(
-            "Building DNA: {}\nContext DNA: {}\nCamera DNA: {}\nLighting DNA: {}\nWeather DNA: {}\nMood DNA: {}",
-            value("building"),
-            value("context"),
-            value("cameras"),
-            value("lighting"),
-            value("weather"),
-            value("mood")
-        )
-    };
+    let facts = |dna: &Value| dna_facts(dna);
     let (issues, artifacts, instruction) = match report.vision.as_ref() {
         Some(vision) => {
             let issues = if vision.issues.is_empty() {
@@ -378,7 +434,7 @@ pub fn settings_set(core: &AppCore, request: QcSettingsSetRequest) -> AppResult<
 }
 
 pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
-    let (output, reference, reference_ids, thresholds, edge_allowed) = {
+    let (output, reference, reference_ids, thresholds, edge_allowed, dna, purpose) = {
         let conn = core.conn()?;
         let project = repo::get_project(&conn, &request.project_id)?;
         ensure_not_archived(&project)?;
@@ -393,12 +449,14 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
         if output.status != "ready" {
             return Err(AppError::invalid_state("QC requires a ready image asset."));
         }
-        let generation_refs = output
+        let generation = output
             .operation_json
             .as_deref()
             .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
             .and_then(|value| value.get("generationId").and_then(Value::as_str).map(str::to_string))
-            .and_then(|id| repo::find_generation(&conn, &id).ok().flatten())
+            .and_then(|id| repo::find_generation(&conn, &id).ok().flatten());
+        let generation_refs = generation
+            .as_ref()
             .and_then(|generation| serde_json::from_str::<Value>(&generation.request_json).ok())
             .and_then(|request| request.get("referenceAssetIds").and_then(Value::as_array).cloned())
             .map(|ids| ids.into_iter().filter_map(|id| id.as_str().map(str::to_string)).collect::<Vec<_>>())
@@ -434,6 +492,12 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
                 }),
             _ => false,
         };
+        let purpose = match output.operation.as_deref() {
+            Some("enhance") | Some("repair") | Some("color_grade") => output.operation.clone(),
+            _ => generation.as_ref().map(|row| row.purpose.as_str().to_string()).or_else(|| output.operation.clone()),
+        }
+        .unwrap_or_else(|| "generate".into());
+        let dna = repo::get_dna(&conn, &request.project_id)?;
         (
             output,
             reference,
@@ -444,6 +508,8 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
                 high_artifact_fails: settings.high_artifact_fails,
             },
             edge_allowed,
+            dna,
+            purpose,
         )
     };
     let output_image = image_for(core, &output)?;
@@ -469,7 +535,8 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
         if info.requires_api_key && key.is_none() {
             return Err(not_configured(provider.as_ref()));
         }
-        let reply = provider.vision("You are a strict architectural image QC judge. Return JSON only.", "Score the image against the reference.", &[("image/jpeg", jpeg_for_vision(&output_image)?), ("image/jpeg", jpeg_for_vision(&reference_image)?)], Some(&model), key.as_ref().map(|k| k.value.as_str())).map_err(|e| AppError::new(ErrorCode::ProviderError, e.message).with_details(json!({"providerId": requested.provider_id, "kind": e.kind.as_str(), "retryable": e.kind.retryable()})))?;
+        let (system_prompt, user_prompt) = build_vision_prompt(&dna, &purpose);
+        let reply = provider.vision(&system_prompt, &user_prompt, &[("image/jpeg", jpeg_for_vision(&output_image)?), ("image/jpeg", jpeg_for_vision(&reference_image)?)], Some(&model), key.as_ref().map(|k| k.value.as_str())).map_err(|e| AppError::new(ErrorCode::ProviderError, e.message).with_details(json!({"providerId": requested.provider_id, "kind": e.kind.as_str(), "retryable": e.kind.retryable()})))?;
         Some(parse_vision_reply(&reply, &requested.provider_id, &model).map_err(|e| {
             AppError::new(ErrorCode::ProviderError, e.message)
                 .with_details(json!({"providerId": requested.provider_id, "kind": "bad_response", "retryable": false}))
@@ -630,5 +697,26 @@ mod tests {
         let vector: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         let report: QcReportDto = serde_json::from_value(vector["report"].clone()).unwrap();
         assert_eq!(build_repair_prompt(&vector["dna"], &report), vector["expected"].as_str().unwrap());
+    }
+
+    #[test]
+    fn vision_prompt_matches_domain_snapshot() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../packages/domain/test-vectors/vision-prompt.json");
+        let vector: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let purpose = vector["purpose"].as_str().unwrap();
+        let (system, user) = build_vision_prompt(&vector["dna"], purpose);
+        assert_eq!(system, vector["expected"]["system"].as_str().unwrap());
+        assert_eq!(user, vector["expected"]["user"].as_str().unwrap());
+    }
+
+    #[test]
+    fn vision_parser_skips_invalid_object_and_normalizes_values() {
+        let text = r#"prefix {"scores":{"geometry":1}} actual {"scores":{"geometry":120.4,"material":-2,"openings":50.5,"context":75,"lighting":99},"artifacts":[{"label":"edge","severity":"high","box":[-1,0.25,2,0.5]}],"issues":[],"repairInstruction":"Fix it."}"#;
+        let parsed = parse_vision_reply(text, "mock", "vision-1").unwrap();
+        assert_eq!(parsed.scores.geometry, 100);
+        assert_eq!(parsed.scores.material, 0);
+        assert_eq!(parsed.scores.openings, 51);
+        assert_eq!(parsed.artifacts[0].box_, Some([0.0, 0.25, 1.0, 0.5]));
     }
 }

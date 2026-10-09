@@ -1068,14 +1068,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         ...req.settings,
         schemaVersion: 1,
       };
-      if (!Number.isInteger(settings.passMin) || settings.passMin < 0 || settings.passMin > 100)
-        fail("VALIDATION_ERROR", "passMin must be an integer from 0 to 100.");
+      if (!Number.isFinite(settings.passMin) || settings.passMin < 0 || settings.passMin > 100)
+        fail("VALIDATION_ERROR", "passMin must be a number from 0 to 100.");
       if (
-        !Number.isInteger(settings.categoryMin) ||
+        !Number.isFinite(settings.categoryMin) ||
         settings.categoryMin < 0 ||
         settings.categoryMin > 100
       )
-        fail("VALIDATION_ERROR", "categoryMin must be an integer from 0 to 100.");
+        fail("VALIDATION_ERROR", "categoryMin must be a number from 0 to 100.");
       if (![0, 1, 2].includes(settings.autoRepairMax))
         fail("VALIDATION_ERROR", "autoRepairMax must be 0, 1 or 2.");
       db.qcSettings![req.projectId] = settings;

@@ -28,3 +28,11 @@
 ## Cam bay da gap
 
 - The shared prompt fixture must keep object keys in the canonical sorted form because Rust's default `serde_json::Map` serializes keys in sorted order; the domain prompt builder now applies the same stable serialization.
+
+## Round 1 fixes
+
+- `passMin` and `categoryMin` now accept finite fractional numbers from 0 to 100 in the domain schema, mock validation, UI inputs, and Rust DTO/settings validation. Local-only scoring uses `edgeAlignment`, returns `fail` below `passMin`, `warn` only in the following 10-point band, and `unscored` when no overall score exists.
+- TypeScript and Rust vision parsers scan balanced JSON candidates until the first candidate that validates, normalize fractional scores by round-and-clamp, and clamp artifact boxes. Shared `vision-prompt.json` coverage verifies identical prompt text, including stable project DNA serialization; the Rust vision request now uses that DNA-aware prompt builder.
+- Vision provider/model controls in both run and settings UI list only models with `vision: true`; settings persist `visionProviderId` and `visionModel`, with the cost warning beside automatic QC.
+- QC panel, canvas, batch progress, and badges ignore late responses after project/asset changes; report rendering is scoped to the active project/asset. Added parser, prompt, i18n, and scoring regression coverage, plus a Vietnamese QC diacritic guard.
+- Rewrote the QC Vietnamese namespace with natural diacritics and removed the unaccented/English `deterministic` wording. Existing round-1 parser/scoring/repair fixes were verified in this integrated worktree and retained.

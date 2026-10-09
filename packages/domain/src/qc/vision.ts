@@ -19,18 +19,13 @@ function balancedObjectAt(text: string, start: number): string | null {
   return null;
 }
 
-function firstJsonObject(text: string): string | null {
+function jsonObjects(text: string): string[] {
+  const candidates: string[] = [];
   for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
     const candidate = balancedObjectAt(text, start);
-    if (!candidate) continue;
-    try {
-      const value: unknown = JSON.parse(candidate);
-      if (value && typeof value === "object" && !Array.isArray(value)) return candidate;
-    } catch {
-      // A prose brace pair is not a JSON object; continue to the next candidate.
-    }
+    if (candidate) candidates.push(candidate);
   }
-  return null;
+  return candidates;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -73,10 +68,20 @@ function normalizeReply(value: unknown): unknown {
 
 /** Parse the first balanced JSON object in a vision model reply and normalize numeric ranges. */
 export function parseVisionReply(text: string): QcVisionReply {
+  let lastError: unknown = new Error("no complete JSON object found");
+  for (const objectText of jsonObjects(text)) {
+    try {
+      const parsed: unknown = JSON.parse(objectText);
+      const normalized = normalizeReply(parsed);
+      const result = QcVisionReplySchema.safeParse(normalized);
+      if (result.success) return result.data;
+      lastError = result.error;
+    } catch (error) {
+      lastError = error;
+    }
+  }
   try {
-    const objectText = firstJsonObject(text);
-    if (!objectText) throw new Error("no complete JSON object found");
-    return QcVisionReplySchema.parse(normalizeReply(JSON.parse(objectText)));
+    throw lastError;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Vision reply is not valid QC JSON: ${message}`, { cause: error });

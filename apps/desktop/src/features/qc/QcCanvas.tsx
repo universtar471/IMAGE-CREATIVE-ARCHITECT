@@ -2,7 +2,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStudio } from "../../app/store";
 import { call } from "../../lib/bridge";
-import type { QcReportDTO } from "../../lib/qc";
+import { isQcResponseCurrent, type QcReportDTO } from "../../lib/qc";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import type { ImageDisplayRect } from "../../components/canvas/ImageViewer";
 import { useT } from "../../i18n";
@@ -15,12 +15,32 @@ export function QcCanvas() {
   const [visible, setVisible] = useState(true);
   const t = useT();
   useEffect(() => {
-    if (!selectedId) return;
-    void call("qc_list", { projectId: ws.project.id, assetId: selectedId })
-      .then((value) => setReport((value as QcReportDTO[])[0] ?? null))
-      .catch(() => setReport(null));
+    let alive = true;
+    if (!selectedId)
+      return () => {
+        alive = false;
+      };
+    const projectId = ws.project.id;
+    void call("qc_list", { projectId, assetId: selectedId })
+      .then((value) => {
+        if (alive) setReport((value as QcReportDTO[])[0] ?? null);
+      })
+      .catch(() => {
+        if (alive) setReport(null);
+      });
+    return () => {
+      alive = false;
+    };
   }, [selectedId, ws.project.id]);
-  const boxes = visible ? (report?.vision?.artifacts.filter((artifact) => artifact.box) ?? []) : [];
+  const currentReport =
+    report &&
+    selectedId &&
+    isQcResponseCurrent(ws.project.id, selectedId, report.projectId, report.assetId)
+      ? report
+      : null;
+  const boxes = visible
+    ? (currentReport?.vision?.artifacts.filter((artifact) => artifact.box) ?? [])
+    : [];
   return (
     <WorkspaceCanvas
       mode={{ kind: "single", asset }}

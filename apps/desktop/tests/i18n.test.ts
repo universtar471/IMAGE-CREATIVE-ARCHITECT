@@ -47,6 +47,14 @@ describe("dictionaries", () => {
     }
   });
 
+  it("keeps QC Vietnamese labels accented", () => {
+    for (const { key, value } of leaves(vi.qc)) {
+      if (/[A-Za-zÀ-ỹ]/.test(value)) {
+        expect(value, `vi qc.${key}`).toMatch(/[À-ỹ]/);
+      }
+    }
+  });
+
   it("keep every {placeholder} of English in Vietnamese", () => {
     for (const l of enLeaves) {
       const want = placeholders(l.value);

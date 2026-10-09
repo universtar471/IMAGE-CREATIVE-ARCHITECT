@@ -4,6 +4,7 @@ import {
   buildRepairGenerationRequest,
   mapArtifactBox,
   latestQcByAsset,
+  isQcResponseCurrent,
   parseVisionReply,
   scoreReport,
   type QcReportDTO,
@@ -21,6 +22,11 @@ const vision = {
 };
 
 describe("QC contract helpers", () => {
+  it("rejects responses from an older project or asset selection", () => {
+    expect(isQcResponseCurrent("project-a", "asset-a", "project-b", "asset-a")).toBe(false);
+    expect(isQcResponseCurrent("project-a", "asset-a", "project-a", "asset-b")).toBe(false);
+    expect(isQcResponseCurrent("project-a", "asset-a", "project-a", "asset-a")).toBe(true);
+  });
   it("uses exact default settings and result rules", () => {
     expect(DEFAULT_QC_SETTINGS).toEqual({
       schemaVersion: 1,
@@ -37,6 +43,10 @@ describe("QC contract helpers", () => {
       overall: null,
       result: "unscored",
     });
+    expect(scoreReport({ ...local, edgeAlignment: 69 }, null, thresholds)).toEqual({
+      overall: 69,
+      result: "fail",
+    });
     expect(
       scoreReport(local, { ...vision, scores: { ...vision.scores, material: 40 } }, thresholds)
         .result,
@@ -52,6 +62,16 @@ describe("QC contract helpers", () => {
       `Here is the result: ${JSON.stringify({ scores: vision.scores, artifacts: [], issues: [], repairInstruction: "Keep it." })} Done.`,
     );
     expect(parsed.scores.geometry).toBe(80);
+    expect(
+      parseVisionReply(
+        `prefix {"scores":{"geometry":1}} then ${JSON.stringify({ scores: vision.scores, artifacts: [], issues: [], repairInstruction: "Keep it." })}`,
+      ),
+    ).toEqual({
+      scores: vision.scores,
+      artifacts: [],
+      issues: [],
+      repairInstruction: "Keep it.",
+    });
     expect(() => parseVisionReply("not json")).toThrow();
   });
 

@@ -7,6 +7,7 @@ export type QcCategory = z.infer<typeof QcCategorySchema>;
 
 const score = z.number().int().min(0).max(100);
 const metric = z.number().finite().min(0).max(100);
+const threshold = z.number().finite().min(0).max(100);
 
 export const QcScoresSchema = z.object({
   geometry: score,
@@ -68,16 +69,16 @@ export const QcLocalSchema = z.object({
 export type QcLocal = z.infer<typeof QcLocalSchema>;
 
 export const QcThresholdsSchema = z.object({
-  passMin: score,
-  categoryMin: score,
+  passMin: threshold,
+  categoryMin: threshold,
   highArtifactFails: z.boolean(),
 });
 export type QcThresholds = z.infer<typeof QcThresholdsSchema>;
 
 export const QcSettingsSchema = QcThresholdsSchema.extend({
   schemaVersion: z.literal(1).default(1),
-  passMin: score.default(70),
-  categoryMin: score.default(55),
+  passMin: threshold.default(70),
+  categoryMin: threshold.default(55),
   highArtifactFails: z.boolean().default(true),
   autoQc: z.enum(["off", "after_generation"]).default("off"),
   autoRepairMax: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),

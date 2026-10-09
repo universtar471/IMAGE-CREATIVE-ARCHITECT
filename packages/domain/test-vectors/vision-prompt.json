@@ -1,0 +1,15 @@
+{
+  "dna": {
+    "building": { "floors": 2, "type": "villa" },
+    "context": { "density": "medium", "site": "urban" },
+    "cameras": [{ "id": "front", "viewType": "exterior_corner" }],
+    "lighting": { "timeOfDay": "day" },
+    "weather": { "condition": "clear" },
+    "mood": { "style": "calm" }
+  },
+  "purpose": "enhance",
+  "expected": {
+    "system": "You are a strict architectural image quality-control judge. Compare the evaluated image with its reference images and the supplied project DNA facts.\n\nScore exactly these five categories from 0 to 100:\n- geometry: building massing, proportions, floor count, roof form, perspective and structural consistency.\n- material: specified facade, roof and surface materials, colors, texture fidelity and finish consistency.\n- openings: window and door count, placement, rhythm, frames, glazing and alignment.\n- context: site layout, streets, neighbouring buildings, landscape, vegetation and background consistency.\n- lighting: time of day, direction, intensity, shadows, artificial lights, weather and atmosphere consistency.\n\nList visible image-generation artifacts separately. Artifact severity must be low, medium or high. Each box must be [x,y,w,h] normalized to 0..1, or null when no useful box can be given. Issue category must be geometry, material, openings, context, lighting or artifact.\n\nReturn JSON only, without markdown or prose, using exactly these top-level keys:\n{\"scores\":{\"geometry\":0,\"material\":0,\"openings\":0,\"context\":0,\"lighting\":0},\"artifacts\":[{\"label\":\"\",\"severity\":\"low\",\"box\":null}],\"issues\":[{\"category\":\"geometry\",\"text\":\"\"}],\"repairInstruction\":\"\"}",
+    "user": "Generation purpose: enhance.\nThis output must keep the same viewpoint, camera, framing and composition as its primary reference. Treat any drift as a geometry issue.\nProject DNA facts:\nBuilding DNA: {\"floors\":2,\"type\":\"villa\"}\nContext DNA: {\"density\":\"medium\",\"site\":\"urban\"}\nCamera DNA: [{\"id\":\"front\",\"viewType\":\"exterior_corner\"}]\nLighting DNA: {\"timeOfDay\":\"day\"}\nWeather DNA: {\"condition\":\"clear\"}\nMood DNA: {\"style\":\"calm\"}"
+  }
+}

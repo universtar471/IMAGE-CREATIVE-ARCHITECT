@@ -25,6 +25,16 @@ export type * from "@arch/domain";
 
 export const DEFAULT_QC_SETTINGS: QcSettings = defaultQcSettings();
 
+/** Guard an async QC response against a project or asset selection change. */
+export function isQcResponseCurrent(
+  expectedProjectId: string,
+  expectedAssetId: string,
+  currentProjectId: string | null | undefined,
+  currentAssetId: string | null | undefined,
+) {
+  return expectedProjectId === currentProjectId && expectedAssetId === currentAssetId;
+}
+
 export type RepairRequestInput = {
   projectId: string;
   report: QcReportDTO;

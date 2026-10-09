@@ -176,6 +176,16 @@ describe("QC scoring", () => {
       overall: null,
       result: "unscored",
     });
+    expect(scoreReport({ ...local, edgeAlignment: 69 }, null, thresholds)).toEqual({
+      overall: 69,
+      result: "fail",
+    });
+    expect(
+      scoreReport({ ...local, edgeAlignment: 70.5 }, null, { ...thresholds, passMin: 70.5 }),
+    ).toEqual({
+      overall: 70.5,
+      result: "warn",
+    });
   });
 });
 
@@ -192,6 +202,7 @@ describe("vision reply parser", () => {
     `\`\`\`json\n${valid}\n\`\`\``,
     `Here is the result: ${valid} Thanks.`,
     `Use {not JSON} before the answer: ${valid}`,
+    `Prose {"hint":"not a QC reply"}; actual: ${valid}`,
   ])("extracts JSON from %s", (text) => {
     expect(parseVisionReply(text)).toEqual({
       scores: { geometry: 100, material: 0, openings: 51, context: 75, lighting: 99 },
@@ -199,6 +210,10 @@ describe("vision reply parser", () => {
       issues: [{ category: "artifact", text: "edge halo" }],
       repairInstruction: "Remove the halo.",
     });
+  });
+
+  it("accepts fractional thresholds", () => {
+    expect(QcSettingsSchema.parse({ passMin: 70.5, categoryMin: 55.25 }).passMin).toBe(70.5);
   });
 
   it.each(["", '{"scores": {', '{"scores":{"geometry":50}}'])("rejects %s", (text) => {
@@ -239,6 +254,19 @@ describe("QC prompts and repair gating", () => {
     expect(first.user).toContain(dna.building.buildingType);
     expect(first.user).toContain("same viewpoint");
     expect(buildVisionPrompt({ dna, purpose: "hero" }).user).not.toContain("same viewpoint");
+    const vector = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), "packages/domain/test-vectors/vision-prompt.json"),
+        "utf8",
+      ),
+    ) as {
+      dna: Parameters<typeof buildVisionPrompt>[0]["dna"];
+      purpose: Parameters<typeof buildVisionPrompt>[0]["purpose"];
+      expected: ReturnType<typeof buildVisionPrompt>;
+    };
+    expect(buildVisionPrompt({ dna: vector.dna, purpose: vector.purpose })).toEqual(
+      vector.expected,
+    );
     expect(first).toMatchInlineSnapshot(`
       {
         "system": "You are a strict architectural image quality-control judge. Compare the evaluated image with its reference images and the supplied project DNA facts.
