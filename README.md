@@ -47,6 +47,26 @@ npm run format         # Prettier
 against an in-memory mock backend — handy for UI work, but the Rust backend is the source
 of truth.
 
+## Language (Tiếng Việt / English)
+
+The UI is Vietnamese by default. The **VI | EN** switch in the Project Hub header and the
+workspace top bar changes the language instantly; the choice is remembered on this machine
+(`localStorage["arch.locale"]`, a UI preference only — nothing is sent to the backend).
+
+What is translated and what is not:
+
+- Every label, hint, tooltip, dialog, toast and validation message (`apps/desktop/src/i18n/`:
+  `en.ts` is the source of truth, `vi.ts` must have the same shape or the typecheck fails).
+- Prompts sent to AI providers stay **English** (best results). The Prompt Preview shows the
+  English prompt that is sent, under translated headings. DNA values you type go into that
+  prompt as typed, so English values work best.
+- Backend/provider errors keep their original text as detail under a translated headline.
+- Dates and numbers follow the language; VND estimates always use `≈ 1.200đ`.
+
+Adding a string: add the key to `en.ts`, then to `vi.ts` (the compiler points at the gap),
+and read it with `useT()` in components or `t()` in plain modules.
+`tests/hardcodedStrings.test.ts` fails on English text written straight into JSX.
+
 ## Data location
 
 Projects live in the OS app-data folder (`%APPDATA%\com.archaistudio.desktop` on Windows):
