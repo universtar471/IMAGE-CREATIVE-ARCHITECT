@@ -309,7 +309,7 @@ export const vi: Dict = {
     futureTitle: "{label} — có ở Giai đoạn {phase}",
     overview: { label: "Tổng quan", description: "Tóm tắt dự án, mức sẵn sàng và xem prompt." },
     design_dna: {
-      label: "DNA thiết kế",
+      label: "Kiến trúc",
       description: "Hình khối, phong cách, vật liệu và màu sắc công trình.",
     },
     context: { label: "Bối cảnh", description: "Môi trường xung quanh khu đất theo từng hướng." },

@@ -53,3 +53,14 @@ failure noted above; no generated file drift was present.
 Tests: `npm run verify`, `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all -- --check`,
 `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`, and
 `npx prettier --check .` all pass.
+
+## Round 2 fixes
+
+- Generate Master, Anchors, and Render now remain locked while any DNA step is open or
+  `needs_review`, even when a master was already approved; each points to the first unconfirmed
+  DNA step. Variation remains allowed with an approved master, and re-confirming DNA restores the
+  approved Master state. Domain, Rust gating, mock backend, and UI tests cover the flow.
+- Renamed the first DNA module to Architecture / Kiến trúc while retaining Design DNA / DNA thiết
+  kế for the group header, including navigation and property panel labels.
+- Reset the property panel scroll position whenever the active module changes.
+- Clarified API contract section 13.2 with the DNA-incomplete Generate locking rule.

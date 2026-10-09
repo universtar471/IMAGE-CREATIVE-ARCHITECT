@@ -165,7 +165,7 @@ mod tests {
     use super::*;
     use crate::error::ErrorCode;
     use crate::services::projects;
-    use crate::services::tests_support::{core, test_create_villa_unconfirmed};
+    use crate::services::tests_support::{approve_master_for_generation, core, test_create_villa_unconfirmed};
 
     #[test]
     fn new_projects_have_open_steps_and_confirming_unlocks_in_order() {
@@ -195,6 +195,24 @@ mod tests {
         confirm(&app, &project.id, "dna.context").unwrap();
         let err = confirm(&app, &project.id, "dna.references").unwrap_err();
         assert_eq!(err.code, ErrorCode::ValidationError);
+    }
+
+    #[test]
+    fn approved_master_still_requires_complete_dna_for_non_variation_generation() {
+        let (_tmp, app) = core();
+        let project = test_create_villa_unconfirmed(&app, "Workflow");
+        for id in DNA_STEP_IDS {
+            confirm(&app, &project.id, id).unwrap();
+        }
+        approve_master_for_generation(&app, &project.id);
+        reopen(&app, &project.id, "dna.context").unwrap();
+        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
+
+        for purpose in [GenerationPurpose::Hero, GenerationPurpose::Anchor, GenerationPurpose::Production] {
+            let err = ensure_generation_allowed(&app.conn().unwrap(), &row, purpose).unwrap_err();
+            assert!(err.message.contains("dna.context"));
+        }
+        ensure_generation_allowed(&app.conn().unwrap(), &row, GenerationPurpose::Variation).unwrap();
     }
 
     #[test]

@@ -507,9 +507,8 @@ A locked step also gets `blockedBy: StepId`.
 Unlock rules:
 - `dna.building` is always unlocked.
 - Each later `dna.*` step unlocks when the previous `dna.*` step is `confirmed`. `needs_review` does not count.
-- `generate.master` unlocks when all five `dna.*` are `confirmed`.
-- `generate.anchors` unlocks when `generate.master` is `done`.
-- `generate.render` unlocks when anchors are `done` or `skipped` and at least one camera exists. With 0 cameras it is `skipped`.
+- `generate.master` is `locked` (blocked by the first unconfirmed DNA step) whenever any `dna.*` step is open or `needs_review`; otherwise it is `done` when the project has an approved master and `available` when it does not.
+- `generate.anchors` and `generate.render` are `locked` while DNA is incomplete (blocked by the first unconfirmed DNA step); once DNA is complete, their existing master/anchor/camera rules apply. Anchors are `skipped` when there are no anchor-view cameras, and Render is `skipped` when there are no cameras.
 - `post.grade` unlocks when `masterApproved`.
 
 Stage summary: `{ dna | generate | post: { unlocked: boolean, complete: boolean } }`.

@@ -108,6 +108,18 @@ describe("bridge parsing of Phase 2 responses", () => {
 });
 
 describe("mock providers", () => {
+  it("blocks non-variation generation when approved-master DNA is reopened", async () => {
+    const p = await newProject();
+    await call("workflow_reopen_step", { projectId: p.id, stepId: "dna.context" });
+    for (const purpose of ["hero", "anchor", "production"] as const) {
+      const err = await errorOf(call("generation_submit", request(p.id, { purpose })));
+      expect(err.message).toContain("dna.context");
+    }
+    await expect(
+      call("generation_submit", request(p.id, { purpose: "variation" })),
+    ).resolves.toMatchObject({ purpose: "variation" });
+  });
+
   it("lists gemini, openai and hhtech (unconfigured) and local_preview (always configured)", async () => {
     const list = await call("provider_list", {});
     expect(list.map((p) => [p.id, p.configured, p.keySource])).toEqual([

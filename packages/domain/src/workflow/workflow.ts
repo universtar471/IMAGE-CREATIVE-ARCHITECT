@@ -79,13 +79,14 @@ export function deriveWorkflow(
   const dnaRows = DNA_STEP_IDS.map((id) => persistedStatus(persisted, id));
   const dnaComplete = dnaRows.every((row) => row.status === "confirmed");
   const firstBlocked = firstUnconfirmed(persisted);
-  const masterStatus: WorkflowViewStatus = facts.masterApproved
-    ? "done"
-    : dnaComplete
-      ? "available"
-      : "locked";
-  const anchorsStatus: WorkflowViewStatus =
-    facts.anchorCameraIds.length === 0
+  const masterStatus: WorkflowViewStatus = !dnaComplete
+    ? "locked"
+    : facts.masterApproved
+      ? "done"
+      : "available";
+  const anchorsStatus: WorkflowViewStatus = !dnaComplete
+    ? "locked"
+    : facts.anchorCameraIds.length === 0
       ? "skipped"
       : !facts.masterApproved
         ? "locked"
@@ -93,8 +94,9 @@ export function deriveWorkflow(
           ? "done"
           : "available";
   const cameraCount = facts.cameraIds?.length ?? facts.anchorCameraIds.length;
-  const renderStatus: WorkflowViewStatus =
-    cameraCount === 0
+  const renderStatus: WorkflowViewStatus = !dnaComplete
+    ? "locked"
+    : cameraCount === 0
       ? "skipped"
       : !facts.masterApproved
         ? "locked"
@@ -130,7 +132,9 @@ export function deriveWorkflow(
       stage: "generate",
       moduleId: "generate",
       status: anchorsStatus,
-      ...(anchorsStatus === "locked" ? { blockedBy: "generate.master" } : {}),
+      ...(anchorsStatus === "locked"
+        ? { blockedBy: dnaComplete ? "generate.master" : (firstBlocked ?? "dna.building") }
+        : {}),
     },
     {
       id: "generate.render",
@@ -138,7 +142,13 @@ export function deriveWorkflow(
       moduleId: "generate",
       status: renderStatus,
       ...(renderStatus === "locked"
-        ? { blockedBy: facts.masterApproved ? "generate.anchors" : "generate.master" }
+        ? {
+            blockedBy: !dnaComplete
+              ? (firstBlocked ?? "dna.building")
+              : facts.masterApproved
+                ? "generate.anchors"
+                : "generate.master",
+          }
         : {}),
     },
     {

@@ -10,6 +10,7 @@ import { GeneratePanel } from "../src/features/generate/GeneratePanel";
 import { OverviewPanel } from "../src/features/overview/OverviewPanel";
 import { StepFrame, laterStepsToReview } from "../src/features/workflow/StepFrame";
 import { WorkspaceNav } from "../src/components/shell/WorkspaceNav";
+import { PropertyPanel } from "../src/components/panels/PropertyPanel";
 import { call, setTransport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 import { deriveWorkflow } from "../src/lib/workflow";
@@ -41,6 +42,47 @@ async function openProject() {
 }
 
 describe("round 1 workflow UI regressions", () => {
+  it("locks generation after reopening DNA even when the master was approved", async () => {
+    const project = await openProject();
+    const master = asset(project.id, "MASTER", { role: "master_architecture" });
+    db.assets.MASTER = master;
+    await call("asset_set_master", { projectId: project.id, assetId: master.id });
+    await confirmAllDna(project.id, { approveMaster: true });
+    await useStudio.getState().openProject(project.id);
+    await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.context" });
+    await useStudio.getState().refreshWorkflow();
+    const locked = useStudio.getState().workflowView!;
+    expect(locked.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "generate.master",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+        expect.objectContaining({
+          id: "generate.anchors",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+        expect.objectContaining({
+          id: "generate.render",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+      ]),
+    );
+    await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.context" });
+    await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.references" });
+    await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.references" });
+    await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.camera" });
+    await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.camera" });
+    await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.lighting" });
+    await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.lighting" });
+    await useStudio.getState().refreshWorkflow();
+    expect(useStudio.getState().workflowView?.steps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "generate.master", status: "done" })]),
+    );
+  });
   it("does not move a camera in the director when dna.camera is confirmed", async () => {
     await openProject();
     const ws = useStudio.getState().workspace!;
@@ -144,8 +186,23 @@ describe("round 1 workflow UI regressions", () => {
     await openProject();
     useStudio.setState({ activeModule: "overview" });
     render(createElement(WorkspaceNav));
-    expect(screen.getAllByText("Design DNA").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Design DNA")).toBeTruthy();
+    expect(screen.getByText("Architecture")).toBeTruthy();
     expect(screen.getByText("Post-production")).toBeTruthy();
+  });
+
+  it("uses Architecture for the first DNA step and resets the property scroll on module change", async () => {
+    await openProject();
+    useStudio.setState({ activeModule: "design_dna" });
+    render(createElement(WorkspaceNav));
+    expect(screen.getByText("Architecture")).toBeTruthy();
+    cleanup();
+    render(createElement(PropertyPanel));
+    const body = document.querySelector(".panel-body") as HTMLElement;
+    body.scrollTop = 240;
+    useStudio.getState().setModule("context");
+    await Promise.resolve();
+    expect(body.scrollTop).toBe(0);
   });
 });
 

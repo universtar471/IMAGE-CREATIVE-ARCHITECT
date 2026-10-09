@@ -70,8 +70,8 @@ describe("derived workflow", () => {
       ["dna.camera", "locked", "dna.references"],
       ["dna.lighting", "locked", "dna.camera"],
       ["generate.master", "locked", "dna.building"],
-      ["generate.anchors", "skipped", undefined],
-      ["generate.render", "skipped", undefined],
+      ["generate.anchors", "locked", "dna.building"],
+      ["generate.render", "locked", "dna.building"],
       ["post.grade", "locked", "generate.master"],
     ]);
     expect(view.stages).toEqual({
@@ -163,6 +163,59 @@ describe("derived workflow", () => {
         expect.objectContaining({ id: "generate.anchors", status: "done" }),
         expect.objectContaining({ id: "generate.render", status: "available" }),
       ]),
+    );
+  });
+
+  it("locks every generate step behind reopened DNA even when the master is approved", () => {
+    const reopened = reopenStep(allConfirmed(), "dna.context");
+    const view = deriveWorkflow(
+      reopened,
+      facts({
+        masterApproved: true,
+        anchorCameraIds: ["CAM_1"],
+        cameraIds: ["CAM_1"],
+        approvedAnchorCameraIds: ["CAM_1"],
+      }),
+    );
+    expect(view.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "generate.master",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+        expect.objectContaining({
+          id: "generate.anchors",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+        expect.objectContaining({
+          id: "generate.render",
+          status: "locked",
+          blockedBy: "dna.context",
+        }),
+      ]),
+    );
+    for (const purpose of ["hero", "anchor", "production"] as const) {
+      expect(
+        isGenerationAllowed(purpose, reopened, {
+          masterApproved: true,
+          anchorCameraIds: ["CAM_1"],
+          cameraIds: ["CAM_1"],
+          approvedAnchorCameraIds: ["CAM_1"],
+        }),
+      ).toEqual({ ok: false, blockedBy: "dna.context" });
+    }
+    expect(isGenerationAllowed("variation", reopened, facts({ masterApproved: true }))).toEqual({
+      ok: true,
+    });
+
+    let reconfirmed = confirmStep(reopened, "dna.context", "later");
+    for (const stepId of ["dna.references", "dna.camera", "dna.lighting"] as const) {
+      reconfirmed = confirmStep(reopenStep(reconfirmed, stepId), stepId, "later");
+    }
+    expect(deriveWorkflow(reconfirmed, facts({ masterApproved: true })).steps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "generate.master", status: "done" })]),
     );
   });
 });

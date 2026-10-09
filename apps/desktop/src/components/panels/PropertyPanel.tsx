@@ -1,4 +1,5 @@
 import { Archive } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
 import { CameraPanel } from "../../features/camera/CameraPanel";
@@ -20,6 +21,11 @@ export function PropertyPanel() {
   const mod = moduleById(active);
   const t = useT();
   const label = t(`modules.${mod.id}.label`);
+  const panelBody = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (panelBody.current) panelBody.current.scrollTop = 0;
+  }, [active]);
 
   return (
     <aside className="panel" aria-label={t("workspace.properties")}>
@@ -30,7 +36,7 @@ export function PropertyPanel() {
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
       </div>
-      <div className="panel-body">
+      <div className="panel-body" ref={panelBody}>
         {readOnly && (
           <div className="readonly-banner">
             <Archive size={14} /> {t("workspace.readOnly")}

@@ -311,7 +311,10 @@ export const en = {
     navLabel: "Workspace modules",
     futureTitle: "{label} — coming in Phase {phase}",
     overview: { label: "Overview", description: "Project summary, readiness and prompt preview." },
-    design_dna: { label: "Design DNA", description: "Building form, style, materials and colors." },
+    design_dna: {
+      label: "Architecture",
+      description: "Building form, style, materials and colors.",
+    },
     context: { label: "Context", description: "Site surroundings by direction." },
     references: {
       label: "References",
