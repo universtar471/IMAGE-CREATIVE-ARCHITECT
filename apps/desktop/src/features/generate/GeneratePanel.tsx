@@ -1,5 +1,6 @@
 import { AlertTriangle, ImageOff, KeyRound, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import {
+  costHintText,
   dnaReadiness,
   type AssetDTO,
   type GenerationParams,
@@ -14,6 +15,7 @@ import { fileUrl } from "../../lib/files";
 import { ExtraPromptSection } from "./ExtraPromptSection";
 import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
+import { QualityField } from "./QualityField";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
@@ -57,6 +59,10 @@ export function GeneratePanel() {
   });
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
+  // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
+  const cost = form.model
+    ? costHintText(form.model, form.params.imageSize, form.params.outputCount)
+    : null;
 
   const generate = () => {
     if (!form.provider || !form.model) return;
@@ -146,6 +152,15 @@ export function GeneratePanel() {
           {form.purpose === "hero" ? "Generate hero" : "Generate variation"}
           {form.params.outputCount > 1 ? ` ×${form.params.outputCount}` : ""}
         </button>
+        {cost && (
+          <span
+            className="field-hint"
+            data-testid="generate-cost"
+            title="Estimate from the gateway's published price per image"
+          >
+            {cost}
+          </span>
+        )}
         {reason && (
           <span className="field-hint" data-testid="generate-disabled-reason">
             {reason}
@@ -326,6 +341,12 @@ function OutputSection({
           </div>
         </FieldGroup>
       )}
+      <QualityField
+        model={model}
+        value={p.quality}
+        disabled={disabled}
+        onChange={(quality) => onParams({ ...p, quality })}
+      />
       {model.supportsSeed && (
         <NumberField
           label="Seed"

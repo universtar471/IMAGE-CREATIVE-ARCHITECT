@@ -224,6 +224,34 @@ describe("batch dialog planning", () => {
     expect(plan.costHint).toMatch(/2 remote calls to Google Gemini/);
   });
 
+  it("priced models (HHTECH) add the estimated total: images × tier price", async () => {
+    const b = await bundleWithCameras();
+    const plan = planBatch(
+      {
+        mode: "production",
+        providerId: "hhtech",
+        modelId: "gpt-image-2",
+        params: {
+          aspectRatio: "16:9",
+          imageSize: "4K",
+          outputCount: 2,
+          seed: null,
+          quality: "high",
+        },
+        cameraIds: b.dna.cameras.map((c) => c.id),
+        extraReferenceIds: [],
+      },
+      b,
+      [],
+      providers(true),
+    );
+    expect(plan.issues).toEqual([]);
+    expect(plan.items).toHaveLength(3);
+    expect(plan.items.every((i) => i.params.quality === "high")).toBe(true);
+    // 3 cameras × 2 images × 800đ (GPT Image 2, 4K).
+    expect(plan.costHint).toMatch(/6 remote calls to HHTECH .* ≈ 4\.800đ\.$/);
+  });
+
   it("blocks with a reason when something is missing", async () => {
     const b = await bundleWithCameras();
     const choices = {

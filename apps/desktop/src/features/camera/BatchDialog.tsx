@@ -11,6 +11,7 @@ import { Dialog } from "../../components/common/Dialog";
 import { FieldGroup, SelectField, TextField } from "../../components/panels/fields";
 import { RoleBadge } from "../../components/common/StatusBadge";
 import { call, toBridgeError } from "../../lib/bridge";
+import { QualityField } from "../generate/QualityField";
 import { planBatch, type BatchMode } from "./batch";
 
 /**
@@ -40,6 +41,10 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
         ...defaultGenerationParams(model, master),
         ...paramsDraft,
         seed: model.supportsSeed ? (paramsDraft?.seed ?? null) : null,
+        quality:
+          paramsDraft?.quality && model.qualityOptions.includes(paramsDraft.quality)
+            ? paramsDraft.quality
+            : null,
       }
     : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const [name, setName] = useState<string | undefined>(undefined);
@@ -194,6 +199,13 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
               />
             )}
           </div>
+        )}
+        {model && (
+          <QualityField
+            model={model}
+            value={params.quality}
+            onChange={(quality) => setParams({ ...params, quality })}
+          />
         )}
         {model && model.maxOutputs > 1 && (
           <FieldGroup label="Images per camera">
