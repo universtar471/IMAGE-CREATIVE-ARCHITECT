@@ -23,3 +23,11 @@ Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend ro
 | Task | Branch | Codex review | Merge |
 | --- | --- | --- | --- |
 | OpenAI provider | wt/openai-provider | Round 1: PHẢI SỬA (invented 1K/2K image-size tiers) → fix in wt/hhtech-provider (built on top) | Pending |
+
+## Phase 4 (code by Codex via HHTECH, review by Codex default)
+
+| Task | Branch | Codex review | Merge |
+| --- | --- | --- | --- |
+| P4-A domain | wt/p4-domain | Round 1: PHẢI SỬA (output-as-source role, mood presets drop lighting/weather, grade mutates input) → fix in wt/p4-integrate | Pending |
+| P4-B backend | wt/p4-backend | Round 1: PHẢI SỬA (parity test path misses the domain vectors, schemaVersion defaulted) → fix in wt/p4-integrate | Pending |
+| P4-C UI | wt/p4-ui | Round 1: PHẢI SỬA (no Adopt on Contact Sheet, adopt drops lighting/weather, preset select value, weather preset merge) → fix in wt/p4-integrate | Pending |
