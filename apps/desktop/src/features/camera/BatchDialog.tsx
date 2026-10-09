@@ -13,6 +13,7 @@ import { RoleBadge } from "../../components/common/StatusBadge";
 import { call, toBridgeError } from "../../lib/bridge";
 import { QualityField } from "../generate/QualityField";
 import { planBatch, type BatchMode } from "./batch";
+import { useT } from "../../i18n";
 
 /**
  * "Generate anchors" (one item per anchor view, master as reference) and "Render cameras"
@@ -27,6 +28,8 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
   const createBatch = useStudio((s) => s.createBatch);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const notify = useStudio((s) => s.notify);
+  const notifyError = useStudio((s) => s.notifyError);
+  const t = useT();
 
   const cameras = ws.draftDna.cameras;
   const master = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
@@ -80,18 +83,18 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     setBusy(true);
     try {
       if (!(await flushDna())) {
-        notify("error", "Fix the invalid Design DNA fields before rendering.");
+        notify("error", t("batch.dnaInvalid"));
         return;
       }
       const bundle = await call("project_get", { projectId: ws.project.id });
       const fresh = planBatch(choices, bundle, ws.anchors, providers);
       if (!fresh.request) {
-        notify("error", fresh.issues[0] ?? "Nothing to render.");
+        notify("error", fresh.issues[0] ?? t("batch.nothing"));
         return;
       }
       if (await createBatch(fresh.request)) onClose();
     } catch (err) {
-      notify("error", toBridgeError(err).message);
+      notifyError(toBridgeError(err));
     } finally {
       setBusy(false);
     }
@@ -103,16 +106,16 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
 
   return (
     <Dialog
-      title={mode === "anchor" ? "Generate anchors" : "Render cameras"}
+      title={mode === "anchor" ? t("camera.generateAnchors") : t("camera.renderCameras")}
       onClose={onClose}
       footer={
         <>
           <span className="field-hint batch-summary" data-testid="batch-summary">
-            {plan.items.length} item{plan.items.length === 1 ? "" : "s"}
+            {t("common.items", { count: plan.items.length })}
             {plan.costHint ? ` · ${plan.costHint}` : ""}
           </span>
           <button className="btn" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             className="btn btn-primary"
@@ -121,33 +124,29 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
             data-testid="batch-submit"
           >
             {mode === "anchor" ? <Anchor size={14} /> : <Clapperboard size={14} />}
-            {busy
-              ? "Queuing…"
-              : `Queue ${plan.items.length} item${plan.items.length === 1 ? "" : "s"}`}
+            {busy ? t("batch.queuing") : t("batch.queue", { count: plan.items.length })}
           </button>
         </>
       }
     >
       <div className="batch-dialog">
         <p className="field-hint" style={{ marginTop: 0 }}>
-          {mode === "anchor"
-            ? "One render per anchor view, with the approved master as the only reference. Approve the best result of each camera on the Contact Sheet."
-            : "One render per chosen camera. Each item sends the master, then that camera's approved anchor, then the extra references you pick."}
+          {mode === "anchor" ? t("batch.anchorIntro") : t("batch.productionIntro")}
         </p>
         <TextField
-          label="Batch name"
+          label={t("batch.name")}
           value={name}
-          placeholder={mode === "anchor" ? "Anchors …" : "Production …"}
+          placeholder={`${mode === "anchor" ? t("batch.defaultAnchors") : t("batch.defaultProduction")} …`}
           onChange={setName}
         />
         <div className="field-row">
           <SelectField
-            label="Provider"
+            label={t("generate.provider")}
             allowEmpty={false}
             value={provider?.id}
             options={providers.map((p) => ({
               value: p.id,
-              label: p.configured ? p.label : `${p.label} — set API key`,
+              label: p.configured ? p.label : t("generate.needsKeyOption", { label: p.label }),
               disabled: !p.configured,
             }))}
             onChange={(id) => {
@@ -158,7 +157,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           />
           {provider && provider.models.length > 1 && (
             <SelectField
-              label="Model"
+              label={t("generate.model")}
               allowEmpty={false}
               value={model?.id}
               options={provider.models.map((m) => ({ value: m.id, label: m.label }))}
@@ -174,15 +173,15 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
             className="btn btn-sm"
             onClick={() => openProviderDialog(providers.find((p) => !p.configured)?.id ?? null)}
           >
-            <KeyRound size={13} /> Set API key
+            <KeyRound size={13} /> {t("generate.setApiKey")}
           </button>
         )}
         {model && (
           <div className="field-row">
             {model.aspectRatios.length > 0 && (
               <SelectField
-                label="Aspect (fallback)"
-                hint="Each camera's own ratio wins when the model offers it."
+                label={t("batch.aspectFallback")}
+                hint={t("batch.aspectHint")}
                 allowEmpty={false}
                 value={params.aspectRatio ?? undefined}
                 options={model.aspectRatios.map((r) => ({ value: r, label: r }))}
@@ -191,7 +190,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
             )}
             {model.imageSizes.length > 0 && (
               <SelectField
-                label="Image size"
+                label={t("generate.imageSize")}
                 allowEmpty={false}
                 value={params.imageSize ?? undefined}
                 options={model.imageSizes.map((r) => ({ value: r, label: r }))}
@@ -208,8 +207,8 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           />
         )}
         {model && model.maxOutputs > 1 && (
-          <FieldGroup label="Images per camera">
-            <div className="segmented" role="group" aria-label="Images per camera">
+          <FieldGroup label={t("batch.imagesPerCamera")}>
+            <div className="segmented" role="group" aria-label={t("batch.imagesPerCamera")}>
               {Array.from({ length: model.maxOutputs }, (_, i) => i + 1).map((n) => (
                 <button
                   key={n}
@@ -225,13 +224,13 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
         )}
 
         {mode === "anchor" ? (
-          <FieldGroup label={`Anchor views (${views.length})`}>
+          <FieldGroup label={t("batch.anchorViews", { count: views.length })}>
             <ul className="batch-cams">
               {views.map((c) => (
                 <li key={c.id}>
                   <Anchor size={12} /> {c.name}
                   {ws.anchors.some((a) => a.cameraId === c.id) && (
-                    <span className="badge badge-success">anchored — re-render</span>
+                    <span className="badge badge-success">{t("batch.rerender")}</span>
                   )}
                 </li>
               ))}
@@ -239,8 +238,8 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           </FieldGroup>
         ) : (
           <>
-            <FieldGroup label="Cameras">
-              <ul className="batch-cams" aria-label="Cameras to render">
+            <FieldGroup label={t("camera.cameras")}>
+              <ul className="batch-cams" aria-label={t("batch.camerasToRender")}>
                 {cameras.map((c) => {
                   const anchored = ws.anchors.some((a) => a.cameraId === c.id);
                   return (
@@ -254,11 +253,11 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
                         {c.name}
                       </label>
                       {anchored ? (
-                        <span className="badge badge-success">master + anchor</span>
+                        <span className="badge badge-success">{t("batch.masterAnchor")}</span>
                       ) : c.isAnchorView ? (
-                        <span className="badge badge-warning">anchor not approved</span>
+                        <span className="badge badge-warning">{t("batch.anchorNotApproved")}</span>
                       ) : (
-                        <span className="badge badge-neutral">master only</span>
+                        <span className="badge badge-neutral">{t("batch.masterOnly")}</span>
                       )}
                     </li>
                   );
@@ -266,15 +265,11 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
               </ul>
             </FieldGroup>
             <FieldGroup
-              label="Extra references"
-              hint={
-                model
-                  ? `Up to ${model.maxReferenceImages} images per item in total; master and anchor are never dropped.`
-                  : undefined
-              }
+              label={t("batch.extraRefs")}
+              hint={model ? t("batch.extraHint", { max: model.maxReferenceImages }) : undefined}
             >
-              <ul className="batch-cams" aria-label="Extra references">
-                {extras.length === 0 && <li className="field-hint">No other images.</li>}
+              <ul className="batch-cams" aria-label={t("batch.extraRefs")}>
+                {extras.length === 0 && <li className="field-hint">{t("batch.noOther")}</li>}
                 {extras.map((a) => (
                   <li key={a.id}>
                     <label>
@@ -287,7 +282,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
                       <span className="batch-ref-name">{a.originalName ?? a.id}</span>
                     </label>
                     {anchorAssetIds.has(a.id) ? (
-                      <span className="badge badge-success">anchor</span>
+                      <span className="badge badge-success">{t("common.anchor")}</span>
                     ) : (
                       <RoleBadge role={a.role} short />
                     )}
@@ -297,9 +292,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
             </FieldGroup>
           </>
         )}
-        {unsaved && (
-          <span className="field-hint">Unsaved camera edits are saved before queuing.</span>
-        )}
+        {unsaved && <span className="field-hint">{t("batch.unsaved")}</span>}
         {plan.issues.length > 0 && (
           <div className="callout callout-warning" role="alert" data-testid="batch-issues">
             {plan.issues[0]}

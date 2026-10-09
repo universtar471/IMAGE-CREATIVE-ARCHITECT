@@ -29,7 +29,10 @@ import { knowledge } from "../../lib/knowledge";
 import { fileUrl } from "../../lib/files";
 import { BatchDialog } from "./BatchDialog";
 import type { BatchMode } from "./batch";
-import { CAMERA_ASPECT_RATIOS, VIEW_TYPE_LABELS, isMasterApproved } from "./labels";
+import { CAMERA_ASPECT_RATIOS, isMasterApproved } from "./labels";
+import { useT } from "../../i18n";
+import { readinessLabel } from "../../i18n/domain";
+import { cameraPresetLabel } from "../../i18n/knowledge";
 
 /** Right panel of the Camera module: camera list, field editor, prompt, anchors/production. */
 export function CameraPanel() {
@@ -39,6 +42,7 @@ export function CameraPanel() {
   const selectedIndex = cameras.findIndex((c) => c.id === selectedId);
   const selected = selectedIndex >= 0 ? cameras[selectedIndex]! : null;
   const [dialog, setDialog] = useState<BatchMode | null>(null);
+  const t = useT();
 
   return (
     <div className="camera-panel">
@@ -47,14 +51,12 @@ export function CameraPanel() {
       {selected ? (
         <>
           <CameraEditor key={selected.id} camera={selected} index={selectedIndex} />
-          <SectionPanel title="Camera prompt" defaultOpen={false}>
+          <SectionPanel title={t("camera.prompt")} defaultOpen={false}>
             <CameraPromptPreview camera={selected} />
           </SectionPanel>
         </>
       ) : (
-        cameras.length > 0 && (
-          <span className="field-hint">Select a camera in the list or on the diagram.</span>
-        )
+        cameras.length > 0 && <span className="field-hint">{t("camera.selectHint")}</span>
       )}
       {dialog && <BatchDialog mode={dialog} onClose={() => setDialog(null)} />}
     </div>
@@ -66,34 +68,35 @@ function WorkflowSection({ onOpen }: { onOpen: (m: BatchMode) => void }) {
   const readOnly = useStudio(selectReadOnly);
   const showContactSheet = useStudio((s) => s.showContactSheet);
   const approved = isMasterApproved(ws.project.status);
+  const t = useT();
   const views = anchorViews(ws.draftDna);
   const anchored = views.filter((c) => ws.anchors.some((a) => a.cameraId === c.id));
   const anchorReason = readOnly
-    ? "Archived projects are read-only."
+    ? t("camera.reasonArchived")
     : !ws.project.activeMasterAssetId
-      ? "Set a master image first (References)."
+      ? t("camera.reasonMasterRefs")
       : !approved
-        ? "Approve the master first (Overview)."
+        ? t("camera.reasonApprove")
         : views.length === 0
-          ? "Mark at least one camera as an anchor view."
+          ? t("camera.reasonAnchorView")
           : null;
   const renderReason = readOnly
-    ? "Archived projects are read-only."
+    ? t("camera.reasonArchived")
     : !ws.project.activeMasterAssetId
-      ? "Set a master image first."
+      ? t("camera.reasonMaster")
       : ws.draftDna.cameras.length === 0
-        ? "Add a camera first."
+        ? t("camera.reasonAddCamera")
         : null;
 
   return (
     <SectionPanel
-      title="Anchors & production"
+      title={t("camera.workflow")}
       aside={
         views.length > 0 && (
           <span
             className={`badge ${anchored.length === views.length ? "badge-success" : "badge-warning"}`}
           >
-            {anchored.length}/{views.length} anchored
+            {t("camera.anchoredCount", { done: anchored.length, total: views.length })}
           </span>
         )
       }
@@ -105,7 +108,7 @@ function WorkflowSection({ onOpen }: { onOpen: (m: BatchMode) => void }) {
           onClick={() => onOpen("anchor")}
           data-testid="generate-anchors"
         >
-          <Anchor size={13} /> Generate anchors
+          <Anchor size={13} /> {t("camera.generateAnchors")}
         </button>
         <button
           className="btn btn-sm"
@@ -113,14 +116,14 @@ function WorkflowSection({ onOpen }: { onOpen: (m: BatchMode) => void }) {
           onClick={() => onOpen("production")}
           data-testid="render-cameras"
         >
-          <Clapperboard size={13} /> Render cameras
+          <Clapperboard size={13} /> {t("camera.renderCameras")}
         </button>
         <button
           className="btn btn-sm"
           disabled={ws.batches.length === 0}
           onClick={() => showContactSheet(null)}
         >
-          <LayoutGrid size={13} /> Contact Sheet
+          <LayoutGrid size={13} /> {t("camera.contactSheet")}
         </button>
       </div>
       {(anchorReason ?? renderReason) && (
@@ -129,10 +132,7 @@ function WorkflowSection({ onOpen }: { onOpen: (m: BatchMode) => void }) {
         </span>
       )}
       {views.length > 0 && anchored.length < views.length && !anchorReason && (
-        <span className="field-hint">
-          Approve one result per anchor view on the Contact Sheet; production renders then use it as
-          a reference.
-        </span>
+        <span className="field-hint">{t("camera.approveHint")}</span>
       )}
     </SectionPanel>
   );
@@ -148,6 +148,7 @@ function CameraListSection() {
   const cameras = ws.draftDna.cameras;
   const names = cameras.map((c) => c.name);
   const presets = knowledge.cameraPresets(ws.project.projectType, ws.project.subtype);
+  const t = useT();
 
   const add = (camera: CameraDNA) => {
     setCameras([...cameras, camera]);
@@ -171,41 +172,41 @@ function CameraListSection() {
 
   return (
     <SectionPanel
-      title="Cameras"
+      title={t("camera.cameras")}
       aside={<span className="badge badge-neutral">{cameras.length}</span>}
     >
       {!readOnly && (
         <div className="camera-add">
           <select
             className="select"
-            aria-label="Add camera from preset"
+            aria-label={t("camera.addFromPresetLabel")}
             value=""
             onChange={(e) => {
               const preset = presets.find((p) => p.id === e.target.value);
               if (preset) add(cameraFromPreset(preset, names));
             }}
           >
-            <option value="">Add from preset…</option>
+            <option value="">{t("camera.addFromPreset")}</option>
             {presets.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.label}
-                {p.anchorRecommended ? " (anchor)" : ""}
+                {cameraPresetLabel(p)}
+                {p.anchorRecommended ? t("camera.anchorSuffix") : ""}
               </option>
             ))}
           </select>
           <button className="btn btn-sm" onClick={() => add(blankCamera(names))}>
-            <Plus size={13} /> Blank
+            <Plus size={13} /> {t("camera.blank")}
           </button>
         </div>
       )}
       {cameras.length === 0 ? (
         <span className="field-hint">
-          No cameras yet. Presets give realistic viewpoints for a{" "}
-          {ws.project.projectType.replace(/_/g, " ")}; anchor views get an approved image before
-          production.
+          {t("camera.noCameras", {
+            type: t(`labels.projectType.${ws.project.projectType}`).toLowerCase(),
+          })}
         </span>
       ) : (
-        <ul className="camera-list" aria-label="Cameras">
+        <ul className="camera-list" aria-label={t("camera.cameras")}>
           {cameras.map((c) => {
             const anchor = ws.anchors.find((a) => a.cameraId === c.id);
             const anchorAsset = anchor ? ws.assets.find((a) => a.id === anchor.assetId) : null;
@@ -227,33 +228,33 @@ function CameraListSection() {
                   <span className="camera-row-text">
                     <strong>{c.name}</strong>
                     <span className="field-hint">
-                      {VIEW_TYPE_LABELS[c.viewType]}
+                      {t(`labels.viewType.${c.viewType}`)}
                       {c.azimuthDeg !== undefined ? ` · ${Math.round(c.azimuthDeg)}°` : ""}
                       {c.distanceM !== undefined ? ` · ${c.distanceM} m` : ""}
                     </span>
                   </span>
                   {anchor ? (
-                    <span className="badge badge-success">anchored</span>
+                    <span className="badge badge-success">{t("camera.anchored")}</span>
                   ) : c.isAnchorView ? (
-                    <span className="badge badge-warning">anchor view</span>
+                    <span className="badge badge-warning">{t("camera.anchorView")}</span>
                   ) : null}
                 </button>
                 <RowAction
                   icon={Anchor}
-                  label={c.isAnchorView ? "Unmark anchor view" : "Mark as anchor view"}
+                  label={c.isAnchorView ? t("camera.unmarkAnchor") : t("camera.markAnchor")}
                   pressed={c.isAnchorView}
                   disabled={readOnly}
                   onClick={() => toggleAnchorView(c)}
                 />
                 <RowAction
                   icon={Copy}
-                  label="Duplicate"
+                  label={t("camera.duplicate")}
                   disabled={readOnly}
                   onClick={() => duplicate(c)}
                 />
                 <RowAction
                   icon={Trash2}
-                  label="Delete"
+                  label={t("common.delete")}
                   disabled={readOnly}
                   onClick={() => setConfirmDelete(c)}
                 />
@@ -264,20 +265,20 @@ function CameraListSection() {
       )}
       {confirmDelete && (
         <ConfirmDialog
-          title="Delete camera?"
+          title={t("camera.deleteTitle")}
           danger
           message={
             <>
               <p style={{ marginTop: 0 }}>
-                “{confirmDelete.name}” is removed from the camera set.
+                {t("camera.deleteMessage", { name: confirmDelete.name })}
                 {ws.anchors.some((a) => a.cameraId === confirmDelete.id)
-                  ? " Its approved anchor is released (the image itself stays in the project)."
+                  ? ` ${t("camera.deleteAnchorNote")}`
                   : ""}
               </p>
-              <p className="field-hint">Renders already made for it stay in the history.</p>
+              <p className="field-hint">{t("camera.deleteHistoryNote")}</p>
             </>
           }
-          confirmLabel="Delete camera"
+          confirmLabel={t("camera.deleteConfirm")}
           onConfirm={() => remove(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
         />
@@ -321,24 +322,25 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
   const edit = (field: keyof CameraDNA) => (value: unknown) => editDna(`${base}.${field}`, value);
   const err = (field: string) => errors[`${base}.${field}`];
   const missing = cameraReadiness(c).filter((r) => !r.done);
+  const t = useT();
 
   return (
-    <SectionPanel title={`Camera — ${c.name || "unnamed"}`}>
+    <SectionPanel title={t("camera.editorTitle", { name: c.name || t("camera.unnamed") })}>
       <TextField
-        label="Name"
+        label={t("camera.name")}
         value={c.name}
         error={err("name")}
         disabled={readOnly}
         onChange={(v) => edit("name")(v ?? "")}
       />
       <SelectField
-        label="View type"
+        label={t("camera.viewType")}
         allowEmpty={false}
         value={c.viewType}
         disabled={readOnly}
         options={CameraViewTypeSchema.options.map((v) => ({
           value: v,
-          label: VIEW_TYPE_LABELS[v],
+          label: t(`labels.viewType.${v}`),
         }))}
         onChange={(v) => edit("viewType")(v ?? "custom")}
       />
@@ -349,20 +351,20 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
           disabled={readOnly}
           onChange={(e) => edit("isAnchorView")(e.target.checked)}
         />
-        Anchor view — gets an approved anchor image before production renders
+        {t("camera.anchorViewCheck")}
       </label>
       <div className="field-row">
         <NumberField
-          label="Azimuth"
+          label={t("camera.azimuth")}
           suffix="°"
-          hint="0 = front, + = clockwise"
+          hint={t("camera.azimuthHint")}
           value={c.azimuthDeg}
           error={err("azimuthDeg")}
           disabled={readOnly}
           onChange={edit("azimuthDeg")}
         />
         <NumberField
-          label="Elevation"
+          label={t("camera.elevation")}
           suffix="°"
           value={c.elevationDeg}
           error={err("elevationDeg")}
@@ -372,7 +374,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
       </div>
       <div className="field-row">
         <NumberField
-          label="Height"
+          label={t("camera.height")}
           suffix="m"
           value={c.heightM}
           error={err("heightM")}
@@ -380,9 +382,9 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
           onChange={edit("heightM")}
         />
         <NumberField
-          label="Distance"
+          label={t("camera.distance")}
           suffix="m"
-          hint="From the building centre"
+          hint={t("camera.distanceHint")}
           value={c.distanceM}
           error={err("distanceM")}
           disabled={readOnly}
@@ -391,7 +393,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
       </div>
       <div className="field-row">
         <NumberField
-          label="Lens"
+          label={t("camera.lens")}
           suffix="mm"
           value={c.lensMm}
           error={err("lensMm")}
@@ -399,7 +401,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
           onChange={edit("lensMm")}
         />
         <SelectField
-          label="Aspect ratio"
+          label={t("camera.aspectRatio")}
           value={c.aspectRatio}
           disabled={readOnly}
           options={CAMERA_ASPECT_RATIOS.map((r) => ({ value: r, label: r }))}
@@ -407,22 +409,23 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
         />
       </div>
       <TextField
-        label="Composition"
+        label={t("camera.composition")}
         value={c.composition}
-        placeholder="e.g. rule of thirds, entrance on the left third"
+        placeholder={t("camera.compositionPlaceholder")}
         disabled={readOnly}
         onChange={edit("composition")}
       />
       <TextAreaField
-        label="Notes"
+        label={t("camera.notes")}
         value={c.notes}
         disabled={readOnly}
         onChange={(v) => edit("notes")(v)}
       />
       {missing.length > 0 && (
         <span className="field-hint">
-          Not set yet: {missing.map((m) => m.label.toLowerCase()).join(", ")}. The prompt describes
-          only what is set.
+          {t("camera.notSetYet", {
+            list: missing.map((m) => readinessLabel(m, t).toLowerCase()).join(", "),
+          })}
         </span>
       )}
     </SectionPanel>
@@ -444,6 +447,7 @@ function CameraPromptPreview({ camera }: { camera: CameraDNA }) {
   const [result, setResult] = useState<{ key: string; bundle?: PromptBundle; error?: string }>();
   const refs = [masterId, anchorId].filter((x): x is string => !!x).join(",");
   const key = `${projectId}|${revision}|${camera.id}|${refs}`;
+  const t = useT();
 
   useEffect(() => {
     let alive = true;
@@ -463,7 +467,7 @@ function CameraPromptPreview({ camera }: { camera: CameraDNA }) {
     };
   }, [flushDna, projectId, camera.id, refs, anchorId, key]);
 
-  if (!result) return <span className="field-hint">Compiling…</span>;
+  if (!result) return <span className="field-hint">{t("common.compiling")}</span>;
   if (result.error) return <span className="field-error">{result.error}</span>;
   const b = result.bundle!;
   const cameraSection = b.positivePrompt.split("\n\n").find((p) => p.startsWith("Camera:"));
@@ -472,17 +476,19 @@ function CameraPromptPreview({ camera }: { camera: CameraDNA }) {
       className={`gen-prompt ${result.key !== key ? "is-stale" : ""}`}
       data-testid="camera-prompt"
     >
+      <span className="field-hint">{t("prompt.englishNote")}</span>
       <span className="field-label">
-        <Sparkles size={11} /> Camera section
+        <Sparkles size={11} /> {t("camera.section")}
       </span>
-      <pre>{cameraSection ?? "(saved camera not found — waiting for autosave)"}</pre>
-      <span className="field-label">References</span>
-      <pre>{b.referenceInstructions}</pre>
-      <span className="field-label">Full positive prompt</span>
-      <pre>{b.positivePrompt}</pre>
+      <pre lang="en">{cameraSection ?? t("camera.notFound")}</pre>
+      <span className="field-label">{t("camera.references")}</span>
+      <pre lang="en">{b.referenceInstructions}</pre>
+      <span className="field-label">{t("camera.fullPositive")}</span>
+      <pre lang="en">{b.positivePrompt}</pre>
       <span className="field-hint">
-        Compiler {b.compilerVersion} · compiled from saved DNA with the master
-        {anchorId ? " and this camera's anchor" : ""}.
+        {anchorId
+          ? t("camera.footerAnchor", { version: b.compilerVersion })
+          : t("camera.footer", { version: b.compilerVersion })}
       </span>
     </div>
   );

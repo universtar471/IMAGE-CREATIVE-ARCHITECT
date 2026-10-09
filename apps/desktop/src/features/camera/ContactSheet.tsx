@@ -10,15 +10,10 @@ import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
 import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
+import { ErrorMessage } from "../../components/common/ErrorMessage";
+import { useT } from "../../i18n";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
-import {
-  GENERATION_STATUS_LABELS,
-  GENERATION_STATUS_TONE,
-  JOB_STATUS_LABELS,
-  JOB_STATUS_TONE,
-  PURPOSE_LABELS,
-  isActiveGeneration,
-} from "../generate/labels";
+import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
 import { groupContactSheet, type ContactEntry, type ContactGroup } from "./contactGroups";
 
 export function ContactSheet() {
@@ -27,13 +22,13 @@ export function ContactSheet() {
   const chosenId = useStudio((s) => s.contactBatchId);
   const showContactSheet = useStudio((s) => s.showContactSheet);
   const [compareId, setCompareId] = useState<string | null>(null);
+  const t = useT();
 
   const batch = ws.batches.find((b) => b.id === chosenId) ?? ws.batches[0] ?? null;
   if (!batch) {
     return (
-      <EmptyState icon={<LayoutGrid size={32} />} title="No batches yet">
-        Generate anchors or render cameras from the Camera module; their results are laid out here
-        per camera for comparison and anchor approval.
+      <EmptyState icon={<LayoutGrid size={32} />} title={t("contact.empty")}>
+        {t("contact.emptyHint")}
       </EmptyState>
     );
   }
@@ -46,14 +41,14 @@ export function ContactSheet() {
       <div className="contact-toolbar">
         <select
           className="select"
-          aria-label="Batch"
+          aria-label={t("contact.batch")}
           value={batch.id}
           onChange={(e) => showContactSheet(e.target.value)}
         >
           {ws.batches.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.name} · {PURPOSE_LABELS[b.purpose]} · {b.jobIds.length} item
-              {b.jobIds.length === 1 ? "" : "s"}
+              {b.name} · {t(`labels.purpose.${b.purpose}`)} ·{" "}
+              {t("common.items", { count: b.jobIds.length })}
             </option>
           ))}
         </select>
@@ -64,9 +59,7 @@ export function ContactSheet() {
         <CompareView master={master} candidate={compare} onClose={() => setCompareId(null)} />
       ) : (
         <div className="contact-groups">
-          {groups.length === 0 && (
-            <span className="field-hint">Loading the batch's generations…</span>
-          )}
+          {groups.length === 0 && <span className="field-hint">{t("contact.loading")}</span>}
           {groups.map((g) => (
             <CameraGroup key={g.cameraId ?? "none"} group={g} onCompare={setCompareId} />
           ))}
@@ -79,6 +72,7 @@ export function ContactSheet() {
 /** Live counts from the job list (falls back to the batch's own counts). */
 function BatchCounts({ batch }: { batch: BatchDTO }) {
   const jobs = useStudio((s) => s.jobs);
+  const t = useT();
   const mine = jobs.filter((j) => j.batchId === batch.id);
   const count = (pred: (s: string) => boolean) =>
     mine.length
@@ -91,9 +85,13 @@ function BatchCounts({ batch }: { batch: BatchDTO }) {
   const failed = count((s) => s === "failed" || s === "interrupted" || s === "cancelled");
   return (
     <span className="contact-counts">
-      {active > 0 && <span className="badge badge-info">{active} in progress</span>}
-      <span className="badge badge-success">{done} done</span>
-      {failed > 0 && <span className="badge badge-danger">{failed} not finished</span>}
+      {active > 0 && (
+        <span className="badge badge-info">{t("contact.inProgress", { count: active })}</span>
+      )}
+      <span className="badge badge-success">{t("contact.done", { count: done })}</span>
+      {failed > 0 && (
+        <span className="badge badge-danger">{t("contact.notFinished", { count: failed })}</span>
+      )}
     </span>
   );
 }
@@ -109,13 +107,16 @@ function CameraGroup({
     s.workspace!.anchors.find((a) => group.cameraId && a.cameraId === group.cameraId),
   );
   const cam = group.camera;
+  const t = useT();
   return (
-    <section className="contact-group" aria-label={cam?.name ?? "No camera"}>
+    <section className="contact-group" aria-label={cam?.name ?? t("contact.noCamera")}>
       <header>
-        <strong>{cam?.name ?? (group.cameraId ? "Removed camera" : "No camera")}</strong>
+        <strong>
+          {cam?.name ?? (group.cameraId ? t("contact.removedCamera") : t("contact.noCamera"))}
+        </strong>
         {cam?.isAnchorView && (
           <span className={`badge ${anchor ? "badge-success" : "badge-warning"}`}>
-            <Anchor size={10} /> {anchor ? "anchored" : "anchor view — pick one"}
+            <Anchor size={10} /> {anchor ? t("camera.anchored") : t("contact.pickOne")}
           </span>
         )}
       </header>
@@ -149,6 +150,7 @@ function EntryCards({
   const retryJob = useStudio((s) => s.retryJob);
   const cancelJob = useStudio((s) => s.cancelJob);
   const readOnly = useStudio(selectReadOnly);
+  const t = useT();
   const outputs = g.outputAssetIds
     .map((id) => assets.find((a) => a.id === id))
     .filter((a): a is AssetDTO => !!a);
@@ -171,10 +173,12 @@ function EntryCards({
   }
   const active = isActiveGeneration(g.status) || (job !== null && !isTerminalJob(job));
   const status = job ? (
-    <span className={`badge ${JOB_STATUS_TONE[job.status]}`}>{JOB_STATUS_LABELS[job.status]}</span>
+    <span className={`badge ${JOB_STATUS_TONE[job.status]}`}>
+      {t(`labels.jobStatus.${job.status}`)}
+    </span>
   ) : (
     <span className={`badge ${GENERATION_STATUS_TONE[g.status]}`}>
-      {GENERATION_STATUS_LABELS[g.status]}
+      {t(`labels.generationStatus.${g.status}`)}
     </span>
   );
   return (
@@ -186,20 +190,22 @@ function EntryCards({
         {status}
         {g.error && (
           <span className="field-hint" title={g.error.message}>
-            {g.error.kind}: {g.error.message}
+            <ErrorMessage kind={g.error.kind} message={g.error.message} />
           </span>
         )}
-        {g.status === "completed" && <span className="field-hint">Outputs were removed.</span>}
+        {g.status === "completed" && (
+          <span className="field-hint">{t("contact.outputsRemoved")}</span>
+        )}
       </div>
       <div className="btn-row">
         {active && job && (
           <button className="btn btn-sm" disabled={readOnly} onClick={() => void cancelJob(job.id)}>
-            <Ban size={12} /> Cancel
+            <Ban size={12} /> {t("common.cancel")}
           </button>
         )}
         {!active && job && job.status !== "completed" && (
           <button className="btn btn-sm" disabled={readOnly} onClick={() => void retryJob(job.id)}>
-            <RotateCcw size={12} /> Retry
+            <RotateCcw size={12} /> {t("common.retry")}
           </button>
         )}
       </div>
@@ -225,12 +231,13 @@ function OutputCard({
   const notify = useStudio((s) => s.notify);
   const readOnly = useStudio(selectReadOnly);
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const src = asset.status === "ready" ? fileUrl(asset.thumbnailPath) : null;
 
   const approve = async () => {
     if (!cameraId) return;
     setBusy(true);
-    if (await setAnchor(cameraId, asset.id)) notify("success", "Anchor approved for this camera.");
+    if (await setAnchor(cameraId, asset.id)) notify("success", t("contact.anchorApproved"));
     setBusy(false);
   };
 
@@ -239,12 +246,12 @@ function OutputCard({
       <button
         className="contact-image"
         onClick={() => selectAsset(asset.id)}
-        title="Open in the canvas"
+        title={t("contact.openInCanvas")}
       >
         {src ? <img src={src} alt={asset.originalName ?? ""} /> : <ImageOff size={22} />}
         {isAnchor && (
           <span className="badge badge-success contact-anchor-badge">
-            <Anchor size={10} /> Anchor
+            <Anchor size={10} /> {t("common.anchor")}
           </span>
         )}
       </button>
@@ -255,17 +262,17 @@ function OutputCard({
             disabled={isAnchor || busy || readOnly}
             onClick={() => void approve()}
           >
-            <Anchor size={12} /> {isAnchor ? "Anchor" : "Approve as anchor"}
+            <Anchor size={12} /> {isAnchor ? t("common.anchor") : t("contact.approve")}
           </button>
         )}
-        <button className="btn btn-sm" onClick={onCompare} title="Compare with the master">
-          <Columns2 size={12} /> Compare
+        <button className="btn btn-sm" onClick={onCompare} title={t("contact.compareTitle")}>
+          <Columns2 size={12} /> {t("contact.compare")}
         </button>
         <button
           className="btn btn-sm btn-icon"
           onClick={() => selectAsset(asset.id)}
-          title="Open in the canvas"
-          aria-label="Open in the canvas"
+          title={t("contact.openInCanvas")}
+          aria-label={t("contact.openInCanvas")}
         >
           <Maximize2 size={12} />
         </button>
@@ -283,6 +290,7 @@ function CompareView({
   candidate: AssetDTO;
   onClose: () => void;
 }) {
+  const t = useT();
   const pane = (a: AssetDTO | null, title: string) => {
     const src = a && a.status === "ready" ? fileUrl(a.absolutePath) : null;
     return (
@@ -295,15 +303,20 @@ function CompareView({
   return (
     <div className="compare" data-testid="compare-view">
       <div className="compare-head">
-        <strong>Compare with the master</strong>
+        <strong>{t("contact.compareTitle")}</strong>
         <span className="spacer" />
         <button className="btn btn-sm" onClick={onClose}>
-          <X size={13} /> Back to the sheet
+          <X size={13} /> {t("contact.back")}
         </button>
       </div>
       <div className="compare-panes">
-        {pane(master, master ? `Master · ${master.originalName ?? ""}` : "No master")}
-        {pane(candidate, candidate.originalName ?? "Candidate")}
+        {pane(
+          master,
+          master
+            ? t("contact.masterPane", { name: master.originalName ?? "" })
+            : t("contact.noMaster"),
+        )}
+        {pane(candidate, candidate.originalName ?? t("contact.candidate"))}
       </div>
     </div>
   );

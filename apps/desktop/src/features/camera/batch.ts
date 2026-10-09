@@ -19,6 +19,8 @@ import {
 } from "@arch/domain";
 import type { ProjectBundle } from "../../app/services";
 import { knowledge } from "../../lib/knowledge";
+import { t } from "../../i18n";
+import { translateDomainMessage } from "../../i18n/domain";
 
 export type BatchMode = "anchor" | "production";
 
@@ -47,7 +49,7 @@ export type BatchPlan = {
 
 export function defaultBatchName(mode: BatchMode, now = new Date()): string {
   const stamp = now.toISOString().slice(0, 16).replace("T", " ");
-  return `${mode === "anchor" ? "Anchors" : "Production"} ${stamp}`;
+  return `${mode === "anchor" ? t("batch.defaultAnchors") : t("batch.defaultProduction")} ${stamp}`;
 }
 
 export function costHint(
@@ -59,14 +61,32 @@ export function costHint(
   if (provider.kind === "local") {
     return {
       providerCalls: items,
-      text: `${images} image${images === 1 ? "" : "s"} · offline provider, no cost.`,
+      text: t("batch.costOffline", { count: images }),
     };
   }
   // Remote providers return one image per call (outputs are sequential calls).
   return {
     providerCalls: images,
-    text: `${images} remote call${images === 1 ? "" : "s"} to ${provider.label} (billed per image), run one at a time.`,
+    text: t("batch.costRemote", { count: images, provider: provider.label }),
   };
+}
+
+/** The domain's reference-limit error in the UI language (built from its fields). */
+function referenceLimitMessage(err: BatchReferenceLimitError, modelLabel: string): string {
+  const params = {
+    camera: err.cameraName,
+    model: modelLabel,
+    required: err.required,
+    max: err.max,
+  };
+  const withAnchor = err.required > 1;
+  if (err.max === 0)
+    return withAnchor
+      ? t("validation.batchNeedsMasterAndAnchor", params)
+      : t("validation.batchNeedsMaster", params);
+  return withAnchor
+    ? t("validation.batchTooFewSlotsAnchor", params)
+    : t("validation.batchTooFewSlots", params);
 }
 
 /** Build the batch from the persisted snapshot `bundle` (compile from saved DNA, ADR-008). */
@@ -87,9 +107,9 @@ export function planBatch(
     providerCalls: 0,
     costHint: "",
   });
-  if (!provider || !model) return empty("Choose a provider and model.");
-  if (!provider.configured) return empty(`${provider.label} needs an API key first.`);
-  if (!masterId) return empty("Set and approve a master image first.");
+  if (!provider || !model) return empty(t("batch.chooseProvider"));
+  if (!provider.configured) return empty(t("batch.needsKey", { provider: provider.label }));
+  if (!masterId) return empty(t("batch.needsMaster"));
 
   const { pack } = knowledge.resolve(bundle.project.projectType, bundle.project.subtype);
   const input = {
@@ -110,25 +130,25 @@ export function planBatch(
 
   let items: BatchItem[];
   if (choices.mode === "anchor") {
-    if (!anchorViews(bundle.dna).length) issues.push("Mark at least one camera as an anchor view.");
+    if (!anchorViews(bundle.dna).length) issues.push(t("batch.needsAnchorView"));
     items = buildAnchorBatchItems(input);
   } else {
-    if (!choices.cameraIds.length) issues.push("Choose at least one camera.");
+    if (!choices.cameraIds.length) issues.push(t("batch.needsCamera"));
     try {
       items = buildProductionBatchItems(input, choices.cameraIds, anchors);
     } catch (err) {
       // Master + anchor do not fit this model: never queue a batch without them.
       if (!(err instanceof BatchReferenceLimitError)) throw err;
-      issues.push(err.message);
+      issues.push(referenceLimitMessage(err, model.label));
       items = [];
     }
   }
   if (items.length > MAX_BATCH_ITEMS)
-    issues.push(`A batch holds at most ${MAX_BATCH_ITEMS} items (${items.length} chosen).`);
+    issues.push(t("batch.tooMany", { max: MAX_BATCH_ITEMS, count: items.length }));
   for (const item of items) {
     const first = validateGenerationRequest(item, model, bundle.assets)[0];
     if (first) {
-      issues.push(`${item.label}: ${first.message}`);
+      issues.push(`${item.label}: ${translateDomainMessage(first.message)}`);
       break;
     }
   }
@@ -139,7 +159,7 @@ export function planBatch(
     choices.params.imageSize,
     items.length * choices.params.outputCount,
   );
-  if (total && items.length) cost.text = `${cost.text} ${total}.`;
+  if (total && items.length) cost.text = `${cost.text} ${translateDomainMessage(total)}.`;
   const request: BatchCreateRequest | null =
     issues.length || !items.length
       ? null

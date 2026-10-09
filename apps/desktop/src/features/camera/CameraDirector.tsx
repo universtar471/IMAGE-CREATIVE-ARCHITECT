@@ -8,6 +8,7 @@ import { Camera } from "lucide-react";
 import type { CameraDNA } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
+import { useT, type TFunction } from "../../i18n";
 import {
   cameraPlacement,
   footprintOf,
@@ -28,6 +29,7 @@ export function CameraDirector() {
   const readOnly = useStudio(selectReadOnly);
   const svgRef = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{ id: string; extent: number } | null>(null);
+  const t = useT();
 
   const cameras = dna.cameras;
   const fp = footprintOf(dna);
@@ -53,9 +55,8 @@ export function CameraDirector() {
 
   if (!cameras.length) {
     return (
-      <EmptyState icon={<Camera size={32} />} title="No cameras yet">
-        Add cameras from the presets in the panel on the right. They appear here around the building
-        footprint; drag them to set their viewpoint.
+      <EmptyState icon={<Camera size={32} />} title={t("director.empty")}>
+        {t("director.emptyHint")}
       </EmptyState>
     );
   }
@@ -67,7 +68,7 @@ export function CameraDirector() {
         className="director-svg"
         viewBox={`${-extent} ${-extent} ${extent * 2} ${extent * 2}`}
         role="group"
-        aria-label="Camera Director — top-down plan"
+        aria-label={t("director.label")}
         onPointerMove={(e) => {
           if (!drag) return;
           const p = toPlan(e);
@@ -98,7 +99,7 @@ export function CameraDirector() {
           fontSize={unit * 2.2}
           textAnchor="middle"
         >
-          FRONT FACADE
+          {t("director.front")}
         </text>
         <text
           className="director-hint"
@@ -108,7 +109,7 @@ export function CameraDirector() {
           textAnchor="middle"
           dominantBaseline="middle"
         >
-          {fp.widthM} × {fp.depthM} m{fp.fromDna ? "" : " (default)"}
+          {fp.widthM} × {fp.depthM} m{fp.fromDna ? "" : t("director.defaultSize")}
         </text>
 
         {cameras.map((c, i) => (
@@ -120,6 +121,7 @@ export function CameraDirector() {
             selected={c.id === selectedId}
             anchored={anchors.some((a) => a.cameraId === c.id)}
             readOnly={readOnly}
+            t={t}
             onSelect={() => selectCamera(c.id)}
             onDragStart={(e) => {
               selectCamera(c.id);
@@ -140,17 +142,15 @@ export function CameraDirector() {
       </svg>
       <div className="director-legend">
         <span>
-          <i className="dot" /> camera
+          <i className="dot" /> {t("director.camera")}
         </span>
         <span>
-          <i className="dot is-anchor-view" /> anchor view
+          <i className="dot is-anchor-view" /> {t("director.anchorView")}
         </span>
         <span>
-          <i className="dot is-anchored" /> anchored
+          <i className="dot is-anchored" /> {t("director.anchored")}
         </span>
-        <span className="field-hint">
-          Drag to orbit / change distance · focused camera: ←/→ orbit, ↑/↓ distance (Shift = fine)
-        </span>
+        <span className="field-hint">{t("director.hint")}</span>
       </div>
     </div>
   );
@@ -183,6 +183,7 @@ function CameraMark({
   selected,
   anchored,
   readOnly,
+  t,
   onSelect,
   onDragStart,
   onKey,
@@ -193,6 +194,7 @@ function CameraMark({
   selected: boolean;
   anchored: boolean;
   readOnly: boolean;
+  t: TFunction;
   onSelect: () => void;
   onDragStart: (e: PointerEvent<SVGGElement>) => void;
   onKey: (e: KeyboardEvent<SVGGElement>) => void;
@@ -220,9 +222,13 @@ function CameraMark({
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${c.name}: azimuth ${Math.round(pos.azimuthDeg)}°, ${pos.distanceM} m${
-        c.isAnchorView ? ", anchor view" : ""
-      }${anchored ? ", anchored" : ""}${readOnly ? "" : ". Drag or use arrow keys to move."}`}
+      aria-label={`${t("director.markLabel", {
+        name: c.name,
+        azimuth: Math.round(pos.azimuthDeg),
+        distance: pos.distanceM,
+      })}${c.isAnchorView ? t("director.markAnchorView") : ""}${
+        anchored ? t("director.markAnchored") : ""
+      }${readOnly ? "" : t("director.markMove")}`}
       data-testid="director-camera"
       onPointerDown={onDragStart}
       onClick={onSelect}
