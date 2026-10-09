@@ -2000,3 +2000,13 @@ textarea {
 .dna-hint {
   margin: 0 var(--s-1);
 }
+/* A button whose label can be long (provider names, translations): wrap instead of overflow. */
+.btn.btn-wrap {
+  height: auto;
+  min-height: 30px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  white-space: normal;
+  text-align: left;
+  justify-content: flex-start;
+}

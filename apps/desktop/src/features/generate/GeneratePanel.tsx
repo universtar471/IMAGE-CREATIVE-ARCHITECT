@@ -246,7 +246,7 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
       />
       {providers.some((p) => !p.configured) && (
         <button
-          className="btn btn-sm"
+          className="btn btn-sm btn-wrap"
           onClick={() => openProviderDialog(providers.find((p) => !p.configured)?.id ?? null)}
         >
           <KeyRound size={13} />{" "}

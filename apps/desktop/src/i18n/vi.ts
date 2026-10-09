@@ -329,7 +329,7 @@ export const vi: Dict = {
       label: "Tạo ảnh",
       description: "Tạo ảnh không phụ thuộc nhà cung cấp và quy trình ảnh Hero.",
     },
-    enhance: { label: "Nâng cấp ảnh", description: "Upscale lên 2K/4K, giữ nguyên kiến trúc." },
+    enhance: { label: "Nâng cấp", description: "Upscale lên 2K/4K, giữ nguyên kiến trúc." },
     qc: { label: "QC", description: "Điểm QC bằng thị giác máy, lớp phủ và yêu cầu sửa." },
     export: {
       label: "Xuất",
@@ -841,7 +841,7 @@ export const vi: Dict = {
       "Duyệt một kết quả cho mỗi góc Anchor trên Bảng ảnh; các render sản xuất sau đó dùng nó làm tham chiếu.",
     cameras: "Góc máy",
     addFromPresetLabel: "Thêm góc máy dựng sẵn",
-    addFromPreset: "Thêm góc dựng sẵn…",
+    addFromPreset: "Thêm góc mẫu…",
     anchorSuffix: " (Anchor)",
     blank: "Góc trống",
     noCameras:
