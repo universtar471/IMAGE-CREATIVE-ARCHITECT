@@ -10,3 +10,19 @@ Không chạy test theo yêu cầu.
 ## Lead verify (Claude, e46b66f)
 
 - `npm run verify` xanh: 323 Vitest, 230 Rust; fmt, clippy, prettier sạch.
+
+---
+
+# Review p4-preview-fix — vòng 2
+
+## Kết luận: ĐẠT
+
+- **[ĐẠT]** [apps/desktop/src/lib/bridge.ts:360](D:/worktrees/IMAGE-CREATIVE-ARCHITECT/p4-preview-fix/apps/desktop/src/lib/bridge.ts:360) đã xử lý phản hồi `number[]`: kiểm tra từng byte là số nguyên trong `0..255`, rồi chuyển thành `Uint8Array` và `image/png` Blob. Mảng không hợp lệ bị từ chối bằng `BridgeError`.
+- **[ĐẠT]** [apps/desktop/tests/bridgePreview.test.ts:7](D:/worktrees/IMAGE-CREATIVE-ARCHITECT/p4-preview-fix/apps/desktop/tests/bridgePreview.test.ts:7) có kiểm tra `ArrayBuffer`, typed array view có offset, `number[]` và các giá trị mảng không hợp lệ. Như vậy lỗi vòng 1 có test bao phủ.
+- **[ĐẠT]** Diff vòng này giữ nguyên các nhánh xử lý `Blob`, `ArrayBuffer` và typed array; không thấy hồi quy trong phần thay đổi.
+
+Không chạy test theo yêu cầu.
+
+## Lead verify (Claude, 27006ce)
+
+- `npm run verify` xanh: 329 Vitest, 230 Rust; prettier sạch.
