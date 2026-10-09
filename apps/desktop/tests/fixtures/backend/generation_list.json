@@ -2,17 +2,17 @@
   "command": "generation_list",
   "response": [
     {
-      "batchId": "BAT_0000000000000000000000000D",
+      "batchId": "BAT_0000000000000000000000000E",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000G",
-      "jobId": "JOB_0000000000000000000000000F",
+      "id": "GEN_0000000000000000000000000H",
+      "jobId": "JOB_0000000000000000000000000G",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000Q"
+        "AST_0000000000000000000000000R"
       ],
       "params": {
         "aspectRatio": null,
@@ -22,7 +22,7 @@
         "seed": null
       },
       "parentAssetId": "AST_00000000000000000000000003",
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -42,17 +42,17 @@
       "status": "completed"
     },
     {
-      "batchId": "BAT_0000000000000000000000000D",
+      "batchId": "BAT_0000000000000000000000000E",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000H",
-      "jobId": "JOB_0000000000000000000000000E",
+      "id": "GEN_0000000000000000000000000J",
+      "jobId": "JOB_0000000000000000000000000F",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000P"
+        "AST_0000000000000000000000000Q"
       ],
       "params": {
         "aspectRatio": null,
@@ -62,7 +62,7 @@
         "seed": null
       },
       "parentAssetId": "AST_00000000000000000000000003",
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -88,11 +88,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000B",
-      "jobId": "JOB_0000000000000000000000000C",
+      "id": "GEN_0000000000000000000000000C",
+      "jobId": "JOB_0000000000000000000000000D",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000S"
+        "AST_0000000000000000000000000T"
       ],
       "params": {
         "aspectRatio": null,
@@ -102,7 +102,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -126,8 +126,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000009",
-      "jobId": "JOB_0000000000000000000000000A",
+      "id": "GEN_0000000000000000000000000A",
+      "jobId": "JOB_0000000000000000000000000B",
       "modelId": "placeholder-v1",
       "outputAssetIds": [],
       "params": {
@@ -138,7 +138,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -162,11 +162,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000J",
-      "jobId": "JOB_0000000000000000000000000K",
+      "id": "GEN_0000000000000000000000000K",
+      "jobId": "JOB_0000000000000000000000000M",
       "modelId": "full",
       "outputAssetIds": [
-        "AST_0000000000000000000000000R"
+        "AST_0000000000000000000000000S"
       ],
       "params": {
         "aspectRatio": null,
@@ -176,7 +176,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -200,8 +200,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": null,
-      "id": "GEN_0000000000000000000000000M",
-      "jobId": "JOB_0000000000000000000000000N",
+      "id": "GEN_0000000000000000000000000N",
+      "jobId": "JOB_0000000000000000000000000P",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -212,7 +212,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -240,8 +240,8 @@
         "retryable": false
       },
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000007",
-      "jobId": "JOB_00000000000000000000000008",
+      "id": "GEN_00000000000000000000000008",
+      "jobId": "JOB_00000000000000000000000009",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -252,7 +252,7 @@
         "seed": null
       },
       "parentAssetId": null,
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {
@@ -276,12 +276,12 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000001",
-      "jobId": "JOB_00000000000000000000000002",
+      "id": "GEN_00000000000000000000000004",
+      "jobId": "JOB_00000000000000000000000005",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_00000000000000000000000005",
-        "AST_00000000000000000000000006"
+        "AST_00000000000000000000000006",
+        "AST_00000000000000000000000007"
       ],
       "params": {
         "aspectRatio": null,
@@ -291,7 +291,7 @@
         "seed": null
       },
       "parentAssetId": "AST_00000000000000000000000003",
-      "projectId": "PRJ_00000000000000000000000004",
+      "projectId": "PRJ_00000000000000000000000001",
       "prompt": {
         "compilerVersion": "pc-1.0.0",
         "metadata": {

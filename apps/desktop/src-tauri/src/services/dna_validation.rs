@@ -4,7 +4,7 @@
 
 use std::sync::OnceLock;
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use crate::error::{AppError, AppResult};
 
@@ -22,7 +22,13 @@ fn validator() -> &'static jsonschema::Validator {
 /// (`building.floors`) to match the frontend's Zod error keys.
 pub fn validate_dna(dna: &Value) -> AppResult<()> {
     let mut field_errors = serde_json::Map::new();
-    for err in validator().iter_errors(dna) {
+    validate_additive_fields(dna, &mut field_errors);
+    // P4.1 fields are additive and the schema in a pre-P4-A checkout does not know
+    // them yet. Remove only those fields for the old-schema pass; their own types
+    // are checked above and the persisted value remains untouched.
+    let mut schema_input = dna.clone();
+    strip_additive_fields(&mut schema_input);
+    for err in validator().iter_errors(&schema_input) {
         let pointer = err.instance_path().to_string();
         let key = pointer.trim_start_matches('/').replace('/', ".");
         let key = if key.is_empty() { "(root)".to_string() } else { key };
@@ -33,6 +39,93 @@ pub fn validate_dna(dna: &Value) -> AppResult<()> {
     } else {
         Err(AppError::validation("The design DNA has invalid values and was not saved.")
             .with_details(json!({ "fieldErrors": field_errors })))
+    }
+}
+
+fn strip_additive_fields(dna: &mut Value) {
+    if let Some(object) = dna.as_object_mut() {
+        if let Some(section) = object.get_mut("lighting").and_then(Value::as_object_mut) {
+            section.remove("presetId");
+            if let Some(lights) = section.get_mut("artificialLighting").and_then(Value::as_array_mut) {
+                for light in lights {
+                    if let Some(light) = light.as_object_mut() {
+                        light.remove("id");
+                        light.remove("enabled");
+                    }
+                }
+            }
+        }
+        for section_name in ["weather", "mood"] {
+            if let Some(section) = object.get_mut(section_name).and_then(Value::as_object_mut) {
+                section.remove("presetId");
+            }
+        }
+        if let Some(locks) = object.get_mut("locks").and_then(Value::as_object_mut) {
+            locks.remove("mood");
+        }
+    }
+}
+
+fn additive_error(field_errors: &mut Map<String, Value>, path: &str, message: &str) {
+    field_errors.entry(path.to_string()).or_insert_with(|| Value::String(message.to_string()));
+}
+
+fn validate_additive_fields(dna: &Value, field_errors: &mut Map<String, Value>) {
+    let Some(root) = dna.as_object() else { return };
+    for section_name in ["lighting", "weather", "mood"] {
+        let Some(section) = root.get(section_name) else { continue };
+        let Some(section) = section.as_object() else {
+            additive_error(field_errors, section_name, "Expected an object.");
+            continue;
+        };
+        if let Some(preset) = section.get("presetId") {
+            if !preset.is_string() {
+                additive_error(field_errors, &format!("{section_name}.presetId"), "Expected a string.");
+            }
+        }
+    }
+    if let Some(lighting) = root.get("lighting").and_then(Value::as_object) {
+        if let Some(lights) = lighting.get("artificialLighting") {
+            if let Some(lights) = lights.as_array() {
+                for (index, light) in lights.iter().enumerate() {
+                    let Some(light) = light.as_object() else { continue };
+                    if let Some(id) = light.get("id") {
+                        let valid = id.as_str().is_some_and(|id| {
+                            id.starts_with("LGT_")
+                                && id.len() == 30
+                                && matches!(id.as_bytes().get(4), Some(b'0'..=b'7'))
+                                && id[4..].bytes().all(|b| {
+                                    b.is_ascii_digit()
+                                        || b.is_ascii_uppercase() && !matches!(b, b'I' | b'L' | b'O' | b'U')
+                                })
+                        });
+                        if !valid {
+                            additive_error(
+                                field_errors,
+                                &format!("lighting.artificialLighting[{index}].id"),
+                                "Expected an LGT_<ULID> id.",
+                            );
+                        }
+                    }
+                    if let Some(enabled) = light.get("enabled") {
+                        if !enabled.is_boolean() {
+                            additive_error(
+                                field_errors,
+                                &format!("lighting.artificialLighting[{index}].enabled"),
+                                "Expected a boolean.",
+                            );
+                        }
+                    }
+                }
+            } else {
+                additive_error(field_errors, "lighting.artificialLighting", "Expected an array.");
+            }
+        }
+    }
+    if let Some(mood) = root.get("locks").and_then(Value::as_object).and_then(|locks| locks.get("mood")) {
+        if !mood.is_boolean() {
+            additive_error(field_errors, "locks.mood", "Expected a boolean.");
+        }
     }
 }
 

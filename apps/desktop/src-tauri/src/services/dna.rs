@@ -73,4 +73,26 @@ mod tests {
         let dna = get(&core, &p.id).unwrap();
         assert_eq!(update(&core, &p.id, dna).unwrap_err().code, ErrorCode::InvalidState);
     }
+
+    #[test]
+    fn phase_four_additive_fields_round_trip_unchanged() {
+        let (_tmp, core) = core();
+        let p = test_create_villa(&core, "A");
+        let mut dna = get(&core, &p.id).unwrap();
+        dna["lighting"] = json!({
+            "schemaVersion": 1,
+            "presetId": "lighting.blue-hour",
+            "artificialLighting": [{
+                "type": "uplight",
+                "id": "LGT_01J9ZZZZZZZZZZZZZZZZZZZZZA",
+                "enabled": false,
+                "zone": "facade_uplights"
+            }]
+        });
+        dna["weather"] = json!({ "schemaVersion": 1, "presetId": "weather.monsoon", "notes": "" });
+        dna["mood"] = json!({ "schemaVersion": 1, "presetId": "mood.cinematic", "notes": "" });
+        dna["locks"]["mood"] = json!(true);
+        update(&core, &p.id, dna.clone()).unwrap();
+        assert_eq!(get(&core, &p.id).unwrap(), dna);
+    }
 }
