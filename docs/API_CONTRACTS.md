@@ -594,3 +594,71 @@ Unsharp mask:
 ### 14.4 Gating
 
 ADR-022 §13.4 is extended: `enhance` needs an approved master, like `variation`.
+
+## 15. Phase 6 contracts — Vision QC (ADR-024)
+
+### 15.1 Shapes (Zod in `packages/domain/src/qc/`, Rust DTOs camelCase)
+
+```ts
+QcScores = { geometry: number, material: number, openings: number, context: number, lighting: number } // ints 0..100
+QcArtifact = { label: string, severity: "low" | "medium" | "high", box: [number, number, number, number] | null } // box normalised 0..1
+QcIssue = { category: "geometry" | "material" | "openings" | "context" | "lighting" | "artifact", text: string }
+QcVision = { providerId: string, model: string, scores: QcScores, artifacts: QcArtifact[], issues: QcIssue[], repairInstruction: string }
+QcLocal = { edgeAlignment: number | null, sharpness: number, clippedPct: number }
+QcSettings = { schemaVersion: 1, passMin: number /*0..100, 70*/, categoryMin: number /*0..100, 55*/, highArtifactFails: boolean /*true*/,
+               autoQc: "off" | "after_generation" /*off*/, autoRepairMax: 0 | 1 | 2 /*0*/,
+               visionProviderId: string | null, visionModel: string | null }
+QcReportDTO = { id: "QC_<ULID>", projectId, assetId, referenceAssetIds: string[], local: QcLocal, vision: QcVision | null,
+                overall: number | null, result: "pass" | "warn" | "fail" | "unscored", thresholds: { passMin, categoryMin, highArtifactFails },
+                createdAt: string }
+```
+
+The domain exposes these pure functions; the Rust side mirrors the result rules.
+
+| Function | Purpose |
+|---|---|
+| `scoreReport(local, vision, thresholds)` | returns `{ overall, result }` per ADR-024 |
+| `parseVisionReply(text)` | lenient JSON extraction plus validation; throws on invalid input |
+| `buildVisionPrompt({ dna, purpose })` | the system and user text for the judge |
+| `buildRepairPrompt({ dna, report })` | the repair prompt |
+
+### 15.2 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `qc_run` | `{ projectId, assetId, vision: { providerId, model? } \| null }` | `QcReportDTO` |
+| `qc_list` | `{ projectId, assetId? }` | `QcReportDTO[]`, newest first |
+| `qc_settings_get` | `{ projectId }` | `QcSettings` (defaults when unset) |
+| `qc_settings_set` | `{ projectId, settings: QcSettings }` | `QcSettings` |
+
+`qc_run`:
+- Validates that the asset belongs to the project and is ready.
+- Gate: needs an approved master. On failure it returns `validation_error`.
+- Runs local metrics, then vision if requested. No DB lock is held during image work or the network call.
+- Inserts into `qc_reports`.
+- Errors map like other provider errors, with keys redacted.
+- An archived project returns the existing archived error.
+
+### 15.3 Repair
+
+`GenerationPurpose` gains `"repair"`. Request: `params.repair = { qcReportId }`, plus exactly two references:
+1. the report's asset
+2. the report's primary reference
+
+When the purpose is `repair`, the backend checks that the report belongs to the project and the asset matches. Gating is the same as `variation`. Meta records `repairOf` (asset id) and `repairDepth`.
+
+### 15.4 Storage
+
+Migration `0005_qc.sql`:
+- `qc_reports(id, project_id, asset_id, report_json, result, created_at)`, as in `DATA_MODEL.md`, plus an index on `(project_id, asset_id, created_at)`.
+- `qc_settings(project_id PRIMARY KEY, settings_json, updated_at)`.
+
+Both cascade on project delete; reports also cascade on asset delete.
+
+### 15.5 Automation
+
+After `commit_outputs` of a successful generation whose purpose is not `repair` (or whose repair chain is still allowed), when `autoQc = after_generation`:
+1. The backend runs `qc_run` for each output on a background thread, sequentially per project, using the stored vision provider/model (or local only).
+2. If the result is `fail` and `repairDepth < autoRepairMax`, it submits one repair generation through the normal gated path.
+
+Failures of automation are logged and stored nowhere else. They never fail the original generation.

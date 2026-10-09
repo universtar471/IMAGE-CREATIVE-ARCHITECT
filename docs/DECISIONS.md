@@ -294,3 +294,55 @@ Enhancement takes one ready image and produces a NEW asset and version (`operati
 - Batch enhancement is an ordinary batch (ADR-018), with one item per selected image.
 - Workflow gating (ADR-022): `enhance` needs an approved master, like `variation`.
 - The UI lives in Hậu kỳ › Nâng cấp. A compare view shows source and result with before / after / split, generalising the grade preview's compare.
+
+## ADR-024 — Vision QC: free local metrics plus an optional AI vision judge, repair as a generation
+
+Status: accepted (Phase 6; planned by the lead overnight on the user's instruction to continue to the next phase)
+
+QC scores a ready image against its references and stores a report. It never modifies assets.
+
+**References**
+- If the asset came from a generation, the references are that generation's reference assets, in order.
+- Otherwise the reference is the project master.
+- The first reference is the primary one.
+
+**Local metrics** — always run, free, deterministic:
+- `edgeAlignment` (0–100): Sobel edge maps of the output and the primary reference, both downscaled to a 512 px long edge and the same size. Each map is dilated by 2 px, then the score is the IoU × 100.
+  - Only meaningful when the output shares the reference's viewpoint. It is computed only for purposes `enhance`, `variation`, `repair`, and for `color_grade` outputs; otherwise `null`.
+- `sharpness` (0–100): variance of the Laplacian on the 512 px grey image, mapped with `min(100, var / 4)`.
+- `clippedPct`: percent of pixels with any channel at 0 or 255.
+
+**Vision judge** — optional and paid; runs only when the user picks a vision provider:
+- Uses a chat-completions call with image content parts. Images are JPEG q85, 1024 px long edge, sent as data URLs.
+- Supported on the HHTECH and OpenAI providers, through their chat model. HHTECH reads `HHTECH_VISION_MODEL`, falling back to `HHTECH_CHAT_MODEL`.
+- A fixed English system prompt asks for strict JSON:
+  - `scores {geometry, material, openings, context, lighting}`, each 0–100
+  - `artifacts [{label, severity, box}]`: severity is `low|medium|high`; `box` is `[x,y,w,h]` normalised 0..1, or null
+  - `issues [{category, text}]`
+  - `repairInstruction`: a string
+- The reply is parsed leniently: take the first JSON object and validate it. If it is unreadable, the run fails with a clear `bad_response` error.
+- Vision support was not live-verified during planning. A `#[ignore]` live test documents how to check it.
+
+**Result**
+- `overall` = mean of the vision category scores. Without vision it is `edgeAlignment`; otherwise `null`.
+- `result` is one of:
+  - `fail`: any vision category is below `categoryMin`, `overall` is below `passMin`, or a `high` artifact exists while `highArtifactFails`
+  - `warn`: no failure, but `overall` is less than `passMin + 10`
+  - `pass`: no failure or warning
+  - `unscored`: no `overall`
+- Thresholds are per project (`qc_settings`). Defaults: `passMin` 70, `categoryMin` 55, `highArtifactFails` true.
+
+**Repair**
+- "Sửa theo QC" is a generation with purpose `repair`. References:
+  1. the failed output (master semantics, so the model edits it)
+  2. the original primary reference
+- The prompt comes from domain `buildRepairPrompt({ dna, report })`:
+  - the report's issues and `repairInstruction`
+  - preservation lines: keep everything not listed
+- Gating is the same as `variation`.
+
+**Automation** — per project, off by default because it spends credits:
+- `autoQc: "off" | "after_generation"`: when on, every successful output of a non-QC generation gets a QC run using the project's chosen vision provider/model, or local metrics only if none is set.
+- `autoRepairMax` (0–2, default 0): when a report fails and the repair chain of that output is shorter than the max, a repair generation is queued with the same provider/model as the original. The chain depth is recorded in generation meta.
+
+QC lives in Hậu kỳ › QC. The canvas can overlay artifact boxes.
