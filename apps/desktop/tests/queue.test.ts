@@ -429,6 +429,43 @@ describe("stale polls never overwrite newer state", () => {
     expect(storeGen(g.id)?.outputAssetIds).toHaveLength(1);
   });
 
+  it("a poll sent before submit or retry does not drop the returned generation", async () => {
+    // No events: the command results are the only news.
+    const d = useDeferredMock(30);
+    const p = await newProject();
+    await useStudio.getState().openProject(p.id);
+    const input = {
+      projectId: p.id,
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      purpose: "variation" as const,
+      referenceAssetIds: [],
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+    };
+    const failing = { ...request(p.id).prompt, positivePrompt: "[fail]" };
+
+    d.hold("generation_list");
+    const before = useStudio.getState().refreshGenerations(); // reads an empty history
+    await waitFor(() => d.pending("generation_list") === 1);
+    const g = (await useStudio.getState().submitGeneration(input, failing))!;
+    expect(storeGen(g.id)).toBeDefined();
+    d.release("generation_list");
+    await before;
+    expect(storeGen(g.id)?.id).toBe(g.id);
+
+    await settled(p.id, g.id);
+    await useStudio.getState().refreshGenerations();
+    expect(storeGen(g.id)?.status).toBe("failed");
+    d.hold("generation_list");
+    const beforeRetry = useStudio.getState().refreshGenerations(); // no retried generation yet
+    await waitFor(() => d.pending("generation_list") === 1);
+    const retried = (await useStudio.getState().retryGeneration(storeGen(g.id)!))!;
+    expect(retried.id).not.toBe(g.id);
+    d.release("generation_list");
+    await beforeRetry;
+    expect(storeGen(retried.id)?.id).toBe(retried.id);
+  });
+
   async function untilBackendRunning(generationId: string) {
     for (let i = 0; i < 600; i++) {
       if ((await jobOf(generationId)).status === "running") return;

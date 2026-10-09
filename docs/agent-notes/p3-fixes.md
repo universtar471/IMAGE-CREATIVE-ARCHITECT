@@ -51,6 +51,18 @@ NÊN SỬA rẻ. Mỗi lỗi có test tái hiện (đỏ) trước khi sửa.
      `tests/helpers.ts`) để ép thứ tự: event `completed` trước khi poll cũ trả về; poll mới trả
      về trước poll cũ (cho cả jobs và generations).
 
+### Review vòng 2 (`docs/agent-reviews/p3-fixes.md` trên main)
+
+- PHẢI SỬA: `store.ts` `submitGeneration` và `retryGeneration` thêm generation từ kết quả
+  command mà không ghi `generationSeenAt` → một `generation_list` gửi trước đó, trả về sau,
+  có thể xoá nó khỏi store khi không có event. Nay cả hai ghi `generationSeenAt` (như event).
+  Các đường khác: `job_cancel`/`job_retry` đi qua `applyJobEvent` (đã ghi `jobSeenAt`);
+  `createBatch` gọi `refreshGenerations` mới (token mới loại poll cũ), job của batch đến qua
+  `refreshJobs`. Test: "a poll sent before submit or retry does not drop the returned
+  generation" trong `apps/desktop/tests/queue.test.ts`.
+- NÊN SỬA: `docs/API_CONTRACTS.md` §10 (sau danh sách `kind`) ghi rõ `failed` + kind
+  `interrupted` khi thread không khởi động được hoặc attempt panic.
+
 ### NÊN SỬA đã làm
 
 - `packages/domain/src/schemas/future.ts`: regex `CAM_` đổi thành `^CAM_[0-7][0-9A-HJKMNP-TV-Z]{25}$`;
@@ -69,9 +81,6 @@ NÊN SỬA rẻ. Mỗi lỗi có test tái hiện (đỏ) trước khi sửa.
 ## Còn nợ / bỏ qua
 
 - Không đổi DTO/fixture backend (`contract_fixtures` vẫn xanh, không cần regenerate).
-- `docs/API_CONTRACTS.md` chưa ghi rằng job có thể `failed` với kind `interrupted` khi
-  thread không khởi động được / attempt panic (kind đã nằm trong danh sách §10). Nên bổ sung
-  một dòng khi duyệt.
 - Panic trong lúc đang giữ DB lock vẫn làm poison mutex (`AppCore::conn` trả `DbError`);
   provider call (nơi dễ panic nhất) chạy ngoài lock nên trường hợp này hiếm. Chưa xử lý.
 - File output đã ghi ra đĩa trước một panic (trước commit) không được dọn.
@@ -80,7 +89,7 @@ NÊN SỬA rẻ. Mỗi lỗi có test tái hiện (đỏ) trước khi sửa.
 
 ```
 npm ci                                   # worktree mới chưa có node_modules
-npm run verify                           # typecheck + lint + vitest + cargo test (đã xanh: 247 TS, 139 Rust)
+npm run verify                           # typecheck + lint + vitest + cargo test (đã xanh: 248 TS, 139 Rust)
 npm run format:check
 cd apps/desktop/src-tauri; cargo fmt --check
 npx vitest run packages/domain/tests/batch.test.ts apps/desktop/tests/queue.test.ts apps/desktop/tests/camera.test.ts
@@ -95,3 +104,5 @@ cd apps/desktop/src-tauri; cargo test --lib queue; cargo test --lib camera_remov
   `generation_list`, `refreshJobs` có thể treo vì nhánh "missed" gọi `refreshGenerations`
   — test jobs và generations tách riêng.
 - `waitFor` trong `tests/helpers.ts` không hỗ trợ điều kiện async (Promise luôn truthy).
+- Đừng chạy `prettier --write` trên `docs/API_CONTRACTS.md`: nó định dạng lại cả file
+  (file không nằm trong phạm vi `format:check` hiện tại theo cách đó) — chỉ sửa tay.

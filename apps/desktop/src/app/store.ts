@@ -618,8 +618,11 @@ export const useStudio = create<State>((set, get) => {
         const generation = known ?? queued;
         set({ run: { status: "tracking", projectId, generation } });
         const ws = get().workspace;
-        if (ws && ws.project.id === projectId && !known)
+        if (ws && ws.project.id === projectId && !known) {
+          // A command result counts like an event: an older poll must not drop it.
+          generationSeenAt.set(queued.id, ++syncSeq);
           set({ workspace: { ...ws, generations: upsert(ws.generations, queued) } });
+        }
         if (!isActiveGeneration(generation.status)) onTrackedFinished(generation);
         void get().refreshJobs();
         return queued;
@@ -666,8 +669,10 @@ export const useStudio = create<State>((set, get) => {
           run: { status: "tracking", projectId: job.projectId, generation: known ?? generation },
         });
         const ws = get().workspace;
-        if (ws && ws.project.id === job.projectId && !known)
+        if (ws && ws.project.id === job.projectId && !known) {
+          generationSeenAt.set(generation.id, ++syncSeq);
           set({ workspace: { ...ws, generations: upsert(ws.generations, generation) } });
+        }
         return generation;
       } catch (err) {
         get().notify("error", toBridgeError(err).message);

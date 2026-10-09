@@ -311,6 +311,10 @@ Zod source of truth: `packages/domain/src/schemas/generation.ts`. Rust mirrors i
 Provider errors after the call started are returned as a `failed` `GenerationDTO` with
 `error = { kind, message, retryable }`; `kind` ∈ `auth | rate_limited | blocked |
 invalid_request | network | timeout | bad_response | interrupted`.
+`interrupted` also marks a job (and its generation) that ended `failed` for a reason of the
+app's own, with `retryable: true` and no automatic retry: its worker thread could not be
+started, or the attempt panicked (the message carries the cause). After a restart, a job
+that was running when the app closed is `interrupted` itself (status, not only kind).
 
 Never returned or logged anywhere: the API key, vendor request bodies, raw vendor responses.
 
