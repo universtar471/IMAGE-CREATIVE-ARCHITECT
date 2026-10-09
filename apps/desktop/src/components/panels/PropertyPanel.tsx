@@ -9,6 +9,8 @@ import { OverviewPanel } from "../../features/overview/OverviewPanel";
 import { moduleById } from "../../features/workspace/modules";
 import { FutureModulePlaceholder } from "../common/states";
 import { useT } from "../../i18n";
+import { LightingPanel } from "../../features/lighting/LightingPanel";
+import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
@@ -39,6 +41,8 @@ export function PropertyPanel() {
         {active === "references" && <AssetPropertyPanel />}
         {active === "generate" && <GeneratePanel />}
         {active === "camera" && <CameraPanel />}
+        {active === "lighting" && <LightingPanel />}
+        {active === "mood_grade" && <MoodGradePanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

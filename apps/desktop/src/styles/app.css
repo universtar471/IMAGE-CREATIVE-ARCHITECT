@@ -1157,6 +1157,38 @@ textarea {
   font-size: 12px;
   flex-wrap: wrap;
 }
+
+/* Phase 4 lighting / grade controls */
+.lighting-light {
+  border-top: 1px solid var(--c-border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.grade-preview {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  justify-items: center;
+  height: 100%;
+  padding: 16px;
+}
+.grade-preview canvas {
+  max-width: 100%;
+  max-height: calc(100vh - 180px);
+  object-fit: contain;
+  background: #111;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.grade-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.grade-preview-toolbar input[type="range"] {
+  width: 180px;
+}
 .preview-banner {
   position: fixed;
   left: 50%;

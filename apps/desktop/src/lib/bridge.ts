@@ -31,6 +31,7 @@ import {
   type PromptEnhanceRequest,
   type ProjectDNA,
   type ProjectType,
+  type ColorGradeDNA,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
@@ -104,6 +105,12 @@ export type Requests = {
   camera_anchor_list: { projectId: string };
   camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
   camera_anchor_clear: { projectId: string; cameraId: string };
+  grade_apply: {
+    projectId: string;
+    assetId: string;
+    grade: ColorGradeDNA;
+    label?: string;
+  };
 };
 
 /** Response schemas per command. */
@@ -139,6 +146,7 @@ export const responses = {
   camera_anchor_list: z.array(CameraAnchorDTOSchema),
   camera_anchor_set: z.array(CameraAnchorDTOSchema),
   camera_anchor_clear: z.array(CameraAnchorDTOSchema),
+  grade_apply: AssetDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;
