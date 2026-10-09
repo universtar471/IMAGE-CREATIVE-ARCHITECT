@@ -187,3 +187,43 @@ A batch (`batch_create`) is one provider/model/purpose plus 1–50 items; each i
 own compiled prompt, ordered references, params and optional camera, and becomes one job.
 The UI compiles every item (ADR-008). Items fail or succeed independently. The Contact Sheet
 shows a batch's (or a camera set's) outputs side by side for selection and anchor approval.
+
+## ADR-019 — Lighting, weather and mood are prompt DNA with pack presets
+Status: accepted (Phase 4)
+
+`lighting`, `weather` and `mood` stay optional sections of the DNA aggregate (schema v1
+shapes from Phase 1, extended additively). They are design intent sent to the image model,
+so the TypeScript compiler (ADR-008) renders them; compiler `pc-1.2.0` emits three separate
+sections (Lighting, Weather, Mood) instead of the Phase 1 combined line, plus artificial
+lighting zones. Knowledge packs gain `lightingPresets`, `weatherPresets` and `moodPresets`
+(pack 1.2.0): each preset has a stable id, a label, tags (e.g. `tropical`, `monsoon`,
+`dry_season`, `night`) and a partial section that the UI merges into the DNA; the DNA keeps
+the chosen `presetId` for display only (the resolved values are what is compiled, ADR-001).
+Locks: `LockState` gains `mood` (default false). A locked lighting/weather/mood section is
+read-only in the UI, is never varied by mood variations, and adds a preservation line
+("Lighting DNA is LOCKED: …") to every prompt.
+
+## ADR-020 — Color grade is a deterministic local post-process
+Status: accepted (Phase 4)
+
+`colorGrade` is never sent to a provider and never enters the prompt. Grading runs on the
+user's machine with one pixel pipeline defined in `docs/API_CONTRACTS.md` §12.3, implemented
+twice: in TypeScript (`@arch/domain` `grade/`) for the live canvas preview, and in Rust for
+the full-resolution result. Both are checked against the same test vectors
+(`packages/domain/test-vectors/grade.json`) with a tolerance of ±1 per 8-bit channel.
+`grade_apply` writes a NEW asset (the source is never modified) plus a version with
+`operation = "color_grade"`, `operation_json` = the grade, `parent_version_id` = the
+source's latest version. The new asset takes role `regular_image` and never becomes master
+automatically. The DNA `colorGrade` section stores the project's current grade so the same
+look can be applied to every camera.
+
+## ADR-021 — Mood variations are batches over one source image
+Status: accepted (Phase 4)
+
+"Mood variations" re-render one source image (the master or a chosen output) under several
+lighting/weather/mood presets. It is an ordinary batch (ADR-018, purpose `variation`): one
+item per preset, the source first as the master/anchor reference, a prompt compiled with
+that preset's sections overriding the DNA and a preservation instruction to keep the
+architecture, camera and composition and change only light, weather and atmosphere.
+Locked sections are not overridden. Choosing a result ("Adopt this mood") writes that
+preset's sections into the DNA; nothing is written before the user adopts.

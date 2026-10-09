@@ -400,3 +400,63 @@ sent). `configured` is false while
 `HHTECH_BASE_URL` is missing or invalid, even if a key exists (`keySource` still says where the
 key is). Base URL, models, size, quality and chat model are read from the environment / `.env`
 only and never appear in SQLite, logs or DTOs other than the model ids.
+
+## 12. Phase 4 contracts — lighting, weather, mood, color grade
+
+### 12.1 DNA (additive, schema v1 stays valid)
+
+- `LightingDNA`: existing fields plus `presetId?: string`. `timeOfDay` uses the vocabulary
+  `dawn | morning | midday | afternoon | golden_hour | blue_hour | night` (stored as string,
+  validated by the UI select). `artificialLighting[]` items gain `id` (`LGT_<ULID>`),
+  `enabled` (default true) and `zone` vocabulary `facade_uplights | interior_glow |
+  landscape | pool | soffit_downlights | signage | street` (free text still allowed).
+- `WeatherDNA`, `MoodDNA`: existing fields plus `presetId?: string` (`preset` keeps the label).
+- `LockState.mood: boolean` (default false).
+- `ColorGradeDNA`: unchanged sliders; `look?: string` = id of a built-in look (§12.3).
+
+### 12.2 Knowledge pack 1.2.0
+
+`lightingPresets`, `weatherPresets`, `moodPresets`: arrays of
+`{ id, label, tags: string[], values: Partial<section> }`. Every pack ships at least
+4 lighting, 3 weather and 4 mood presets; tropical packs include monsoon/rain and
+blue-hour presets. `KnowledgeRegistry` resolves them like camera presets
+(subtype pack, type default, custom fallback).
+
+### 12.3 Color grade pipeline (TS and Rust must match within ±1 per 8-bit channel)
+
+Per pixel, sRGB 8-bit → floats `c = (r,g,b)/255`, then in this order (`k = slider/100`):
+
+1. Exposure: `lin = srgbToLinear(c) * 2^exposure`; `c = linearToSrgb(clamp01(lin))`
+   (IEC 61966-2-1 curves).
+2. Temperature / tint: `r += 0.10*kTemp`, `b -= 0.10*kTemp`, `g -= 0.10*kTint`.
+3. Contrast: `c = (c - 0.5) * (1 + kContrast) + 0.5`.
+4. With `L = 0.2126r + 0.7152g + 0.0722b` (recomputed after each step that changes c):
+   highlights `c += 0.25*kHighlights*smoothstep(0.5,1,L)`;
+   shadows `c += 0.25*kShadows*(1 - smoothstep(0,0.5,L))`;
+   whites `c += 0.15*kWhites*L²`; blacks `c += 0.15*kBlacks*(1-L)²`.
+5. Clarity (midtone contrast): `c += 0.8*kClarity*(c - 0.5)*L*(1-L)`.
+6. Dehaze: `d = 0.10*kDehaze`; `c = (c - d) / (1 - d)` (for d<0 this lifts blacks).
+7. Vibrance: `s = max(c)-min(c)`; `c = L + (c - L)*(1 + kVibrance*(1 - s))`.
+8. Saturation: `c = L + (c - L)*(1 + kSaturation)`.
+9. Clamp to [0,1], `round(c*255)`. Alpha passes through unchanged.
+
+Built-in looks (`look` ids, each a full slider set; selecting one fills the sliders):
+`neutral`, `warm_tropical`, `cool_modern`, `soft_editorial`, `cinematic_dusk`,
+`bright_magazine`. Test vectors: `packages/domain/test-vectors/grade.json` =
+`[{ grade, input: [[r,g,b],…], output: [[r,g,b],…] }]` produced by the TS implementation.
+
+### 12.4 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `grade_apply` | `{ projectId, assetId, grade: ColorGradeDNA, label?: string }` | `AssetDTO` (new asset) |
+
+- Source must be a `ready` image asset of the project; errors `NOT_FOUND`, `VALIDATION_ERROR`.
+- Writes the graded PNG (8-bit RGB/RGBA, same size), thumbnail, asset row (role
+  `regular_image`, `source` = the source asset's source), version row (`operation =
+  "color_grade"`, `operation_json` = grade, `parent_version_id` = source's latest version,
+  label = `label` or "Color grade"). Transactional with file cleanup like generation outputs.
+- Runs off the UI thread; large images (≤ 8K long edge) must not block other commands
+  (no DB lock held while processing).
+
+Mood variations use `batch_create` unchanged (ADR-021).
