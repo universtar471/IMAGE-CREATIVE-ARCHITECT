@@ -21,7 +21,12 @@ fn serve(replies: Vec<Reply>) -> MockServer {
     MockServer::start("/v1beta", replies)
 }
 
-impl MockServer {
+/// `server.provider()`: the adapter pointed at the mock server.
+trait MockProvider {
+    fn provider(&self) -> GeminiProvider;
+}
+
+impl MockProvider for MockServer {
     fn provider(&self) -> GeminiProvider {
         GeminiProvider::with_base_url(&self.base_url)
     }
