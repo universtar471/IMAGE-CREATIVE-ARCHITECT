@@ -1,5 +1,11 @@
 import { Plus, Trash2 } from "lucide-react";
-import type { LightingDNA, WeatherDNA } from "@arch/domain";
+import {
+  newLightingId,
+  type LightingDNA,
+  type LightingPreset,
+  type WeatherDNA,
+  type WeatherPreset,
+} from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, SelectField, TextAreaField, TextField } from "../../components/panels/fields";
@@ -25,16 +31,6 @@ const ZONES = [
   "signage",
   "street",
 ] as const;
-type Preset = { id: string; label: string; values?: Record<string, unknown> };
-
-function packPresets(kind: "lightingPresets" | "weatherPresets"): Preset[] {
-  const s = useStudio.getState().workspace;
-  if (!s) return [];
-  const pack = knowledge.resolve(s.project.projectType, s.project.subtype)
-    .pack as unknown as Record<string, unknown> | null;
-  return ((pack?.[kind] as Preset[] | undefined) ?? []).filter((p) => p && p.id && p.label);
-}
-
 const defaultLighting: LightingDNA = {
   schemaVersion: 1,
   timeOfDay: "morning",
@@ -55,12 +51,6 @@ const defaultWeather: WeatherDNA = {
   haze: "low",
   notes: "",
 };
-const LIGHT_ID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const newLightId = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(25));
-  return `LGT_0${[...bytes].map((value) => LIGHT_ID_ALPHABET[value % LIGHT_ID_ALPHABET.length]).join("")}`;
-};
-
 export function LightingPanel() {
   const ws = useStudio((s) => s.workspace!);
   const editDna = useStudio((s) => s.editDna);
@@ -77,9 +67,9 @@ export function LightingPanel() {
     setSection("lighting", { ...lighting, [field]: value });
   const setWeather = (field: string, value: unknown) =>
     setSection("weather", { ...weather, [field]: value });
-  const presets = packPresets("lightingPresets");
-  const weatherPresets = packPresets("weatherPresets");
-  const applyPreset = (preset: Preset, kind: "lighting" | "weather") => {
+  const presets = knowledge.lightingPresets(ws.project.projectType, ws.project.subtype);
+  const weatherPresets = knowledge.weatherPresets(ws.project.projectType, ws.project.subtype);
+  const applyPreset = (preset: LightingPreset | WeatherPreset, kind: "lighting" | "weather") => {
     if (kind === "lighting" && !lightLocked)
       setSection(kind, {
         ...(kind === "lighting" ? lighting : weather),
@@ -177,7 +167,7 @@ export function LightingPanel() {
               setLight("artificialLighting", [
                 ...lights,
                 {
-                  id: newLightId(),
+                  id: newLightingId(),
                   type: "uplight",
                   enabled: true,
                   zone: "facade_uplights",

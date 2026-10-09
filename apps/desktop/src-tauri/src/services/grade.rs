@@ -82,7 +82,7 @@ pub fn validate_grade(grade: &ColorGrade) -> AppResult<()> {
     if grade.schema_version != 1 {
         return Err(AppError::validation("Color grade schemaVersion must be 1."));
     }
-    in_range("exposure", grade.exposure, -5.0, 5.0)?;
+    in_range("exposure", grade.exposure, -100.0, 100.0)?;
     for (name, value) in [
         ("contrast", grade.contrast),
         ("highlights", grade.highlights),
@@ -131,7 +131,7 @@ fn luminance(c: [f32; 3]) -> f32 {
 }
 
 fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
-    let k_exposure = 2.0_f32.powf(grade.exposure);
+    let k_exposure = 2.0_f32.powf(grade.exposure / 100.0);
     for channel in &mut c {
         *channel = linear_to_srgb(clamp01(srgb_to_linear(*channel) * k_exposure));
     }
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn rejects_values_outside_zod_ranges() {
         let mut grade = neutral();
-        grade.exposure = 6.0;
+        grade.exposure = 101.0;
         assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
         grade.exposure = 0.0;
         grade.saturation = -101.0;
@@ -354,9 +354,8 @@ mod tests {
     #[test]
     fn parity_vectors_use_domain_file_when_available() {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let domain = manifest.join("../../../../packages/domain/test-vectors/grade.json");
-        let local = manifest.join("tests/grade.json");
-        let path = if domain.is_file() { domain } else { local };
+        let path = manifest.join("../../../packages/domain/test-vectors/grade.json");
+        assert!(path.is_file(), "domain grade vectors missing: {}", path.display());
         let vectors: Vec<Value> = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         for vector in vectors {
             let grade: ColorGrade = serde_json::from_value(vector["grade"].clone()).unwrap();

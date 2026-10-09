@@ -1,6 +1,11 @@
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { defaultGenerationParams, type ColorGradeDNA, type GenerationParams } from "@arch/domain";
+import {
+  defaultGenerationParams,
+  type ColorGradeDNA,
+  type GenerationParams,
+  type WeatherPreset,
+} from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { Dialog } from "../../components/common/Dialog";
@@ -25,46 +30,7 @@ const SLIDERS = [
   "clarity",
   "dehaze",
 ] as const;
-type Preset = MoodVariationPreset & { values?: Record<string, unknown> };
-const fallbackMoods: Preset[] = [
-  {
-    id: "tropical_day",
-    label: "Tropical day",
-    values: { mood: { preset: "Tropical day", atmosphere: "lush and lively" } },
-  },
-  {
-    id: "monsoon_rain",
-    label: "Monsoon rain",
-    values: { weather: { preset: "Monsoon rain", haze: "rain haze", groundWetness: "wet" } },
-  },
-  {
-    id: "blue_hour",
-    label: "Blue hour",
-    values: { lighting: { timeOfDay: "blue_hour" }, mood: { preset: "Blue hour" } },
-  },
-  {
-    id: "warm_evening",
-    label: "Warm evening",
-    values: { lighting: { timeOfDay: "golden_hour" }, mood: { warmth: "warm" } },
-  },
-];
-
-function presetsFor(projectType: string, subtype: string | null | undefined): Preset[] {
-  const pack = knowledge.resolve(projectType as never, subtype).pack as unknown as Record<
-    string,
-    unknown
-  > | null;
-  return ((pack?.moodPresets as Preset[] | undefined) ?? fallbackMoods).filter(
-    (p) => p?.id && p?.label,
-  );
-}
-function weatherPresetsFor(projectType: string, subtype: string | null | undefined): Preset[] {
-  const pack = knowledge.resolve(projectType as never, subtype).pack as unknown as Record<
-    string,
-    unknown
-  > | null;
-  return ((pack?.weatherPresets as Preset[] | undefined) ?? []).filter((p) => p?.id && p?.label);
-}
+type Preset = MoodVariationPreset;
 
 export function MoodGradePanel() {
   const ws = useStudio((s) => s.workspace!);
@@ -83,11 +49,11 @@ export function MoodGradePanel() {
   const gradeLocked = readOnly || !!locks.colorGrade;
   const moodLocked = readOnly || !!locks.mood;
   const moodPresets = useMemo(
-    () => presetsFor(ws.project.projectType, ws.project.subtype),
+    () => knowledge.moodPresets(ws.project.projectType, ws.project.subtype) as Preset[],
     [ws.project.projectType, ws.project.subtype],
   );
   const weatherPresets = useMemo(
-    () => weatherPresetsFor(ws.project.projectType, ws.project.subtype),
+    () => knowledge.weatherPresets(ws.project.projectType, ws.project.subtype) as WeatherPreset[],
     [ws.project.projectType, ws.project.subtype],
   );
   const [variationOpen, setVariationOpen] = useState(false);
@@ -125,9 +91,9 @@ export function MoodGradePanel() {
   const presetDisabled = (preset: Preset) => {
     const values = (preset.values ?? {}) as Record<string, unknown>;
     const sections = [
-      preset.lighting || values.lighting ? "lighting" : null,
-      preset.weather || values.weather ? "weather" : null,
-      preset.mood || values.mood || Object.keys(values).length ? "mood" : null,
+      values.lighting ? "lighting" : null,
+      values.weather ? "weather" : null,
+      values.mood || Object.keys(values).length ? "mood" : null,
     ].filter((section): section is string => !!section);
     return sections.length > 0 && sections.every((section) => !!locks[section]);
   };
@@ -135,7 +101,8 @@ export function MoodGradePanel() {
   const setGrade = (field: string, value: unknown) =>
     editDna("colorGrade", { ...grade, [field]: value });
   const chooseLook = (id: string | undefined) => {
-    if (id && GRADE_LOOKS[id]) editDna("colorGrade", { ...GRADE_LOOKS[id] });
+    const looks = GRADE_LOOKS as Record<string, ColorGradeDNA>;
+    if (id && looks[id]) editDna("colorGrade", { ...looks[id] });
   };
   const adopt = (preset: Preset) => {
     if (!moodLocked) editDna("mood", adoptMoodPreset(ws.draftDna, preset).mood);
@@ -232,7 +199,7 @@ export function MoodGradePanel() {
               if (p && !locks.weather)
                 editDna("weather", {
                   ...ws.draftDna.weather,
-                  ...(p.values?.weather ?? p.weather ?? {}),
+                  ...(p.values ?? {}),
                   presetId: p.id,
                   preset: p.label,
                 });

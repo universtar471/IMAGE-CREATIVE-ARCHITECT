@@ -27,6 +27,7 @@ pub fn validate_dna(dna: &Value) -> AppResult<()> {
     // them yet. Remove only those fields for the old-schema pass; their own types
     // are checked above and the persisted value remains untouched.
     let mut schema_input = dna.clone();
+    apply_additive_defaults(&mut schema_input);
     strip_additive_fields(&mut schema_input);
     for err in validator().iter_errors(&schema_input) {
         let pointer = err.instance_path().to_string();
@@ -42,6 +43,21 @@ pub fn validate_dna(dna: &Value) -> AppResult<()> {
     }
 }
 
+fn apply_additive_defaults(dna: &mut Value) {
+    if let Some(lights) = dna
+        .get_mut("lighting")
+        .and_then(Value::as_object_mut)
+        .and_then(|section| section.get_mut("artificialLighting"))
+        .and_then(Value::as_array_mut)
+    {
+        for light in lights {
+            if let Some(light) = light.as_object_mut() {
+                light.entry("enabled").or_insert_with(|| Value::Bool(true));
+            }
+        }
+    }
+}
+
 fn strip_additive_fields(dna: &mut Value) {
     if let Some(object) = dna.as_object_mut() {
         if let Some(section) = object.get_mut("lighting").and_then(Value::as_object_mut) {
@@ -50,7 +66,6 @@ fn strip_additive_fields(dna: &mut Value) {
                 for light in lights {
                     if let Some(light) = light.as_object_mut() {
                         light.remove("id");
-                        light.remove("enabled");
                     }
                 }
             }
