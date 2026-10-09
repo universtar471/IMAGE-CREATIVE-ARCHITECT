@@ -3,7 +3,6 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import {
   createInitialDNA,
   DEFAULT_SUBTYPE,
-  PROJECT_TYPE_LABELS,
   ProjectTypeSchema,
   type ProjectDTO,
   type ProjectType,
@@ -14,12 +13,11 @@ import { Dialog } from "../../components/common/Dialog";
 import { NumberField, SelectField, TextField } from "../../components/panels/fields";
 import { toBridgeError } from "../../lib/bridge";
 import { knowledge } from "../../lib/knowledge";
+import { useT, type TFunction } from "../../i18n";
+import { translateDomainMessage } from "../../i18n/domain";
+import { contextPresetLabel, packDescription, packLabel, styleLabel } from "../../i18n/knowledge";
 
-const STEPS = ["Basics", "Architecture", "Context", "Create"] as const;
-const TYPE_OPTIONS = ProjectTypeSchema.options.map((t) => ({
-  value: t,
-  label: PROJECT_TYPE_LABELS[t],
-}));
+const STEPS = ["stepBasics", "stepArchitecture", "stepContext", "stepCreate"] as const;
 
 type Draft = {
   name: string;
@@ -46,6 +44,11 @@ export function NewProjectWizard({
   const [d, setD] = useState<Draft>({ name: "", projectType: "villa", subtype: DEFAULT_SUBTYPE });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
+  const typeOptions = ProjectTypeSchema.options.map((type) => ({
+    value: type,
+    label: t(`labels.projectType.${type}`),
+  }));
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((prev) => ({ ...prev, [k]: v }));
 
   const subtypes = knowledge.listSubtypes(d.projectType);
@@ -56,11 +59,11 @@ export function NewProjectWizard({
     v === undefined
       ? undefined
       : Number.isNaN(v)
-        ? "Enter a valid number."
+        ? t("validation.validNumber")
         : v <= 0
-          ? "Must be greater than 0."
+          ? t("validation.greaterThan", { min: 0 })
           : integer && !Number.isInteger(v)
-            ? "Enter a whole number."
+            ? t("validation.wholeNumber")
             : undefined;
   const archErrors = {
     floors: numberError(d.floors, true),
@@ -69,7 +72,7 @@ export function NewProjectWizard({
     siteWidthM: numberError(d.siteWidthM),
     siteDepthM: numberError(d.siteDepthM),
   };
-  const nameError = d.name.trim() ? undefined : "Give the project a name.";
+  const nameError = d.name.trim() ? undefined : t("wizard.nameRequired");
   const stepValid =
     step === 0 ? !nameError : step === 1 ? Object.values(archErrors).every((e) => !e) : true;
 
@@ -109,14 +112,14 @@ export function NewProjectWizard({
       });
       onCreated(project);
     } catch (err) {
-      setError(toBridgeError(err).message);
+      setError(translateDomainMessage(toBridgeError(err).message, t));
       setBusy(false);
     }
   };
 
   return (
     <Dialog
-      title="New Project"
+      title={t("wizard.title")}
       onClose={onClose}
       footer={
         <>
@@ -128,7 +131,7 @@ export function NewProjectWizard({
           {!error && <span className="spacer" />}
           {step > 0 && (
             <button className="btn" onClick={() => setStep(step - 1)} disabled={busy}>
-              <ArrowLeft size={14} /> Back
+              <ArrowLeft size={14} /> {t("wizard.back")}
             </button>
           )}
           {step < STEPS.length - 1 ? (
@@ -137,7 +140,7 @@ export function NewProjectWizard({
               onClick={() => setStep(step + 1)}
               disabled={!stepValid}
             >
-              Next <ArrowRight size={14} />
+              {t("wizard.next")} <ArrowRight size={14} />
             </button>
           ) : (
             <button
@@ -145,7 +148,7 @@ export function NewProjectWizard({
               onClick={() => void create()}
               disabled={busy || !!nameError}
             >
-              <Check size={14} /> {busy ? "Creating…" : "Create project"}
+              <Check size={14} /> {busy ? t("wizard.creating") : t("wizard.create")}
             </button>
           )}
         </>
@@ -158,7 +161,7 @@ export function NewProjectWizard({
             className={`step ${i === step ? "is-active" : ""} ${i < step ? "is-done" : ""}`}
           >
             <span className="step-dot">{i < step ? <Check size={12} /> : i + 1}</span>
-            {s}
+            {t(`wizard.${s}`)}
           </li>
         ))}
       </ol>
@@ -166,15 +169,15 @@ export function NewProjectWizard({
       {step === 0 && (
         <>
           <TextField
-            label="Project name"
+            label={t("wizard.name")}
             value={d.name}
             error={d.name ? nameError : undefined}
-            placeholder="e.g. Villa Tropical Test"
+            placeholder={t("wizard.namePlaceholder")}
             onChange={(v) => set("name", v ?? "")}
           />
           <SelectField
-            label="Project type"
-            options={TYPE_OPTIONS}
+            label={t("wizard.type")}
+            options={typeOptions}
             allowEmpty={false}
             value={d.projectType}
             onChange={(v) =>
@@ -187,16 +190,18 @@ export function NewProjectWizard({
             }
           />
           <SelectField
-            label="Subtype"
+            label={t("wizard.subtype")}
             hint={
               match === "custom_fallback"
-                ? "No dedicated knowledge pack yet — generic defaults will be used."
-                : pack?.description
+                ? t("wizard.noPack")
+                : pack
+                  ? packDescription(pack)
+                  : undefined
             }
             options={
               subtypes.length
-                ? subtypes.map((p) => ({ value: p.subtype, label: p.label }))
-                : [{ value: DEFAULT_SUBTYPE, label: "Generic" }]
+                ? subtypes.map((p) => ({ value: p.subtype, label: packLabel(p) }))
+                : [{ value: DEFAULT_SUBTYPE, label: t("wizard.generic") }]
             }
             allowEmpty={false}
             value={d.subtype}
@@ -214,23 +219,24 @@ export function NewProjectWizard({
       {step === 1 && (
         <>
           <p className="field-hint" style={{ margin: 0 }}>
-            Optional. Leave blank to use the knowledge-pack defaults shown as placeholders.
+            {t("wizard.optional")} {t("dna.englishHint")}
           </p>
           <TextField
-            label="Architectural style"
+            label={t("wizard.style")}
             value={d.style}
             suggestions={pack?.styleSuggestions}
+            suggestionLabel={styleLabel}
             placeholder={pack?.defaults.building.architecturalStyle ?? pack?.styleSuggestions[0]}
             onChange={(v) => set("style", v)}
           />
           <div className="field-row">
             <NumberField
-              label={isInterior ? "Levels" : "Floors"}
+              label={isInterior ? t("wizard.levels") : t("wizard.floors")}
               value={d.floors}
               error={archErrors.floors}
               hint={
                 pack?.defaults.building.floors
-                  ? `Default: ${pack.defaults.building.floors}`
+                  ? t("wizard.defaultValue", { value: pack.defaults.building.floors })
                   : undefined
               }
               onChange={(v) => set("floors", v)}
@@ -239,14 +245,14 @@ export function NewProjectWizard({
           </div>
           <div className="field-row">
             <NumberField
-              label="Building width"
+              label={t("wizard.buildingWidth")}
               suffix="m"
               value={d.widthM}
               error={archErrors.widthM}
               onChange={(v) => set("widthM", v)}
             />
             <NumberField
-              label="Building depth"
+              label={t("wizard.buildingDepth")}
               suffix="m"
               value={d.depthM}
               error={archErrors.depthM}
@@ -256,14 +262,14 @@ export function NewProjectWizard({
           {!isInterior && (
             <div className="field-row">
               <NumberField
-                label="Site width"
+                label={t("wizard.siteWidth")}
                 suffix="m"
                 value={d.siteWidthM}
                 error={archErrors.siteWidthM}
                 onChange={(v) => set("siteWidthM", v)}
               />
               <NumberField
-                label="Site depth"
+                label={t("wizard.siteDepth")}
                 suffix="m"
                 value={d.siteDepthM}
                 error={archErrors.siteDepthM}
@@ -277,8 +283,9 @@ export function NewProjectWizard({
       {step === 2 && (
         <>
           <p className="field-hint" style={{ margin: 0 }}>
-            Pick a starting context for a {PROJECT_TYPE_LABELS[d.projectType].toLowerCase()}. You
-            can refine every direction later.
+            {t("wizard.pickContext", {
+              type: t(`labels.projectType.${d.projectType}`).toLowerCase(),
+            })}
           </p>
           <div className="choice-grid">
             <button
@@ -286,8 +293,8 @@ export function NewProjectWizard({
               aria-pressed={!d.contextPresetId}
               onClick={() => set("contextPresetId", undefined)}
             >
-              <strong>Pack defaults only</strong>
-              <small>{pack?.defaults.context.macroContext ?? "No context yet"}</small>
+              <strong>{t("wizard.packDefaults")}</strong>
+              <small>{pack?.defaults.context.macroContext ?? t("wizard.noContext")}</small>
             </button>
             {(pack?.contextPresets ?? []).map((preset) => (
               <button
@@ -296,7 +303,7 @@ export function NewProjectWizard({
                 aria-pressed={d.contextPresetId === preset.id}
                 onClick={() => set("contextPresetId", preset.id)}
               >
-                <strong>{preset.label}</strong>
+                <strong>{pack ? contextPresetLabel(pack, preset) : preset.label}</strong>
                 <small>
                   {[
                     preset.context.front?.spaceType,
@@ -316,31 +323,31 @@ export function NewProjectWizard({
         <table className="summary-table">
           <tbody>
             <tr>
-              <th>Name</th>
+              <th>{t("wizard.sumName")}</th>
               <td>{d.name.trim()}</td>
             </tr>
             <tr>
-              <th>Type</th>
+              <th>{t("wizard.sumType")}</th>
               <td>
-                {PROJECT_TYPE_LABELS[d.projectType]} · {pack?.label ?? d.subtype}
+                {t(`labels.projectType.${d.projectType}`)} · {pack ? packLabel(pack) : d.subtype}
               </td>
             </tr>
             {preview ? (
               <>
                 <tr>
-                  <th>Style</th>
-                  <td>{preview.building.architecturalStyle ?? "— (set later)"}</td>
+                  <th>{t("wizard.sumStyle")}</th>
+                  <td>{preview.building.architecturalStyle ?? t("wizard.setLater")}</td>
                 </tr>
                 <tr>
-                  <th>{isInterior ? "Levels" : "Floors"}</th>
+                  <th>{isInterior ? t("wizard.levels") : t("wizard.floors")}</th>
                   <td>{preview.building.floors ?? "—"}</td>
                 </tr>
                 <tr>
-                  <th>Dimensions</th>
-                  <td>{dimText(preview.building.dimensions)}</td>
+                  <th>{t("wizard.sumDimensions")}</th>
+                  <td>{dimText(preview.building.dimensions, t)}</td>
                 </tr>
                 <tr>
-                  <th>Context</th>
+                  <th>{t("wizard.sumContext")}</th>
                   <td>
                     {[preview.context.macroContext, preview.context.climateContext]
                       .filter(Boolean)
@@ -348,7 +355,7 @@ export function NewProjectWizard({
                   </td>
                 </tr>
                 <tr>
-                  <th>Front / rear</th>
+                  <th>{t("wizard.sumFrontRear")}</th>
                   <td>
                     {[preview.context.front.spaceType, preview.context.rear.spaceType]
                       .filter(Boolean)
@@ -356,14 +363,14 @@ export function NewProjectWizard({
                   </td>
                 </tr>
                 <tr>
-                  <th>Negative constraints</th>
+                  <th>{t("wizard.sumNegative")}</th>
                   <td>{preview.context.negativeConstraints.join(", ") || "—"}</td>
                 </tr>
               </>
             ) : (
               <tr>
                 <td colSpan={2} className="field-error">
-                  The starting values are not valid. Go back and check the numbers.
+                  {t("wizard.invalidStart")}
                 </td>
               </tr>
             )}
@@ -374,15 +381,19 @@ export function NewProjectWizard({
   );
 }
 
-function dimText(d: {
-  widthM?: number;
-  depthM?: number;
-  siteWidthM?: number;
-  siteDepthM?: number;
-}) {
+function dimText(
+  d: {
+    widthM?: number;
+    depthM?: number;
+    siteWidthM?: number;
+    siteDepthM?: number;
+  },
+  t: TFunction,
+) {
   const parts = [];
-  if (d.widthM || d.depthM) parts.push(`building ${d.widthM ?? "?"} × ${d.depthM ?? "?"} m`);
+  if (d.widthM || d.depthM)
+    parts.push(t("wizard.dimBuilding", { w: d.widthM ?? "?", d: d.depthM ?? "?" }));
   if (d.siteWidthM || d.siteDepthM)
-    parts.push(`site ${d.siteWidthM ?? "?"} × ${d.siteDepthM ?? "?"} m`);
+    parts.push(t("wizard.dimSite", { w: d.siteWidthM ?? "?", d: d.siteDepthM ?? "?" }));
   return parts.join(", ") || "—";
 }

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FolderOpen, Plus, Search, SearchX } from "lucide-react";
-import { PROJECT_TYPE_LABELS, type ProjectSummaryDTO } from "@arch/domain";
+import type { ProjectSummaryDTO } from "@arch/domain";
 import { attempt, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { EmptyState, ErrorState, LoadingState } from "../../components/common/states";
 import { BrandMark } from "../../components/shell/BrandMark";
+import { LocaleSwitch } from "../../components/shell/LocaleSwitch";
+import { translate, useLocale, useT } from "../../i18n";
+import { subtypeLabel } from "../../i18n/knowledge";
 import { call, toBridgeError } from "../../lib/bridge";
 import { NewProjectWizard } from "./NewProjectWizard";
 import { ProjectCard } from "./ProjectCard";
@@ -20,6 +23,8 @@ export function ProjectHub() {
   const [query, setQuery] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
   const [toArchive, setToArchive] = useState<ProjectSummaryDTO | null>(null);
+  const t = useT();
+  const locale = useLocale((s) => s.locale);
 
   const load = useCallback(
     () =>
@@ -39,24 +44,33 @@ export function ProjectHub() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
+    // Search matches the type/subtype in both languages and the raw subtype id.
+    const typeText = (p: ProjectSummaryDTO) =>
+      [
+        translate("en", `labels.projectType.${p.projectType}`),
+        translate(locale, `labels.projectType.${p.projectType}`),
+        p.subtype ?? "",
+        p.subtype ? subtypeLabel(p.projectType, p.subtype, locale) : "",
+      ]
+        .join(" ")
+        .toLowerCase();
     return (projects ?? [])
       .filter((p) =>
         filter === "all" ? true : filter === "archived" ? !!p.archivedAt : !p.archivedAt,
       )
-      .filter(
-        (p) =>
-          !q ||
-          p.name.toLowerCase().includes(q) ||
-          PROJECT_TYPE_LABELS[p.projectType].toLowerCase().includes(q) ||
-          (p.subtype ?? "").toLowerCase().includes(q),
-      );
-  }, [projects, filter, query]);
+      .filter((p) => !q || p.name.toLowerCase().includes(q) || typeText(p).includes(q));
+  }, [projects, filter, query, locale]);
 
   const setArchived = async (p: ProjectSummaryDTO, archived: boolean) => {
     setToArchive(null);
     const res = await attempt(() => call("project_set_archived", { projectId: p.id, archived }));
     if (res) {
-      notify("success", archived ? `'${p.name}' archived.` : `'${p.name}' restored.`);
+      notify(
+        "success",
+        archived
+          ? t("hub.archivedToast", { name: p.name })
+          : t("hub.restoredToast", { name: p.name }),
+      );
       await load();
     }
   };
@@ -75,56 +89,62 @@ export function ProjectHub() {
           <Search size={14} />
           <input
             className="input"
-            placeholder="Search projects"
-            aria-label="Search projects"
+            placeholder={t("hub.search")}
+            aria-label={t("hub.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="segmented" role="group" aria-label="Project filter">
+        <div className="segmented" role="group" aria-label={t("hub.filterLabel")}>
           <button aria-pressed={filter === "active"} onClick={() => setFilter("active")}>
-            Active ({activeCount})
+            {t("hub.active", { count: activeCount })}
           </button>
           <button aria-pressed={filter === "archived"} onClick={() => setFilter("archived")}>
-            Archived ({archivedCount})
+            {t("hub.archived", { count: archivedCount })}
           </button>
           <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
-            All
+            {t("hub.all")}
           </button>
         </div>
         <button className="btn btn-primary" onClick={() => setWizardOpen(true)}>
-          <Plus size={15} /> New Project
+          <Plus size={15} /> {t("hub.newProject")}
         </button>
+        <LocaleSwitch />
       </header>
 
       <div className="hub-body">
         {error ? (
-          <ErrorState title="Could not load projects" message={error} onRetry={() => void load()} />
+          <ErrorState title={t("hub.loadFailed")} message={error} onRetry={() => void load()} />
         ) : !projects ? (
-          <LoadingState label="Loading projects…" />
+          <LoadingState label={t("hub.loading")} />
         ) : projects.length === 0 ? (
           <EmptyState
             icon={<FolderOpen size={36} />}
-            title="No projects yet"
+            title={t("hub.empty")}
             action={
               <button className="btn btn-primary" onClick={() => setWizardOpen(true)}>
-                <Plus size={15} /> Create your first project
+                <Plus size={15} /> {t("hub.createFirst")}
               </button>
             }
           >
-            A project holds the structured design DNA, references and every image produced from
-            them.
+            {t("hub.emptyHint")}
           </EmptyState>
         ) : visible.length === 0 ? (
           <EmptyState
             icon={<SearchX size={32} />}
-            title={query ? "No matching projects" : `No ${filter} projects`}
+            title={
+              query
+                ? t("hub.noMatch")
+                : filter === "archived"
+                  ? t("hub.noArchived")
+                  : t("hub.noActive")
+            }
           >
             {query
-              ? "Try a different search or filter."
+              ? t("hub.tryOther")
               : filter === "archived"
-                ? "Archived projects will appear here."
-                : "All projects are archived."}
+                ? t("hub.archivedAppear")
+                : t("hub.allArchived")}
           </EmptyState>
         ) : (
           <div className="hub-grid">
@@ -146,16 +166,16 @@ export function ProjectHub() {
           onClose={() => setWizardOpen(false)}
           onCreated={(p) => {
             setWizardOpen(false);
-            notify("success", `Project '${p.name}' created.`);
+            notify("success", t("hub.createdToast", { name: p.name }));
             void openProject(p.id);
           }}
         />
       )}
       {toArchive && (
         <ConfirmDialog
-          title="Archive project?"
-          message={`'${toArchive.name}' will become read-only and move to Archived. Nothing is deleted; you can restore it any time.`}
-          confirmLabel="Archive"
+          title={t("hub.archiveTitle")}
+          message={t("hub.archiveMessage", { name: toArchive.name })}
+          confirmLabel={t("common.archive")}
           onConfirm={() => void setArchived(toArchive, true)}
           onCancel={() => setToArchive(null)}
         />
