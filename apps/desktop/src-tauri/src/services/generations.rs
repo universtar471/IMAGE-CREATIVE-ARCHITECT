@@ -27,7 +27,7 @@ use crate::providers::{
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
 use crate::services::provider_settings::{find_provider, key_for, not_configured};
-use crate::services::{ensure_not_archived, queue, AppCore};
+use crate::services::{ensure_not_archived, queue, workflow, AppCore};
 use crate::util::{new_id, prefix};
 
 /// Upper bound of `GenerationParamsSchema.outputCount`, whatever the model allows.
@@ -61,6 +61,7 @@ struct RequestSnapshot {
 }
 
 /// A request that passed every check of API_CONTRACTS §9/§10 and may be enqueued.
+#[derive(Debug)]
 pub(crate) struct Validated {
     project_id: String,
     provider_id: String,
@@ -165,6 +166,7 @@ pub(crate) fn validate(core: &AppCore, req: SubmitRequest) -> AppResult<Validate
         let conn = core.conn()?;
         let project = repo::get_project(&conn, &req.project_id)?;
         ensure_not_archived(&project)?;
+        workflow::ensure_generation_allowed(&conn, &project, purpose)?;
         let assets = req
             .reference_asset_ids
             .iter()
@@ -373,6 +375,8 @@ pub(crate) fn insert_queued(
     now: &str,
 ) -> AppResult<(String, String)> {
     ensure_not_archived(&repo::get_project(conn, &v.project_id)?)?;
+    let project = repo::get_project(conn, &v.project_id)?;
+    workflow::ensure_generation_allowed(conn, &project, v.purpose)?;
     for id in &v.snapshot.reference_asset_ids {
         check_reference(core, conn, &v.project_id, id)?;
     }
@@ -810,9 +814,10 @@ mod tests {
     use crate::services::projects;
     use crate::services::provider_settings;
     use crate::services::tests_support::{
-        core_with_double, open_test_core, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior,
-        CAM_A, TEST_PROVIDER,
+        core_with_double, open_test_core, set_cameras, submit_and_run, test_create_villa,
+        test_create_villa_unconfirmed, write_png, TestBehavior, CAM_A, TEST_PROVIDER,
     };
+    use crate::services::workflow::{self, DNA_STEP_IDS};
 
     /// Phase 2 tests check a whole run: submit, then let the queue run it on this thread.
     /// Shadows `super::submit` inside this module.
@@ -879,6 +884,45 @@ mod tests {
 
     fn set_key(core: &AppCore, key: &str) {
         provider_settings::set_api_key(core, TEST_PROVIDER, key).unwrap();
+    }
+
+    #[test]
+    fn workflow_gates_generation_purposes_before_queueing() {
+        let (tmp, core, _) = core_with_double();
+        let p = test_create_villa_unconfirmed(&core, "Workflow gates");
+        let request = |purpose: &str| SubmitRequest {
+            project_id: p.id.clone(),
+            provider_id: local_preview::ID.into(),
+            model_id: local_preview::MODEL_ID.into(),
+            purpose: purpose.into(),
+            prompt: bundle("A villa"),
+            reference_asset_ids: Vec::new(),
+            params: params(1),
+            camera_id: None,
+        };
+
+        let err = validate(&core, request("hero")).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("dna.building"));
+        assert_eq!(count(&core, "jobs"), 0);
+
+        let master = import(&core, tmp.path(), &p.id, "master.png", "master_architecture", [200, 0, 0]);
+        for step_id in DNA_STEP_IDS {
+            workflow::confirm(&core, &p.id, step_id).unwrap();
+        }
+        let err = validate(&core, request("anchor")).unwrap_err();
+        assert!(err.message.contains("generate.master"));
+
+        projects::approve_master(&core, &p.id, true).unwrap();
+        let variation = validate(&core, request("variation")).unwrap();
+        assert_eq!(variation.purpose, GenerationPurpose::Variation);
+
+        set_cameras(&core, &p.id, &[(CAM_A, "Front", true)]);
+        let err = validate(&core, request("production")).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("generate.anchors"));
+        assert_eq!(count(&core, "jobs"), 0);
+        assert!(!master.id.is_empty());
     }
 
     #[test]

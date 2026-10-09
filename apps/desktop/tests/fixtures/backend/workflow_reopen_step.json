@@ -1,0 +1,32 @@
+{
+  "command": "workflow_reopen_step",
+  "response": {
+    "steps": [
+      {
+        "confirmedAt": "2026-01-01T00:00:00.000Z",
+        "status": "confirmed",
+        "stepId": "dna.building"
+      },
+      {
+        "confirmedAt": null,
+        "status": "open",
+        "stepId": "dna.context"
+      },
+      {
+        "confirmedAt": "2026-01-01T00:00:00.000Z",
+        "status": "needs_review",
+        "stepId": "dna.references"
+      },
+      {
+        "confirmedAt": "2026-01-01T00:00:00.000Z",
+        "status": "needs_review",
+        "stepId": "dna.camera"
+      },
+      {
+        "confirmedAt": "2026-01-01T00:00:00.000Z",
+        "status": "needs_review",
+        "stepId": "dna.lighting"
+      }
+    ]
+  }
+}

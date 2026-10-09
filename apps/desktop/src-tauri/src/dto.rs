@@ -241,3 +241,20 @@ pub struct CameraAnchorDto {
     pub asset_id: String,
     pub approved_at: String,
 }
+
+// ------------------------------------------------------------------ Phase 4B: guided workflow
+
+/// Persisted state for one of the five DNA workflow steps.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowStepStateDto {
+    pub step_id: String,
+    pub status: String,
+    pub confirmed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowDto {
+    pub steps: Vec<WorkflowStepStateDto>,
+}
