@@ -20,6 +20,7 @@ import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
 import { QualityField } from "./QualityField";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
+import { isGenerationAllowed } from "../../lib/workflow";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -63,6 +64,22 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
+  const workflowGate = form.purpose
+    ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
+        masterApproved: ["master_approved", "anchor_generation", "production"].includes(
+          project.status,
+        ),
+        anchorCameraIds: ws.draftDna.cameras
+          .filter((camera) => camera.isAnchorView)
+          .map((camera) => camera.id),
+        approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
+      })
+    : { allowed: true as const };
+  const disabledReason =
+    reason ??
+    (workflowGate.allowed
+      ? null
+      : t("workflow.generationBlocked", { step: workflowGate.blockedBy }));
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
@@ -87,6 +104,7 @@ export function GeneratePanel() {
 
   return (
     <div className="generate-panel">
+      <GenerationStepper />
       <ProviderSection form={form} disabled={running} />
       {form.model && (
         <OutputSection
@@ -155,7 +173,7 @@ export function GeneratePanel() {
         )}
         <button
           className="btn btn-primary generate-btn"
-          disabled={reason !== null}
+          disabled={disabledReason !== null}
           onClick={generate}
           data-testid="generate-button"
         >
@@ -168,12 +186,43 @@ export function GeneratePanel() {
             {cost}
           </span>
         )}
-        {reason && (
+        {disabledReason && (
           <span className="field-hint" data-testid="generate-disabled-reason">
-            {reason}
+            {disabledReason}
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function GenerationStepper() {
+  const workflow = useStudio((s) => s.workflowView);
+  const setModule = useStudio((s) => s.setModule);
+  const t = useT();
+  const steps = ["generate.master", "generate.anchors", "generate.render"] as const;
+  return (
+    <div className="workflow-stepper" aria-label={t("workflow.generateLabel")}>
+      {steps.map((id) => {
+        const step = workflow?.steps.find((item) => item.id === id);
+        const status = step?.status ?? "locked";
+        return (
+          <button
+            type="button"
+            className={`workflow-stepper-item workflow-stepper-${status}`}
+            key={id}
+            onClick={() => setModule("generate")}
+            title={t(`workflow.status.${status}`)}
+          >
+            <span>
+              {t(
+                `workflow.steps.${id === "generate.master" ? "generate.master" : id === "generate.anchors" ? "generate.anchors" : "generate.render"}.name`,
+              )}
+            </span>
+            <small>{t(`workflow.status.${status}`)}</small>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -60,6 +60,7 @@ export function MoodGradePanel() {
   const selectedAssetId = useStudio((s) => s.selectedAssetId);
   const readOnly = useStudio(selectReadOnly);
   const notify = useStudio((s) => s.notify);
+  const workflowView = useStudio((s) => s.workflowView);
   const t = useT();
   const grade = (ws.draftDna.colorGrade ?? neutralGrade()) as ColorGradeDNA;
   const mood = ws.draftDna.mood ?? { schemaVersion: 1, notes: "" };
@@ -123,6 +124,9 @@ export function MoodGradePanel() {
     if (id && looks[id]) editDna("colorGrade", { ...looks[id] });
   };
   const adopt = (preset: Preset) => {
+    if (workflowView?.steps.find((step) => step.id === "dna.lighting")?.status === "confirmed") {
+      if (!window.confirm(t("moodGrade.confirmLightingChange"))) return;
+    }
     const sections = adoptMoodPresetSections(ws.draftDna, preset);
     for (const [section, value] of Object.entries(sections)) {
       if (value) editDna(section, value);

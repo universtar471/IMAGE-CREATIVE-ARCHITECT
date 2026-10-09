@@ -35,6 +35,24 @@ import {
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
+/** TODO(wf-domain): use the shared workflow schemas/types once the domain package lands. */
+export const DnaWorkflowStepIds = [
+  "dna.building",
+  "dna.context",
+  "dna.references",
+  "dna.camera",
+  "dna.lighting",
+] as const;
+export type DnaWorkflowStepId = (typeof DnaWorkflowStepIds)[number];
+export const WorkflowStepStateSchema = z.object({
+  stepId: z.enum(DnaWorkflowStepIds),
+  status: z.enum(["open", "confirmed", "needs_review"]),
+  confirmedAt: z.string().nullable(),
+});
+export const WorkflowDTOSchema = z.object({ steps: z.array(WorkflowStepStateSchema) });
+export type WorkflowStepState = z.infer<typeof WorkflowStepStateSchema>;
+export type WorkflowDTO = z.infer<typeof WorkflowDTOSchema>;
+
 export const VersionDTOSchema = z.object({
   id: z.string(),
   projectId: z.string(),
@@ -122,6 +140,9 @@ export type Requests = {
   camera_anchor_clear: { projectId: string; cameraId: string };
   grade_apply: z.infer<typeof GradeApplyRequestSchema>;
   asset_preview: AssetPreviewRequest;
+  workflow_get: { projectId: string };
+  workflow_confirm_step: { projectId: string; stepId: string };
+  workflow_reopen_step: { projectId: string; stepId: string };
 };
 
 /** Response schemas per command. */
@@ -160,6 +181,9 @@ export const responses = {
   grade_apply: AssetDTOSchema,
   // Binary PNG response; consumed by assetPreview instead of the JSON call parser.
   asset_preview: z.unknown(),
+  workflow_get: WorkflowDTOSchema,
+  workflow_confirm_step: WorkflowDTOSchema,
+  workflow_reopen_step: WorkflowDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

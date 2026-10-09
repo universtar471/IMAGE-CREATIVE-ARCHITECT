@@ -269,6 +269,7 @@ export const vi: Dict = {
     historyUnavailable: "Không tải được lịch sử",
     anchorsUnavailable: "Không tải được Anchor",
     batchesUnavailable: "Không tải được Batch",
+    workflowUnavailable: "Không tải được quy trình",
     leaveUnsaved: "Một số thay đổi DNA thiết kế chưa lưu được. Rời dự án và bỏ các thay đổi này?",
     closeUnsaved:
       "Một số thay đổi DNA thiết kế không hợp lệ hoặc chưa lưu được. Vẫn đóng và bỏ các thay đổi này?",
@@ -334,6 +335,87 @@ export const vi: Dict = {
     export: {
       label: "Xuất",
       description: "Mẫu xuất cho thuyết trình, mạng xã hội và bảng ảnh.",
+    },
+  },
+
+  workflow: {
+    stepNumber: "BÆ°á»›c {number}/5",
+    howTo: "CÃ¡ch dÃ¹ng",
+    confirm: "XÃ¡c nháº­n & khoÃ¡ bÆ°á»›c",
+    reopen: "Má»Ÿ khoÃ¡ Ä‘á»ƒ sá»­a",
+    reopenConfirm: "Má»Ÿ khoÃ¡ bÆ°á»›c nÃ y?",
+    reopenLater: "CÃ¡c bÆ°á»›c Ä‘Ã£ xÃ¡c nháº­n phÃ­a sau sáº½ cáº§n kiá»ƒm tra:",
+    locked: "HoÃ n thÃ nh '{step}' trÆ°á»›c",
+    goThere: "Äáº¿n bÆ°á»›c nÃ y",
+    needsReview: "BÆ°á»›c trÆ°á»›c Ä‘Ã£ thay Ä‘á»•i â€” kiá»ƒm tra láº¡i rá»“i xÃ¡c nháº­n.",
+    generateLabel: "Quy trÃ¬nh táº¡o áº£nh",
+    generationBlocked: "HoÃ n thÃ nh bÆ°á»›c '{step}' trÆ°á»›c khi táº¡o áº£nh.",
+    overviewTitle: "Quy trÃ¬nh theo bÆ°á»›c",
+    open: "Má»Ÿ",
+    reviewValues: "Kiá»ƒm tra cÃ¡c giÃ¡ trá»‹ Ä‘Ã£ lÆ°u cá»§a bÆ°á»›c nÃ y.",
+    cameraSummary: "{cameras} gÃ³c · {anchors} Anchor",
+    masterApproved: "Master Ä‘Ã£ duyá»‡t",
+    masterMissing: "Master chÆ°a duyá»‡t",
+    lights: "Ä‘Ã¨n",
+    stage: { dna: "DNA thiáº¿t káº¿", generate: "Táº¡o áº£nh", post: "Háº­u ká»³" },
+    status: {
+      locked: "Äang khoÃ¡",
+      available: "CÃ³ thá»ƒ lÃ m",
+      confirmed: "ÄÃ£ xÃ¡c nháº­n",
+      needs_review: "Cáº§n kiá»ƒm tra",
+      done: "ÄÃ£ xong",
+      skipped: "Bá» qua",
+    },
+    steps: {
+      dna: {
+        building: {
+          name: "Kiáº¿n trÃºc",
+          guide:
+            "Äáº·t loáº¡i cÃ´ng trÃ¬nh vÃ  tÃ­nh cÃ¡ch kiáº¿n trÃºc chÃ­nh. HoÃ n táº¥t khi cáº¥u trÃºc cÃ³ thá»ƒ Ä‘Æ°á»£c dÃ¹ng nháº¥t quÃ¡n.",
+        },
+        context: {
+          name: "Bá»‘i cáº£nh",
+          guide:
+            "MÃ´ táº£ khu Ä‘áº¥t, mÃ´i trÆ°á»ng vÃ  cÃ¡c hÆ°á»›ng quan trá»ng. HoÃ n táº¥t khi khung cÃ¶nh xung quanh Ä‘Ã£ rÃµ.",
+        },
+        references: {
+          name: "Tham chiáº¿u",
+          guide:
+            "Nháº­p áº£nh tham chiáº¿u vÃ  chá»n Master náº¿u cÃ³. HoÃ n táº¥t khi vai trÃ² tá»«ng áº£nh Ä‘Ã£ cÃ³ chá»§ Ä‘Ã­ch.",
+        },
+        camera: {
+          name: "GÃ³c mÃ¡y",
+          guide:
+            "Äáº·t gÃ³c nhÃ¬n, tiÃªu cá»± vÃ  bá»‘ cá»¥c. HoÃ n táº¥t khi cÃ¡c gÃ³c sáºµn sÃ ng render, ká»ƒ cáº£ 0 gÃ³c.",
+        },
+        lighting: {
+          name: "Ãnh sÃ¡ng",
+          guide:
+            "Äáº·t Ã¡nh sÃ¡ng ngÃ y, thá»i tiáº¿t vÃ  Ä‘Ã¨n nhÃ¢n táº¡o. HoÃ n táº¥t khi giá», bÃ³ng vÃ  khÃ´ng khÃ­ Ä‘Ã£ rÃµ.",
+        },
+      },
+      generate: {
+        master: {
+          name: "áº¢nh Master",
+          guide: "Táº¡o vÃ  duyá»‡t áº£nh Master trÆ°á»›c khi táº¡o Anchor hoáº·c biáº¿n thá»ƒ.",
+        },
+        anchors: {
+          name: "Anchor",
+          guide:
+            "Táº¡o vÃ  duyá»‡t má»™t Anchor cho má»—i gÃ³c Anchor, hoáº·c bá» qua náº¿u khÃ´ng cÃ³ gÃ³c.",
+        },
+        render: {
+          name: "Render cÃ¡c gÃ³c mÃ¡y",
+          guide:
+            "Render cÃ¡c gÃ³c Ä‘Ã£ Ä‘á»‹nh nghÄ©a sau khi Master vÃ  Anchor cáº§n thiáº¿t Ä‘Ã£ sáºµn sÃ ng.",
+        },
+      },
+      post: {
+        grade: {
+          name: "Mood / Chá»‰nh mÃ u",
+          guide: "Ãp dá»¥ng mood hoáº·c chá»‰nh mÃ u cho áº£nh Ä‘Ã£ duyá»‡t.",
+        },
+      },
     },
   },
 
@@ -532,6 +614,9 @@ export const vi: Dict = {
     lockTitle: "Khóa phần DNA này",
     locked: "Đã khóa",
     lock: "Khóa",
+    pinTitle: "Giữ nguyên phần này khi áp preset hoặc tạo biến thể",
+    pinned: "Đã ghim",
+    pin: "Ghim",
   },
 
   context: {
@@ -824,6 +909,11 @@ export const vi: Dict = {
   },
 
   camera: {
+    elevationHint: "Äá»™ nghiÃªng trÃªn hoáº·c dÆ°á»›i Ä‘Æ°á»ng chÃ¢n trá»i.",
+    heightHint: "Äá»™ cao mÃ¡y áº£nh so vá»›i máº·t Ä‘áº¥t, tÃ­nh báº±ng mÃ©t.",
+    lensHint: "24 mm rá»™ng Â· 35 mm tá»± nhiÃªn Â· 50 mm tiÃªu chuáº©n Â· 85 mm chi tiáº¿t.",
+    aspectHint: "HÃ¬nh dáº¡ng khung Ä‘áº§u ra cá»§a gÃ³c mÃ¡y nÃ y.",
+    compositionHint: "MÃ´ táº£ vá»‹ trÃ­ chá»§ thá»ƒ, cÃ¢n báº±ng vÃ  cÃ¡c cáº¡nh chÃ­nh.",
     prompt: "Prompt góc máy",
     selectHint: "Chọn một góc máy trong danh sách hoặc trên sơ đồ.",
     reasonArchived: "Dự án đã lưu trữ chỉ xem, không sửa.",
@@ -883,6 +973,7 @@ export const vi: Dict = {
   },
 
   lighting: {
+    fieldHint: "NÃªu rÃµ káº¿t quáº£ thá»‹ giÃ¡c mong muá»‘n Ä‘á»ƒ prompt cá»¥ thá»ƒ.",
     section: "Ánh sáng",
     timeOfDay: "Thời điểm trong ngày",
     sunDirection: "Hướng mặt trời",
@@ -946,6 +1037,7 @@ export const vi: Dict = {
     variations: "Biến thể mood",
     choosePresets: "Chọn 2–8 dựng sẵn",
     adopt: "Dùng mood này",
+    confirmLightingChange: "Thao tác này cập nhật Ánh sáng/Thời tiết đã xác nhận. Tiếp tục?",
     source: "Ảnh nguồn",
     locked: "Phần này đang bị khóa",
     noImage: "Chọn một ảnh để xem trước chỉnh màu.",

@@ -365,6 +365,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
         />
         <NumberField
           label={t("camera.elevation")}
+          hint={t("camera.elevationHint")}
           suffix="°"
           value={c.elevationDeg}
           error={err("elevationDeg")}
@@ -375,6 +376,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
       <div className="field-row">
         <NumberField
           label={t("camera.height")}
+          hint={t("camera.heightHint")}
           suffix="m"
           value={c.heightM}
           error={err("heightM")}
@@ -394,6 +396,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
       <div className="field-row">
         <NumberField
           label={t("camera.lens")}
+          hint={t("camera.lensHint")}
           suffix="mm"
           value={c.lensMm}
           error={err("lensMm")}
@@ -402,6 +405,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
         />
         <SelectField
           label={t("camera.aspectRatio")}
+          hint={t("camera.aspectHint")}
           value={c.aspectRatio}
           disabled={readOnly}
           options={CAMERA_ASPECT_RATIOS.map((r) => ({ value: r, label: r }))}
@@ -410,6 +414,7 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
       </div>
       <TextField
         label={t("camera.composition")}
+        hint={t("camera.compositionHint")}
         value={c.composition}
         placeholder={t("camera.compositionPlaceholder")}
         disabled={readOnly}

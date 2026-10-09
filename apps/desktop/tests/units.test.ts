@@ -16,8 +16,8 @@ describe("workspace information architecture", () => {
       "References",
       "Camera",
       "Lighting",
-      "Mood / Grade",
       "Generate",
+      "Mood / Grade",
       "Enhance",
       "QC",
       "Export",
@@ -32,8 +32,8 @@ describe("workspace information architecture", () => {
       "references",
       "camera",
       "lighting",
-      "mood_grade",
       "generate",
+      "mood_grade",
     ]);
   });
 
