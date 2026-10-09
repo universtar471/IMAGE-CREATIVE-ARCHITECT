@@ -11,7 +11,7 @@ import { generateDisabledReason, resolveGenerateForm } from "../src/features/gen
 import { buildVersionTree } from "../src/features/versions/tree";
 import { call, setTransport, type VersionDTO } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDERS } from "../src/lib/mockBackend";
-import { asset, settled, sleep, waitFor } from "./helpers";
+import { asset, confirmAllDna, settled, sleep, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -60,6 +60,7 @@ async function projectWithMaster(name = "Gen flow") {
     createdAt: "2026-01-01T00:00:00Z",
   });
   await call("asset_set_master", { projectId: p.id, assetId: masterId });
+  await confirmAllDna(p.id);
   return { project: p, masterId };
 }
 

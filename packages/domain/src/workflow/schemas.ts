@@ -48,12 +48,12 @@ export type WorkflowGetRequest = z.infer<typeof WorkflowGetRequestSchema>;
 
 export const WorkflowConfirmStepRequestSchema = z.object({
   projectId: z.string(),
-  stepId: DnaStepIdSchema,
+  stepId: WorkflowStepIdSchema,
 });
 export type WorkflowConfirmStepRequest = z.infer<typeof WorkflowConfirmStepRequestSchema>;
 
 export const WorkflowReopenStepRequestSchema = z.object({
   projectId: z.string(),
-  stepId: DnaStepIdSchema,
+  stepId: WorkflowStepIdSchema,
 });
 export type WorkflowReopenStepRequest = z.infer<typeof WorkflowReopenStepRequestSchema>;

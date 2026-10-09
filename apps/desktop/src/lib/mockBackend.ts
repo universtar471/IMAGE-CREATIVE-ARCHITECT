@@ -517,7 +517,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       workflowRows(req.projectId),
       workflowFacts(req.projectId),
     );
-    if (!gate.allowed) {
+    if (!gate.ok) {
       fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
     }
     const provider = getProvider(req.providerId);
@@ -773,6 +773,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       anchorCameraIds: dna.cameras
         .filter((camera) => camera.isAnchorView)
         .map((camera) => camera.id),
+      cameraIds: dna.cameras.map((camera) => camera.id),
       approvedAnchorCameraIds: anchors.map((anchor) => anchor.cameraId),
     };
   };

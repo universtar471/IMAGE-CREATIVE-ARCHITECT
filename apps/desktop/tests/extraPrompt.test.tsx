@@ -12,7 +12,7 @@ import {
 } from "../src/features/generate/extraPrompt";
 import { BridgeError, call, setTransport } from "../src/lib/bridge";
 import { createMockTransport, mockEnhance } from "../src/lib/mockBackend";
-import { settled, waitFor } from "./helpers";
+import { asset, confirmAllDna, settled, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -45,13 +45,19 @@ const bundle = (positivePrompt: string, preservationInstructions = ""): PromptBu
   metadata: {},
 });
 
-const newProject = () =>
-  createProject({
+const newProject = async () => {
+  const p = await createProject({
     name: "Enhance",
     projectType: "villa",
     subtype: "tropical",
     starter: { floors: 2 },
   });
+  const masterId = `AST_M_${p.id}`;
+  db.assets[masterId] = asset(p.id, masterId, { role: "master_architecture" });
+  await call("asset_set_master", { projectId: p.id, assetId: masterId });
+  await confirmAllDna(p.id, { approveMaster: true });
+  return p;
+};
 
 async function openWithHhtech(configured: boolean) {
   const p = await newProject();

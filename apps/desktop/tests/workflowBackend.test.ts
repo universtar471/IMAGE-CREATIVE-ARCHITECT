@@ -50,4 +50,20 @@ describe("mock workflow commands", () => {
       call("workflow_confirm_step", { projectId: project.id, stepId: "dna.lighting" }),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
+
+  it("rejects confirming a cascaded needs_review step", async () => {
+    const project = await createProject({
+      name: "Workflow review",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    for (const stepId of ["dna.building", "dna.context", "dna.references"] as const) {
+      await call("workflow_confirm_step", { projectId: project.id, stepId });
+    }
+    await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.context" });
+    await expect(
+      call("workflow_confirm_step", { projectId: project.id, stepId: "dna.references" }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
 });

@@ -72,14 +72,13 @@ export function GeneratePanel() {
         anchorCameraIds: ws.draftDna.cameras
           .filter((camera) => camera.isAnchorView)
           .map((camera) => camera.id),
+        cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
         approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
       })
-    : { allowed: true as const };
+    : { ok: true as const };
   const disabledReason =
     reason ??
-    (workflowGate.allowed
-      ? null
-      : t("workflow.generationBlocked", { step: workflowGate.blockedBy }));
+    (workflowGate.ok ? null : t("workflow.generationBlocked", { step: workflowGate.blockedBy }));
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.

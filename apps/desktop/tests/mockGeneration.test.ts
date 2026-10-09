@@ -9,7 +9,7 @@ import {
   type Transport,
 } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
-import { settled } from "./helpers";
+import { asset, confirmAllDna, settled } from "./helpers";
 
 const SECRET = "sk-test-0123456789-should-never-be-stored";
 let transport: Transport;
@@ -33,12 +33,17 @@ const prompt = (positivePrompt = "A tropical villa"): PromptBundle => ({
 });
 
 async function newProject() {
-  return createProject({
+  const p = await createProject({
     name: "Gen test",
     projectType: "villa",
     subtype: "tropical",
     starter: { floors: 2 },
   });
+  const masterId = `AST_M_${p.id}`;
+  db.assets[masterId] = asset(p.id, masterId, { role: "master_architecture" });
+  await call("asset_set_master", { projectId: p.id, assetId: masterId });
+  await confirmAllDna(p.id, { approveMaster: true });
+  return p;
 }
 
 const request = (projectId: string, over: Partial<GenerationSubmitRequest> = {}) =>

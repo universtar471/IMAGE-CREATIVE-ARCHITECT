@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, Circle, FileText, ShieldCheck, Star } from "lucide-react";
 import { dnaReadiness, type ProjectDTO } from "@arch/domain";
-import { attempt, selectReadOnly, useStudio } from "../../app/store";
+import { attempt, selectReadOnly, useStudio, type WorkspaceData } from "../../app/store";
 import { StatusBadge } from "../../components/common/StatusBadge";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { TextField } from "../../components/panels/fields";
@@ -11,6 +11,7 @@ import { formatDateTime } from "../../lib/format";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { packLabel } from "../../i18n/knowledge";
+import type { DnaStepId } from "../../lib/workflow";
 
 export function OverviewPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -168,14 +169,14 @@ function WorkflowOverview() {
                   <div className="workflow-overview-actions">
                     <button
                       className="btn btn-sm"
-                      onClick={() => setModule(step.module as Parameters<typeof setModule>[0])}
+                      onClick={() => setModule(step.moduleId as Parameters<typeof setModule>[0])}
                     >
                       {t("workflow.open")}
                     </button>
                     {step.status === "available" && step.id.startsWith("dna.") && (
                       <button
                         className="btn btn-sm btn-primary"
-                        onClick={() => void confirm(step.id)}
+                        onClick={() => void confirm(step.id as DnaStepId)}
                       >
                         {t("workflow.confirm")}
                       </button>
@@ -184,7 +185,7 @@ function WorkflowOverview() {
                       step.id.startsWith("dna.") && (
                         <button
                           className="btn btn-sm btn-ghost"
-                          onClick={() => void reopen(step.id)}
+                          onClick={() => void reopen(step.id as DnaStepId)}
                         >
                           {t("workflow.reopen")}
                         </button>
@@ -199,11 +200,7 @@ function WorkflowOverview() {
   );
 }
 
-function workflowSummary(
-  stepId: string,
-  ws: NonNullable<ReturnType<typeof useStudio.getState>["workspace"]>,
-  t: ReturnType<typeof useT>,
-) {
+function workflowSummary(stepId: string, ws: WorkspaceData, t: ReturnType<typeof useT>) {
   if (stepId === "dna.camera") {
     const anchors = ws.anchors.filter((anchor) =>
       ws.draftDna.cameras.some((camera) => camera.id === anchor.cameraId),

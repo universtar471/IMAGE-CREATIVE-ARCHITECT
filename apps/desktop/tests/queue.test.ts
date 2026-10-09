@@ -13,7 +13,7 @@ import { EMPTY_GENERATE_DRAFT, startBackendSync, useStudio } from "../src/app/st
 import { jobElapsedMs, visibleJobs } from "../src/features/jobs/JobsTab";
 import { call, eventsReady, setTransport, subscribe, type Transport } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDER_SLOTS } from "../src/lib/mockBackend";
-import { asset, deferredTransport, settled, sleep, waitFor } from "./helpers";
+import { asset, confirmAllDna, deferredTransport, settled, sleep, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -69,12 +69,20 @@ const geminiRequest = (projectId: string, prompt = "A villa") =>
   });
 
 async function newProject() {
-  return createProject({
+  const p = await createProject({
     name: "Queue test",
     projectType: "villa",
     subtype: "tropical",
     starter: { floors: 2 },
   });
+  const masterId = `AST_M_${p.id}`;
+  db.assets[masterId] = asset(p.id, masterId, { role: "master_architecture" });
+  await call("asset_set_master", { projectId: p.id, assetId: masterId });
+  await confirmAllDna(p.id, { approveMaster: true });
+  // Keep the approved-master fact for variation gates without adding a fixture image
+  // to assertions that count generated outputs.
+  delete db.assets[masterId];
+  return p;
 }
 
 /** Records every event in order. */

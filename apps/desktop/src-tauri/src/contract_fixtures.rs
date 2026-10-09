@@ -186,8 +186,11 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     rec.record("workflow_get", "workflow_get", &workflow::get(&core, &p.id).unwrap());
     rec.record("workflow_reopen_step", "workflow_reopen_step", &workflow::reopen(&core, &p.id, "dna.context").unwrap());
     workflow::confirm(&core, &p.id, "dna.context").unwrap();
+    workflow::reopen(&core, &p.id, "dna.references").unwrap();
     workflow::confirm(&core, &p.id, "dna.references").unwrap();
+    workflow::reopen(&core, &p.id, "dna.camera").unwrap();
     workflow::confirm(&core, &p.id, "dna.camera").unwrap();
+    workflow::reopen(&core, &p.id, "dna.lighting").unwrap();
     rec.record(
         "workflow_confirm_step",
         "workflow_confirm_step",

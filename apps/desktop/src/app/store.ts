@@ -23,6 +23,7 @@ import {
   type BatchDTO,
   type CameraAnchorDTO,
   type CameraDNA,
+  type DnaStepId,
   type GenerationDTO,
   type GenerationParams,
   type GenerationPurpose,
@@ -71,7 +72,7 @@ export type Toast = {
   title?: string;
 };
 
-type WorkspaceData = {
+export type WorkspaceData = {
   project: ProjectDTO;
   persistedDna: ProjectDNA;
   draftDna: ProjectDNA;
@@ -210,8 +211,8 @@ type State = {
   setAnchor: (cameraId: string, assetId: string) => Promise<boolean>;
   clearAnchor: (cameraId: string) => Promise<boolean>;
   refreshWorkflow: () => Promise<void>;
-  confirmWorkflowStep: (stepId: string) => Promise<boolean>;
-  reopenWorkflowStep: (stepId: string) => Promise<boolean>;
+  confirmWorkflowStep: (stepId: DnaStepId) => Promise<boolean>;
+  reopenWorkflowStep: (stepId: DnaStepId) => Promise<boolean>;
   /** Apply one backend event (also used by tests). */
   applyJobEvent: (job: JobDTO) => void;
   applyGenerationEvent: (g: GenerationDTO) => void;
@@ -417,6 +418,7 @@ export const useStudio = create<State>((set, get) => {
               anchorCameraIds: bundle.dna.cameras
                 .filter((camera) => camera.isAnchorView)
                 .map((camera) => camera.id),
+              cameraIds: bundle.dna.cameras.map((camera) => camera.id),
               approvedAnchorCameraIds: anchors.map((anchor) => anchor.cameraId),
             }),
           });
@@ -890,6 +892,7 @@ export const useStudio = create<State>((set, get) => {
             anchorCameraIds: ws.draftDna.cameras
               .filter((camera) => camera.isAnchorView)
               .map((camera) => camera.id),
+            cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
             approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
           }),
         });

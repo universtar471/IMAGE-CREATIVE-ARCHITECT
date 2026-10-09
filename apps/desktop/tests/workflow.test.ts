@@ -105,11 +105,11 @@ describe("guided workflow contract", () => {
 
   it("enforces generation prerequisites by purpose", () => {
     expect(isGenerationAllowed("variation", open(), facts)).toEqual({
-      allowed: false,
+      ok: false,
       blockedBy: "generate.master",
     });
     expect(isGenerationAllowed("hero", open(), facts)).toEqual({
-      allowed: false,
+      ok: false,
       blockedBy: "dna.building",
     });
     const allConfirmed = DNA_STEP_IDS.map((stepId) => ({
@@ -117,9 +117,9 @@ describe("guided workflow contract", () => {
       status: "confirmed" as const,
       confirmedAt: "2026-10-10T00:00:00.000Z",
     }));
-    expect(isGenerationAllowed("hero", allConfirmed, facts)).toEqual({ allowed: true });
+    expect(isGenerationAllowed("hero", allConfirmed, facts)).toEqual({ ok: true });
     expect(
       isGenerationAllowed("variation", allConfirmed, { ...facts, masterApproved: true }),
-    ).toEqual({ allowed: true });
+    ).toEqual({ ok: true });
   });
 });

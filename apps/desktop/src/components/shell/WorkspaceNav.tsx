@@ -33,7 +33,7 @@ export function WorkspaceNav() {
             >
               {(() => {
                 const dnaIndex = WORKFLOW_STEPS.findIndex(
-                  (item) => item.module === m.id && item.stage === "dna",
+                  (item) => item.moduleId === m.id && item.stage === "dna",
                 );
                 return dnaIndex >= 0 ? (
                   <span className="nav-step-number">{dnaIndex + 1}</span>
@@ -43,7 +43,7 @@ export function WorkspaceNav() {
               <span className="nav-label">{label}</span>
               {m.availableIn && <span className="nav-phase">P{m.availableIn}</span>}
               {(() => {
-                const step = WORKFLOW_STEPS.find((item) => item.module === m.id);
+                const step = WORKFLOW_STEPS.find((item) => item.moduleId === m.id);
                 const status = workflow?.steps.find((item) => item.id === step?.id)?.status;
                 return step && status ? (
                   <span

@@ -52,6 +52,9 @@ describe("workflow schemas", () => {
       WorkflowConfirmStepRequestSchema.parse({ projectId: "PRJ_1", stepId: "dna.camera" }),
     ).toEqual({ projectId: "PRJ_1", stepId: "dna.camera" });
     expect(
+      WorkflowConfirmStepRequestSchema.parse({ projectId: "PRJ_1", stepId: "generate.master" }),
+    ).toEqual({ projectId: "PRJ_1", stepId: "generate.master" });
+    expect(
       WorkflowReopenStepRequestSchema.parse({ projectId: "PRJ_1", stepId: "dna.camera" }),
     ).toEqual({ projectId: "PRJ_1", stepId: "dna.camera" });
   });
@@ -205,6 +208,11 @@ describe("workflow persistence helpers", () => {
     ).toThrow(/locked|confirmed/i);
     expect(() => reopenStep([], "dna.building")).toThrow(/confirmed|needs_review/i);
     expect(() => reopenStep([], "generate.master")).toThrow(/DNA step/i);
+  });
+
+  it("does not confirm a cascaded needs_review step until it is reopened", () => {
+    const reopened = reopenStep(allConfirmed(), "dna.context");
+    expect(() => confirmStep(reopened, "dna.references", "later")).toThrow(/locked|available/i);
   });
 });
 

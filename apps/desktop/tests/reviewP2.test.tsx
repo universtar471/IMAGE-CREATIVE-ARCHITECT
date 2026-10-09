@@ -12,7 +12,7 @@ import { GenerationResult } from "../src/features/generate/GenerationResult";
 import { ProviderSettingsDialog } from "../src/features/providers/ProviderSettingsDialog";
 import { call, eventsReady, setTransport, type Transport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
-import { asset, deferredTransport, settled, sleep, waitFor } from "./helpers";
+import { asset, confirmAllDna, deferredTransport, settled, sleep, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -57,6 +57,7 @@ async function projectWithMaster(name: string) {
   const masterId = `AST_M_${name.replace(/\W/g, "")}`;
   db.assets[masterId] = asset(p.id, masterId, { role: "master_architecture" });
   db.projects[p.id]!.activeMasterAssetId = masterId;
+  await confirmAllDna(p.id);
   return { project: p, masterId };
 }
 

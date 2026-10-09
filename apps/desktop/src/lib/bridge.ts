@@ -22,6 +22,13 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  WorkflowConfirmStepRequestSchema,
+  WorkflowDTOSchema,
+  WorkflowGetRequestSchema,
+  WorkflowReopenStepRequestSchema,
+  WorkflowStepStateSchema,
+  type WorkflowDTO,
+  type WorkflowStepState,
   type AppError,
   type AssetRole,
   type AssetSource,
@@ -35,23 +42,14 @@ import {
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
-/** TODO(wf-domain): use the shared workflow schemas/types once the domain package lands. */
-export const DnaWorkflowStepIds = [
-  "dna.building",
-  "dna.context",
-  "dna.references",
-  "dna.camera",
-  "dna.lighting",
-] as const;
-export type DnaWorkflowStepId = (typeof DnaWorkflowStepIds)[number];
-export const WorkflowStepStateSchema = z.object({
-  stepId: z.enum(DnaWorkflowStepIds),
-  status: z.enum(["open", "confirmed", "needs_review"]),
-  confirmedAt: z.string().nullable(),
-});
-export const WorkflowDTOSchema = z.object({ steps: z.array(WorkflowStepStateSchema) });
-export type WorkflowStepState = z.infer<typeof WorkflowStepStateSchema>;
-export type WorkflowDTO = z.infer<typeof WorkflowDTOSchema>;
+export {
+  WorkflowConfirmStepRequestSchema,
+  WorkflowDTOSchema,
+  WorkflowGetRequestSchema,
+  WorkflowReopenStepRequestSchema,
+  WorkflowStepStateSchema,
+};
+export type { WorkflowDTO, WorkflowStepState };
 
 export const VersionDTOSchema = z.object({
   id: z.string(),
@@ -140,9 +138,9 @@ export type Requests = {
   camera_anchor_clear: { projectId: string; cameraId: string };
   grade_apply: z.infer<typeof GradeApplyRequestSchema>;
   asset_preview: AssetPreviewRequest;
-  workflow_get: { projectId: string };
-  workflow_confirm_step: { projectId: string; stepId: string };
-  workflow_reopen_step: { projectId: string; stepId: string };
+  workflow_get: z.infer<typeof WorkflowGetRequestSchema>;
+  workflow_confirm_step: z.infer<typeof WorkflowConfirmStepRequestSchema>;
+  workflow_reopen_step: z.infer<typeof WorkflowReopenStepRequestSchema>;
 };
 
 /** Response schemas per command. */

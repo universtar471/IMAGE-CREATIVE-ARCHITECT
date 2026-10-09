@@ -77,8 +77,8 @@ pub fn confirm(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Wor
             label(step_id)
         )));
     }
-    if current.steps[step].status == "confirmed" {
-        return Err(AppError::validation(format!("The step '{}' ({step_id}) is already confirmed.", label(step_id))));
+    if current.steps[step].status != "open" {
+        return Err(AppError::validation(format!("The step '{}' is not available for confirmation.", label(step_id))));
     }
     let now = core.now_iso();
     tx.execute(
@@ -192,6 +192,8 @@ mod tests {
         assert_eq!(reopened.steps[0].status, "confirmed");
         assert_eq!(reopened.steps[1].status, "open");
         assert!(reopened.steps[2..].iter().all(|step| step.status == "needs_review"));
+        let err = confirm(&app, &project.id, "dna.references").unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
     }
 
     #[test]

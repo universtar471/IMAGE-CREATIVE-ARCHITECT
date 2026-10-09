@@ -22,7 +22,7 @@ Implement Phase 4B guided workflow UI against API section 13 in the `apps/deskto
 
 ## Con no
 - The parallel domain agent's `@arch/domain` workflow module should replace the local stand-in
-  and duplicate bridge schemas/types during integration (`TODO(wf-domain)`).
+  and duplicate bridge schemas/types during integration.
 - The parallel Rust/backend agent must provide the same workflow commands and generation gating;
   the browser mock is implemented here for preview/tests.
 - Existing pre-Phase-4B generation/queue tests submit on a brand-new project without confirming
@@ -42,4 +42,3 @@ Implement Phase 4B guided workflow UI against API section 13 in the `apps/deskto
   archive guard in individual fields.
 - The mock uses `VALIDATION_ERROR` (the existing desktop AppError code spelling) and includes the
   blocking step id in the message.
-

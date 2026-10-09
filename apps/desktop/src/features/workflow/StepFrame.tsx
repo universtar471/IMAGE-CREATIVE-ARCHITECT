@@ -13,7 +13,7 @@ const DNA_IDS: readonly DnaStepId[] = [
 ];
 
 const moduleForStep = (stepId: string) =>
-  WORKFLOW_STEPS.find((step) => step.id === stepId)?.module as
+  WORKFLOW_STEPS.find((step) => step.id === stepId)?.moduleId as
     "design_dna" | "context" | "references" | "camera" | "lighting" | undefined;
 
 export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: ReactNode }) {
