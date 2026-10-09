@@ -144,7 +144,18 @@ pub fn env_var_name(provider_id: &str) -> String {
     format!("ARCH_STUDIO_{}_API_KEY", provider_id.to_uppercase())
 }
 
-/// Keychain first, then the environment fallback. A keychain that cannot be read is
+/// Environment variables holding a provider's key, in lookup order: a vendor's own name where
+/// one is conventional (`HHTECH_API_KEY`), then `ARCH_STUDIO_<PROVIDER_ID>_API_KEY`.
+pub fn env_var_names(provider_id: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    if provider_id == crate::providers::hhtech::ID {
+        names.push(crate::providers::hhtech::ENV_API_KEY.to_string());
+    }
+    names.push(env_var_name(provider_id));
+    names
+}
+
+/// Keychain first, then the environment fallback ([`env_var_names`], first non-blank wins). A keychain that cannot be read is
 /// reported on stderr (without the key) and treated as empty, so the env fallback and the
 /// provider list keep working on machines without a credential store.
 pub fn resolve_key(store: &dyn SecretStore, env: &dyn EnvSource, provider_id: &str) -> Option<ResolvedKey> {
@@ -155,9 +166,11 @@ pub fn resolve_key(store: &dyn SecretStore, env: &dyn EnvSource, provider_id: &s
         Ok(_) => {}
         Err(e) => eprintln!("[secrets] cannot read key for '{provider_id}': {}", e.message),
     }
-    env.var(&env_var_name(provider_id))
+    env_var_names(provider_id)
+        .iter()
+        .filter_map(|name| env.var(name))
         .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
+        .find(|v| !v.is_empty())
         .map(|value| ResolvedKey { value, source: KeySource::Env })
 }
 
@@ -195,6 +208,27 @@ mod tests {
     fn env_var_name_uses_uppercase_provider_id() {
         assert_eq!(env_var_name("gemini"), "ARCH_STUDIO_GEMINI_API_KEY");
         assert_eq!(env_var_name("local_preview"), "ARCH_STUDIO_LOCAL_PREVIEW_API_KEY");
+    }
+
+    #[test]
+    fn hhtech_reads_its_own_variable_first() {
+        assert_eq!(env_var_names("hhtech"), ["HHTECH_API_KEY", "ARCH_STUDIO_HHTECH_API_KEY"]);
+        assert_eq!(env_var_names("openai"), ["ARCH_STUDIO_OPENAI_API_KEY"]);
+        let store = MemorySecretStore::default();
+        let both = FixedEnv(HashMap::from([
+            ("HHTECH_API_KEY".to_string(), "vendor-name".to_string()),
+            ("ARCH_STUDIO_HHTECH_API_KEY".to_string(), "app-name".to_string()),
+        ]));
+        assert_eq!(resolve_key(&store, &both, "hhtech").unwrap().value, "vendor-name");
+        let fallback = FixedEnv::with("ARCH_STUDIO_HHTECH_API_KEY", "app-name");
+        assert_eq!(resolve_key(&store, &fallback, "hhtech").unwrap().value, "app-name");
+        let blank_first = FixedEnv(HashMap::from([
+            ("HHTECH_API_KEY".to_string(), " ".to_string()),
+            ("ARCH_STUDIO_HHTECH_API_KEY".to_string(), "app-name".to_string()),
+        ]));
+        assert_eq!(resolve_key(&store, &blank_first, "hhtech").unwrap().value, "app-name");
+        store.set("hhtech", "from-keychain").unwrap();
+        assert_eq!(resolve_key(&store, &both, "hhtech").unwrap().source, KeySource::Keychain);
     }
 
     #[test]

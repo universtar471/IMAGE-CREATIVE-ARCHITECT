@@ -119,3 +119,20 @@ export const GenerationDTOSchema = z.object({
   durationMs: z.number().int().nonnegative().nullable(),
 });
 export type GenerationDTO = z.infer<typeof GenerationDTOSchema>;
+
+/** `prompt_enhance` (see docs/API_CONTRACTS.md §11). Nothing is stored. */
+export const PromptEnhanceRequestSchema = z.object({
+  projectId: z.string(),
+  /** A provider whose descriptor offers chat (currently `hhtech`). */
+  providerId: z.string(),
+  /** The user's editable extra prompt, 1–4000 characters after trimming. */
+  text: z.string().trim().min(1).max(4000),
+  /** Project DNA facts the rewrite must keep (the compiled prompt); may be empty. */
+  context: z.string().max(20000),
+});
+export type PromptEnhanceRequest = z.infer<typeof PromptEnhanceRequestSchema>;
+
+export const PromptEnhanceResultSchema = z.object({
+  text: z.string().min(1),
+});
+export type PromptEnhanceResult = z.infer<typeof PromptEnhanceResultSchema>;

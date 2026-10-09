@@ -5,6 +5,7 @@ import { attempt, useStudio } from "../../app/store";
 import { ConfirmDialog, Dialog } from "../../components/common/Dialog";
 import { LoadingState } from "../../components/common/states";
 import { call } from "../../lib/bridge";
+import { providerKeyHelp } from "./help";
 
 const KEY_SOURCE_LABELS = { keychain: "OS credential store", env: "Environment variable" } as const;
 
@@ -58,6 +59,7 @@ function ProviderCard({
   const [busy, setBusy] = useState<null | "save" | "clear" | "test">(null);
   const [test, setTest] = useState<ProviderTestResult | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const help = p.requiresApiKey ? providerKeyHelp(p.id) : null;
 
   const save = async () => {
     const input = keyInput.current;
@@ -123,6 +125,16 @@ function ProviderCard({
             Key source: {p.keySource ? KEY_SOURCE_LABELS[p.keySource] : "none"}
             {p.keySource === "env" && " (read-only; clearing removes only a stored key)"}
           </div>
+          {help && (
+            <ul className="field-hint provider-help" aria-label={`${p.label} key help`}>
+              <li>
+                Get a key at <span className="provider-help-url">{help.keyUrl}</span>
+              </li>
+              {help.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          )}
           <form
             className="key-row"
             onSubmit={(e) => {

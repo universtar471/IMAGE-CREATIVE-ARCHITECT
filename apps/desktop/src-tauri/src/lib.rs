@@ -9,6 +9,7 @@ mod contract_fixtures;
 pub mod db;
 pub mod domain;
 pub mod dto;
+pub mod env_file;
 pub mod error;
 pub mod imaging;
 pub mod providers;
@@ -32,6 +33,11 @@ pub const DATA_DIR_ENV: &str = "ARCH_STUDIO_DATA_DIR";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything reads the environment (provider settings, key fallback). Never
+    // overrides variables that are already set; only paths are printed.
+    for path in env_file::load_dotenv() {
+        eprintln!("[env] loaded {}", path.display());
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -72,6 +78,7 @@ pub fn run() {
             commands::provider_set_api_key,
             commands::provider_clear_api_key,
             commands::provider_test,
+            commands::prompt_enhance,
             commands::generation_submit,
             commands::generation_list,
             commands::generation_get,

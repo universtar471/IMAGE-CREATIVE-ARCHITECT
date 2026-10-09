@@ -9,7 +9,13 @@
 //! network timeout.
 
 pub mod gemini;
+pub mod hhtech;
 pub mod local_preview;
+pub mod openai;
+pub mod text;
+
+#[cfg(test)]
+mod test_http;
 
 use std::sync::Arc;
 
@@ -160,6 +166,22 @@ pub trait ImageProvider: Send + Sync {
 
     /// Cheap credential/connectivity check (no image generation). Returns a short status line.
     fn test_connection(&self, api_key: Option<&str>) -> Result<String, ProviderError>;
+
+    /// Why the provider cannot run regardless of the key (e.g. a missing base URL), as an
+    /// actionable message; `None` when it is set up.
+    fn config_problem(&self) -> Option<String> {
+        None
+    }
+
+    /// Chat model used for prompt enhancement, if this provider offers one.
+    fn chat_model(&self) -> Option<String> {
+        None
+    }
+
+    /// One chat completion (system + user message) returning the reply text.
+    fn chat(&self, _system: &str, _user: &str, _api_key: Option<&str>) -> Result<String, ProviderError> {
+        Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer prompt enhancement."))
+    }
 }
 
 /// All providers compiled into this build, in UI order.
@@ -172,8 +194,19 @@ impl ProviderRegistry {
         Self { providers }
     }
 
+    /// Builtin providers configured from the process environment (HHTECH reads its base URL
+    /// and models there; load `.env` first, see `crate::env_file`).
     pub fn builtin() -> Self {
-        Self::new(vec![Arc::new(gemini::GeminiProvider::new()), Arc::new(local_preview::LocalPreviewProvider)])
+        Self::builtin_with_env(&crate::secrets::ProcessEnv)
+    }
+
+    pub fn builtin_with_env(env: &dyn crate::secrets::EnvSource) -> Self {
+        Self::new(vec![
+            Arc::new(gemini::GeminiProvider::new()),
+            Arc::new(openai::OpenAiProvider::new()),
+            Arc::new(hhtech::provider(env)),
+            Arc::new(local_preview::LocalPreviewProvider),
+        ])
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<dyn ImageProvider>> {

@@ -1,0 +1,12 @@
+{
+  "command": "error",
+  "response": {
+    "code": "PROVIDER_ERROR",
+    "details": {
+      "kind": "network",
+      "providerId": "hhtech",
+      "retryable": true
+    },
+    "message": "Could not reach HHTECH. Check the internet connection, proxy or firewall, then retry."
+  }
+}

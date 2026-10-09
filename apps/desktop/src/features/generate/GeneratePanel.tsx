@@ -11,6 +11,7 @@ import { LoadingState } from "../../components/common/states";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, NumberField, SelectField } from "../../components/panels/fields";
 import { fileUrl } from "../../lib/files";
+import { ExtraPromptSection } from "./ExtraPromptSection";
 import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
@@ -67,6 +68,7 @@ export function GeneratePanel() {
       referenceAssetIds: form.referenceIds,
       params: form.params,
       cameraId: null,
+      extraPrompt: draft.extraPrompt,
     });
   };
 
@@ -105,6 +107,8 @@ export function GeneratePanel() {
           </div>
         </div>
       )}
+
+      <ExtraPromptSection referenceIds={form.referenceIds} disabled={running} />
 
       <SectionPanel title="Compiled prompt" defaultOpen={false}>
         <GeneratePromptPreview referenceIds={form.referenceIds} />

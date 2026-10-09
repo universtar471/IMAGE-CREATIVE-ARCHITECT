@@ -73,6 +73,8 @@ export const AppErrorCodeSchema = z.enum([
   "INVALID_STATE",
   "DUPLICATE_ASSET",
   "PROVIDER_NOT_CONFIGURED",
+  /** A provider call made directly by a command failed; details `{ providerId, kind, retryable }`. */
+  "PROVIDER_ERROR",
 ]);
 export type AppErrorCode = z.infer<typeof AppErrorCodeSchema>;
 

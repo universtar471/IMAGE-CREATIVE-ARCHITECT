@@ -12,7 +12,9 @@ use crate::dto::{
     ProjectSummaryDto, ProviderDescriptorDto, ProviderTestResult, VersionDto,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
-use crate::services::{anchors, assets, batches, dna, generations, projects, provider_settings, queue, AppCore};
+use crate::services::{
+    anchors, assets, batches, dna, generations, projects, prompt_enhance, provider_settings, queue, AppCore,
+};
 
 type Core<'a> = State<'a, Arc<AppCore>>;
 
@@ -201,6 +203,15 @@ pub async fn provider_clear_api_key(core: Core<'_>, request: ProviderRef) -> App
 #[tauri::command]
 pub async fn provider_test(core: Core<'_>, request: ProviderRef) -> AppResult<ProviderTestResult> {
     blocking(&core, move |c| provider_settings::test(c, &request.provider_id)).await
+}
+
+/// Rewrites the user's extra prompt with the provider's chat model (`prompt_enhance`).
+#[tauri::command]
+pub async fn prompt_enhance(
+    core: Core<'_>,
+    request: prompt_enhance::EnhanceRequest,
+) -> AppResult<prompt_enhance::EnhanceResult> {
+    blocking(&core, move |c| prompt_enhance::enhance(c, request)).await
 }
 
 // ------------------------------------------------------------------ generation

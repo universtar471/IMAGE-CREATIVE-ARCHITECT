@@ -20,6 +20,7 @@ import {
   ProjectSummaryDTOSchema,
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
+  PromptEnhanceResultSchema,
   type AppError,
   type AssetRole,
   type AssetSource,
@@ -27,6 +28,7 @@ import {
   type GenerationDTO,
   type GenerationSubmitRequest,
   type JobDTO,
+  type PromptEnhanceRequest,
   type ProjectDNA,
   type ProjectType,
 } from "@arch/domain";
@@ -88,6 +90,7 @@ export type Requests = {
   provider_set_api_key: { providerId: string; apiKey: string };
   provider_clear_api_key: { providerId: string };
   provider_test: { providerId: string };
+  prompt_enhance: PromptEnhanceRequest;
   generation_submit: GenerationSubmitRequest;
   generation_list: { projectId: string };
   generation_get: { projectId: string; generationId: string };
@@ -123,6 +126,7 @@ export const responses = {
   provider_set_api_key: ProviderDescriptorDTOSchema,
   provider_clear_api_key: ProviderDescriptorDTOSchema,
   provider_test: ProviderTestResultSchema,
+  prompt_enhance: PromptEnhanceResultSchema,
   generation_submit: GenerationDTOSchema,
   generation_list: z.array(GenerationDTOSchema),
   generation_get: GenerationDTOSchema,

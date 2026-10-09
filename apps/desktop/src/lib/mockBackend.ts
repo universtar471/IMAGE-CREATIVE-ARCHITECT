@@ -4,7 +4,7 @@
  * UI, but it is NOT the source of truth — the Rust backend and its tests are.
  * Data persists to localStorage so reloads behave like reopening the app.
  *
- * Phase 2: two mock providers mirror the Rust registry (`gemini`, `local_preview`).
+ * Mock providers mirror the Rust registry (`gemini`, `openai`, `local_preview`).
  * API keys are never stored here — only a "configured" boolean per provider.
  * Generated outputs are cheap SVG placeholders. A positive prompt containing `[fail]`
  * produces a `failed` generation so the error UI can be exercised.
@@ -147,6 +147,40 @@ const GEMINI_MODELS: ModelCapabilities[] = (
   supportsSeed: false,
 }));
 
+/**
+ * Mirrors `providers/openai/models.rs`: one request with `n` outputs (max 4), up to 16
+ * references, no resolution tiers (`imageSizes` empty): the adapter maps the aspect ratio to a size.
+ */
+const OPENAI_MODELS: ModelCapabilities[] = (
+  [
+    ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst"],
+    ["gpt-image-2.5-flare", "GPT Image 2.5 Flare"],
+    ["gpt-image-2", "GPT Image 2 (earlier model)"],
+  ] as const
+).map(([id, label]) => ({
+  id,
+  label,
+  textToImage: true,
+  imageToImage: true,
+  maxReferenceImages: 16,
+  maxOutputs: 4,
+  aspectRatios: [...RATIOS_STANDARD],
+  imageSizes: [],
+  supportsNegativePrompt: false,
+  supportsSeed: false,
+}));
+
+/**
+ * Mirrors `providers/hhtech` with no HHTECH_* settings besides the base URL (the contract
+ * fixture's environment): one gateway model, `gpt-image-2`, labelled by its id.
+ */
+const HHTECH_MODELS: ModelCapabilities[] = [
+  { ...OPENAI_MODELS[0]!, id: "gpt-image-2", label: "gpt-image-2" },
+];
+
+/** Providers whose chat model can enhance prompts (`prompt_enhance`). */
+export const MOCK_CHAT_PROVIDERS: readonly string[] = ["hhtech"];
+
 /** Mirrors `ProviderRegistry::builtin()` in src-tauri/src/providers. */
 export const MOCK_PROVIDERS: readonly MockProvider[] = [
   {
@@ -155,6 +189,20 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
     kind: "remote",
     requiresApiKey: true,
     models: GEMINI_MODELS,
+  },
+  {
+    id: "openai",
+    label: "OpenAI (GPT Image)",
+    kind: "remote",
+    requiresApiKey: true,
+    models: OPENAI_MODELS,
+  },
+  {
+    id: "hhtech",
+    label: "HHTECH (OpenAI-compatible)",
+    kind: "remote",
+    requiresApiKey: true,
+    models: HHTECH_MODELS,
   },
   {
     id: "local_preview",
@@ -891,6 +939,18 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       };
     },
 
+    prompt_enhance: (req) => {
+      getProject(req.projectId);
+      const text = req.text.trim();
+      if (!text) fail("VALIDATION_ERROR", "Write a prompt first; there is nothing to enhance.");
+      const p = getProvider(req.providerId);
+      if (!MOCK_CHAT_PROVIDERS.includes(p.id))
+        fail("VALIDATION_ERROR", `${p.label} does not offer prompt enhancement.`);
+      if (!describeProvider(p).configured)
+        fail("PROVIDER_NOT_CONFIGURED", `${p.label} needs an API key.`, { providerId: p.id });
+      return { text: mockEnhance(text, req.context) };
+    },
+
     generation_submit: (req) => {
       validateRequest(req);
       const job = enqueue(
@@ -1061,6 +1121,16 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     };
   };
   return transport;
+}
+
+/**
+ * Deterministic stand-in for the chat model: the user's text plus fixed detail, and a note
+ * that the DNA context was kept (the real backend sends it to the model).
+ */
+export function mockEnhance(text: string, context: string): string {
+  const base = text.trim().replace(/[.\s]+$/, "");
+  const keep = context.trim() ? " Keeps every Project DNA fact." : "";
+  return `${base}, with crisp material detail, soft directional daylight, eye-level camera with a 35 mm lens and a calm atmosphere.${keep}`;
 }
 
 function outputSize(aspectRatio: string | null, parent: AssetDTO | undefined): [number, number] {
