@@ -19,10 +19,6 @@ use crate::services::assets::{asset_dto, store_managed_image, Thumbnail};
 use crate::services::{ensure_not_archived, AppCore};
 use crate::util::{new_id, prefix};
 
-fn default_schema_version() -> u32 {
-    1
-}
-
 fn zero() -> f32 {
     0.0
 }
@@ -32,7 +28,6 @@ fn zero() -> f32 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorGrade {
-    #[serde(default = "default_schema_version")]
     pub schema_version: u32,
     #[serde(default = "zero")]
     pub exposure: f32,
@@ -302,7 +297,7 @@ mod tests {
     use std::path::Path;
 
     fn neutral() -> ColorGrade {
-        ColorGrade { schema_version: 1, ..serde_json::from_value(serde_json::json!({})).unwrap() }
+        serde_json::from_value(serde_json::json!({ "schemaVersion": 1 })).unwrap()
     }
 
     #[test]
@@ -320,6 +315,16 @@ mod tests {
         grade.exposure = 0.0;
         grade.saturation = -101.0;
         assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+    }
+
+    #[test]
+    fn rejects_grade_apply_request_without_schema_version() {
+        let parsed = serde_json::from_value::<GradeApplyRequest>(json!({
+            "projectId": "PRJ_X",
+            "assetId": "AST_X",
+            "grade": { "temperature": 40 }
+        }));
+        assert!(parsed.is_err());
     }
 
     #[test]
@@ -362,6 +367,7 @@ mod tests {
             validate_grade(&grade).unwrap();
             let input = vector["input"].as_array().unwrap();
             let expected = vector["output"].as_array().unwrap();
+            assert_eq!(input.len(), expected.len(), "grade vector input/output length mismatch");
             for (pixel, wanted) in input.iter().zip(expected) {
                 let rgb = pixel.as_array().unwrap();
                 let image = DynamicImage::ImageRgba8(RgbaImage::from_pixel(

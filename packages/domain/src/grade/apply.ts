@@ -107,14 +107,18 @@ export const GRADE_LOOKS: Record<GradeLookId, ColorGradeDNA> = {
   },
 };
 
-/** Apply the documented grade pipeline to one RGB pixel. Alpha is not part of this function. */
-export function applyGradePixel(
-  rgb: readonly [number, number, number],
+type PixelScratch = [number, number, number];
+
+function gradePixelInto(
+  red: number,
+  green: number,
+  blue: number,
   grade: ColorGradeDNA,
-): [number, number, number] {
-  let r = rgb[0] / 255;
-  let g = rgb[1] / 255;
-  let b = rgb[2] / 255;
+  output: PixelScratch,
+): void {
+  let r = red / 255;
+  let g = green / 255;
+  let b = blue / 255;
   const exposure = grade.exposure / 100;
   r = linearToSrgb(clamp01(srgbToLinear(r) * 2 ** exposure));
   g = linearToSrgb(clamp01(srgbToLinear(g) * 2 ** exposure));
@@ -169,19 +173,35 @@ export function applyGradePixel(
   r = l + (r - l) * saturation;
   g = l + (g - l) * saturation;
   b = l + (b - l) * saturation;
-  return [Math.round(clamp01(r) * 255), Math.round(clamp01(g) * 255), Math.round(clamp01(b) * 255)];
+  output[0] = Math.round(clamp01(r) * 255);
+  output[1] = Math.round(clamp01(g) * 255);
+  output[2] = Math.round(clamp01(b) * 255);
 }
 
-/** Mutates the RGB bytes in place and leaves every alpha byte unchanged. */
+/** Apply the documented grade pipeline to one RGB pixel. Alpha is not part of this function. */
+export function applyGradePixel(
+  rgb: readonly [number, number, number],
+  grade: ColorGradeDNA,
+): [number, number, number] {
+  const output: PixelScratch = [0, 0, 0];
+  gradePixelInto(rgb[0], rgb[1], rgb[2], grade, output);
+  return output;
+}
+
+/** Grade RGBA bytes without mutating the source unless it is explicitly supplied as `out`. */
 export function applyGradeToImageData(
   data: Uint8ClampedArray,
   grade: ColorGradeDNA,
+  out?: Uint8ClampedArray,
 ): Uint8ClampedArray {
+  const output = out ?? new Uint8ClampedArray(data);
+  if (output !== data) output.set(data);
+  const scratch: PixelScratch = [0, 0, 0];
   for (let i = 0; i + 2 < data.length; i += 4) {
-    const out = applyGradePixel([data[i]!, data[i + 1]!, data[i + 2]!], grade);
-    data[i] = out[0];
-    data[i + 1] = out[1];
-    data[i + 2] = out[2];
+    gradePixelInto(data[i]!, data[i + 1]!, data[i + 2]!, grade, scratch);
+    output[i] = scratch[0];
+    output[i + 1] = scratch[1];
+    output[i + 2] = scratch[2];
   }
-  return data;
+  return output;
 }

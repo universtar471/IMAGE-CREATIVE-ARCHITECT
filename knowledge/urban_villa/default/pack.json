@@ -206,7 +206,11 @@
       "id": "cinematic",
       "label": "Cinematic night",
       "tags": ["cinematic"],
-      "values": { "atmosphere": "cinematic street dusk" }
+      "values": {
+        "atmosphere": "cinematic street dusk",
+        "lighting": { "timeOfDay": "blue_hour", "ambientLight": "cool" },
+        "weather": { "sky": "clear dusk", "haze": "light" }
+      }
     },
     {
       "id": "fresh",

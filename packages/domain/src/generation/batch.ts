@@ -11,7 +11,6 @@ import {
   type PromptReference,
 } from "../prompt/compiler";
 import type { CameraDNA } from "../schemas/future";
-import type { MoodDNA } from "../schemas/future";
 import type { MoodPreset } from "../knowledge/pack";
 import type { ProjectDNA } from "../schemas/projectDna";
 import type { GenerationParams, ModelCapabilities } from "../schemas/generation";
@@ -45,14 +44,6 @@ export type MoodVariationBuildInput = Omit<
   masterAssetId?: string | null;
 };
 
-type VariationPreset = MoodPreset & {
-  values: MoodPreset["values"] & {
-    lighting?: Partial<NonNullable<ProjectDNA["lighting"]>>;
-    weather?: Partial<NonNullable<ProjectDNA["weather"]>>;
-    mood?: Partial<NonNullable<ProjectDNA["mood"]>>;
-  };
-};
-
 export class MoodVariationReferenceLimitError extends Error {
   constructor(
     readonly max: number,
@@ -71,21 +62,19 @@ export function buildMoodVariationItems(input: MoodVariationBuildInput): BatchIt
   if (!source) throw new Error(`Mood variation source asset not found: ${input.sourceAssetId}`);
   const cap = input.model.imageToImage ? input.model.maxReferenceImages : 0;
   if (cap < 1) throw new MoodVariationReferenceLimitError(cap, input.model.label);
-  const master = input.masterAssetId
-    ? input.assets.find((asset) => asset.id === input.masterAssetId)
-    : undefined;
   const sourceReference: PromptReference = {
     ...toReference(source),
-    role: master?.id === source.id ? "master_architecture" : source.role,
+    // A variation source is the architecture/composition anchor even when it is an output.
+    role: "master_architecture",
   };
   return input.presets.map((preset) => {
+    const { lighting, weather, ...mood } = preset.values;
     const prompt = compileWithOverrides(
       { project: input.project, dna: input.dna, pack: input.pack, references: [sourceReference] },
       {
-        lighting: (preset.values as VariationPreset["values"]).lighting,
-        weather: (preset.values as VariationPreset["values"]).weather,
-        mood:
-          (preset.values as VariationPreset["values"]).mood ?? (preset.values as Partial<MoodDNA>),
+        lighting,
+        weather,
+        mood,
       },
     );
     prompt.preservationInstructions +=
@@ -103,31 +92,22 @@ export function buildMoodVariationItems(input: MoodVariationBuildInput): BatchIt
 /** Adopt a mood preset without mutating the original DNA; locked mood is unchanged. */
 export function adoptMoodPreset(dna: ProjectDNA, preset: MoodPreset): ProjectDNA {
   const next = structuredClone(dna);
-  const values = preset.values as VariationPreset["values"];
-  if (values.lighting && !next.locks.lighting)
+  const { lighting, weather, ...mood } = preset.values;
+  if (lighting && !next.locks.lighting)
     next.lighting = {
       schemaVersion: 1,
       artificialLighting: [],
       ...(next.lighting ?? {}),
-      ...values.lighting,
+      ...lighting,
     };
-  if (values.weather && !next.locks.weather)
-    next.weather = { schemaVersion: 1, notes: "", ...(next.weather ?? {}), ...values.weather };
-  if (values.mood && !next.locks.mood)
+  if (weather && !next.locks.weather)
+    next.weather = { schemaVersion: 1, notes: "", ...(next.weather ?? {}), ...weather };
+  if (!next.locks.mood)
     next.mood = {
       schemaVersion: 1,
       notes: "",
       ...(next.mood ?? {}),
-      ...values.mood,
-      presetId: preset.id,
-      preset: preset.label,
-    };
-  else if (!next.locks.mood && !values.lighting && !values.weather)
-    next.mood = {
-      schemaVersion: 1,
-      notes: "",
-      ...(next.mood ?? {}),
-      ...preset.values,
+      ...mood,
       presetId: preset.id,
       preset: preset.label,
     };
