@@ -150,6 +150,94 @@
       "requiresApiKey": true
     },
     {
+      "configured": false,
+      "id": "openai",
+      "keySource": null,
+      "kind": "remote",
+      "label": "OpenAI (GPT Image)",
+      "models": [
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2.5-sunburst",
+          "imageSizes": [
+            "1K",
+            "2K"
+          ],
+          "imageToImage": true,
+          "label": "GPT Image 2.5 Sunburst",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2.5-flare",
+          "imageSizes": [
+            "1K",
+            "2K"
+          ],
+          "imageToImage": true,
+          "label": "GPT Image 2.5 Flare",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2",
+          "imageSizes": [
+            "1K",
+            "2K"
+          ],
+          "imageToImage": true,
+          "label": "GPT Image 2 (earlier model)",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        }
+      ],
+      "requiresApiKey": true
+    },
+    {
       "configured": true,
       "id": "local_preview",
       "keySource": null,

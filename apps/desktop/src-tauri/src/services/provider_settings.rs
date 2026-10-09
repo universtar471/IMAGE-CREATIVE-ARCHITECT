@@ -149,6 +149,26 @@ mod tests {
     }
 
     #[test]
+    fn builtin_openai_is_listed_and_takes_its_env_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let registry = crate::providers::ProviderRegistry::builtin();
+        let mut core =
+            AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
+        let ids: Vec<String> = list(&core).into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, ["gemini", "openai", "local_preview"]);
+        assert!(!find(&list(&core), "openai").configured);
+
+        assert_eq!(crate::secrets::env_var_name("openai"), "ARCH_STUDIO_OPENAI_API_KEY");
+        core.env = Arc::new(crate::secrets::FixedEnv::with("ARCH_STUDIO_OPENAI_API_KEY", "sk-env-key"));
+        let d = list(&core);
+        let openai = find(&d, "openai");
+        assert_eq!((openai.configured, openai.key_source), (true, Some(KeySource::Env)));
+        assert_eq!(openai.label, "OpenAI (GPT Image)");
+        assert!(!find(&d, "gemini").configured, "one provider's env key does not configure another");
+        assert!(!serde_json::to_string(&d).unwrap().contains("sk-env-key"));
+    }
+
+    #[test]
     fn rejects_bad_keys_and_unknown_providers() {
         let (_tmp, core) = core();
         assert_eq!(set_api_key(&core, TEST_PROVIDER, "a b").unwrap_err().code, ErrorCode::ValidationError);

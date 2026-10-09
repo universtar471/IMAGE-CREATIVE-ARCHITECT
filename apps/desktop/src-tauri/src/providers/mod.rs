@@ -178,7 +178,11 @@ impl ProviderRegistry {
     }
 
     pub fn builtin() -> Self {
-        Self::new(vec![Arc::new(gemini::GeminiProvider::new()), Arc::new(local_preview::LocalPreviewProvider)])
+        Self::new(vec![
+            Arc::new(gemini::GeminiProvider::new()),
+            Arc::new(openai::OpenAiProvider::new()),
+            Arc::new(local_preview::LocalPreviewProvider),
+        ])
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<dyn ImageProvider>> {

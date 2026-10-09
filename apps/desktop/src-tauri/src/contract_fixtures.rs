@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 
 use crate::domain::{GenerationStatus, JobStatus};
 use crate::providers::local_preview::{self, LocalPreviewProvider};
-use crate::providers::{gemini::GeminiProvider, ProviderErrorKind, ProviderRegistry};
+use crate::providers::{gemini::GeminiProvider, openai::OpenAiProvider, ProviderErrorKind, ProviderRegistry};
 use crate::secrets::{env_var_name, EnvSource, FixedEnv, MemorySecretStore, ProcessEnv};
 use crate::services::anchors::{self, AnchorClearRequest, AnchorSetRequest};
 use crate::services::assets::{self, ImportRequest};
@@ -138,23 +138,28 @@ fn submit_request(project_id: &str, provider: &str, model: &str, refs: &[&str], 
 
 /// Nothing that can reach a paid API: closed local port (connection refused at once).
 const UNROUTABLE_GEMINI_URL: &str = "http://127.0.0.1:9/v1beta";
+const UNROUTABLE_OPENAI_URL: &str = "http://127.0.0.1:9/v1";
 
 /// `ambient` stands for the environment of the process running `cargo test` (a developer
-/// may have `ARCH_STUDIO_GEMINI_API_KEY` set). It is deliberately *not* wired into the core:
-/// the fixture core resolves keys from its memory store and an empty environment only, and
-/// its Gemini adapter points at an unroutable address (Codex review p2-backend, last item).
+/// may have `ARCH_STUDIO_GEMINI_API_KEY` or `ARCH_STUDIO_OPENAI_API_KEY` set). It is
+/// deliberately *not* wired into the core: the fixture core resolves keys from its memory store
+/// and an empty environment only, and its remote adapters point at an unroutable address
+/// (Codex review p2-backend, last item).
 fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     let tmp = tempfile::tempdir().unwrap();
     let data_root = tmp.path().join("data");
     let double = Arc::new(TestProvider::default());
     let registry = ProviderRegistry::new(vec![
         Arc::new(GeminiProvider::with_base_url(UNROUTABLE_GEMINI_URL)),
+        Arc::new(OpenAiProvider::with_base_url(UNROUTABLE_OPENAI_URL)),
         Arc::new(LocalPreviewProvider),
         double.clone(),
     ]);
     let core = AppCore::open_with(&data_root, registry, Arc::new(MemorySecretStore::default())).unwrap();
     drop(ambient);
-    assert!(core.env.var(&env_var_name("gemini")).is_none(), "fixture core must not see an ambient key");
+    for id in ["gemini", "openai"] {
+        assert!(core.env.var(&env_var_name(id)).is_none(), "fixture core must not see an ambient key");
+    }
     let mut rec = Recorder { norm: Normalizer::new(&data_root), out: BTreeMap::new() };
 
     // Providers. Gemini: unconfigured, then configured (the key never appears in the DTO).
@@ -293,15 +298,24 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
 }
 
 #[test]
-fn fixtures_and_descriptors_ignore_a_gemini_key_in_the_environment() {
-    let ambient: Arc<dyn EnvSource> = Arc::new(FixedEnv::with(&env_var_name("gemini"), "ambient-real-looking-key"));
+fn fixtures_and_descriptors_ignore_remote_keys_in_the_environment() {
+    let ambient: Arc<dyn EnvSource> = Arc::new(FixedEnv(
+        [("gemini", "ambient-real-looking-key"), ("openai", "sk-ambient-real-looking-key")]
+            .into_iter()
+            .map(|(id, key)| (env_var_name(id), key.to_string()))
+            .collect(),
+    ));
     let with_key = build_fixtures(ambient);
     let without = build_fixtures(Arc::new(FixedEnv::default()));
     assert_eq!(with_key, without);
     let text = serde_json::to_string(&with_key).unwrap();
     assert!(!text.contains("ambient-real-looking-key"));
-    let gemini = &with_key["provider_list"]["response"].as_array().unwrap()[0];
-    assert_eq!((gemini["id"].as_str(), gemini["configured"].as_bool()), (Some("gemini"), Some(false)));
+    let providers = with_key["provider_list"]["response"].as_array().unwrap();
+    let ids: Vec<_> = providers.iter().map(|p| p["id"].as_str().unwrap()).collect();
+    assert_eq!(ids[..3], ["gemini", "openai", "local_preview"]);
+    for remote in &providers[..2] {
+        assert_eq!(remote["configured"].as_bool(), Some(false), "{remote}");
+    }
 }
 
 #[test]
