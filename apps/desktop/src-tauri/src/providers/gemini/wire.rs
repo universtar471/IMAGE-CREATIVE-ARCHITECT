@@ -192,6 +192,13 @@ pub fn map_http_error(status: u16, body: &str, api_key: &str) -> ProviderError {
             InvalidRequest,
             with_detail("Gemini does not offer this model for your key (HTTP 404). Pick another model.".into()),
         ),
+        429 if quota_exhausted(error) => ProviderError::new(
+            // Not `RateLimited`: the queue would retry it 15 s and 60 s later and fail the same way.
+            Auth,
+            "Gemini says the quota for this model is used up (HTTP 429): the free tier has no or no remaining \
+             image quota, or a daily limit was reached. Enable billing for the key's project in Google AI Studio \
+             (aistudio.google.com), or wait for the daily reset, then retry.",
+        ),
         429 => ProviderError::new(
             RateLimited,
             "Gemini rate limit or quota reached (HTTP 429). Wait a minute and retry, or check your quota in Google AI \
@@ -202,6 +209,26 @@ pub fn map_http_error(status: u16, body: &str, api_key: &str) -> ProviderError {
         }
         _ => ProviderError::new(InvalidRequest, with_detail(format!("Gemini rejected the request (HTTP {status})."))),
     }
+}
+
+/// True when a 429 carries a `google.rpc.QuotaFailure` violation that waiting a minute will
+/// not fix: a free-tier quota (image models have none, so its limit is 0), a quota whose limit
+/// is 0, or a per-day quota. Any other 429 (no details, per-minute paid quota) is a plain,
+/// retryable rate limit.
+fn quota_exhausted(error: Option<&Value>) -> bool {
+    let details = error.and_then(|e| e.get("details")).and_then(Value::as_array).into_iter().flatten();
+    details
+        .filter(|d| d.get("@type").and_then(Value::as_str).is_some_and(|t| t.ends_with("google.rpc.QuotaFailure")))
+        .filter_map(|d| d.get("violations").and_then(Value::as_array))
+        .flatten()
+        .any(|violation| {
+            let field = |name: &str| violation.get(name).and_then(Value::as_str).unwrap_or_default();
+            let (id, metric) = (field("quotaId"), field("quotaMetric"));
+            id.contains("FreeTier")
+                || metric.contains("free_tier")
+                || id.contains("PerDay")
+                || field("quotaValue") == "0"
+        })
 }
 
 /// Collapse whitespace, strip the key if it was echoed, and cap the length.

@@ -383,6 +383,65 @@ fn maps_http_errors_to_kinds() {
     }
 }
 
+fn quota_reply(violations: Value) -> Reply {
+    Reply::Json(
+        429,
+        json!({ "error": {
+            "code": 429,
+            "message": "You exceeded your current quota, please check your plan and billing details.",
+            "status": "RESOURCE_EXHAUSTED",
+            "details": [
+                { "@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": violations },
+                { "@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "21s" }
+            ]
+        }})
+        .to_string(),
+    )
+}
+
+#[test]
+fn exhausted_or_free_tier_quota_is_not_retryable_and_says_billing() {
+    let cases = [
+        // Image models have no free tier: the free-tier quota is 0.
+        json!([{
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+            "quotaValue": "0"
+        }]),
+        // A daily quota does not come back within the queue's 15 s / 60 s backoff.
+        json!([{
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_paid_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel",
+            "quotaValue": "250"
+        }]),
+    ];
+    for violations in cases {
+        let mut server = MockServer::start(vec![quota_reply(violations.clone()), image_response(PNG_BYTES)]);
+        let err = server.provider().generate(&request(2)).unwrap_err();
+        assert_eq!(err.kind, ProviderErrorKind::Auth, "{violations}");
+        assert!(!err.kind.retryable());
+        assert!(err.message.contains("billing"), "{}", err.message);
+        assert!(err.message.contains("aistudio.google.com"), "{}", err.message);
+        assert_key_free(&err);
+        assert_eq!(server.requests().len(), 1, "an exhausted quota stops the remaining outputs");
+    }
+}
+
+#[test]
+fn per_minute_paid_quota_and_bare_429_stay_retryable() {
+    let per_minute = json!([{
+        "quotaMetric": "generativelanguage.googleapis.com/generate_content_paid_tier_requests",
+        "quotaId": "GenerateRequestsPerMinutePerProjectPerModel",
+        "quotaValue": "10"
+    }]);
+    for reply in [quota_reply(per_minute), error_reply(429, "RESOURCE_EXHAUSTED", "Resource has been exhausted.", None)]
+    {
+        let err = generate_error(vec![reply]);
+        assert_eq!(err.kind, ProviderErrorKind::RateLimited, "{err:?}");
+        assert!(err.kind.retryable());
+    }
+}
+
 #[test]
 fn invalid_request_message_carries_short_vendor_detail() {
     let err = generate_error(vec![error_reply(400, "INVALID_ARGUMENT", "Unsupported aspect ratio.", None)]);
