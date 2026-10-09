@@ -541,6 +541,11 @@ impl ImageProvider for OpenAiProvider {
         }
     }
 
+    fn auto_retries_timeouts(&self) -> bool {
+        // A gateway may keep rendering (and bill) after the app stops waiting.
+        self.cfg.flavor == Flavor::Official
+    }
+
     fn chat_model(&self) -> Option<String> {
         self.cfg.chat_model.clone()
     }

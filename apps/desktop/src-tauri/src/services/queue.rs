@@ -55,11 +55,12 @@ pub fn slots_for(kind: ProviderKind) -> usize {
 }
 
 /// Error kinds the queue retries by itself (ADR-017). Other errors may still carry
-/// `retryable: true`, which only means the user can usefully press Retry.
-pub fn auto_retries(kind: &str) -> bool {
-    [ProviderErrorKind::RateLimited, ProviderErrorKind::Network, ProviderErrorKind::Timeout]
-        .iter()
-        .any(|k| k.as_str() == kind)
+/// `retryable: true`, which only means the user can usefully press Retry. A timeout is retried
+/// only for providers that allow it ([`ImageProvider::auto_retries_timeouts`]).
+pub fn auto_retries(kind: &str, timeouts: bool) -> bool {
+    kind == ProviderErrorKind::RateLimited.as_str()
+        || kind == ProviderErrorKind::Network.as_str()
+        || (timeouts && kind == ProviderErrorKind::Timeout.as_str())
 }
 
 // ------------------------------------------------------------------ injectable clock + events
@@ -310,9 +311,10 @@ fn settle(core: &AppCore, job_id: &str, outcome: RunOutcome) -> AppResult<()> {
     if job.status != JobStatus::Running {
         return Ok(());
     }
+    let timeouts = core.providers.get(&job.provider_id).is_none_or(|p| p.auto_retries_timeouts());
     let backoff = usize::try_from(job.attempt - 1).ok().and_then(|i| RETRY_BACKOFF_SECS.get(i));
     match backoff {
-        Some(secs) if auto_retries(&error.kind) && job.attempt < job.max_attempts => {
+        Some(secs) if auto_retries(&error.kind, timeouts) && job.attempt < job.max_attempts => {
             let next = iso(now + chrono::Duration::seconds(*secs));
             repo::retry_running_job(&tx, job_id, &error, &next, &iso(now))?;
             repo::requeue_generation(&tx, &job.generation_id, &iso(now))?;
@@ -789,6 +791,29 @@ mod tests {
         assert_eq!(g.error.unwrap().kind, "timeout");
         assert!(g.duration_ms.is_some() && g.finished_at.is_some());
         assert_eq!(h.remote.calls(), 3);
+    }
+
+    #[test]
+    fn timeouts_are_not_retried_for_providers_that_opt_out() {
+        let (h, pid) = setup();
+        h.remote.retry_timeouts.store(false, std::sync::atomic::Ordering::SeqCst);
+        h.remote.set_behavior(TestBehavior::Fail(ProviderErrorKind::Timeout));
+        let id = remote(&h, &pid);
+        assert_eq!(tick_now(&h), 1);
+        h.clock.advance_secs(60);
+        assert_eq!(tick_now(&h), 0, "no automatic second attempt");
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Failed, 1));
+        let error = j.error.as_ref().unwrap();
+        assert_eq!(error.kind, "timeout");
+        assert!(error.retryable, "the user can still press Retry");
+        assert_eq!(h.remote.calls(), 1);
+
+        // A rate limit is still retried automatically for the same provider.
+        h.remote.set_behavior(TestBehavior::Fail(ProviderErrorKind::RateLimited));
+        let id = remote(&h, &pid);
+        assert_eq!(tick_now(&h), 1);
+        assert_eq!(job(&h, &id).status, JobStatus::Retrying);
     }
 
     #[test]

@@ -331,6 +331,8 @@ pub(crate) mod tests_support {
         pub last_chat: Mutex<Option<(String, String, Option<String>)>>,
         calls: AtomicUsize,
         hook: Mutex<Option<Hook>>,
+        /// `auto_retries_timeouts` answer (default true, like most providers).
+        pub retry_timeouts: std::sync::atomic::AtomicBool,
     }
 
     impl Default for TestProvider {
@@ -343,6 +345,7 @@ pub(crate) mod tests_support {
                 last_chat: Mutex::new(None),
                 calls: AtomicUsize::new(0),
                 hook: Mutex::new(None),
+                retry_timeouts: std::sync::atomic::AtomicBool::new(true),
             }
         }
     }
@@ -439,6 +442,10 @@ pub(crate) mod tests_support {
                     .collect(),
             };
             Ok(ProviderOutput { images, meta: serde_json::json!({}) })
+        }
+
+        fn auto_retries_timeouts(&self) -> bool {
+            self.retry_timeouts.load(Ordering::SeqCst)
         }
 
         fn test_connection(&self, api_key: Option<&str>) -> Result<String, ProviderError> {
