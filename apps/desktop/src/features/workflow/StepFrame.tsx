@@ -16,6 +16,18 @@ const moduleForStep = (stepId: string) =>
   WORKFLOW_STEPS.find((step) => step.id === stepId)?.moduleId as
     "design_dna" | "context" | "references" | "camera" | "lighting" | undefined;
 
+export function laterStepsToReview(
+  workflow: { steps: readonly DerivedWorkflowStep[] } | null | undefined,
+  stepId: DnaStepId,
+): DerivedWorkflowStep[] {
+  const index = DNA_IDS.indexOf(stepId);
+  return (
+    workflow?.steps.filter(
+      (item) => DNA_IDS.indexOf(item.id as DnaStepId) > index && item.status === "confirmed",
+    ) ?? []
+  );
+}
+
 export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: ReactNode }) {
   const t = useT();
   const setModule = useStudio((state) => state.setModule);
@@ -25,13 +37,7 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const [guideOpen, setGuideOpen] = useState(true);
   const step = workflow?.steps.find((item) => item.id === stepId) ?? fallbackStep(stepId);
   const number = DNA_IDS.indexOf(stepId) + 1;
-  const laterReview = useMemo(
-    () =>
-      workflow?.steps
-        .filter((item) => DNA_IDS.indexOf(item.id as DnaStepId) > number - 1)
-        .filter((item) => item.status === "needs_review") ?? [],
-    [number, workflow],
-  );
+  const laterReview = useMemo(() => laterStepsToReview(workflow, stepId), [stepId, workflow]);
   const locked = step.status === "locked";
   const readOnly = locked || step.status === "confirmed" || step.status === "needs_review";
   const statusLabel = t(`workflow.status.${step.status}`);

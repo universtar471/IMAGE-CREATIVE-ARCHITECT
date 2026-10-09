@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { AlertTriangle, Check, Circle, LockKeyhole } from "lucide-react";
+import { AlertTriangle, Check, Circle, LockKeyhole, Minus } from "lucide-react";
 import { useStudio } from "../../app/store";
 import { WORKSPACE_MODULES } from "../../features/workspace/modules";
 import { useT } from "../../i18n";
@@ -20,6 +20,11 @@ export function WorkspaceNav() {
         return (
           <Fragment key={m.id}>
             {prev && prev.group !== m.group && <div className="nav-group-sep" role="separator" />}
+            {(m.group === "dna" || m.group === "post") && (!prev || prev.group !== m.group) && (
+              <div className="nav-group-label">
+                {t(`workflow.stage.${m.group === "dna" ? "dna" : "post"}`)}
+              </div>
+            )}
             <button
               className={`nav-item ${m.availableIn ? "is-future" : ""}`}
               aria-current={active === m.id ? "page" : undefined}
@@ -67,5 +72,6 @@ function statusIcon(status: string) {
   if (status === "locked") return <LockKeyhole size={12} />;
   if (status === "confirmed" || status === "done") return <Check size={12} />;
   if (status === "needs_review") return <AlertTriangle size={12} />;
+  if (status === "skipped") return <Minus size={12} />;
   return <Circle size={12} />;
 }

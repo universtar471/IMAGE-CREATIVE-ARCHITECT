@@ -36,7 +36,7 @@ export type WorkspaceModule = {
   id: ModuleId;
   label: string;
   icon: LucideIcon;
-  group: "project" | "scene" | "production";
+  group: "overview" | "dna" | "generate" | "post" | "export";
   /** Phase in which the module becomes functional; null = available now. */
   availableIn: number | null;
 };
@@ -46,77 +46,77 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "overview",
     label: "Overview",
     icon: LayoutDashboard,
-    group: "project",
+    group: "overview",
     availableIn: null,
   },
   {
     id: "design_dna",
     label: "Design DNA",
     icon: Dna,
-    group: "project",
+    group: "dna",
     availableIn: null,
   },
   {
     id: "context",
     label: "Context",
     icon: MapPinned,
-    group: "project",
+    group: "dna",
     availableIn: null,
   },
   {
     id: "references",
     label: "References",
     icon: Images,
-    group: "project",
+    group: "dna",
     availableIn: null,
   },
   {
     id: "camera",
     label: "Camera",
     icon: Camera,
-    group: "project",
+    group: "dna",
     availableIn: null,
   },
   {
     id: "lighting",
     label: "Lighting",
     icon: SunMedium,
-    group: "project",
+    group: "dna",
     availableIn: null,
   },
   {
     id: "generate",
     label: "Generate",
     icon: Sparkles,
-    group: "production",
+    group: "generate",
     availableIn: null,
   },
   {
     id: "mood_grade",
     label: "Mood / Grade",
     icon: Palette,
-    group: "production",
+    group: "post",
     availableIn: null,
   },
   {
     id: "enhance",
     label: "Enhance",
     icon: Wand2,
-    group: "production",
+    group: "post",
     availableIn: 5,
   },
   {
     id: "qc",
     label: "QC",
     icon: ScanSearch,
-    group: "production",
+    group: "post",
     availableIn: 6,
   },
   {
     id: "export",
     label: "Export",
     icon: Download,
-    group: "production",
+    group: "export",
     availableIn: 9,
   },
 ];

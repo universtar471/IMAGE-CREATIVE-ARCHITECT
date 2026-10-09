@@ -37,6 +37,22 @@ describe("workspace information architecture", () => {
     ]);
   });
 
+  it("keeps navigation groups explicit", () => {
+    expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
+      "overview",
+      "dna",
+      "dna",
+      "dna",
+      "dna",
+      "dna",
+      "generate",
+      "post",
+      "post",
+      "post",
+      "export",
+    ]);
+  });
+
   it("reserves the bottom tray tabs", () => {
     expect(TRAY_TABS.map((t) => t.label)).toEqual(["Assets", "Versions", "Jobs", "History"]);
     expect(TRAY_TABS.find((t) => t.id === "jobs")?.availableIn).toBeNull();

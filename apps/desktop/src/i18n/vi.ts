@@ -339,81 +339,80 @@ export const vi: Dict = {
   },
 
   workflow: {
-    stepNumber: "BÆ°á»›c {number}/5",
-    howTo: "CÃ¡ch dÃ¹ng",
-    confirm: "XÃ¡c nháº­n & khoÃ¡ bÆ°á»›c",
-    reopen: "Má»Ÿ khoÃ¡ Ä‘á»ƒ sá»­a",
-    reopenConfirm: "Má»Ÿ khoÃ¡ bÆ°á»›c nÃ y?",
-    reopenLater: "CÃ¡c bÆ°á»›c Ä‘Ã£ xÃ¡c nháº­n phÃ­a sau sáº½ cáº§n kiá»ƒm tra:",
-    locked: "HoÃ n thÃ nh '{step}' trÆ°á»›c",
-    goThere: "Äáº¿n bÆ°á»›c nÃ y",
-    needsReview: "BÆ°á»›c trÆ°á»›c Ä‘Ã£ thay Ä‘á»•i â€” kiá»ƒm tra láº¡i rá»“i xÃ¡c nháº­n.",
-    generateLabel: "Quy trÃ¬nh táº¡o áº£nh",
-    generationBlocked: "HoÃ n thÃ nh bÆ°á»›c '{step}' trÆ°á»›c khi táº¡o áº£nh.",
-    overviewTitle: "Quy trÃ¬nh theo bÆ°á»›c",
-    open: "Má»Ÿ",
-    reviewValues: "Kiá»ƒm tra cÃ¡c giÃ¡ trá»‹ Ä‘Ã£ lÆ°u cá»§a bÆ°á»›c nÃ y.",
-    cameraSummary: "{cameras} gÃ³c · {anchors} Anchor",
-    masterApproved: "Master Ä‘Ã£ duyá»‡t",
-    masterMissing: "Master chÆ°a duyá»‡t",
-    lights: "Ä‘Ã¨n",
-    stage: { dna: "DNA thiáº¿t káº¿", generate: "Táº¡o áº£nh", post: "Háº­u ká»³" },
+    stepNumber: "Bước {number}/5",
+    howTo: "Cách dùng",
+    confirm: "Xác nhận & khóa bước",
+    reopen: "Mở khóa để sửa",
+    reopenConfirm: "Mở khóa bước này?",
+    reopenLater: "Các bước đã xác nhận phía sau sẽ cần kiểm tra:",
+    locked: "Hoàn thành '{step}' trước",
+    goThere: "Đến bước này",
+    needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
+    generateLabel: "Quy trình tạo ảnh",
+    generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    overviewTitle: "Quy trình theo bước",
+    open: "Mở",
+    reviewValues: "Kiểm tra các giá trị đã lưu của bước này.",
+    cameraSummary: "{cameras} góc · {anchors} Anchor",
+    masterApproved: "Master đã duyệt",
+    masterMissing: "Master chưa duyệt",
+    lights: "đèn",
+    gradeApplied: "Đã lưu thiết lập chỉnh màu",
+    stage: { dna: "DNA thiết kế", generate: "Tạo ảnh", post: "Hậu kỳ" },
     status: {
-      locked: "Äang khoÃ¡",
-      available: "CÃ³ thá»ƒ lÃ m",
-      confirmed: "ÄÃ£ xÃ¡c nháº­n",
-      needs_review: "Cáº§n kiá»ƒm tra",
-      done: "ÄÃ£ xong",
-      skipped: "Bá» qua",
+      locked: "Đang khóa",
+      available: "Có thể làm",
+      confirmed: "Đã xác nhận",
+      needs_review: "Cần kiểm tra",
+      done: "Đã xong",
+      skipped: "Bỏ qua",
     },
     steps: {
       dna: {
         building: {
-          name: "Kiáº¿n trÃºc",
+          name: "Kiến trúc",
           guide:
-            "Äáº·t loáº¡i cÃ´ng trÃ¬nh vÃ  tÃ­nh cÃ¡ch kiáº¿n trÃºc chÃ­nh. HoÃ n táº¥t khi cáº¥u trÃºc cÃ³ thá»ƒ Ä‘Æ°á»£c dÃ¹ng nháº¥t quÃ¡n.",
+            "Đặt loại công trình và tính cách kiến trúc chính. Hoàn tất khi cấu trúc có thể được dùng nhất quán.",
         },
         context: {
-          name: "Bá»‘i cáº£nh",
+          name: "Bối cảnh",
           guide:
-            "MÃ´ táº£ khu Ä‘áº¥t, mÃ´i trÆ°á»ng vÃ  cÃ¡c hÆ°á»›ng quan trá»ng. HoÃ n táº¥t khi khung cÃ¶nh xung quanh Ä‘Ã£ rÃµ.",
+            "Mô tả khu đất, môi trường và các hướng quan trọng. Hoàn tất khi khung cảnh xung quanh đã rõ.",
         },
         references: {
-          name: "Tham chiáº¿u",
+          name: "Tham chiếu",
           guide:
-            "Nháº­p áº£nh tham chiáº¿u vÃ  chá»n Master náº¿u cÃ³. HoÃ n táº¥t khi vai trÃ² tá»«ng áº£nh Ä‘Ã£ cÃ³ chá»§ Ä‘Ã­ch.",
+            "Nhập ảnh tham chiếu và chọn Master nếu có. Hoàn tất khi vai trò từng ảnh đã có chủ đích.",
         },
         camera: {
-          name: "GÃ³c mÃ¡y",
+          name: "Góc máy",
           guide:
-            "Äáº·t gÃ³c nhÃ¬n, tiÃªu cá»± vÃ  bá»‘ cá»¥c. HoÃ n táº¥t khi cÃ¡c gÃ³c sáºµn sÃ ng render, ká»ƒ cáº£ 0 gÃ³c.",
+            "Đặt góc nhìn, tiêu cự và bố cục. Hoàn tất khi các góc sẵn sàng render, kể cả 0 góc.",
         },
         lighting: {
-          name: "Ãnh sÃ¡ng",
+          name: "Ánh sáng",
           guide:
-            "Äáº·t Ã¡nh sÃ¡ng ngÃ y, thá»i tiáº¿t vÃ  Ä‘Ã¨n nhÃ¢n táº¡o. HoÃ n táº¥t khi giá», bÃ³ng vÃ  khÃ´ng khÃ­ Ä‘Ã£ rÃµ.",
+            "Đặt ánh sáng ngày, thời tiết và đèn nhân tạo. Hoàn tất khi giờ, bóng và không khí đã rõ.",
         },
       },
       generate: {
         master: {
-          name: "áº¢nh Master",
-          guide: "Táº¡o vÃ  duyá»‡t áº£nh Master trÆ°á»›c khi táº¡o Anchor hoáº·c biáº¿n thá»ƒ.",
+          name: "Ảnh Master",
+          guide: "Tạo và duyệt ảnh Master trước khi tạo Anchor hoặc biến thể.",
         },
         anchors: {
           name: "Anchor",
-          guide:
-            "Táº¡o vÃ  duyá»‡t má»™t Anchor cho má»—i gÃ³c Anchor, hoáº·c bá» qua náº¿u khÃ´ng cÃ³ gÃ³c.",
+          guide: "Tạo và duyệt một Anchor cho mỗi góc Anchor, hoặc bỏ qua nếu không có góc.",
         },
         render: {
-          name: "Render cÃ¡c gÃ³c mÃ¡y",
-          guide:
-            "Render cÃ¡c gÃ³c Ä‘Ã£ Ä‘á»‹nh nghÄ©a sau khi Master vÃ  Anchor cáº§n thiáº¿t Ä‘Ã£ sáºµn sÃ ng.",
+          name: "Render các góc máy",
+          guide: "Render các góc đã định nghĩa sau khi Master và Anchor cần thiết đã sẵn sàng.",
         },
       },
       post: {
         grade: {
-          name: "Mood / Chá»‰nh mÃ u",
-          guide: "Ãp dá»¥ng mood hoáº·c chá»‰nh mÃ u cho áº£nh Ä‘Ã£ duyá»‡t.",
+          name: "Mood / Chỉnh màu",
+          guide: "Áp dụng mood hoặc chỉnh màu cho ảnh đã duyệt.",
         },
       },
     },
@@ -909,11 +908,11 @@ export const vi: Dict = {
   },
 
   camera: {
-    elevationHint: "Äá»™ nghiÃªng trÃªn hoáº·c dÆ°á»›i Ä‘Æ°á»ng chÃ¢n trá»i.",
-    heightHint: "Äá»™ cao mÃ¡y áº£nh so vá»›i máº·t Ä‘áº¥t, tÃ­nh báº±ng mÃ©t.",
-    lensHint: "24 mm rá»™ng Â· 35 mm tá»± nhiÃªn Â· 50 mm tiÃªu chuáº©n Â· 85 mm chi tiáº¿t.",
-    aspectHint: "HÃ¬nh dáº¡ng khung Ä‘áº§u ra cá»§a gÃ³c mÃ¡y nÃ y.",
-    compositionHint: "MÃ´ táº£ vá»‹ trÃ­ chá»§ thá»ƒ, cÃ¢n báº±ng vÃ  cÃ¡c cáº¡nh chÃ­nh.",
+    elevationHint: "Độ nghiêng trên hoặc dưới đường chân trời.",
+    heightHint: "Độ cao máy ảnh so với mặt đất, tính bằng mét.",
+    lensHint: "24 mm rộng · 35 mm tự nhiên · 50 mm tiêu chuẩn · 85 mm chi tiết.",
+    aspectHint: "Hình dạng khung đầu ra của góc máy này.",
+    compositionHint: "Mô tả vị trí chủ thể, cân bằng và các cạnh chính.",
     prompt: "Prompt góc máy",
     selectHint: "Chọn một góc máy trong danh sách hoặc trên sơ đồ.",
     reasonArchived: "Dự án đã lưu trữ chỉ xem, không sửa.",
@@ -973,7 +972,7 @@ export const vi: Dict = {
   },
 
   lighting: {
-    fieldHint: "NÃªu rÃµ káº¿t quáº£ thá»‹ giÃ¡c mong muá»‘n Ä‘á»ƒ prompt cá»¥ thá»ƒ.",
+    fieldHint: "Nêu rõ kết quả thị giác mong muốn để prompt cụ thể.",
     section: "Ánh sáng",
     timeOfDay: "Thời điểm trong ngày",
     sunDirection: "Hướng mặt trời",

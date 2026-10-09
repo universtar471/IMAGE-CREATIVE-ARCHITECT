@@ -41,6 +41,12 @@ describe("dictionaries", () => {
     for (const [key, value] of viLeaves) expect(value.trim(), `vi ${key}`).not.toBe("");
   });
 
+  it("contains no common mojibake sequences in Vietnamese strings", () => {
+    for (const { key, value } of leaves(vi)) {
+      expect(value, `vi ${key}`).not.toMatch(/Ã|Æ°|áº|á»/);
+    }
+  });
+
   it("keep every {placeholder} of English in Vietnamese", () => {
     for (const l of enLeaves) {
       const want = placeholders(l.value);

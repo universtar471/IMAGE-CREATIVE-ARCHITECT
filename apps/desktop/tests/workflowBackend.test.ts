@@ -62,6 +62,7 @@ describe("mock workflow commands", () => {
       await call("workflow_confirm_step", { projectId: project.id, stepId });
     }
     await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.context" });
+    await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.context" });
     await expect(
       call("workflow_confirm_step", { projectId: project.id, stepId: "dna.references" }),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });

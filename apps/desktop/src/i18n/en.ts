@@ -354,6 +354,7 @@ export const en = {
     masterApproved: "Master approved",
     masterMissing: "Master not approved",
     lights: "lights",
+    gradeApplied: "Grade settings saved",
     stage: { dna: "Design DNA", generate: "Create images", post: "Post-production" },
     status: {
       locked: "Locked",

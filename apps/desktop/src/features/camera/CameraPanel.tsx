@@ -1,16 +1,6 @@
 import { useEffect, useState } from "react";
+import { Anchor, Copy, Plus, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import {
-  Anchor,
-  Clapperboard,
-  Copy,
-  LayoutGrid,
-  Plus,
-  Sparkles,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react";
-import {
-  anchorViews,
   blankCamera,
   cameraFromPreset,
   cameraReadiness,
@@ -27,26 +17,22 @@ import { NumberField, SelectField, TextAreaField, TextField } from "../../compon
 import { toBridgeError } from "../../lib/bridge";
 import { knowledge } from "../../lib/knowledge";
 import { fileUrl } from "../../lib/files";
-import { BatchDialog } from "./BatchDialog";
-import type { BatchMode } from "./batch";
-import { CAMERA_ASPECT_RATIOS, isMasterApproved } from "./labels";
+import { CAMERA_ASPECT_RATIOS } from "./labels";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
 
-/** Right panel of the Camera module: camera list, field editor, prompt, anchors/production. */
+/** Right panel of the Camera module: camera list, field editor and prompt preview. */
 export function CameraPanel() {
   const ws = useStudio((s) => s.workspace!);
   const selectedId = useStudio((s) => s.selectedCameraId);
   const cameras = ws.draftDna.cameras;
   const selectedIndex = cameras.findIndex((c) => c.id === selectedId);
   const selected = selectedIndex >= 0 ? cameras[selectedIndex]! : null;
-  const [dialog, setDialog] = useState<BatchMode | null>(null);
   const t = useT();
 
   return (
     <div className="camera-panel">
-      <WorkflowSection onOpen={setDialog} />
       <CameraListSection />
       {selected ? (
         <>
@@ -58,83 +44,7 @@ export function CameraPanel() {
       ) : (
         cameras.length > 0 && <span className="field-hint">{t("camera.selectHint")}</span>
       )}
-      {dialog && <BatchDialog mode={dialog} onClose={() => setDialog(null)} />}
     </div>
-  );
-}
-
-function WorkflowSection({ onOpen }: { onOpen: (m: BatchMode) => void }) {
-  const ws = useStudio((s) => s.workspace!);
-  const readOnly = useStudio(selectReadOnly);
-  const showContactSheet = useStudio((s) => s.showContactSheet);
-  const approved = isMasterApproved(ws.project.status);
-  const t = useT();
-  const views = anchorViews(ws.draftDna);
-  const anchored = views.filter((c) => ws.anchors.some((a) => a.cameraId === c.id));
-  const anchorReason = readOnly
-    ? t("camera.reasonArchived")
-    : !ws.project.activeMasterAssetId
-      ? t("camera.reasonMasterRefs")
-      : !approved
-        ? t("camera.reasonApprove")
-        : views.length === 0
-          ? t("camera.reasonAnchorView")
-          : null;
-  const renderReason = readOnly
-    ? t("camera.reasonArchived")
-    : !ws.project.activeMasterAssetId
-      ? t("camera.reasonMaster")
-      : ws.draftDna.cameras.length === 0
-        ? t("camera.reasonAddCamera")
-        : null;
-
-  return (
-    <SectionPanel
-      title={t("camera.workflow")}
-      aside={
-        views.length > 0 && (
-          <span
-            className={`badge ${anchored.length === views.length ? "badge-success" : "badge-warning"}`}
-          >
-            {t("camera.anchoredCount", { done: anchored.length, total: views.length })}
-          </span>
-        )
-      }
-    >
-      <div className="btn-row">
-        <button
-          className="btn btn-sm btn-primary"
-          disabled={anchorReason !== null}
-          onClick={() => onOpen("anchor")}
-          data-testid="generate-anchors"
-        >
-          <Anchor size={13} /> {t("camera.generateAnchors")}
-        </button>
-        <button
-          className="btn btn-sm"
-          disabled={renderReason !== null}
-          onClick={() => onOpen("production")}
-          data-testid="render-cameras"
-        >
-          <Clapperboard size={13} /> {t("camera.renderCameras")}
-        </button>
-        <button
-          className="btn btn-sm"
-          disabled={ws.batches.length === 0}
-          onClick={() => showContactSheet(null)}
-        >
-          <LayoutGrid size={13} /> {t("camera.contactSheet")}
-        </button>
-      </div>
-      {(anchorReason ?? renderReason) && (
-        <span className="field-hint" data-testid="anchor-disabled-reason">
-          {anchorReason ?? renderReason}
-        </span>
-      )}
-      {views.length > 0 && anchored.length < views.length && !anchorReason && (
-        <span className="field-hint">{t("camera.approveHint")}</span>
-      )}
-    </SectionPanel>
   );
 }
 

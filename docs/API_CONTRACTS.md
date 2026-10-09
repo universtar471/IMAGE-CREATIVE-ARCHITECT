@@ -519,6 +519,7 @@ Helpers (also used by the mock backend):
 - `reopenStep(persisted, stepId)`: sets the step `open` and every later `confirmed` dna step to `needs_review`.
 
 Both return a new `persisted` value and throw a clear error on an invalid step or a locked step.
+`needs_review` is read-only until `reopenStep` changes it to `open`; only then may the user review and confirm it again.
 
 ### 13.3 Commands
 

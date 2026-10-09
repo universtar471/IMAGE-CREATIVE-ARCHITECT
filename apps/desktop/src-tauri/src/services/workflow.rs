@@ -192,6 +192,7 @@ mod tests {
         assert_eq!(reopened.steps[0].status, "confirmed");
         assert_eq!(reopened.steps[1].status, "open");
         assert!(reopened.steps[2..].iter().all(|step| step.status == "needs_review"));
+        confirm(&app, &project.id, "dna.context").unwrap();
         let err = confirm(&app, &project.id, "dna.references").unwrap_err();
         assert_eq!(err.code, ErrorCode::ValidationError);
     }

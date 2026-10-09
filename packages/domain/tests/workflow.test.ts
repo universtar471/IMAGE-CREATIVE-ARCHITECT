@@ -212,7 +212,8 @@ describe("workflow persistence helpers", () => {
 
   it("does not confirm a cascaded needs_review step until it is reopened", () => {
     const reopened = reopenStep(allConfirmed(), "dna.context");
-    expect(() => confirmStep(reopened, "dna.references", "later")).toThrow(/locked|available/i);
+    const reviewed = confirmStep(reopened, "dna.context", "reviewed");
+    expect(() => confirmStep(reviewed, "dna.references", "later")).toThrow(/locked|reopen/i);
   });
 });
 

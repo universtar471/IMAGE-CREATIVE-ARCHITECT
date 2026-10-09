@@ -38,3 +38,18 @@ checked-in schema has no diff and the schema drift tests pass.
 
 No required code work remains. JSON Schema export is still limited by the environment ENOMEM
 failure noted above; no generated file drift was present.
+
+## Round 1 fixes
+
+- Backend confirm `needs_review`: the integrated Rust and mock paths already rejected direct confirmation like the domain helper; verified the rule with tests that re-confirm the reopened predecessor first, then added the unambiguous §13.2 clarification.
+- Camera Director read-only: drag and keyboard nudges now also require `dna.camera` to be `available`; regression covered by `workflowRound1.test.tsx`.
+- Anchor and production actions: removed them from DNA > Camera and placed them in Create images with purpose-specific `isGenerationAllowed` gates; UI test verifies the ownership move.
+- Workflow facts: the integrated store already passed `cameraIds` on open and refresh; added a store regression for a non-anchor camera (Render available), then empty/non-empty refreshes (skipped/available).
+- Reopen impact: the dialog now computes later confirmed DNA steps before the backend call, so it lists the steps that will become `needs_review`; covered by the exported helper test.
+- Overview hub: replaced generic summaries with DNA-backed building, context, references, camera, lighting/weather, generation and grade summaries; added expandable quick-edit fields for each DNA step, disabled unless the step is available. Covered by the Overview UI regression.
+- Vietnamese workflow wording: rewrote the affected `vi.ts` values and camera/lighting hints as UTF-8 Vietnamese; added a dictionary test rejecting common mojibake sequences.
+- Navigation: split explicit Overview, DNA, Generate, Post and Export groups, added visible DNA/Post headers, and used a minus icon for skipped statuses (including the Generate stepper).
+
+Tests: `npm run verify`, `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all -- --check`,
+`cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`, and
+`npx prettier --check .` all pass.
