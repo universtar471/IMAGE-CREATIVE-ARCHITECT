@@ -566,16 +566,20 @@ pub fn run(core: &AppCore, request: QcRunRequest) -> AppResult<QcReportDto> {
 /// Schedule post-generation QC without extending the generation job's critical path.
 /// Errors are deliberately logged and discarded; the original generation is already committed.
 pub(crate) fn spawn_after_generation(core: Arc<AppCore>, generation_id: String) {
-    let _ = std::thread::Builder::new().name(format!("qc-{generation_id}")).spawn(move || {
+    let thread_name = format!("qc-{generation_id}");
+    let generation_label = generation_id.clone();
+    if let Err(error) = std::thread::Builder::new().name(thread_name).spawn(move || {
         if let Err(error) = automation_after_generation(&core, &generation_id) {
-            eprintln!("[qc] automatic QC for {generation_id} failed: {}", error.message);
+            eprintln!("[qc] automatic QC failed generation={generation_id}: {}", error.message);
         }
-    });
+    }) {
+        eprintln!("[qc] could not start automatic QC thread generation={generation_label}: {error}");
+    }
 }
 
 pub(crate) fn automation_for_test(core: &AppCore, job_id: &str) {
     if let Err(error) = automation_after_generation(core, job_id) {
-        eprintln!("[qc] automatic QC for {job_id} failed: {}", error.message);
+        eprintln!("[qc] automatic QC failed generation_or_job={job_id}: {}", error.message);
     }
 }
 
@@ -585,9 +589,7 @@ fn automation_after_generation(core: &AppCore, generation_id: &str) -> AppResult
         let generation_id = repo::get_job(&conn, generation_id)?.generation_id;
         let generation = repo::find_generation(&conn, &generation_id)?
             .ok_or_else(|| AppError::not_found("Generation", &generation_id))?;
-        if generation.purpose == crate::domain::GenerationPurpose::Repair {
-            return Ok(());
-        }
+        // Repair outputs are QC'd as well; the depth check below controls only the next repair.
         let settings = conn
             .query_row("SELECT settings_json FROM qc_settings WHERE project_id = ?1", [&generation.project_id], |r| {
                 r.get::<_, String>(0)
@@ -623,7 +625,10 @@ fn automation_after_generation(core: &AppCore, generation_id: &str) -> AppResult
         ) {
             Ok(report) => report,
             Err(error) => {
-                eprintln!("[qc] automatic QC for asset {asset_id} failed: {}", error.message);
+                eprintln!(
+                    "[qc] automatic QC failed project={} asset={asset_id}: {}",
+                    generation.project_id, error.message
+                );
                 continue;
             }
         };
@@ -666,7 +671,10 @@ fn automation_after_generation(core: &AppCore, generation_id: &str) -> AppResult
             camera_id: generation.camera_id.clone(),
         };
         if let Err(error) = generations::submit(core, request) {
-            eprintln!("[qc] automatic repair for asset {asset_id} failed: {}", error.message);
+            eprintln!(
+                "[qc] automatic repair failed project={} asset={asset_id}: {}",
+                generation.project_id, error.message
+            );
         }
     }
     Ok(())
@@ -689,6 +697,73 @@ pub fn list(core: &AppCore, request: QcListRequest) -> AppResult<Vec<QcReportDto
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::generations;
+    use crate::services::projects;
+    use crate::services::provider_settings;
+    use crate::services::tests_support::{
+        queue_harness, run_queue, test_create_villa, test_import, test_request, GOOD_KEY, TEST_PROVIDER,
+    };
+
+    fn automatic_repair_chain(max_repairs: u8) -> (usize, Vec<i64>, Vec<String>) {
+        let h = queue_harness();
+        provider_settings::set_api_key(&h.core, TEST_PROVIDER, GOOD_KEY).unwrap();
+        let project = test_create_villa(&h.core, "QC automation");
+        test_import(&h.core, h.tmp.path(), &project.id, "master.png", "master_architecture");
+        projects::approve_master(&h.core, &project.id, true).unwrap();
+
+        let mut settings = settings_get(&h.core, &project.id).unwrap();
+        settings.auto_qc = "after_generation".into();
+        settings.auto_repair_max = max_repairs;
+        settings.vision_provider_id = Some(TEST_PROVIDER.into());
+        settings.vision_model = Some("full".into());
+        settings_set(&h.core, QcSettingsSetRequest { project_id: project.id.clone(), settings }).unwrap();
+
+        generations::submit(&h.core, test_request(&project.id, TEST_PROVIDER, "full", &[], None)).unwrap();
+        run_queue(&h.core);
+
+        let reports = list(&h.core, QcListRequest { project_id: project.id.clone(), asset_id: None }).unwrap();
+        let conn = h.core.conn().unwrap();
+        let depths = {
+            let mut stmt = conn
+                .prepare("SELECT operation_json FROM assets WHERE project_id = ?1 AND operation = 'repair' ORDER BY id")
+                .unwrap();
+            stmt.query_map([&project.id], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|row| {
+                    let raw = row.unwrap();
+                    serde_json::from_str::<Value>(&raw).unwrap()["repairDepth"].as_i64().unwrap()
+                })
+                .collect::<Vec<_>>()
+        };
+        let repaired_asset_ids = {
+            let mut stmt = conn
+                .prepare("SELECT id FROM assets WHERE project_id = ?1 AND operation = 'repair' ORDER BY id")
+                .unwrap();
+            stmt.query_map([&project.id], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(|row| row.unwrap())
+                .collect::<Vec<_>>()
+        };
+        (reports.len(), depths, repaired_asset_ids)
+    }
+
+    #[test]
+    fn automatic_qc_continues_repair_outputs_until_the_configured_depth() {
+        let (reports, depths, repair_assets) = automatic_repair_chain(2);
+        assert_eq!(reports, 3, "original plus both repair outputs are QC'd");
+        assert_eq!(depths, vec![1, 2]);
+        assert_eq!(repair_assets.len(), 2, "depth two output is QC'd but not repaired");
+
+        let (reports, depths, repair_assets) = automatic_repair_chain(1);
+        assert_eq!(reports, 2);
+        assert_eq!(depths, vec![1]);
+        assert_eq!(repair_assets.len(), 1);
+
+        let (reports, depths, repair_assets) = automatic_repair_chain(0);
+        assert_eq!(reports, 1);
+        assert!(depths.is_empty());
+        assert!(repair_assets.is_empty());
+    }
 
     #[test]
     fn repair_prompt_matches_domain_snapshot() {

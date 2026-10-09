@@ -657,8 +657,8 @@ Both cascade on project delete; reports also cascade on asset delete.
 
 ### 15.5 Automation
 
-After `commit_outputs` of a successful generation whose purpose is not `repair` (or whose repair chain is still allowed), when `autoQc = after_generation`:
+After `commit_outputs` of every successful generation (including `repair` outputs), when `autoQc = after_generation`:
 1. The backend runs `qc_run` for each output on a background thread, sequentially per project, using the stored vision provider/model (or local only).
-2. If the result is `fail` and `repairDepth < autoRepairMax`, it submits one repair generation through the normal gated path.
+2. If the result is `fail` and `repairDepth < autoRepairMax`, it submits one repair generation through the normal gated path. A repair output is QC'd even when its depth has reached `autoRepairMax`; it simply cannot enqueue another repair.
 
 Failures of automation are logged and stored nowhere else. They never fail the original generation.

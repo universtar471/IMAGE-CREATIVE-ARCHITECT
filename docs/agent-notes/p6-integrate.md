@@ -36,3 +36,8 @@
 - Vision provider/model controls in both run and settings UI list only models with `vision: true`; settings persist `visionProviderId` and `visionModel`, with the cost warning beside automatic QC.
 - QC panel, canvas, batch progress, and badges ignore late responses after project/asset changes; report rendering is scoped to the active project/asset. Added parser, prompt, i18n, and scoring regression coverage, plus a Vietnamese QC diacritic guard.
 - Rewrote the QC Vietnamese namespace with natural diacritics and removed the unaccented/English `deterministic` wording. Existing round-1 parser/scoring/repair fixes were verified in this integrated worktree and retained.
+
+## Round 2 fixes
+
+- Automatic QC now also processes `repair` outputs. A failed repair queues the next depth only while `repairDepth < autoRepairMax`, so max 2 produces depths 1 and 2, while the depth-2 output is still QC'd without a depth-3 repair.
+- Thread-start and per-project/per-asset automation failures are logged without secrets. QC in flight on a detached automation thread is not resumed after an app restart; automation state is intentionally not persisted.

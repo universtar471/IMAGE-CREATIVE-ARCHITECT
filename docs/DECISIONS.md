@@ -346,3 +346,4 @@ QC scores a ready image against its references and stores a report. It never mod
 - `autoRepairMax` (0–2, default 0): when a report fails and the repair chain of that output is shorter than the max, a repair generation is queued with the same provider/model as the original. The chain depth is recorded in generation meta.
 
 QC lives in Hậu kỳ › QC. The canvas can overlay artifact boxes.
+- Operational note: QC work in flight on a detached automation thread is not resumed after an app restart; no automation state is persisted.
