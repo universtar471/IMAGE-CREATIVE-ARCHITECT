@@ -191,6 +191,8 @@ type Handler<E extends BackendEventName> = (payload: BackendEvents[E]) => void;
 const handlers = new Map<BackendEventName, Set<Handler<BackendEventName>>>();
 let disconnect: (() => void) | null = null;
 let connecting: Promise<void> | null = null;
+/** Bumped by every disconnect, so a connection that opens afterwards closes itself. */
+let connectionEpoch = 0;
 
 const handlerCount = () => [...handlers.values()].reduce((n, set) => n + set.size, 0);
 
@@ -211,6 +213,7 @@ const dispatch: EventSink = (event, payload) => {
 };
 
 function disconnectEvents() {
+  connectionEpoch++;
   disconnect?.();
   disconnect = null;
   connecting = null;
@@ -218,7 +221,8 @@ function disconnectEvents() {
 
 async function connectEvents(): Promise<void> {
   if (disconnect || connecting) return connecting ?? undefined;
-  connecting = (async () => {
+  const epoch = connectionEpoch;
+  const pending = (async () => {
     const t = await getTransport();
     let off: () => void;
     if (t.connectEvents) {
@@ -232,15 +236,17 @@ async function connectEvents(): Promise<void> {
     } else {
       off = () => {};
     }
-    if (transport !== t) {
-      off(); // the transport was replaced while connecting
+    // The transport was replaced, or every subscriber left, while connecting.
+    if (transport !== t || epoch !== connectionEpoch || handlerCount() === 0) {
+      off();
       return;
     }
     disconnect = off;
   })().finally(() => {
-    connecting = null;
+    if (connecting === pending) connecting = null;
   });
-  return connecting;
+  connecting = pending;
+  return pending;
 }
 
 /**
@@ -254,7 +260,9 @@ export function subscribe<E extends BackendEventName>(event: E, handler: Handler
   set.add(handler as Handler<BackendEventName>);
   void connectEvents();
   return () => {
-    set.delete(handler as Handler<BackendEventName>);
+    // Only the first call counts (a repeated unsubscribe must not close others' connection).
+    if (!set.delete(handler as Handler<BackendEventName>)) return;
+    if (handlerCount() === 0) disconnectEvents(); // also cancels a pending connect
   };
 }
 

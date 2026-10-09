@@ -5,6 +5,7 @@
  */
 import {
   anchorViews,
+  BatchReferenceLimitError,
   buildAnchorBatchItems,
   buildProductionBatchItems,
   MAX_BATCH_ITEMS,
@@ -112,7 +113,14 @@ export function planBatch(
     items = buildAnchorBatchItems(input);
   } else {
     if (!choices.cameraIds.length) issues.push("Choose at least one camera.");
-    items = buildProductionBatchItems(input, choices.cameraIds, anchors);
+    try {
+      items = buildProductionBatchItems(input, choices.cameraIds, anchors);
+    } catch (err) {
+      // Master + anchor do not fit this model: never queue a batch without them.
+      if (!(err instanceof BatchReferenceLimitError)) throw err;
+      issues.push(err.message);
+      items = [];
+    }
   }
   if (items.length > MAX_BATCH_ITEMS)
     issues.push(`A batch holds at most ${MAX_BATCH_ITEMS} items (${items.length} chosen).`);

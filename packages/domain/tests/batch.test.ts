@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BatchItemSchema,
+  BatchReferenceLimitError,
   buildAnchorBatchItems,
   buildProductionBatchItems,
   compilePrompt,
@@ -169,12 +170,31 @@ describe("production batch", () => {
       ["AST_M", "AST_A1"],
       ["AST_M", "AST_ARCH"],
     ]);
+    // A camera without an anchor only needs the master; extras are trimmed to fit.
     const one = buildProductionBatchItems(
       input({ extraReferenceIds: extras, model: model({ maxReferenceImages: 1 }) }),
-      [camId(1)],
+      [camId(2)],
       anchors,
     );
     expect(one[0]!.referenceAssetIds).toEqual(["AST_M"]);
+  });
+
+  it("fails instead of dropping the anchor when the model takes too few references", () => {
+    const build = (m: ModelCapabilities) =>
+      buildProductionBatchItems(input({ model: m }), [camId(2), camId(1)], anchors);
+    expect(() => build(model({ maxReferenceImages: 1 }))).toThrow(BatchReferenceLimitError);
+    try {
+      build(model({ maxReferenceImages: 1 }));
+    } catch (err) {
+      expect(err).toBeInstanceOf(BatchReferenceLimitError);
+      const e = err as BatchReferenceLimitError;
+      expect(e.cameraId).toBe(camId(1));
+      expect(e.required).toBe(2);
+      expect(e.max).toBe(1);
+      expect(e.message).toMatch(/Corner.*master and its approved anchor.*at most 1.*another model/);
+    }
+    // A model without image-to-image cannot carry the master either.
+    expect(() => build(model({ imageToImage: false }))).toThrow(/does not accept reference/);
   });
 
   it("skips unknown cameras, unknown or duplicate extras and a second master", () => {

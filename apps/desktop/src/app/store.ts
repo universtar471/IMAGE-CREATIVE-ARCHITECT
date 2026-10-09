@@ -201,6 +201,17 @@ let toastSeq = 0;
 const eventRevision = new Map<string, number>();
 /** Increments per provider_list request and per Save/Clear, so stale lists are dropped. */
 let providerRevision = 0;
+/**
+ * Stale-poll protection for `job_list` / `generation_list`. `syncSeq` counts every job or
+ * generation adopted from an event or command result; `seenAt` records that count per id.
+ * A poll remembers `syncSeq` when it starts and never overrides an item adopted later.
+ * `*ListRequest` tokens drop a poll answered after a newer poll of the same list.
+ */
+let syncSeq = 0;
+const jobSeenAt = new Map<string, number>();
+const generationSeenAt = new Map<string, number>();
+let jobListRequest = 0;
+let generationListRequest = 0;
 
 const SAVED: SaveState = { status: "saved", fieldErrors: {} };
 
@@ -219,6 +230,32 @@ function upsert<T extends { id: string; createdAt: string }>(list: readonly T[],
 
 export const isTerminalJob = (j: Pick<JobDTO, "status">) =>
   TERMINAL_JOB_STATUSES.includes(j.status);
+
+/**
+ * Merge a polled list into the current one. An item adopted from an event after the poll
+ * started (`seenAt > since`) keeps its current value, and a finished item never goes back
+ * to an active status (jobs and generations never leave a terminal status). Items the poll
+ * does not list are dropped unless they arrived after it started.
+ */
+function mergePolled<T extends { id: string; createdAt: string }>(
+  current: readonly T[],
+  polled: readonly T[],
+  seenAt: ReadonlyMap<string, number>,
+  since: number,
+  isFinished: (item: T) => boolean,
+): T[] {
+  const byId = new Map(current.map((x) => [x.id, x]));
+  const newer = (id: string) => (seenAt.get(id) ?? -1) > since;
+  const merged = polled.map((p) => {
+    const cur = byId.get(p.id);
+    if (!cur) return p;
+    if (newer(p.id) || (isFinished(cur) && !isFinished(p))) return cur;
+    return p;
+  });
+  const listed = new Set(polled.map((p) => p.id));
+  for (const cur of current) if (!listed.has(cur.id) && newer(cur.id)) merged.push(cur);
+  return merged.sort(byNewest);
+}
 
 /** Reference IDs in submit order, from one snapshot; a missing reference is an error. */
 function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]): string[] {
@@ -515,11 +552,25 @@ export const useStudio = create<State>((set, get) => {
     refreshGenerations: async () => {
       const projectId = get().workspace?.project.id;
       if (!projectId) return;
+      const token = ++generationListRequest;
+      const since = syncSeq;
       try {
         const generations = await call("generation_list", { projectId });
+        if (token !== generationListRequest) return; // a newer poll was sent meanwhile
         const ws = get().workspace;
         if (ws && ws.project.id === projectId)
-          set({ workspace: { ...ws, generations: [...generations].sort(byNewest) } });
+          set({
+            workspace: {
+              ...ws,
+              generations: mergePolled(
+                ws.generations,
+                generations,
+                generationSeenAt,
+                since,
+                (g) => !isActiveGeneration(g.status),
+              ),
+            },
+          });
       } catch (err) {
         get().notify("error", toBridgeError(err).message);
       }
@@ -567,8 +618,11 @@ export const useStudio = create<State>((set, get) => {
         const generation = known ?? queued;
         set({ run: { status: "tracking", projectId, generation } });
         const ws = get().workspace;
-        if (ws && ws.project.id === projectId && !known)
+        if (ws && ws.project.id === projectId && !known) {
+          // A command result counts like an event: an older poll must not drop it.
+          generationSeenAt.set(queued.id, ++syncSeq);
           set({ workspace: { ...ws, generations: upsert(ws.generations, queued) } });
+        }
         if (!isActiveGeneration(generation.status)) onTrackedFinished(generation);
         void get().refreshJobs();
         return queued;
@@ -615,8 +669,10 @@ export const useStudio = create<State>((set, get) => {
           run: { status: "tracking", projectId: job.projectId, generation: known ?? generation },
         });
         const ws = get().workspace;
-        if (ws && ws.project.id === job.projectId && !known)
+        if (ws && ws.project.id === job.projectId && !known) {
+          generationSeenAt.set(generation.id, ++syncSeq);
           set({ workspace: { ...ws, generations: upsert(ws.generations, generation) } });
+        }
         return generation;
       } catch (err) {
         get().notify("error", toBridgeError(err).message);
@@ -625,14 +681,18 @@ export const useStudio = create<State>((set, get) => {
     },
 
     refreshJobs: async () => {
-      let jobs: JobDTO[];
+      const token = ++jobListRequest;
+      const since = syncSeq;
+      let polled: JobDTO[];
       try {
-        jobs = await call("job_list", { projectId: null });
+        polled = await call("job_list", { projectId: null });
       } catch {
         return; // the tray shows the last known list; events keep coming
       }
+      if (token !== jobListRequest) return; // a newer poll was sent meanwhile
       const before = new Map(get().jobs.map((j) => [j.id, j]));
-      set({ jobs: [...jobs].sort(byNewest) });
+      const jobs = mergePolled(get().jobs, polled, jobSeenAt, since, isTerminalJob);
+      set({ jobs });
       // A job that finished without us seeing its events: resync the open project.
       const projectId = get().workspace?.project.id;
       const missed = jobs.some(
@@ -735,10 +795,14 @@ export const useStudio = create<State>((set, get) => {
       }
     },
 
-    applyJobEvent: (job) => set((s) => ({ jobs: upsert(s.jobs, job) })),
+    applyJobEvent: (job) => {
+      jobSeenAt.set(job.id, ++syncSeq);
+      set((s) => ({ jobs: upsert(s.jobs, job) }));
+    },
 
     applyGenerationEvent: (g) => {
       eventRevision.set(g.projectId, (eventRevision.get(g.projectId) ?? 0) + 1);
+      generationSeenAt.set(g.id, ++syncSeq);
       const ws = get().workspace;
       const previous =
         ws?.project.id === g.projectId ? ws.generations.find((x) => x.id === g.id) : undefined;

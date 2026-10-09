@@ -105,7 +105,7 @@ describe("camera presets in the Camera module", () => {
       expect(second.name).not.toBe(first.name);
       expect(CameraDNASchema.safeParse(second).success).toBe(true);
     }
-    expect(newCameraId()).toMatch(/^CAM_[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(newCameraId()).toMatch(/^CAM_[0-7][0-9A-HJKMNP-TV-Z]{25}$/);
   });
 });
 
@@ -243,6 +243,35 @@ describe("batch dialog planning", () => {
     );
     expect(none.issues[0]).toMatch(/at least one camera/);
     expect(none.request).toBeNull();
+  });
+
+  it("asks for another model instead of dropping a camera's anchor", async () => {
+    const b = await bundleWithCameras();
+    const [front] = b.dna.cameras;
+    const anchors = [
+      { projectId: b.project.id, cameraId: front!.id, assetId: "AST_A1", approvedAt: "" },
+    ];
+    const oneRef = providers(true).map((p) => ({
+      ...p,
+      models: p.models.map((m) => ({ ...m, maxReferenceImages: 1 })),
+    }));
+    const plan = planBatch(
+      {
+        mode: "production",
+        providerId: "gemini",
+        modelId: "gemini-2.5-flash-image",
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        cameraIds: [front!.id],
+        extraReferenceIds: [],
+      },
+      b,
+      anchors,
+      oneRef,
+    );
+    expect(plan.request).toBeNull();
+    expect(plan.items).toEqual([]);
+    expect(plan.issues[0]).toMatch(/Front needs the master and its approved anchor/);
+    expect(plan.issues[0]).toMatch(/Choose another model/);
   });
 
   it("states remote calls per image and local renders as free", () => {
