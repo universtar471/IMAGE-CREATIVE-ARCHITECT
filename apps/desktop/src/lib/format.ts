@@ -1,4 +1,15 @@
-export function formatBytes(bytes: number | null | undefined): string {
+import { currentLocale, intlLocale, t, type Locale } from "../i18n";
+
+const number = (value: number, digits: number, locale: Locale) =>
+  new Intl.NumberFormat(intlLocale(locale), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+
+export function formatBytes(
+  bytes: number | null | undefined,
+  locale: Locale = currentLocale(),
+): string {
   if (bytes == null) return "—";
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
@@ -8,11 +19,17 @@ export function formatBytes(bytes: number | null | undefined): string {
     value /= 1024;
     unit++;
   }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+  return `${number(value, value < 10 ? 1 : 0, locale)} ${units[unit]}`;
 }
 
 export function formatDimensions(w: number | null | undefined, h: number | null | undefined) {
   return w && h ? `${w} × ${h} px` : "—";
+}
+
+/** Date and time in the active UI language ("09/10/2026, 18:05" / "10/9/2026, 6:05 PM"). */
+export function formatDateTime(iso: string, locale: Locale = currentLocale()): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(intlLocale(locale));
 }
 
 export function formatRelativeTime(iso: string, now = Date.now()): string {
@@ -22,9 +39,9 @@ export function formatRelativeTime(iso: string, now = Date.now()): string {
   const minute = 60_000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (diff < minute) return "just now";
-  if (diff < hour) return `${Math.floor(diff / minute)} min ago`;
-  if (diff < day) return `${Math.floor(diff / hour)} h ago`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)} d ago`;
-  return new Date(then).toLocaleDateString();
+  if (diff < minute) return t("format.justNow");
+  if (diff < hour) return t("format.minutesAgo", { count: Math.floor(diff / minute) });
+  if (diff < day) return t("format.hoursAgo", { count: Math.floor(diff / hour) });
+  if (diff < 7 * day) return t("format.daysAgo", { count: Math.floor(diff / day) });
+  return new Date(then).toLocaleDateString(intlLocale(currentLocale()));
 }

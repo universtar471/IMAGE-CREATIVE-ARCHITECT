@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useT } from "../../i18n";
 
 export function Dialog({
   title,
@@ -16,6 +17,7 @@ export function Dialog({
 }) {
   // Escape and Tab belong to the topmost open dialog only: the last backdrop in document
   // order (a confirm nested inside a settings dialog renders after it).
+  const t = useT();
   const backdrop = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -59,7 +61,11 @@ export function Dialog({
       >
         <div className="dialog-header">
           <h2>{title}</h2>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="Close">
+          <button
+            className="btn btn-ghost btn-icon btn-sm"
+            onClick={onClose}
+            aria-label={t("common.close")}
+          >
             <X size={16} />
           </button>
         </div>
@@ -123,6 +129,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <Dialog
       title={title}
@@ -131,7 +138,7 @@ export function ConfirmDialog({
       footer={
         <>
           <button className="btn" onClick={onCancel} autoFocus>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button className={`btn ${danger ? "btn-danger" : "btn-primary"}`} onClick={onConfirm}>
             {confirmLabel}

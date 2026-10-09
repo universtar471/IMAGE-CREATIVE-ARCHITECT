@@ -1,9 +1,5 @@
-import {
-  ASSET_ROLE_LABELS,
-  PROJECT_STATUS_LABELS,
-  type AssetRole,
-  type ProjectStatus,
-} from "@arch/domain";
+import type { AssetRole, ProjectStatus } from "@arch/domain";
+import { useT } from "../../i18n";
 
 const STATUS_TONE: Partial<Record<ProjectStatus, string>> = {
   draft: "badge-neutral",
@@ -16,9 +12,10 @@ const STATUS_TONE: Partial<Record<ProjectStatus, string>> = {
 };
 
 export function StatusBadge({ status }: { status: ProjectStatus }) {
+  const t = useT();
   return (
     <span className={`badge ${STATUS_TONE[status] ?? "badge-info"}`}>
-      {PROJECT_STATUS_LABELS[status]}
+      {t(`labels.projectStatus.${status}`)}
     </span>
   );
 }
@@ -36,10 +33,11 @@ const ROLE_TONE: Record<AssetRole, string> = {
 };
 
 export function RoleBadge({ role, short = false }: { role: AssetRole; short?: boolean }) {
-  const label = ASSET_ROLE_LABELS[role];
+  const t = useT();
+  const label = t(`labels.assetRole.${role}`);
   return (
     <span className={`badge ${ROLE_TONE[role]}`} title={label}>
-      {short ? label.replace(/ reference$/, "") : label}
+      {short ? t(`labels.assetRoleShort.${role}`) : label}
     </span>
   );
 }

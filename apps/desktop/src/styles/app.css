@@ -258,6 +258,13 @@ textarea {
   background: var(--c-primary);
   color: white;
 }
+.locale-switch button {
+  padding: 0 8px;
+  height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
 /* ------------------------------------------------------------ badges */
 .badge {
@@ -368,6 +375,10 @@ textarea {
 .toast p {
   flex: 1;
   margin: 0;
+}
+.toast-title {
+  display: block;
+  margin-bottom: 2px;
 }
 .toast-success {
   border-color: #065f46;
@@ -1967,4 +1978,22 @@ textarea {
   object-fit: contain;
   background: #050c17;
   border-radius: var(--r-sm);
+}
+
+/* ------------------------------------------------------------ error message (i18n) */
+/* Translated headline badge, then the original backend / provider text as detail. */
+.error-message {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+}
+.error-message .badge {
+  white-space: normal;
+  height: auto;
+  min-height: 20px;
+}
+.error-detail {
+  overflow-wrap: anywhere;
 }

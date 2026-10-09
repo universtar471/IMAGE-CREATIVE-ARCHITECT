@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { useStudio } from "../../app/store";
+import { useT } from "../../i18n";
 
 const ICONS = {
   info: Info,
@@ -11,22 +12,26 @@ const ICONS = {
 export function Toasts() {
   const toasts = useStudio((s) => s.toasts);
   const dismiss = useStudio((s) => s.dismissToast);
+  const t = useT();
   return (
     <div className="toasts" aria-live="polite">
-      {toasts.map((t) => {
-        const Icon = ICONS[t.kind];
+      {toasts.map((toast) => {
+        const Icon = ICONS[toast.kind];
         return (
           <div
-            key={t.id}
-            className={`toast toast-${t.kind}`}
-            role={t.kind === "error" ? "alert" : "status"}
+            key={toast.id}
+            className={`toast toast-${toast.kind}`}
+            role={toast.kind === "error" ? "alert" : "status"}
           >
             <Icon size={16} />
-            <p>{t.message}</p>
+            <p>
+              {toast.title && <strong className="toast-title">{toast.title}</strong>}
+              {toast.message}
+            </p>
             <button
               className="btn btn-ghost btn-sm btn-icon"
-              onClick={() => dismiss(t.id)}
-              aria-label="Dismiss"
+              onClick={() => dismiss(toast.id)}
+              aria-label={t("common.dismiss")}
             >
               <X size={14} />
             </button>
