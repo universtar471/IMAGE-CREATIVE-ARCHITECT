@@ -76,7 +76,8 @@ webview. For development you can instead set `ARCH_STUDIO_GEMINI_API_KEY` or
 
 OpenAI models: GPT Image 2.5 Sunburst, GPT Image 2.5 Flare and GPT Image 2. Requests without
 references use `/v1/images/generations`; with references (up to 16) `/v1/images/edits`. Each
-request asks for quality `high` and PNG output; aspect ratio + 1K/2K map to a concrete size.
+request asks for quality `high` and PNG output; the aspect ratio maps to one concrete size (the API has
+no resolution tiers, so no image size is offered; no ratio lets the API choose).
 A 429 for missing credit or a spend limit fails at once with a billing hint instead of being
 retried.
 

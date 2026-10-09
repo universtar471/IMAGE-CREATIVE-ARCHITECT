@@ -149,7 +149,7 @@ const GEMINI_MODELS: ModelCapabilities[] = (
 
 /**
  * Mirrors `providers/openai/models.rs`: one request with `n` outputs (max 4), up to 16
- * references, aspect ratio + 1K/2K tier mapped to a concrete size by the adapter.
+ * references, no resolution tiers (`imageSizes` empty): the adapter maps the aspect ratio to a size.
  */
 const OPENAI_MODELS: ModelCapabilities[] = (
   [
@@ -165,7 +165,7 @@ const OPENAI_MODELS: ModelCapabilities[] = (
   maxReferenceImages: 16,
   maxOutputs: 4,
   aspectRatios: [...RATIOS_STANDARD],
-  imageSizes: ["1K", "2K"],
+  imageSizes: [],
   supportsNegativePrompt: false,
   supportsSeed: false,
 }));

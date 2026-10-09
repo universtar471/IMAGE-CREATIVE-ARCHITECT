@@ -78,10 +78,10 @@ Kết quả:
 
 - **Multipart thay vì JSON cho edits**: brief yêu cầu, và là dạng mọi ví dụ chính thức dùng. Thứ tự
   `image[]` = thứ tự reference; prompt đánh số vai trò từng ảnh theo thứ tự đó.
-- **imageSizes = `1K`, `2K`** (API không có tier, adapter map ratio + tier → pixel, bảng `SIZES` trong
-  `openai/models.rs`, test kiểm mọi ràng buộc). 1K dùng size chuẩn của docs khi có; 2K ≤ số pixel
-  2560x1440 (vuông = 1920x1920) để tránh vùng experimental. **Không có 4K**.
-  Không chọn gì → bỏ `size` (API auto). Chỉ ratio → 1K; chỉ tier → 1:1.
+- **imageSizes rỗng** (sửa theo review Codex vòng 1, commit trên `wt/hhtech-provider`): API không có
+  tier độ phân giải, nên không công bố `1K`/`2K` nữa; `imageSize` phải null. Adapter map aspect ratio →
+  một size cố định (bảng `SIZES` trong `openai/models.rs`, dùng size chuẩn của docs khi có, ≤ 2560x1440).
+  Không chọn ratio → bỏ `size` (API auto).
 - **aspectRatios**: 10 tỉ lệ như Gemini standard (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9).
 - **quality luôn `high`**: `auto` trên 2.5 có thể chọn `xhigh/max` (chậm, đắt, khó đoán). Nếu cần chọn
   quality trong UI phải thêm field vào contract — để sau.

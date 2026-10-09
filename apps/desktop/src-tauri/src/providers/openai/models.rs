@@ -22,44 +22,32 @@ pub const DEFAULT_MODEL: &str = "gpt-image-2.5-sunburst";
 /// best setting all three models accept and keeps cost per image predictable.
 pub const QUALITY: &str = "high";
 
-/// Size tiers offered in the UI. The API takes any `WIDTHxHEIGHT` within its limits; the adapter
-/// maps (aspect ratio, tier) to one concrete size from [`SIZES`].
-pub const IMAGE_SIZES: [&str; 2] = ["1K", "2K"];
-
 /// The same ten ratios Gemini's standard models offer, all within the API's 1:3–3:1 range.
 pub const ASPECT_RATIOS: [&str; 10] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
 
-/// `(ratio, 1K size, 2K size)`. Every size satisfies the documented limits: both edges multiples
-/// of 16, exact ratio, at least 655,360 pixels. 1K uses the docs' standard sizes where one
-/// exists (1024x1024, 1536x1024, 1024x1536, 1536x864); 2K stays at or below the 2560x1440 pixel
-/// count, above which the docs call resolutions experimental. 4K (up to 3840 px) is not offered
-/// because it is experimental on the 2.5 models.
-pub const SIZES: [(&str, &str, &str); 10] = [
-    ("1:1", "1024x1024", "1920x1920"),
-    ("2:3", "1024x1536", "1344x2016"),
-    ("3:2", "1536x1024", "2016x1344"),
-    ("3:4", "864x1152", "1536x2048"),
-    ("4:3", "1152x864", "2048x1536"),
-    ("4:5", "896x1120", "1600x2000"),
-    ("5:4", "1120x896", "2000x1600"),
-    ("9:16", "864x1536", "1152x2048"),
-    ("16:9", "1536x864", "2048x1152"),
-    ("21:9", "1680x720", "2016x864"),
+/// `(ratio, size)`. The API takes any `WIDTHxHEIGHT` within its limits and has no resolution
+/// tiers, so the app offers no `imageSizes` (Codex review openai-provider: only real tiers may
+/// be advertised) and picks one concrete size per aspect ratio. Every size satisfies the
+/// documented limits: both edges multiples of 16, exact ratio, at least 655,360 pixels, and it
+/// uses the docs' standard sizes where one exists (1024x1024, 1536x1024, 1024x1536, 1536x864).
+pub const SIZES: [(&str, &str); 10] = [
+    ("1:1", "1024x1024"),
+    ("2:3", "1024x1536"),
+    ("3:2", "1536x1024"),
+    ("3:4", "864x1152"),
+    ("4:3", "1152x864"),
+    ("4:5", "896x1120"),
+    ("5:4", "1120x896"),
+    ("9:16", "864x1536"),
+    ("16:9", "1536x864"),
+    ("21:9", "1680x720"),
 ];
 
-/// The `size` field to send, or `None` to omit it and let the API choose (`auto`).
-/// A ratio without a tier uses 1K; a tier without a ratio uses 1:1.
-pub fn api_size(aspect_ratio: Option<&str>, image_size: Option<&str>) -> Option<&'static str> {
-    if aspect_ratio.is_none() && image_size.is_none() {
-        return None;
-    }
-    let ratio = aspect_ratio.unwrap_or("1:1");
-    let (_, one_k, two_k) = SIZES.iter().find(|(r, _, _)| *r == ratio)?;
-    match image_size.unwrap_or("1K") {
-        "1K" => Some(one_k),
-        "2K" => Some(two_k),
-        _ => None,
-    }
+/// The `size` field to send for an aspect ratio, or `None` (no ratio, or an unknown one) to omit
+/// it and let the API choose (`auto`).
+pub fn api_size(aspect_ratio: Option<&str>) -> Option<&'static str> {
+    let ratio = aspect_ratio?;
+    SIZES.iter().find(|(r, _)| *r == ratio).map(|(_, size)| *size)
 }
 
 struct Spec {
@@ -84,7 +72,8 @@ fn to_capabilities(spec: &Spec) -> ModelCapabilities {
         max_reference_images: MAX_REFERENCE_IMAGES,
         max_outputs: MAX_OUTPUTS,
         aspect_ratios: ASPECT_RATIOS.iter().map(|s| s.to_string()).collect(),
-        image_sizes: IMAGE_SIZES.iter().map(|s| s.to_string()).collect(),
+        // No resolution tiers: `imageSize` must stay null; the size follows the aspect ratio.
+        image_sizes: Vec::new(),
         // Neither endpoint has a negative-prompt or seed field; negatives go into the text.
         supports_negative_prompt: false,
         supports_seed: false,
@@ -110,31 +99,30 @@ mod tests {
 
     #[test]
     fn every_size_meets_the_documented_limits_and_its_ratio() {
-        assert_eq!(SIZES.iter().map(|(r, _, _)| *r).collect::<Vec<_>>(), ASPECT_RATIOS);
-        for (ratio, one_k, two_k) in SIZES {
+        assert_eq!(SIZES.iter().map(|(r, _)| *r).collect::<Vec<_>>(), ASPECT_RATIOS);
+        for (ratio, size) in SIZES {
             let (rw, rh) = dims(&ratio.replace(':', "x"));
-            for size in [one_k, two_k] {
-                let (w, h) = dims(size);
-                assert_eq!((w % 16, h % 16), (0, 0), "{size}: edges must be multiples of 16");
-                assert_eq!(w * rh, h * rw, "{size} is not exactly {ratio}");
-                assert!(w.max(h) <= 3 * w.min(h), "{size}: ratio beyond 3:1");
-                assert!(w * h >= 655_360, "{size}: below the minimum pixel count");
-                assert!(w.max(h) <= 3840, "{size}: edge above 3840");
-            }
-            let (w, h) = dims(two_k);
-            assert!(w * h <= 2560 * 1440, "{two_k}: 2K must not be in the experimental range");
-            let (w1, h1) = dims(one_k);
-            assert!(w1 * h1 < w * h, "{ratio}: 2K must be larger than 1K");
+            let (w, h) = dims(size);
+            assert_eq!((w % 16, h % 16), (0, 0), "{size}: edges must be multiples of 16");
+            assert_eq!(w * rh, h * rw, "{size} is not exactly {ratio}");
+            assert!(w.max(h) <= 3 * w.min(h), "{size}: ratio beyond 3:1");
+            assert!(w * h >= 655_360, "{size}: below the minimum pixel count");
+            assert!(w * h <= 2560 * 1440, "{size}: must not be in the experimental range");
         }
     }
 
     #[test]
-    fn api_size_maps_ratio_and_tier() {
-        assert_eq!(api_size(None, None), None, "nothing set: omit size, the API decides");
-        assert_eq!(api_size(Some("16:9"), None), Some("1536x864"));
-        assert_eq!(api_size(Some("3:2"), Some("2K")), Some("2016x1344"));
-        assert_eq!(api_size(None, Some("2K")), Some("1920x1920"));
-        assert_eq!(api_size(Some("7:3"), None), None);
-        assert_eq!(api_size(Some("1:1"), Some("4K")), None);
+    fn api_size_follows_the_aspect_ratio_only() {
+        assert_eq!(api_size(None), None, "no ratio: omit size, the API decides");
+        assert_eq!(api_size(Some("16:9")), Some("1536x864"));
+        assert_eq!(api_size(Some("3:2")), Some("1536x1024"));
+        assert_eq!(api_size(Some("7:3")), None);
+    }
+
+    #[test]
+    fn models_advertise_no_invented_size_tiers() {
+        for model in all() {
+            assert!(model.image_sizes.is_empty(), "{}", model.id);
+        }
     }
 }

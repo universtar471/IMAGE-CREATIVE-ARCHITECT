@@ -170,10 +170,7 @@
             "21:9"
           ],
           "id": "gpt-image-2.5-sunburst",
-          "imageSizes": [
-            "1K",
-            "2K"
-          ],
+          "imageSizes": [],
           "imageToImage": true,
           "label": "GPT Image 2.5 Sunburst",
           "maxOutputs": 4,
@@ -196,10 +193,7 @@
             "21:9"
           ],
           "id": "gpt-image-2.5-flare",
-          "imageSizes": [
-            "1K",
-            "2K"
-          ],
+          "imageSizes": [],
           "imageToImage": true,
           "label": "GPT Image 2.5 Flare",
           "maxOutputs": 4,
@@ -222,10 +216,7 @@
             "21:9"
           ],
           "id": "gpt-image-2",
-          "imageSizes": [
-            "1K",
-            "2K"
-          ],
+          "imageSizes": [],
           "imageToImage": true,
           "label": "GPT Image 2 (earlier model)",
           "maxOutputs": 4,

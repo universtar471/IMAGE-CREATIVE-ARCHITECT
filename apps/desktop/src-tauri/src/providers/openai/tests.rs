@@ -150,7 +150,7 @@ fn text_only_request_posts_json_to_generations_with_bearer_key() {
 }
 
 #[test]
-fn size_is_omitted_when_neither_ratio_nor_tier_is_set_and_tier_maps_to_pixels() {
+fn size_is_omitted_without_a_ratio_and_follows_the_ratio_otherwise() {
     let mut req = request(1);
     req.params.aspect_ratio = None;
     let mut server = serve(vec![images_response(&[PNG_BYTES])]);
@@ -160,11 +160,10 @@ fn size_is_omitted_when_neither_ratio_nor_tier_is_set_and_tier_maps_to_pixels() 
 
     let mut req = request(1);
     req.params.aspect_ratio = Some("3:2".into());
-    req.params.image_size = Some("2K".into());
     let mut server = serve(vec![images_response(&[PNG_BYTES])]);
     server.provider().generate(&req).unwrap();
     let body: Value = serde_json::from_str(&server.requests()[0].body).unwrap();
-    assert_eq!(body["size"], "2016x1344");
+    assert_eq!(body["size"], "1536x1024");
 }
 
 #[test]
@@ -419,6 +418,7 @@ fn validation_rejects_before_calling_the_api() {
     check(&|r| r.params.output_count = 5, InvalidRequest);
     check(&|r| r.params.aspect_ratio = Some("7:3".into()), InvalidRequest);
     check(&|r| r.params.aspect_ratio = Some(KEY.into()), InvalidRequest);
+    check(&|r| r.params.image_size = Some("1K".into()), InvalidRequest);
     check(&|r| r.params.image_size = Some("4K".into()), InvalidRequest);
     check(&|r| r.references = (0..17).map(|_| references()[0].clone()).collect(), InvalidRequest);
     check(&|r| r.prompt.positive = "x".repeat(32_001), InvalidRequest);
@@ -451,7 +451,7 @@ fn info_lists_verified_models_with_honest_capabilities() {
         assert_eq!(model.max_reference_images, 16);
         assert!(!model.supports_negative_prompt);
         assert!(!model.supports_seed);
-        assert_eq!(model.image_sizes, ["1K", "2K"]);
+        assert!(model.image_sizes.is_empty(), "no invented resolution tiers");
         assert_eq!(model.aspect_ratios.len(), 10);
         assert!(model.aspect_ratios.contains(&"3:2".to_string()));
     }

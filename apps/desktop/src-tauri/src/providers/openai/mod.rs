@@ -44,7 +44,7 @@ pub use prompt::build_prompt;
 pub const ID: &str = "openai";
 pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
-/// The guide warns that "complex prompts may take up to 2 minutes"; several outputs at 2K with
+/// The guide warns that "complex prompts may take up to 2 minutes"; several outputs with
 /// up to 16 reference uploads take longer, so allow 5 minutes.
 const GENERATE_TIMEOUT: Duration = Duration::from_secs(300);
 const TEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -149,6 +149,12 @@ fn validate(model: &ModelCapabilities, request: &ProviderRequest, prompt: &str) 
         }
     }
     if let Some(size) = &params.image_size {
+        if model.image_sizes.is_empty() {
+            return invalid(format!(
+                "{} has no resolution tiers; leave the image size empty (the size follows the aspect ratio).",
+                model.label
+            ));
+        }
         if !model.image_sizes.contains(size) {
             return invalid(format!(
                 "{} does not support image size {size} (supported: {}).",
@@ -190,7 +196,7 @@ impl ImageProvider for OpenAiProvider {
         validate(&model, request, &prompt).map_err(|e| ProviderError::new(e.kind, sanitize(&e.message, api_key)))?;
 
         let params = &request.params;
-        let size = api_size(params.aspect_ratio.as_deref(), params.image_size.as_deref());
+        let size = api_size(params.aspect_ratio.as_deref());
         let n = params.output_count;
         let client = self.client(self.generate_timeout)?;
         let (endpoint, http) = if request.references.is_empty() {
