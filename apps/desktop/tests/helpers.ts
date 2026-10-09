@@ -79,6 +79,8 @@ export function deferredTransport(base: Transport) {
       for (const r of holds.get(command) ?? []) r();
       holds.delete(command);
     },
+    /** Release only the most recent held response of `command` (out-of-order replies). */
+    releaseNewest: (command: string) => holds.get(command)?.pop()?.(),
     pending: (command: string) => holds.get(command)?.length ?? 0,
   };
 }

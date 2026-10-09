@@ -13,7 +13,7 @@ import { EMPTY_GENERATE_DRAFT, startBackendSync, useStudio } from "../src/app/st
 import { jobElapsedMs, visibleJobs } from "../src/features/jobs/JobsTab";
 import { call, eventsReady, setTransport, subscribe } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDER_SLOTS } from "../src/lib/mockBackend";
-import { asset, settled, sleep, waitFor } from "./helpers";
+import { asset, deferredTransport, settled, sleep, waitFor } from "./helpers";
 
 type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
@@ -373,6 +373,105 @@ describe("store with backend events", () => {
     const s = useStudio.getState();
     expect(s.workspace!.generations[0]).toMatchObject({ id: g.id, status: "completed" });
     expect(s.workspace!.assets.some((a) => a.source === "ai_generated")).toBe(true);
+  });
+});
+
+describe("stale polls never overwrite newer state", () => {
+  function useDeferredMock(delayMs: number) {
+    db = { projects: {}, dna: {}, assets: {}, versions: [] };
+    const d = deferredTransport(createMockTransport(db, { generationDelayMs: delayMs }));
+    setTransport(d.transport);
+    return d;
+  }
+
+  async function openAndSubmit() {
+    const p = await newProject();
+    await useStudio.getState().openProject(p.id);
+    const g = (await useStudio.getState().submitGeneration({
+      projectId: p.id,
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      purpose: "variation",
+      referenceAssetIds: [],
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+    }))!;
+    return { p, g };
+  }
+
+  const storeJob = (generationId: string) =>
+    useStudio.getState().jobs.find((j) => j.generationId === generationId);
+  const storeGen = (id: string) =>
+    useStudio.getState().workspace!.generations.find((x) => x.id === id);
+
+  it("a poll answered after the completed event keeps the completed status", async () => {
+    const d = useDeferredMock(40);
+    stopSync = startBackendSync();
+    await eventsReady();
+    const { g } = await openAndSubmit();
+    await waitFor(
+      () => storeJob(g.id)?.status === "running" && storeGen(g.id)?.status === "running",
+      "running job and generation",
+    );
+    // Both polls read the backend now (running) but answer only when released.
+    d.hold("job_list");
+    d.hold("generation_list");
+    const polls = [useStudio.getState().refreshJobs(), useStudio.getState().refreshGenerations()];
+    await waitFor(() => d.pending("job_list") === 1 && d.pending("generation_list") === 1);
+    await waitFor(
+      () => storeJob(g.id)?.status === "completed" && storeGen(g.id)?.status === "completed",
+      "completed through events",
+    );
+    d.release("job_list");
+    d.release("generation_list");
+    await Promise.all(polls);
+    expect(storeJob(g.id)?.status).toBe("completed");
+    expect(storeGen(g.id)?.status).toBe("completed");
+    expect(storeGen(g.id)?.outputAssetIds).toHaveLength(1);
+  });
+
+  async function untilBackendRunning(generationId: string) {
+    for (let i = 0; i < 600; i++) {
+      if ((await jobOf(generationId)).status === "running") return;
+      await sleep(5);
+    }
+    throw new Error("job never ran");
+  }
+
+  it("an older job_list answered after a newer one is dropped", async () => {
+    // No events: only polls see progress.
+    const d = useDeferredMock(30);
+    const { p, g } = await openAndSubmit();
+    await untilBackendRunning(g.id);
+    d.hold("job_list");
+    const older = useStudio.getState().refreshJobs(); // reads "running"
+    await waitFor(() => d.pending("job_list") === 1);
+    await settled(p.id, g.id);
+    const newer = useStudio.getState().refreshJobs(); // reads "completed"
+    await waitFor(() => d.pending("job_list") === 2);
+    d.releaseNewest("job_list");
+    await newer;
+    expect(storeJob(g.id)?.status).toBe("completed");
+    d.release("job_list");
+    await older;
+    expect(storeJob(g.id)?.status).toBe("completed");
+  });
+
+  it("an older generation_list answered after a newer one is dropped", async () => {
+    const d = useDeferredMock(30);
+    const { p, g } = await openAndSubmit();
+    await untilBackendRunning(g.id);
+    d.hold("generation_list");
+    const older = useStudio.getState().refreshGenerations();
+    await waitFor(() => d.pending("generation_list") === 1);
+    await settled(p.id, g.id);
+    const newer = useStudio.getState().refreshGenerations();
+    await waitFor(() => d.pending("generation_list") === 2);
+    d.releaseNewest("generation_list");
+    await newer;
+    expect(storeGen(g.id)?.status).toBe("completed");
+    d.release("generation_list");
+    await older;
+    expect(storeGen(g.id)?.status).toBe("completed");
   });
 });
 
