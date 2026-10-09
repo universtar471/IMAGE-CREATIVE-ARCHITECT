@@ -42,6 +42,8 @@ import {
   toBridgeError,
 } from "../lib/bridge";
 import { setIn } from "../lib/path";
+import { t } from "../i18n";
+import { errorHeadline } from "../i18n/domain";
 import type { ModuleId, TrayTabId } from "../features/workspace/modules";
 import { isActiveGeneration } from "../features/generate/labels";
 import { withExtraPrompt } from "../features/generate/extraPrompt";
@@ -58,7 +60,13 @@ export type SaveState = {
   fieldErrors: Record<string, string>;
 };
 
-export type Toast = { id: number; kind: "info" | "success" | "warning" | "error"; message: string };
+export type Toast = {
+  id: number;
+  kind: "info" | "success" | "warning" | "error";
+  message: string;
+  /** Translated headline shown above `message` (errors: the original backend text). */
+  title?: string;
+};
 
 type WorkspaceData = {
   project: ProjectDTO;
@@ -163,7 +171,9 @@ type State = {
    * Also refreshes the project (master/status may change).
    */
   adoptAssets: (projectId: string, assets: AssetDTO[]) => Promise<void>;
-  notify: (kind: Toast["kind"], message: string) => void;
+  notify: (kind: Toast["kind"], message: string, title?: string) => void;
+  /** Error toast: translated headline for the error code + the original message. */
+  notifyError: (err: unknown) => void;
   dismissToast: (id: number) => void;
   loadProviders: () => Promise<void>;
   adoptProvider: (p: ProviderDescriptorDTO) => void;
@@ -265,18 +275,18 @@ function mergePolled<T extends { id: string; createdAt: string }>(
 /** Reference IDs in submit order, from one snapshot; a missing reference is an error. */
 function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]): string[] {
   if (new Set(ids).size !== ids.length)
-    throw new BridgeError({ code: "VALIDATION_ERROR", message: "A reference is listed twice." });
+    throw new BridgeError({ code: "VALIDATION_ERROR", message: t("store.referenceTwice") });
   for (const id of ids) {
     const a = assets.find((x) => x.id === id);
     if (!a)
       throw new BridgeError({
         code: "VALIDATION_ERROR",
-        message: "A selected reference image no longer exists. Review the references.",
+        message: t("store.referenceGone"),
       });
     if (a.status !== "ready")
       throw new BridgeError({
         code: "INVALID_STATE",
-        message: `The file of reference '${a.originalName ?? id}' is missing.`,
+        message: t("store.referenceFileMissing", { name: a.originalName ?? id }),
       });
   }
   return ids.slice();
@@ -295,13 +305,17 @@ export const useStudio = create<State>((set, get) => {
   const onTrackedFinished = (g: GenerationDTO) => {
     if (g.status === "completed") {
       const n = g.outputAssetIds.length;
-      get().notify("success", `Generation finished: ${n} image${n === 1 ? "" : "s"}.`);
+      get().notify("success", t("store.generationFinished", { count: n }));
       const first = g.outputAssetIds[0];
       if (first && isOpen(g.projectId) && get().activeModule === "generate") {
         set({ selectedAssetId: first, centerView: "canvas" });
       }
     } else if (g.status === "failed" || g.status === "interrupted") {
-      get().notify("error", `Generation failed: ${g.error?.message ?? "unknown error"}`);
+      get().notify(
+        "error",
+        g.error?.message ?? t("common.unknownError"),
+        t("store.generationFailed"),
+      );
     }
   };
 
@@ -348,7 +362,7 @@ export const useStudio = create<State>((set, get) => {
       };
       const secondary = <T>(what: string, p: Promise<T>, fallback: T) =>
         p.catch((err: unknown) => {
-          get().notify("error", `${what} unavailable: ${toBridgeError(err).message}`);
+          get().notify("error", toBridgeError(err).message, what);
           return fallback;
         });
       try {
@@ -358,9 +372,13 @@ export const useStudio = create<State>((set, get) => {
           const [bundle, generations, anchors, batches] = await Promise.all([
             call("project_get", { projectId }),
             // Secondary data must not block opening the project.
-            secondary("History", call("generation_list", { projectId }), [] as GenerationDTO[]),
-            secondary("Anchors", call("camera_anchor_list", { projectId }), []),
-            secondary("Batches", call("batch_list", { projectId }), []),
+            secondary(
+              t("store.historyUnavailable"),
+              call("generation_list", { projectId }),
+              [] as GenerationDTO[],
+            ),
+            secondary(t("store.anchorsUnavailable"), call("camera_anchor_list", { projectId }), []),
+            secondary(t("store.batchesUnavailable"), call("batch_list", { projectId }), []),
           ]);
           if (!stillWanted()) return;
           if ((eventRevision.get(projectId) ?? 0) !== revision && attemptNo < 3) continue;
@@ -389,9 +407,7 @@ export const useStudio = create<State>((set, get) => {
     goToHub: async () => {
       const ok = await get().flushDna();
       if (!ok && get().save.status !== "saved") {
-        const proceed = window.confirm(
-          "Some Design DNA changes could not be saved. Leave the project and discard them?",
-        );
+        const proceed = window.confirm(t("store.leaveUnsaved"));
         if (!proceed) return;
       }
       set({ route: { name: "hub" }, workspace: null, save: SAVED });
@@ -429,7 +445,7 @@ export const useStudio = create<State>((set, get) => {
           ? { status: "dirty", fieldErrors: {} }
           : {
               status: "invalid",
-              message: "Fix the highlighted fields — invalid values are not saved.",
+              message: t("store.fixHighlighted"),
               fieldErrors: v.fieldErrors,
             },
       });
@@ -505,14 +521,19 @@ export const useStudio = create<State>((set, get) => {
         const { project } = await call("project_get", { projectId });
         get().adoptProject(project);
       } catch (err) {
-        if (isOpen(projectId)) get().notify("error", toBridgeError(err).message);
+        if (isOpen(projectId)) get().notifyError(err);
       }
     },
 
-    notify: (kind, message) => {
+    notify: (kind, message, title) => {
       const id = ++toastSeq;
-      set((s) => ({ toasts: [...s.toasts, { id, kind, message }] }));
+      const toast: Toast = title ? { id, kind, message, title } : { id, kind, message };
+      set((s) => ({ toasts: [...s.toasts, toast] }));
       setTimeout(() => get().dismissToast(id), kind === "error" ? 8000 : 4000);
+    },
+    notifyError: (err) => {
+      const e = toBridgeError(err);
+      get().notify("error", e.message, errorHeadline(e));
     },
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
@@ -577,7 +598,7 @@ export const useStudio = create<State>((set, get) => {
             },
           });
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
       }
     },
 
@@ -605,7 +626,7 @@ export const useStudio = create<State>((set, get) => {
           if (!(await get().flushDna())) {
             throw new BridgeError({
               code: "VALIDATION_ERROR",
-              message: "Design DNA has unsaved or invalid changes. Fix them before generating.",
+              message: t("store.dnaNotSaved"),
             });
           }
           // One persisted snapshot of this project orders the references and compiles.
@@ -684,7 +705,7 @@ export const useStudio = create<State>((set, get) => {
         }
         return generation;
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
         return undefined;
       }
     },
@@ -722,7 +743,7 @@ export const useStudio = create<State>((set, get) => {
       try {
         get().applyJobEvent(await call("job_cancel", { jobId }));
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
       }
     },
 
@@ -733,7 +754,7 @@ export const useStudio = create<State>((set, get) => {
         void get().refreshBatches();
         return job;
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
         return undefined;
       }
     },
@@ -753,11 +774,11 @@ export const useStudio = create<State>((set, get) => {
         void get().refreshJobs();
         get().notify(
           "info",
-          `Batch "${batch.name}" queued: ${batch.jobIds.length} item${batch.jobIds.length === 1 ? "" : "s"}.`,
+          t("store.batchQueued", { name: batch.name, count: batch.jobIds.length }),
         );
         return batch;
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
         return undefined;
       }
     },
@@ -783,7 +804,7 @@ export const useStudio = create<State>((set, get) => {
         get().adoptProject(project);
         return true;
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
         return false;
       }
     },
@@ -799,7 +820,7 @@ export const useStudio = create<State>((set, get) => {
         get().adoptProject(project);
         return true;
       } catch (err) {
-        get().notify("error", toBridgeError(err).message);
+        get().notifyError(err);
         return false;
       }
     },
@@ -858,8 +879,7 @@ export async function attempt<T>(fn: () => Promise<T>): Promise<T | undefined> {
   try {
     return await fn();
   } catch (err) {
-    const e = err instanceof BridgeError ? err : toBridgeError(err);
-    useStudio.getState().notify("error", e.message);
+    useStudio.getState().notifyError(err);
     return undefined;
   }
 }

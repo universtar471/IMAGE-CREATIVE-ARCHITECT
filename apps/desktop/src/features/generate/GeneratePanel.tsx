@@ -8,10 +8,13 @@ import {
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { RoleBadge } from "../../components/common/StatusBadge";
+import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { LoadingState } from "../../components/common/states";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, NumberField, SelectField } from "../../components/panels/fields";
 import { fileUrl } from "../../lib/files";
+import { useT } from "../../i18n";
+import { readinessLabel, translateDomainMessage } from "../../i18n/domain";
 import { ExtraPromptSection } from "./ExtraPromptSection";
 import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
@@ -33,19 +36,22 @@ export function GeneratePanel() {
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const setModule = useStudio((s) => s.setModule);
   const queuedHere = useQueuedCount(ws.project.id);
+  const t = useT();
 
   if (!providers) {
     if (providersError) {
       return (
         <div className="callout callout-error" role="alert">
-          <span>Could not load image providers: {providersError}</span>
+          <span>
+            <strong>{t("generate.providersFailed")}</strong> {providersError}
+          </span>
           <button className="btn btn-sm" onClick={() => void loadProviders()}>
-            Try again
+            {t("common.tryAgain")}
           </button>
         </div>
       );
     }
-    return <LoadingState label="Loading providers…" />;
+    return <LoadingState label={t("generate.loadingProviders")} />;
   }
 
   const project = ws.project;
@@ -60,9 +66,10 @@ export function GeneratePanel() {
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
-  const cost = form.model
+  const costText = form.model
     ? costHintText(form.model, form.params.imageSize, form.params.outputCount)
     : null;
+  const cost = costText ? translateDomainMessage(costText, t) : null;
 
   const generate = () => {
     if (!form.provider || !form.model) return;
@@ -104,11 +111,13 @@ export function GeneratePanel() {
         <div className="callout callout-warning">
           <AlertTriangle size={14} />
           <div>
-            <strong>Design DNA is incomplete.</strong> Missing:{" "}
-            {missingDna.map((m) => m.label.toLowerCase()).join(", ")}. You can still generate, but
-            results follow the DNA less closely.{" "}
+            <strong>{t("generate.dnaIncomplete")}</strong>{" "}
+            {t("generate.missing", {
+              list: missingDna.map((m) => readinessLabel(m, t).toLowerCase()).join(", "),
+            })}{" "}
+            {t("generate.stillGenerate")}{" "}
             <button className="link-btn" onClick={() => setModule("design_dna")}>
-              Edit DNA
+              {t("generate.editDna")}
             </button>
           </div>
         </div>
@@ -116,7 +125,7 @@ export function GeneratePanel() {
 
       <ExtraPromptSection referenceIds={form.referenceIds} disabled={running} />
 
-      <SectionPanel title="Compiled prompt" defaultOpen={false}>
+      <SectionPanel title={t("generate.compiledPrompt")} defaultOpen={false}>
         <GeneratePromptPreview referenceIds={form.referenceIds} />
       </SectionPanel>
 
@@ -125,21 +134,23 @@ export function GeneratePanel() {
       <div className="generate-footer">
         {thisRun?.status === "error" && (
           <div className="callout callout-error" role="alert">
-            <span>{thisRun.message}</span>
+            <ErrorMessage
+              code={thisRun.code}
+              message={translateDomainMessage(thisRun.message, t)}
+            />
             {thisRun.needsKeyFor && (
               <button
                 className="btn btn-sm"
                 onClick={() => openProviderDialog(thisRun.needsKeyFor)}
               >
-                <KeyRound size={13} /> Set API key
+                <KeyRound size={13} /> {t("generate.setApiKey")}
               </button>
             )}
           </div>
         )}
         {queuedHere > 0 && (
           <span className="field-hint" data-testid="queue-hint">
-            {queuedHere} job{queuedHere === 1 ? "" : "s"} of this project in the queue — Generate
-            adds another.
+            {t("generate.queueHint", { count: queuedHere })}
           </span>
         )}
         <button
@@ -149,15 +160,11 @@ export function GeneratePanel() {
           data-testid="generate-button"
         >
           <Sparkles size={15} />
-          {form.purpose === "hero" ? "Generate hero" : "Generate variation"}
+          {form.purpose === "hero" ? t("generate.generateHero") : t("generate.generateVariation")}
           {form.params.outputCount > 1 ? ` ×${form.params.outputCount}` : ""}
         </button>
         {cost && (
-          <span
-            className="field-hint"
-            data-testid="generate-cost"
-            title="Estimate from the gateway's published price per image"
-          >
+          <span className="field-hint" data-testid="generate-cost" title={t("generate.costTitle")}>
             {cost}
           </span>
         )}
@@ -189,15 +196,30 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const provider = form.provider;
   const model = form.model;
+  const t = useT();
+  const caps = model
+    ? [
+        [
+          model.textToImage ? t("generate.capText") : "",
+          model.imageToImage ? t("generate.capRefs", { count: model.maxReferenceImages }) : "",
+        ]
+          .filter(Boolean)
+          .join(" + "),
+        t("generate.capOutputs", { count: model.maxOutputs }),
+        provider?.kind === "local" ? t("generate.capOffline") : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   return (
     <SectionPanel
-      title="Provider"
+      title={t("generate.provider")}
       aside={
         <button
           className="btn btn-ghost btn-sm btn-icon"
-          title="Provider settings"
-          aria-label="Provider settings"
+          title={t("generate.providerSettings")}
+          aria-label={t("generate.providerSettings")}
           onClick={(e) => {
             e.preventDefault();
             openProviderDialog(provider?.id ?? null);
@@ -208,13 +230,13 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
       }
     >
       <SelectField
-        label="Provider"
+        label={t("generate.provider")}
         allowEmpty={false}
         disabled={disabled}
         value={provider?.id}
         options={providers.map((p) => ({
           value: p.id,
-          label: p.configured ? p.label : `${p.label} — set API key`,
+          label: p.configured ? p.label : t("generate.needsKeyOption", { label: p.label }),
           disabled: !p.configured,
         }))}
         // Model/params/references are provider-specific: start from that model's defaults.
@@ -224,19 +246,21 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
       />
       {providers.some((p) => !p.configured) && (
         <button
-          className="btn btn-sm"
+          className="btn btn-sm btn-wrap"
           onClick={() => openProviderDialog(providers.find((p) => !p.configured)?.id ?? null)}
         >
-          <KeyRound size={13} /> Set API key for{" "}
-          {providers
-            .filter((p) => !p.configured)
-            .map((p) => p.label)
-            .join(", ")}
+          <KeyRound size={13} />{" "}
+          {t("generate.setKeyFor", {
+            names: providers
+              .filter((p) => !p.configured)
+              .map((p) => p.label)
+              .join(", "),
+          })}
         </button>
       )}
       {provider && provider.models.length > 1 && (
         <SelectField
-          label="Model"
+          label={t("generate.model")}
           allowEmpty={false}
           disabled={disabled}
           value={model?.id}
@@ -248,11 +272,7 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
       )}
       {model && (
         <span className="field-hint">
-          {model.label}: {model.textToImage ? "text" : ""}
-          {model.textToImage && model.imageToImage ? " + " : ""}
-          {model.imageToImage ? `up to ${model.maxReferenceImages} reference image(s)` : ""} · up to{" "}
-          {model.maxOutputs} output(s) per run
-          {provider?.kind === "local" ? " · offline placeholder images" : ""}
+          {model.label}: {caps}
         </span>
       )}
     </SectionPanel>
@@ -275,20 +295,21 @@ function OutputSection({
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const p = form.params;
   const counts = Array.from({ length: model.maxOutputs }, (_, i) => i + 1);
+  const t = useT();
 
   return (
-    <SectionPanel title="Output">
+    <SectionPanel title={t("generate.output")}>
       <FieldGroup
-        label="Purpose"
+        label={t("generate.purpose")}
         hint={
           form.purpose === "hero"
-            ? "Hero: the main presentation image, anchored on the master."
+            ? t("generate.heroHint")
             : hasMaster
-              ? "Variation: an alternative take for exploration."
-              : "Variation: no master yet — set one in References for a hero image."
+              ? t("generate.variationHint")
+              : t("generate.variationNoMaster")
         }
       >
-        <div className="segmented" role="group" aria-label="Purpose">
+        <div className="segmented" role="group" aria-label={t("generate.purpose")}>
           {(["hero", "variation"] as const).map((purpose) => (
             <button
               key={purpose}
@@ -297,7 +318,7 @@ function OutputSection({
               disabled={disabled}
               onClick={() => setDraft({ purpose })}
             >
-              {purpose === "hero" ? "Hero" : "Variation"}
+              {t(`labels.purpose.${purpose}`)}
             </button>
           ))}
         </div>
@@ -305,7 +326,7 @@ function OutputSection({
       <div className="field-row">
         {model.aspectRatios.length > 0 && (
           <SelectField
-            label="Aspect ratio"
+            label={t("generate.aspectRatio")}
             allowEmpty={false}
             disabled={disabled}
             value={p.aspectRatio ?? undefined}
@@ -315,7 +336,7 @@ function OutputSection({
         )}
         {model.imageSizes.length > 0 && (
           <SelectField
-            label="Image size"
+            label={t("generate.imageSize")}
             allowEmpty={false}
             disabled={disabled}
             value={p.imageSize ?? undefined}
@@ -325,8 +346,8 @@ function OutputSection({
         )}
       </div>
       {model.maxOutputs > 1 && (
-        <FieldGroup label="Images per run">
-          <div className="segmented" role="group" aria-label="Images per run">
+        <FieldGroup label={t("generate.imagesPerRun")}>
+          <div className="segmented" role="group" aria-label={t("generate.imagesPerRun")}>
             {counts.map((n) => (
               <button
                 key={n}
@@ -349,15 +370,15 @@ function OutputSection({
       />
       {model.supportsSeed && (
         <NumberField
-          label="Seed"
-          hint="Empty = random. The same seed and inputs repeat a result."
+          label={t("generate.seed")}
+          hint={t("generate.seedHint")}
           disabled={disabled}
           value={p.seed ?? undefined}
           onChange={(v) => onParams({ ...p, seed: v ?? null })}
         />
       )}
       {model.aspectRatios.length === 0 && model.imageSizes.length === 0 && (
-        <span className="field-hint">{model.label} chooses the size and aspect ratio itself.</span>
+        <span className="field-hint">{t("generate.modelChoosesSize", { model: model.label })}</span>
       )}
     </SectionPanel>
   );
@@ -381,10 +402,11 @@ function ReferenceSection({
   const atCap = selected.length >= cap;
   const toggle = (id: string, on: boolean) =>
     onChange(on ? [...selected, id] : selected.filter((x) => x !== id));
+  const t = useT();
 
   return (
     <SectionPanel
-      title="References"
+      title={t("generate.references")}
       aside={
         <span className={`badge ${selected.length > cap ? "badge-danger" : "badge-neutral"}`}>
           {selected.length} / {cap}
@@ -392,14 +414,12 @@ function ReferenceSection({
       }
     >
       {!model.imageToImage ? (
-        <span className="field-hint">{model.label} does not use reference images.</span>
+        <span className="field-hint">{t("generate.noRefsModel", { model: model.label })}</span>
       ) : form.candidates.length === 0 ? (
-        <span className="field-hint">
-          No images in this project yet. Import a master or references in the Assets tray.
-        </span>
+        <span className="field-hint">{t("generate.noImages")}</span>
       ) : (
         <>
-          <ul className="ref-list" aria-label="Reference images">
+          <ul className="ref-list" aria-label={t("generate.refsLabel")}>
             {form.candidates.map((a) => {
               const index = selected.indexOf(a.id);
               const checked = index >= 0;
@@ -417,9 +437,9 @@ function ReferenceSection({
             })}
           </ul>
           <span className="field-hint">
-            Sent in this order — master first, then by role. Up to {cap} for {model.label}.{" "}
+            {t("generate.refsOrder", { cap, model: model.label })}{" "}
             <button className="link-btn" onClick={onReset} disabled={disabled}>
-              <RotateCcw size={11} /> Default selection
+              <RotateCcw size={11} /> {t("generate.defaultSelection")}
             </button>
           </span>
         </>
@@ -442,6 +462,7 @@ function ReferenceRow({
   onToggle: (on: boolean) => void;
 }) {
   const thumb = fileUrl(asset.thumbnailPath);
+  const t = useT();
   return (
     <li className={`ref-row ${checked ? "is-checked" : ""}`}>
       <label>
@@ -455,17 +476,21 @@ function ReferenceRow({
           {thumb && asset.status === "ready" ? (
             <img src={thumb} alt="" loading="lazy" decoding="async" />
           ) : (
-            <ImageOff size={14} aria-label="File missing" />
+            <ImageOff size={14} aria-label={t("assets.fileMissing")} />
           )}
         </span>
         <span className="ref-meta">
           <span className="ref-name" title={asset.originalName ?? asset.id}>
-            {imageNumber !== null && <span className="ref-index">Image {imageNumber}</span>}
+            {imageNumber !== null && (
+              <span className="ref-index">{t("generate.imageN", { n: imageNumber })}</span>
+            )}
             {asset.originalName ?? asset.id}
           </span>
           <span>
             <RoleBadge role={asset.role} short />
-            {asset.status !== "ready" && <span className="badge badge-danger">missing</span>}
+            {asset.status !== "ready" && (
+              <span className="badge badge-danger">{t("generate.missingBadge")}</span>
+            )}
           </span>
         </span>
       </label>

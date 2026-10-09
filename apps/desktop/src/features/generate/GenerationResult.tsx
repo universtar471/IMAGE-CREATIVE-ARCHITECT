@@ -5,6 +5,8 @@ import { attempt, selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { call } from "../../lib/bridge";
+import { ErrorMessage } from "../../components/common/ErrorMessage";
+import { t as tr, useT } from "../../i18n";
 import { OutputThumbs } from "./OutputThumbs";
 import { GenerationStatusBadge } from "./GenerationStatusBadge";
 import { formatDuration, isActiveGeneration } from "./labels";
@@ -29,7 +31,9 @@ export function useElapsed(startedAt: number): string {
 export function retryCountdown(job: Pick<JobDTO, "status" | "nextAttemptAt">, now: number) {
   if (job.status !== "retrying" || !job.nextAttemptAt) return null;
   const ms = Date.parse(job.nextAttemptAt) - now;
-  return ms > 0 ? `retry in ${formatDuration(ms + 999)}` : "retrying now";
+  return ms > 0
+    ? tr("result.retryIn", { time: formatDuration(ms + 999) })
+    : tr("result.retryingNow");
 }
 
 /** Live line for a queued/running generation: status, attempt, retry countdown, elapsed. */
@@ -42,25 +46,26 @@ export function ActiveGenerationStatus({
 }) {
   const job = useStudio((s) => s.jobs.find((j) => j.generationId === g.id) ?? null);
   const now = useNow();
+  const t = useT();
   const since = Date.parse(g.startedAt ?? g.createdAt);
   const elapsed = formatDuration(Math.max(0, now - since));
   const status = job?.status ?? g.status;
   const label =
     status === "running"
-      ? `Generating… ${elapsed}`
+      ? t("result.generating", { elapsed })
       : status === "retrying"
-        ? `Waiting to retry (${retryCountdown(job!, now) ?? ""})`
-        : `Queued ${elapsed}`;
+        ? t("result.waitingRetry", { countdown: retryCountdown(job!, now) ?? "" })
+        : t("result.queued", { elapsed });
   return (
     <span className="run-status" role="status" aria-live="polite">
       <Loader2 size={14} className={status === "running" ? "spin" : ""} />
       {label}
       {job && job.attempt > 0 && (
         <span className="field-hint">
-          attempt {job.attempt}/{job.maxAttempts}
+          {t("result.attempt", { attempt: job.attempt, max: job.maxAttempts })}
         </span>
       )}
-      {!compact && <span className="field-hint">You can keep working; the result lands here.</span>}
+      {!compact && <span className="field-hint">{t("result.keepWorking")}</span>}
     </span>
   );
 }
@@ -92,13 +97,14 @@ function ActiveCard({ generation: g }: { generation: GenerationDTO }) {
   const jobError = useStudio((s) => s.jobs.find((j) => j.generationId === g.id)?.error ?? null);
   const lastError = jobError ?? g.error;
   const readOnly = useStudio(selectReadOnly);
+  const t = useT();
   return (
-    <SectionPanel title="Current generation" aside={<GenerationStatusBadge status={g.status} />}>
+    <SectionPanel title={t("result.current")} aside={<GenerationStatusBadge status={g.status} />}>
       <ActiveGenerationStatus generation={g} />
       {lastError && (
         <span className="field-hint">
-          Last attempt: <span className="badge badge-warning">{lastError.kind}</span>{" "}
-          {lastError.message}
+          {t("result.lastAttempt")}{" "}
+          <ErrorMessage kind={lastError.kind} message={lastError.message} tone="warning" />
         </span>
       )}
       {g.jobId && (
@@ -108,7 +114,7 @@ function ActiveCard({ generation: g }: { generation: GenerationDTO }) {
             disabled={readOnly}
             onClick={() => void cancelJob(g.jobId!)}
           >
-            <Ban size={13} /> Cancel
+            <Ban size={13} /> {t("common.cancel")}
           </button>
         </div>
       )}
@@ -130,6 +136,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const retry = useStudio((s) => s.retryGeneration);
   const reuse = useStudio((s) => s.reuseGeneration);
   const [confirmMaster, setConfirmMaster] = useState(false);
+  const t = useT();
 
   // Only outputs that still exist (an output may have been removed in References).
   const outputs = g.outputAssetIds.filter((id) => assets.some((a) => a.id === id));
@@ -145,7 +152,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
     const list = await attempt(() => call("asset_set_master", { projectId, assetId: current }));
     if (list) {
       await adoptAssets(projectId, list);
-      notify("success", "Generated image is now the master architecture image.");
+      notify("success", t("result.nowMaster"));
     }
   };
 
@@ -166,13 +173,13 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const canRetry = g.status === "cancelled" || !!g.error?.retryable;
 
   return (
-    <SectionPanel title="Last result" aside={<GenerationStatusBadge status={g.status} />}>
+    <SectionPanel title={t("result.last")} aside={<GenerationStatusBadge status={g.status} />}>
       {g.status === "completed" ? (
         <>
           {outputs.length ? (
             <OutputThumbs ids={outputs} selectedId={current} onSelect={selectAsset} />
           ) : (
-            <span className="field-hint">The outputs of this generation were removed.</span>
+            <span className="field-hint">{t("result.outputsRemoved")}</span>
           )}
           <span className="field-hint">
             {g.durationMs !== null ? `${formatDuration(g.durationMs)} · ` : ""}
@@ -184,7 +191,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               disabled={!currentAsset || isMaster || readOnly}
               onClick={() => (replacesMaster ? setConfirmMaster(true) : void promoteToMaster())}
             >
-              <Star size={13} /> {isMaster ? "Master" : "Use as master"}
+              <Star size={13} /> {isMaster ? t("common.master") : t("result.useAsMaster")}
             </button>
             <button
               className="btn btn-sm"
@@ -194,15 +201,15 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
                 setModule("references");
               }}
             >
-              <Images size={13} /> Show in References
+              <Images size={13} /> {t("result.showInReferences")}
             </button>
             <button
               className="btn btn-sm"
               disabled={submitting || readOnly}
               onClick={again}
-              title="Run again with the same settings (prompt recompiled from the current DNA)"
+              title={t("result.againTitle")}
             >
-              <RefreshCw size={13} /> Generate again
+              <RefreshCw size={13} /> {t("result.again")}
             </button>
           </div>
         </>
@@ -212,12 +219,15 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
             className={`callout ${g.status === "cancelled" ? "callout-warning" : "callout-error"}`}
             role="alert"
           >
-            <div>
-              <span className="badge badge-danger">{g.error?.kind ?? g.status}</span>{" "}
-              {g.status === "cancelled"
-                ? "This generation was cancelled."
-                : (g.error?.message ?? "The generation did not finish.")}
-            </div>
+            <ErrorMessage
+              kind={g.error?.kind ?? (g.status === "cancelled" ? "cancelled" : null)}
+              tone={g.status === "cancelled" ? "warning" : "danger"}
+              message={
+                g.status === "cancelled"
+                  ? t("result.cancelled")
+                  : (g.error?.message ?? t("result.didNotFinish"))
+              }
+            />
           </div>
           {canRetry ? (
             <div className="btn-row">
@@ -226,21 +236,19 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
                 disabled={submitting || readOnly}
                 onClick={() => void retry(g)}
               >
-                <RotateCcw size={13} /> Retry
+                <RotateCcw size={13} /> {t("common.retry")}
               </button>
             </div>
           ) : (
-            <span className="field-hint">
-              This error cannot be retried as is. Fix the cause, then generate again.
-            </span>
+            <span className="field-hint">{t("result.notRetryable")}</span>
           )}
         </>
       )}
       {confirmMaster && (
         <ConfirmDialog
-          title="Replace the master image?"
-          message="The current master becomes an architecture reference and project approval is reset. The generated image becomes the new master."
-          confirmLabel="Use as master"
+          title={t("result.replaceTitle")}
+          message={t("result.replaceMessage")}
+          confirmLabel={t("result.useAsMaster")}
           onConfirm={() => void promoteToMaster()}
           onCancel={() => setConfirmMaster(false)}
         />

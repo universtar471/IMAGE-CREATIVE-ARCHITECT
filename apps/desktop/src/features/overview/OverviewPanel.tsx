@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { CheckCircle2, Circle, FileText, ShieldCheck, Star } from "lucide-react";
-import { dnaReadiness, PROJECT_TYPE_LABELS, type ProjectDTO } from "@arch/domain";
+import { dnaReadiness, type ProjectDTO } from "@arch/domain";
 import { attempt, selectReadOnly, useStudio } from "../../app/store";
 import { StatusBadge } from "../../components/common/StatusBadge";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { TextField } from "../../components/panels/fields";
 import { call } from "../../lib/bridge";
 import { knowledge } from "../../lib/knowledge";
+import { formatDateTime } from "../../lib/format";
+import { useT } from "../../i18n";
+import { readinessLabel } from "../../i18n/domain";
+import { packLabel } from "../../i18n/knowledge";
 
 export function OverviewPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -19,6 +23,7 @@ export function OverviewPanel() {
   const master = assets.find((a) => a.id === project.activeMasterAssetId) ?? null;
   const readiness = dnaReadiness(dna, project.projectType);
   const { pack, match } = knowledge.resolve(project.projectType, project.subtype);
+  const t = useT();
 
   const approve = async (approved: boolean) => {
     const p = await attempt(() =>
@@ -29,35 +34,35 @@ export function OverviewPanel() {
 
   return (
     <>
-      <SectionPanel title="Project">
+      <SectionPanel title={t("overview.project")}>
         <ProjectNameField
           key={project.id + project.updatedAt}
           project={project}
           disabled={readOnly}
         />
         <dl className="kv">
-          <dt>Type</dt>
-          <dd>{PROJECT_TYPE_LABELS[project.projectType]}</dd>
-          <dt>Subtype</dt>
-          <dd>{pack && match === "exact" ? pack.label : (project.subtype ?? "—")}</dd>
-          <dt>Status</dt>
+          <dt>{t("overview.type")}</dt>
+          <dd>{t(`labels.projectType.${project.projectType}`)}</dd>
+          <dt>{t("overview.subtype")}</dt>
+          <dd>{pack && match === "exact" ? packLabel(pack) : (project.subtype ?? "—")}</dd>
+          <dt>{t("overview.status")}</dt>
           <dd>
             <StatusBadge status={project.status} />
           </dd>
-          <dt>Knowledge pack</dt>
+          <dt>{t("overview.pack")}</dt>
           <dd>
             {pack
-              ? `${pack.label} v${pack.packVersion}${match === "custom_fallback" ? " (generic fallback)" : ""}`
-              : "none"}
+              ? `${packLabel(pack)} v${pack.packVersion}${match === "custom_fallback" ? ` ${t("overview.genericFallback")}` : ""}`
+              : t("common.none")}
           </dd>
-          <dt>Created</dt>
-          <dd>{new Date(project.createdAt).toLocaleString()}</dd>
-          <dt>Updated</dt>
-          <dd>{new Date(project.updatedAt).toLocaleString()}</dd>
+          <dt>{t("overview.created")}</dt>
+          <dd>{formatDateTime(project.createdAt)}</dd>
+          <dt>{t("overview.updated")}</dt>
+          <dd>{formatDateTime(project.updatedAt)}</dd>
         </dl>
       </SectionPanel>
 
-      <SectionPanel title="DNA readiness">
+      <SectionPanel title={t("overview.readiness")}>
         <ul className="checklist">
           {readiness.map((r) => (
             <li key={r.key}>
@@ -66,21 +71,21 @@ export function OverviewPanel() {
               ) : (
                 <Circle size={14} className="todo" />
               )}
-              {r.label}
+              {readinessLabel(r, t)}
             </li>
           ))}
         </ul>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn btn-sm" onClick={() => setModule("design_dna")}>
-            Edit Design DNA
+            {t("overview.editDna")}
           </button>
           <button className="btn btn-sm" onClick={() => setModule("context")}>
-            Edit Context
+            {t("overview.editContext")}
           </button>
         </div>
       </SectionPanel>
 
-      <SectionPanel title="Master image">
+      <SectionPanel title={t("overview.masterImage")}>
         {master ? (
           <>
             <span>
@@ -92,7 +97,7 @@ export function OverviewPanel() {
                 onClick={() => void approve(false)}
                 disabled={readOnly}
               >
-                Withdraw approval
+                {t("overview.withdraw")}
               </button>
             ) : (
               <button
@@ -100,27 +105,26 @@ export function OverviewPanel() {
                 onClick={() => void approve(true)}
                 disabled={readOnly}
               >
-                <ShieldCheck size={14} /> Approve master
+                <ShieldCheck size={14} /> {t("overview.approve")}
               </button>
             )}
           </>
         ) : (
           <>
-            <span className="field-hint">No master architecture image yet.</span>
+            <span className="field-hint">{t("overview.noMaster")}</span>
             <button className="btn btn-sm" onClick={() => setModule("references")}>
-              Choose in References
+              {t("overview.chooseInReferences")}
             </button>
           </>
         )}
       </SectionPanel>
 
-      <SectionPanel title="Prompt">
+      <SectionPanel title={t("overview.prompt")}>
         <button className="btn btn-sm" onClick={() => setCenterView("prompt")}>
-          <FileText size={14} /> Open Prompt Preview
+          <FileText size={14} /> {t("overview.openPrompt")}
         </button>
-        <span className="field-hint">
-          The prompt is compiled from structured DNA; it is never the source of truth.
-        </span>
+        <span className="field-hint">{t("overview.promptHint")}</span>
+        <span className="field-hint">{t("prompt.englishNote")}</span>
       </SectionPanel>
     </>
   );
@@ -130,12 +134,13 @@ function ProjectNameField({ project, disabled }: { project: ProjectDTO; disabled
   const [name, setName] = useState(project.name);
   const [error, setError] = useState<string | undefined>();
   const adoptProject = useStudio((s) => s.adoptProject);
+  const t = useT();
 
   const commit = async () => {
     const trimmed = name.trim();
     if (trimmed === project.name) return;
     if (!trimmed) {
-      setError("Project name cannot be empty.");
+      setError(t("overview.nameEmpty"));
       return;
     }
     const p = await attempt(() =>
@@ -150,7 +155,7 @@ function ProjectNameField({ project, disabled }: { project: ProjectDTO; disabled
   return (
     <div onBlur={() => void commit()} onKeyDown={(e) => e.key === "Enter" && void commit()}>
       <TextField
-        label="Name"
+        label={t("overview.name")}
         value={name}
         error={error}
         disabled={disabled}

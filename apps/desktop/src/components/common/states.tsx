@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, Construction, Inbox } from "lucide-react";
+import { useT } from "../../i18n";
 
-export function LoadingState({ label = "Loading…" }: { label?: string }) {
+export function LoadingState({ label }: { label?: string }) {
+  const t = useT();
   return (
     <div className="state" role="status" aria-live="polite">
       <div className="spinner" />
-      <p>{label}</p>
+      <p>{label ?? t("common.loading")}</p>
     </div>
   );
 }
@@ -32,7 +34,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = "Something went wrong",
+  title,
   message,
   onRetry,
 }: {
@@ -40,16 +42,17 @@ export function ErrorState({
   message: string;
   onRetry?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="state state-error" role="alert">
       <div className="state-icon">
         <AlertTriangle size={28} />
       </div>
-      <h3>{title}</h3>
+      <h3>{title ?? t("common.somethingWrong")}</h3>
       <p>{message}</p>
       {onRetry && (
         <button className="btn" onClick={onRetry}>
-          Try again
+          {t("common.tryAgain")}
         </button>
       )}
     </div>
@@ -68,20 +71,15 @@ export function FutureModulePlaceholder({
   description: string;
   compact?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="state" data-testid="future-module">
       <div className="state-icon">
         <Construction size={compact ? 22 : 32} />
       </div>
-      <h3>
-        {title} — coming in Phase {phase}
-      </h3>
+      <h3>{t("states.futureTitle", { title, phase })}</h3>
       <p>{description}</p>
-      {!compact && (
-        <p className="field-hint">
-          This module is reserved in the navigation and has no active backend yet.
-        </p>
-      )}
+      {!compact && <p className="field-hint">{t("states.futureNote")}</p>}
     </div>
   );
 }

@@ -37,7 +37,12 @@ export function DnaText({
   hint,
   placeholder,
   suggestions,
-}: Base & { placeholder?: string; suggestions?: readonly string[] }) {
+  suggestionLabel,
+}: Base & {
+  placeholder?: string;
+  suggestions?: readonly string[];
+  suggestionLabel?: (s: string) => string;
+}) {
   const b = useDnaBinding<string | undefined>(path);
   return (
     <TextField
@@ -45,6 +50,7 @@ export function DnaText({
       hint={hint}
       placeholder={placeholder}
       suggestions={suggestions}
+      suggestionLabel={suggestionLabel}
       value={b.value}
       error={b.error}
       disabled={b.disabled}

@@ -32,6 +32,7 @@ import {
   type ProjectDNA,
   type ProjectType,
 } from "@arch/domain";
+import { t as tr } from "../i18n";
 
 export const VersionDTOSchema = z.object({
   id: z.string(),
@@ -292,7 +293,7 @@ export function toBridgeError(raw: unknown): BridgeError {
   const parsed = AppErrorSchema.safeParse(raw);
   if (parsed.success) return new BridgeError(parsed.data);
   const message =
-    typeof raw === "string" ? raw : raw instanceof Error ? raw.message : "Unexpected error.";
+    typeof raw === "string" ? raw : raw instanceof Error ? raw.message : tr("errors.unexpected");
   return new BridgeError({ code: "IO_ERROR", message });
 }
 
@@ -311,7 +312,7 @@ export async function call<C extends CommandName>(
   if (!parsed.success) {
     throw new BridgeError({
       code: "VALIDATION_ERROR",
-      message: `The backend returned an unexpected response for ${command}.`,
+      message: tr("errors.badResponse", { command }),
       details: parsed.error.issues.slice(0, 5),
     });
   }

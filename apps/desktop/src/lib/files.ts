@@ -4,6 +4,7 @@
  */
 import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import { SUPPORTED_IMPORT_EXTENSIONS } from "@arch/domain";
+import { t } from "../i18n";
 
 /** URL for a managed file path (thumbnail or selected original). */
 export function fileUrl(path: string | null | undefined): string | null {
@@ -19,8 +20,8 @@ export async function pickImages(): Promise<string[]> {
     const picked = await open({
       multiple: true,
       directory: false,
-      title: "Import images",
-      filters: [{ name: "Images (JPEG, PNG, WebP)", extensions: [...SUPPORTED_IMPORT_EXTENSIONS] }],
+      title: t("assets.pickerTitle"),
+      filters: [{ name: t("assets.pickerFilter"), extensions: [...SUPPORTED_IMPORT_EXTENSIONS] }],
     });
     if (!picked) return [];
     return Array.isArray(picked) ? picked : [picked];

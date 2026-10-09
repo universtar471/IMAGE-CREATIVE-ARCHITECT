@@ -10,6 +10,7 @@ import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
+import { useT } from "../../i18n";
 
 /** Permanent four-zone workspace: top bar / nav | center | properties / bottom tray. */
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
@@ -18,20 +19,21 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const error = useStudio((s) => s.workspaceError);
   const openProject = useStudio((s) => s.openProject);
   const goToHub = useStudio((s) => s.goToHub);
+  const t = useT();
 
-  if (loading) return <LoadingState label="Opening project…" />;
+  if (loading) return <LoadingState label={t("workspace.opening")} />;
   if (error || !workspace) {
     return (
       <div style={{ height: "100%", display: "grid", placeItems: "center" }}>
         <div>
           <ErrorState
-            title="Could not open the project"
-            message={error ?? "Unknown error."}
+            title={t("workspace.openFailed")}
+            message={error ?? t("common.unknownError")}
             onRetry={() => void openProject(projectId)}
           />
           <div style={{ textAlign: "center" }}>
             <button className="btn btn-ghost" onClick={() => void goToHub()}>
-              Back to Project Hub
+              {t("workspace.backToHub")}
             </button>
           </div>
         </div>
@@ -59,6 +61,7 @@ function CenterArea() {
   const masterId = useStudio((s) => s.workspace!.project.activeMasterAssetId);
   const setModule = useStudio((s) => s.setModule);
   const hasBatches = useStudio((s) => s.workspace!.batches.length > 0);
+  const t = useT();
   const mod = moduleById(active);
   const isCamera = active === "camera";
   // The Camera Director only exists in the Camera module.
@@ -69,7 +72,7 @@ function CenterArea() {
     assets.find((a) => a.id === selectedId) ?? assets.find((a) => a.id === masterId) ?? null;
 
   return (
-    <main className="center" aria-label="Workspace canvas">
+    <main className="center" aria-label={t("workspace.canvasLabel")}>
       <div className="center-tabs" role="tablist">
         {isCamera && (
           <button
@@ -78,7 +81,7 @@ function CenterArea() {
             aria-selected={view === "director"}
             onClick={() => setCenterView("director")}
           >
-            <Camera size={14} /> Camera Director
+            <Camera size={14} /> {t("workspace.tabDirector")}
           </button>
         )}
         <button
@@ -87,7 +90,7 @@ function CenterArea() {
           aria-selected={view === "canvas"}
           onClick={() => setCenterView("canvas")}
         >
-          <ImageIcon size={14} /> {isCamera ? "Image" : "Canvas"}
+          <ImageIcon size={14} /> {isCamera ? t("workspace.tabImage") : t("workspace.tabCanvas")}
         </button>
         {(isCamera || hasBatches || view === "contact") && (
           <button
@@ -96,7 +99,7 @@ function CenterArea() {
             aria-selected={view === "contact"}
             onClick={() => setCenterView("contact")}
           >
-            <LayoutGrid size={14} /> Contact Sheet
+            <LayoutGrid size={14} /> {t("workspace.tabContact")}
           </button>
         )}
         <button
@@ -105,16 +108,16 @@ function CenterArea() {
           aria-selected={view === "prompt"}
           onClick={() => setCenterView("prompt")}
         >
-          <FileText size={14} /> Prompt Preview
+          <FileText size={14} /> {t("workspace.tabPrompt")}
         </button>
         <span className="spacer" />
       </div>
       <div className="center-body">
         {mod.availableIn !== null ? (
           <FutureModulePlaceholder
-            title={mod.label}
+            title={t(`modules.${mod.id}.label`)}
             phase={mod.availableIn}
-            description={mod.description}
+            description={t(`modules.${mod.id}.description`)}
           />
         ) : view === "prompt" ? (
           <PromptPreview />
@@ -127,14 +130,10 @@ function CenterArea() {
             mode={{ kind: "single", asset }}
             emptyAction={
               <button className="btn" onClick={() => setModule("references")}>
-                <ImagePlus size={14} /> Go to References
+                <ImagePlus size={14} /> {t("workspace.goToReferences")}
               </button>
             }
-            emptyMessage={
-              active === "generate"
-                ? "Nothing to show yet. Generate an image with the panel on the right, or import a master in the Assets tray."
-                : undefined
-            }
+            emptyMessage={active === "generate" ? t("workspace.generateEmpty") : undefined}
           />
         )}
       </div>

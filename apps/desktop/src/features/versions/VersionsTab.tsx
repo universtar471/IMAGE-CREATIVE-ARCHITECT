@@ -5,7 +5,7 @@ import { EmptyState, LoadingState } from "../../components/common/states";
 import { call, type VersionDTO } from "../../lib/bridge";
 import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
-import { PURPOSE_LABELS } from "../generate/labels";
+import { useT } from "../../i18n";
 import { buildVersionTree } from "./tree";
 
 /** Version lineage: imports are roots, generated outputs hang under their parent's version. */
@@ -19,6 +19,7 @@ export function VersionsTab() {
   const revision = useStudio((s) => s.dataRevision);
   const [loaded, setLoaded] = useState<{ key: string; versions?: VersionDTO[]; error?: string }>();
   const key = `${projectId}|${revision}`;
+  const t = useT();
 
   useEffect(() => {
     let alive = true;
@@ -39,15 +40,11 @@ export function VersionsTab() {
     );
   if (!loaded?.versions) return <LoadingState />;
   if (!loaded.versions.length)
-    return (
-      <EmptyState title="No versions yet">
-        Each imported image starts a lineage; generated images branch from it.
-      </EmptyState>
-    );
+    return <EmptyState title={t("versions.empty")}>{t("versions.emptyHint")}</EmptyState>;
 
   const nodes = buildVersionTree(loaded.versions);
   return (
-    <ul className="version-tree" aria-label="Version lineage">
+    <ul className="version-tree" aria-label={t("versions.label")}>
       {nodes.map(({ version: v, depth, childCount }) => {
         const asset = assets.find((a) => a.id === v.assetId);
         const gen = v.generationId ? generations.find((g) => g.id === v.generationId) : undefined;
@@ -59,7 +56,7 @@ export function VersionsTab() {
               aria-pressed={v.assetId === selectedId}
               disabled={!asset}
               onClick={() => selectAsset(v.assetId)}
-              title={asset ? "Show in canvas" : "This asset was removed"}
+              title={asset ? t("versions.showInCanvas") : t("versions.removed")}
             >
               {depth > 0 && <CornerDownRight size={13} className="version-branch" />}
               <span className="version-thumb">
@@ -69,22 +66,26 @@ export function VersionsTab() {
                 {asset?.originalName ?? v.label ?? v.assetId}
                 {v.assetId === masterId && (
                   <span className="badge badge-accent">
-                    <Star size={10} /> Master
+                    <Star size={10} /> {t("common.master")}
                   </span>
                 )}
               </span>
               <span className={`badge ${v.generationId ? "badge-info" : "badge-neutral"}`}>
                 {v.generationId && <Sparkles size={10} />}
-                {v.operation}
+                {v.operation === "import" || v.operation === "generate"
+                  ? t(`labels.operation.${v.operation}`)
+                  : v.operation}
               </span>
               {v.generationId && (
                 <span className="field-hint version-gen">
                   {gen
-                    ? `${PURPOSE_LABELS[gen.purpose]} · ${gen.providerId}/${gen.modelId}`
-                    : `generation ${v.generationId.slice(0, 10)}…`}
+                    ? `${t(`labels.purpose.${gen.purpose}`)} · ${gen.providerId}/${gen.modelId}`
+                    : t("versions.generation", { id: v.generationId.slice(0, 10) })}
                 </span>
               )}
-              {childCount > 0 && <span className="field-hint">{childCount} derived</span>}
+              {childCount > 0 && (
+                <span className="field-hint">{t("versions.derived", { count: childCount })}</span>
+              )}
               <span className="spacer" />
               <span className="field-hint">{formatRelativeTime(v.createdAt)}</span>
             </button>

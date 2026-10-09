@@ -3,6 +3,8 @@ import type { MaterialEntry } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { knowledge } from "../../lib/knowledge";
+import { useT } from "../../i18n";
+import { styleLabel } from "../../i18n/knowledge";
 import { DnaNumber, DnaTags, DnaText, DnaTextArea, useDnaLock } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 
@@ -10,93 +12,108 @@ export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
   const isInterior = project.projectType === "interior";
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
+  const t = useT();
 
   return (
     <>
-      <SectionPanel title="Identity" aside={<LockToggle section="building" />}>
-        <DnaText path="building.buildingType" label="Building type" />
+      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <SectionPanel title={t("dna.identity")} aside={<LockToggle section="building" />}>
+        <DnaText path="building.buildingType" label={t("dna.buildingType")} />
         <DnaText
           path="building.architecturalStyle"
-          label="Architectural style"
-          placeholder="e.g. Modern tropical"
+          label={t("dna.style")}
+          placeholder={t("dna.stylePlaceholder")}
           suggestions={pack?.styleSuggestions}
+          suggestionLabel={styleLabel}
         />
         <div className="field-row">
-          <DnaNumber path="building.floors" label={isInterior ? "Levels" : "Floors"} integer />
-          <DnaText path="building.subtype" label="Subtype" />
+          <DnaNumber
+            path="building.floors"
+            label={isInterior ? t("dna.levels") : t("dna.floors")}
+            integer
+          />
+          <DnaText path="building.subtype" label={t("dna.subtype")} />
         </div>
       </SectionPanel>
 
-      <SectionPanel title="Dimensions">
+      <SectionPanel title={t("dna.dimensions")}>
         <div className="field-row">
-          <DnaNumber path="building.dimensions.widthM" label="Width" suffix="m" />
-          <DnaNumber path="building.dimensions.depthM" label="Depth" suffix="m" />
+          <DnaNumber path="building.dimensions.widthM" label={t("dna.width")} suffix="m" />
+          <DnaNumber path="building.dimensions.depthM" label={t("dna.depth")} suffix="m" />
         </div>
         <div className="field-row">
-          <DnaNumber path="building.dimensions.heightM" label="Height" suffix="m" />
+          <DnaNumber path="building.dimensions.heightM" label={t("dna.height")} suffix="m" />
           <span />
         </div>
         {!isInterior && (
           <div className="field-row">
-            <DnaNumber path="building.dimensions.siteWidthM" label="Site width" suffix="m" />
-            <DnaNumber path="building.dimensions.siteDepthM" label="Site depth" suffix="m" />
+            <DnaNumber
+              path="building.dimensions.siteWidthM"
+              label={t("dna.siteWidth")}
+              suffix="m"
+            />
+            <DnaNumber
+              path="building.dimensions.siteDepthM"
+              label={t("dna.siteDepth")}
+              suffix="m"
+            />
           </div>
         )}
       </SectionPanel>
 
-      <SectionPanel title="Massing" defaultOpen={false}>
+      <SectionPanel title={t("dna.massing")} defaultOpen={false}>
         <DnaText
           path="building.massing.composition"
-          label="Composition"
-          placeholder="e.g. two interlocking boxes"
+          label={t("dna.composition")}
+          placeholder={t("dna.compositionPlaceholder")}
         />
-        <DnaText path="building.massing.mainVolume" label="Main volume" />
-        <DnaText path="building.massing.secondaryVolume" label="Secondary volume" />
+        <DnaText path="building.massing.mainVolume" label={t("dna.mainVolume")} />
+        <DnaText path="building.massing.secondaryVolume" label={t("dna.secondaryVolume")} />
         <DnaTags
           path="building.massing.voids"
-          label="Voids"
-          placeholder="e.g. double-height living"
+          label={t("dna.voids")}
+          placeholder={t("dna.voidsPlaceholder")}
         />
-        <DnaText path="building.massing.cantilever" label="Cantilever" />
+        <DnaText path="building.massing.cantilever" label={t("dna.cantilever")} />
       </SectionPanel>
 
-      <SectionPanel title="Roof" defaultOpen={false}>
+      <SectionPanel title={t("dna.roof")} defaultOpen={false}>
         <DnaText
           path="building.roof.type"
-          label="Roof type"
-          placeholder="e.g. flat roof with terrace"
+          label={t("dna.roofType")}
+          placeholder={t("dna.roofPlaceholder")}
         />
         <div className="field-row">
-          <DnaText path="building.roof.pitch" label="Pitch" />
-          <DnaText path="building.roof.overhang" label="Overhang" />
+          <DnaText path="building.roof.pitch" label={t("dna.pitch")} />
+          <DnaText path="building.roof.overhang" label={t("dna.overhang")} />
         </div>
       </SectionPanel>
 
-      <SectionPanel title="Openings" defaultOpen={false}>
-        <DnaText path="building.openings.windowType" label="Window type" />
+      <SectionPanel title={t("dna.openings")} defaultOpen={false}>
+        <DnaText path="building.openings.windowType" label={t("dna.windowType")} />
         <div className="field-row">
-          <DnaText path="building.openings.frame" label="Frame" />
-          <DnaText path="building.openings.glazing" label="Glazing" />
+          <DnaText path="building.openings.frame" label={t("dna.frame")} />
+          <DnaText path="building.openings.glazing" label={t("dna.glazing")} />
         </div>
-        <DnaText path="building.openings.rhythm" label="Rhythm" />
+        <DnaText path="building.openings.rhythm" label={t("dna.rhythm")} />
       </SectionPanel>
 
-      <SectionPanel title="Materials & colors">
+      <SectionPanel title={t("dna.materialsColors")}>
         <MaterialsEditor />
         <DnaTags
           path="building.colorPalette"
-          label="Color palette"
-          placeholder="e.g. white, beige"
+          label={t("dna.colorPalette")}
+          placeholder={t("dna.colorPlaceholder")}
         />
       </SectionPanel>
 
-      <SectionPanel title="Features & notes" defaultOpen={false}>
+      <SectionPanel title={t("dna.featuresNotes")} defaultOpen={false}>
         <DnaTags
           path="building.specialFeatures"
-          label="Special features"
-          placeholder="e.g. green wall"
+          label={t("dna.specialFeatures")}
+          placeholder={t("dna.featuresPlaceholder")}
         />
-        <DnaTextArea path="building.notes" label="Notes" />
+        <DnaTextArea path="building.notes" label={t("dna.notes")} />
       </SectionPanel>
     </>
   );
@@ -108,6 +125,7 @@ function MaterialsEditor() {
   const editDna = useStudio((s) => s.editDna);
   const readOnly = useStudio(selectReadOnly);
   const { locked } = useDnaLock("building");
+  const t = useT();
   const disabled = readOnly || locked;
 
   const update = (next: MaterialEntry[]) => editDna("building.materials", next);
@@ -116,8 +134,8 @@ function MaterialsEditor() {
 
   return (
     <div className="field">
-      <span className="field-label">Materials by zone</span>
-      {materials.length === 0 && <span className="field-hint">No materials yet.</span>}
+      <span className="field-label">{t("dna.materialsByZone")}</span>
+      {materials.length === 0 && <span className="field-hint">{t("dna.noMaterials")}</span>}
       {materials.map((m, i) => {
         const zoneErr = errors[`building.materials.${i}.zone`];
         const descErr = errors[`building.materials.${i}.description`];
@@ -125,23 +143,23 @@ function MaterialsEditor() {
           <div key={i} className="material-row">
             <input
               className={`input ${zoneErr ? "has-error" : ""}`}
-              placeholder="Zone"
-              aria-label={`Material ${i + 1} zone`}
+              placeholder={t("dna.zone")}
+              aria-label={t("dna.materialZone", { n: i + 1 })}
               value={m.zone}
               disabled={disabled}
               onChange={(e) => patch(i, "zone", e.target.value)}
             />
             <input
               className={`input ${descErr ? "has-error" : ""}`}
-              placeholder="e.g. travertine cladding"
-              aria-label={`Material ${i + 1} description`}
+              placeholder={t("dna.materialPlaceholder")}
+              aria-label={t("dna.materialDescription", { n: i + 1 })}
               value={m.description}
               disabled={disabled}
               onChange={(e) => patch(i, "description", e.target.value)}
             />
             <button
               className="btn btn-ghost btn-icon"
-              aria-label={`Remove material ${i + 1}`}
+              aria-label={t("dna.removeMaterial", { n: i + 1 })}
               disabled={disabled}
               onClick={() => update(materials.filter((_, j) => j !== i))}
             >
@@ -149,7 +167,7 @@ function MaterialsEditor() {
             </button>
             {(zoneErr || descErr) && (
               <span className="field-error" style={{ gridColumn: "1 / -1" }}>
-                {zoneErr ? "Zone is required." : "Description is required."}
+                {zoneErr ? t("dna.zoneRequired") : t("dna.descriptionRequired")}
               </span>
             )}
           </div>
@@ -161,7 +179,7 @@ function MaterialsEditor() {
         disabled={disabled}
         onClick={() => update([...materials, { zone: "", description: "" }])}
       >
-        <Plus size={14} /> Add material
+        <Plus size={14} /> {t("dna.addMaterial")}
       </button>
     </div>
   );

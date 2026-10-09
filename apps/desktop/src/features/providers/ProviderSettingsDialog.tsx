@@ -6,8 +6,7 @@ import { ConfirmDialog, Dialog } from "../../components/common/Dialog";
 import { LoadingState } from "../../components/common/states";
 import { call } from "../../lib/bridge";
 import { providerKeyHelp } from "./help";
-
-const KEY_SOURCE_LABELS = { keychain: "OS credential store", env: "Environment variable" } as const;
+import { useT } from "../../i18n";
 
 /**
  * Provider settings. The API key is typed into an uncontrolled password input and read from
@@ -19,19 +18,19 @@ export function ProviderSettingsDialog() {
   const providers = useStudio((s) => s.providers);
   const error = useStudio((s) => s.providersError);
   const close = useStudio((s) => s.closeProviderDialog);
+  const t = useT();
   if (!dialog) return null;
 
   return (
-    <Dialog title="Image providers" onClose={close}>
+    <Dialog title={t("providers.title")} onClose={close}>
       <p className="field-hint" style={{ marginTop: 0 }}>
-        API keys are stored in the operating system&apos;s credential store by the desktop backend.
-        This app can set, test or clear a key but never reads it back.
+        {t("providers.intro")}
       </p>
       {!providers ? (
         error ? (
           <div className="callout callout-error">{error}</div>
         ) : (
-          <LoadingState label="Loading providers…" />
+          <LoadingState label={t("generate.loadingProviders")} />
         )
       ) : (
         <div className="provider-list">
@@ -60,6 +59,7 @@ function ProviderCard({
   const [test, setTest] = useState<ProviderTestResult | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const help = p.requiresApiKey ? providerKeyHelp(p.id) : null;
+  const t = useT();
 
   const save = async () => {
     const input = keyInput.current;
@@ -74,7 +74,7 @@ function ProviderCard({
     if (updated) {
       adoptProvider(updated);
       setTest(null);
-      notify("success", `API key saved for ${p.label}.`);
+      notify("success", t("providers.saved", { label: p.label }));
     }
   };
 
@@ -89,8 +89,8 @@ function ProviderCard({
       notify(
         "info",
         updated.configured
-          ? `Stored key removed; ${p.label} still uses a key from the environment.`
-          : `API key cleared for ${p.label}.`,
+          ? t("providers.clearedEnv", { label: p.label })
+          : t("providers.cleared", { label: p.label }),
       );
     }
   };
@@ -107,31 +107,40 @@ function ProviderCard({
     <section className={`provider-card ${focused ? "is-focused" : ""}`} aria-label={p.label}>
       <header>
         <strong>{p.label}</strong>
-        <span className="badge badge-neutral">{p.kind === "local" ? "Offline" : "Cloud"}</span>
+        <span className="badge badge-neutral">
+          {p.kind === "local" ? t("providers.offline") : t("providers.cloud")}
+        </span>
         <span className="spacer" />
         {p.configured ? (
-          <span className="badge badge-success">Configured</span>
+          <span className="badge badge-success">{t("providers.configured")}</span>
         ) : (
-          <span className="badge badge-warning">Needs API key</span>
+          <span className="badge badge-warning">{t("providers.needsKey")}</span>
         )}
       </header>
       <div className="field-hint">
-        {p.models.length} model{p.models.length === 1 ? "" : "s"}:{" "}
-        {p.models.map((m) => m.label).join(", ")}
+        {t("providers.models", {
+          count: p.models.length,
+          list: p.models.map((m) => m.label).join(", "),
+        })}
       </div>
       {p.requiresApiKey ? (
         <>
           <div className="field-hint">
-            Key source: {p.keySource ? KEY_SOURCE_LABELS[p.keySource] : "none"}
-            {p.keySource === "env" && " (read-only; clearing removes only a stored key)"}
+            {t("providers.keySource", {
+              source: p.keySource ? t(`labels.keySource.${p.keySource}`) : t("common.none"),
+            })}
+            {p.keySource === "env" && ` ${t("providers.envReadOnly")}`}
           </div>
           {help && (
-            <ul className="field-hint provider-help" aria-label={`${p.label} key help`}>
+            <ul
+              className="field-hint provider-help"
+              aria-label={t("providers.keyHelp", { label: p.label })}
+            >
               <li>
-                Get a key at <span className="provider-help-url">{help.keyUrl}</span>
+                {t("providers.getKeyAt")} <span className="provider-help-url">{help.keyUrl}</span>
               </li>
               {help.notes.map((note) => (
-                <li key={note}>{note}</li>
+                <li key={note}>{t(note)}</li>
               ))}
             </ul>
           )}
@@ -148,22 +157,22 @@ function ProviderCard({
               className="input"
               autoComplete="off"
               spellCheck={false}
-              placeholder={p.configured ? "Replace API key…" : "Paste API key…"}
-              aria-label={`${p.label} API key`}
+              placeholder={p.configured ? t("providers.replaceKey") : t("providers.pasteKey")}
+              aria-label={t("providers.keyLabel", { label: p.label })}
               autoFocus={focused}
               onChange={(e) => setHasInput(e.target.value.trim() !== "")}
             />
             <button className="btn btn-primary btn-sm" disabled={!hasInput || !!busy}>
-              <KeyRound size={13} /> Save
+              <KeyRound size={13} /> {t("common.save")}
             </button>
           </form>
         </>
       ) : (
-        <div className="field-hint">No API key needed.</div>
+        <div className="field-hint">{t("providers.noKey")}</div>
       )}
       <div className="btn-row">
         <button className="btn btn-sm" onClick={() => void runTest()} disabled={!!busy}>
-          <PlugZap size={13} /> {busy === "test" ? "Testing…" : "Test connection"}
+          <PlugZap size={13} /> {busy === "test" ? t("providers.testing") : t("providers.test")}
         </button>
         {p.requiresApiKey && p.keySource && (
           <button
@@ -171,22 +180,25 @@ function ProviderCard({
             onClick={() => setConfirmClear(true)}
             disabled={!!busy}
           >
-            <Trash2 size={13} /> Clear key
+            <Trash2 size={13} /> {t("providers.clearKey")}
           </button>
         )}
       </div>
       {test && (
         <div className={`callout ${test.ok ? "callout-success" : "callout-error"}`} role="status">
           {test.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-          <span>{test.message}</span>
+          <span>
+            <strong>{test.ok ? t("providers.testOk") : t("providers.testFailed")}</strong>{" "}
+            {test.message}
+          </span>
         </div>
       )}
       {confirmClear && (
         <ConfirmDialog
-          title={`Clear the ${p.label} key?`}
+          title={t("providers.clearTitle", { label: p.label })}
           danger
-          confirmLabel="Clear key"
-          message="The stored API key is deleted from the OS credential store. Generations with this provider stop working until a new key is set."
+          confirmLabel={t("providers.clearKey")}
+          message={t("providers.clearMessage")}
           onConfirm={() => void clear()}
           onCancel={() => setConfirmClear(false)}
         />

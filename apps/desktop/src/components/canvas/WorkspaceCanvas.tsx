@@ -11,6 +11,7 @@ import { formatDimensions } from "../../lib/format";
 import { RoleBadge } from "../common/StatusBadge";
 import { EmptyState, ErrorState } from "../common/states";
 import { ImageViewer } from "./ImageViewer";
+import { useT } from "../../i18n";
 
 export type CanvasMode = { kind: "single"; asset: AssetDTO | null };
 
@@ -25,12 +26,12 @@ export function WorkspaceCanvas({
 }) {
   const asset = mode.asset;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const t = useT();
 
   if (!asset) {
     return (
-      <EmptyState icon={<Images size={32} />} title="No image selected" action={emptyAction}>
-        {emptyMessage ??
-          "Import images into the Assets tray below, then select one to view it here."}
+      <EmptyState icon={<Images size={32} />} title={t("canvas.noImage")} action={emptyAction}>
+        {emptyMessage ?? t("canvas.noImageHint")}
       </EmptyState>
     );
   }
@@ -38,8 +39,11 @@ export function WorkspaceCanvas({
   if (asset.status === "missing_file" || !src || failedSrc === src) {
     return (
       <ErrorState
-        title="Image file unavailable"
-        message={`The managed copy of '${asset.originalName ?? asset.id}' could not be loaded. The record is kept; re-import the image or restore the file at ${asset.managedRelPath}.`}
+        title={t("canvas.unavailable")}
+        message={t("canvas.unavailableMessage", {
+          name: asset.originalName ?? asset.id,
+          path: asset.managedRelPath,
+        })}
       />
     );
   }

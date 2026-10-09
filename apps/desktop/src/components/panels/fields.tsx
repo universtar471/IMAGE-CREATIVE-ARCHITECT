@@ -4,6 +4,8 @@
  */
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useT } from "../../i18n";
+import { translateDomainMessage } from "../../i18n/domain";
 
 type FieldShellProps = {
   label: string;
@@ -14,6 +16,7 @@ type FieldShellProps = {
 };
 
 export function FieldGroup({ label, hint, error, htmlFor, children }: FieldShellProps) {
+  const t = useT();
   return (
     <div className="field">
       <label className="field-label" htmlFor={htmlFor}>
@@ -22,7 +25,7 @@ export function FieldGroup({ label, hint, error, htmlFor, children }: FieldShell
       {children}
       {error ? (
         <span className="field-error" role="alert">
-          {error}
+          {translateDomainMessage(error, t)}
         </span>
       ) : (
         hint && <span className="field-hint">{hint}</span>
@@ -39,12 +42,15 @@ export function TextField({
   onChange,
   placeholder,
   suggestions,
+  suggestionLabel,
   ...rest
 }: Common & {
   value: string | undefined;
   onChange: (v: string | undefined) => void;
   placeholder?: string;
   suggestions?: readonly string[];
+  /** Display text of a suggestion; the inserted value stays the suggestion itself. */
+  suggestionLabel?: (s: string) => string;
 }) {
   const id = useId();
   const listId = suggestions?.length ? `${id}-list` : undefined;
@@ -62,9 +68,10 @@ export function TextField({
       />
       {listId && (
         <datalist id={listId}>
-          {suggestions!.map((s) => (
-            <option key={s} value={s} />
-          ))}
+          {suggestions!.map((s) => {
+            const label = suggestionLabel?.(s);
+            return <option key={s} value={s} label={label && label !== s ? label : undefined} />;
+          })}
         </datalist>
       )}
     </FieldGroup>
@@ -165,6 +172,7 @@ export function SelectField<T extends string>({
   allowEmpty?: boolean;
 }) {
   const id = useId();
+  const t = useT();
   return (
     <FieldGroup label={rest.label} hint={rest.hint} error={rest.error} htmlFor={id}>
       <select
@@ -174,7 +182,7 @@ export function SelectField<T extends string>({
         disabled={rest.disabled}
         onChange={(e) => onChange(e.target.value === "" ? undefined : (e.target.value as T))}
       >
-        {allowEmpty && <option value="">— not set —</option>}
+        {allowEmpty && <option value="">{t("common.notSet")}</option>}
         {options.map((o) => (
           <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
@@ -189,10 +197,11 @@ export function SelectField<T extends string>({
 export function TagListField({
   value,
   onChange,
-  placeholder = "Type and press Enter",
+  placeholder,
   ...rest
 }: Common & { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
   const id = useId();
+  const t = useT();
   const [draft, setDraft] = useState("");
 
   const commit = () => {
@@ -223,7 +232,7 @@ export function TagListField({
             {!rest.disabled && (
               <button
                 type="button"
-                aria-label={`Remove ${tag}`}
+                aria-label={t("common.removeTag", { tag })}
                 onClick={() => onChange(value.filter((_, j) => j !== i))}
               >
                 <X size={12} />
@@ -235,7 +244,7 @@ export function TagListField({
           <input
             id={id}
             value={draft}
-            placeholder={value.length ? "" : placeholder}
+            placeholder={value.length ? "" : (placeholder ?? t("common.typeAndEnter"))}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
             onBlur={commit}

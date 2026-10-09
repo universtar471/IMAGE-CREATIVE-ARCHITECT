@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { Star, StarOff, Trash2 } from "lucide-react";
-import {
-  ASSET_ROLE_LABELS,
-  ASSET_SOURCE_LABELS,
-  AssetRoleSchema,
-  type AssetDTO,
-  type AssetRole,
-} from "@arch/domain";
+import { AssetRoleSchema, type AssetDTO, type AssetRole } from "@arch/domain";
 import { attempt, selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { RoleBadge } from "../../components/common/StatusBadge";
@@ -14,26 +8,22 @@ import { EmptyState } from "../../components/common/states";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { SelectField } from "../../components/panels/fields";
 import { call } from "../../lib/bridge";
-import { formatBytes, formatDimensions } from "../../lib/format";
-
-const ROLE_OPTIONS = AssetRoleSchema.options.map((r) => ({
-  value: r,
-  label: ASSET_ROLE_LABELS[r],
-}));
+import { formatBytes, formatDateTime, formatDimensions } from "../../lib/format";
+import { useT } from "../../i18n";
+import { fillNodes } from "../../i18n/nodes";
 
 /** Right-panel properties for the selected asset (References module). */
 export function AssetPropertyPanel() {
   const assets = useStudio((s) => s.workspace?.assets ?? []);
   const selectedId = useStudio((s) => s.selectedAssetId);
   const asset = assets.find((a) => a.id === selectedId) ?? null;
+  const t = useT();
 
   if (!asset) {
     return (
       <>
         <RoleSummary assets={assets} />
-        <EmptyState title="No asset selected">
-          Select an image in the Assets tray to see its metadata and role.
-        </EmptyState>
+        <EmptyState title={t("assets.noneSelected")}>{t("assets.noneSelectedHint")}</EmptyState>
       </>
     );
   }
@@ -47,7 +37,12 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
   const selectAsset = useStudio((s) => s.selectAsset);
   const notify = useStudio((s) => s.notify);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const t = useT();
   const isMaster = asset.role === "master_architecture";
+  const roleOptions = AssetRoleSchema.options.map((r) => ({
+    value: r,
+    label: t(`labels.assetRole.${r}`),
+  }));
 
   const setRole = async (role: AssetRole | undefined) => {
     if (!role || role === asset.role) return;
@@ -63,7 +58,7 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
     );
     if (assets) {
       await adoptAssets(projectId, assets);
-      notify("success", makeMaster ? "Master architecture image updated." : "Master cleared.");
+      notify("success", makeMaster ? t("assets.masterUpdated") : t("assets.masterCleared"));
     }
   };
 
@@ -81,14 +76,14 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
 
   return (
     <>
-      <SectionPanel title="Role">
+      <SectionPanel title={t("assets.role")}>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <RoleBadge role={asset.role} />
         </div>
         <SelectField
-          label="Asset role"
-          hint="How this image is used when compiling prompts."
-          options={ROLE_OPTIONS}
+          label={t("assets.assetRole")}
+          hint={t("assets.assetRoleHint")}
+          options={roleOptions}
           allowEmpty={false}
           value={asset.role}
           disabled={readOnly}
@@ -96,7 +91,7 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
         />
         {isMaster ? (
           <button className="btn" onClick={() => void setMaster(false)} disabled={readOnly}>
-            <StarOff size={14} /> Clear master
+            <StarOff size={14} /> {t("assets.clearMaster")}
           </button>
         ) : (
           <button
@@ -104,62 +99,59 @@ function AssetDetails({ asset }: { asset: AssetDTO }) {
             onClick={() => void setMaster(true)}
             disabled={readOnly || asset.status !== "ready"}
           >
-            <Star size={14} /> Set as master architecture
+            <Star size={14} /> {t("assets.setMaster")}
           </button>
         )}
-        <span className="field-hint">
-          Only one master per project. Choosing a new master turns the previous one into an
-          architecture reference.
-        </span>
+        <span className="field-hint">{t("assets.oneMaster")}</span>
       </SectionPanel>
 
-      <SectionPanel title="Metadata">
+      <SectionPanel title={t("assets.metadata")}>
         <dl className="kv">
-          <dt>Original name</dt>
+          <dt>{t("assets.originalName")}</dt>
           <dd>{asset.originalName ?? "—"}</dd>
-          <dt>Source</dt>
-          <dd>{ASSET_SOURCE_LABELS[asset.source]}</dd>
-          <dt>Dimensions</dt>
+          <dt>{t("assets.source")}</dt>
+          <dd>{t(`labels.assetSource.${asset.source}`)}</dd>
+          <dt>{t("assets.dimensions")}</dt>
           <dd>{formatDimensions(asset.widthPx, asset.heightPx)}</dd>
-          <dt>File size</dt>
+          <dt>{t("assets.fileSize")}</dt>
           <dd>{formatBytes(asset.fileSizeBytes)}</dd>
-          <dt>Format</dt>
+          <dt>{t("assets.format")}</dt>
           <dd>{asset.mimeType ?? "—"}</dd>
-          <dt>Status</dt>
-          <dd>{asset.status === "ready" ? "Ready" : "File missing — re-import or restore it"}</dd>
-          <dt>Imported</dt>
-          <dd>{new Date(asset.createdAt).toLocaleString()}</dd>
+          <dt>{t("assets.status")}</dt>
+          <dd>{asset.status === "ready" ? t("assets.ready") : t("assets.missing")}</dd>
+          <dt>{t("assets.imported")}</dt>
+          <dd>{formatDateTime(asset.createdAt)}</dd>
           <dt>SHA-256</dt>
           <dd style={{ fontFamily: "var(--mono)", fontSize: 11 }}>
             {asset.sha256 ? `${asset.sha256.slice(0, 16)}…` : "—"}
           </dd>
-          <dt>Asset ID</dt>
+          <dt>{t("assets.assetId")}</dt>
           <dd style={{ fontFamily: "var(--mono)", fontSize: 11 }}>{asset.id}</dd>
         </dl>
       </SectionPanel>
 
-      <SectionPanel title="Danger zone" defaultOpen={false}>
+      <SectionPanel title={t("assets.danger")} defaultOpen={false}>
         <button
           className="btn btn-danger"
           onClick={() => setConfirmRemove(true)}
           disabled={readOnly}
         >
-          <Trash2 size={14} /> Remove from project
+          <Trash2 size={14} /> {t("assets.removeFromProject")}
         </button>
-        <span className="field-hint">
-          Deletes the app's managed copy only. Your original file on disk is never touched.
-        </span>
+        <span className="field-hint">{t("assets.removeHint")}</span>
       </SectionPanel>
 
       {confirmRemove && (
         <ConfirmDialog
-          title="Remove asset?"
+          title={t("assets.removeTitle")}
           danger
-          confirmLabel="Remove"
+          confirmLabel={t("common.remove")}
           message={
             <>
-              Remove <strong>{asset.originalName ?? asset.id}</strong> from this project?
-              {isMaster && " It is the current master; the project will have no master afterwards."}
+              {fillNodes(t("assets.removeConfirm"), {
+                name: <strong>{asset.originalName ?? asset.id}</strong>,
+              })}
+              {isMaster && ` ${t("assets.removeMasterNote")}`}
             </>
           }
           onConfirm={() => void remove()}
@@ -174,10 +166,11 @@ function RoleSummary({ assets }: { assets: AssetDTO[] }) {
   const counts = AssetRoleSchema.options
     .map((r) => [r, assets.filter((a) => a.role === r).length] as const)
     .filter(([, n]) => n > 0);
+  const t = useT();
   return (
-    <SectionPanel title="References by role">
+    <SectionPanel title={t("assets.byRole")}>
       {counts.length === 0 ? (
-        <span className="field-hint">No references yet.</span>
+        <span className="field-hint">{t("assets.noReferences")}</span>
       ) : (
         <ul className="checklist">
           {counts.map(([role, n]) => (
