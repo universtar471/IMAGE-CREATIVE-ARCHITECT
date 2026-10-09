@@ -26,6 +26,7 @@ describe("backend contract fixtures", () => {
       "provider_set_api_key",
       "provider_clear_api_key",
       "provider_test",
+      "prompt_enhance",
       "generation_submit",
       "generation_list",
       "generation_get",
