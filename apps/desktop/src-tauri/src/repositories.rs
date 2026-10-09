@@ -602,9 +602,14 @@ pub fn runnable_jobs(conn: &Connection, now: &str) -> AppResult<Vec<JobRow>> {
     Ok(rows)
 }
 
-/// Earliest `next_attempt_at` of a waiting retry (the worker sleeps until then).
-pub fn next_retry_at(conn: &Connection) -> AppResult<Option<String>> {
-    Ok(conn.query_row("SELECT MIN(next_attempt_at) FROM jobs WHERE status = 'retrying'", [], |r| r.get(0))?)
+/// Earliest `next_attempt_at` of a waiting retry that is still later than `after` (the
+/// worker sleeps until then). Retries already due at `after` are waiting for a slot.
+pub fn next_retry_after(conn: &Connection, after: &str) -> AppResult<Option<String>> {
+    Ok(conn.query_row(
+        "SELECT MIN(next_attempt_at) FROM jobs WHERE status = 'retrying' AND next_attempt_at > ?1",
+        [after],
+        |r| r.get(0),
+    )?)
 }
 
 /// Claim a runnable job: `running`, one more attempt. False if it is no longer runnable.

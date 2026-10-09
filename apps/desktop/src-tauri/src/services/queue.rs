@@ -12,10 +12,12 @@
 //!
 //! Tests drive the same code deterministically with [`tick`] and an injected [`Clock`].
 
+use std::any::Any;
 use std::collections::HashMap;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use rusqlite::Connection;
@@ -209,14 +211,66 @@ impl Drop for SlotGuard<'_> {
     }
 }
 
-/// Run one claimed attempt to its end and record the outcome.
+/// Run one claimed attempt to its end and record the outcome. A panicking attempt (an
+/// adapter bug) fails the job like any other error instead of leaving it `running`.
 pub fn run(core: &AppCore, claim: Claim) {
     let _slot = SlotGuard { core, job_id: &claim.job_id };
-    let outcome = generations::run_job(core, &claim.job_id);
+    let started = Instant::now();
+    let outcome =
+        catch_unwind(AssertUnwindSafe(|| generations::run_job(core, &claim.job_id))).unwrap_or_else(|panic| {
+            RunOutcome::Failed {
+                error: stopped(format!("The render stopped on an internal error: {}", panic_text(&*panic))),
+                duration_ms: i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX),
+            }
+        });
     if let Err(e) = settle(core, &claim.job_id, outcome) {
         eprintln!("[queue] could not record the result of job {}: {}", claim.job_id, e.message);
     }
     emit(core, &claim.job_id);
+}
+
+/// The attempt ended for a reason of our own, not the provider's: the job fails (no automatic
+/// retry) and the user may press Retry.
+fn stopped(message: String) -> GenerationErrorRow {
+    GenerationErrorRow { kind: "interrupted".into(), message, retryable: true }
+}
+
+fn panic_text(panic: &(dyn Any + Send)) -> &str {
+    panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown panic")
+}
+
+/// Start every claim on its own thread via `spawn`. A thread that cannot start fails its job
+/// at once: the slot is released, the dispatcher woken and the events sent, so nothing is
+/// left `running` without a thread.
+fn start_claims<F>(core: &Arc<AppCore>, claims: Vec<Claim>, spawn: F)
+where
+    F: Fn(String, Box<dyn FnOnce() + Send>) -> std::io::Result<()>,
+{
+    for c in claims {
+        let job_id = c.job_id.clone();
+        let task: Box<dyn FnOnce() + Send> = {
+            let core = Arc::clone(core);
+            Box::new(move || run(&core, c))
+        };
+        if let Err(e) = spawn(format!("job-{job_id}"), task) {
+            eprintln!("[queue] cannot start a thread for job {job_id}: {e}");
+            let _slot = SlotGuard { core, job_id: &job_id };
+            let outcome =
+                RunOutcome::Failed { error: stopped(format!("The render could not start: {e}")), duration_ms: 0 };
+            if let Err(e) = settle(core, &job_id, outcome) {
+                eprintln!("[queue] could not record the failed start of job {job_id}: {}", e.message);
+            }
+            emit(core, &job_id);
+        }
+    }
+}
+
+fn spawn_thread(name: String, task: Box<dyn FnOnce() + Send>) -> std::io::Result<()> {
+    std::thread::Builder::new().name(name).spawn(task).map(drop)
 }
 
 /// Claim and run on the calling thread, one after another. Deterministic: tests use it
@@ -286,22 +340,12 @@ pub fn stop_worker(core: &AppCore) {
 
 fn dispatch_loop(core: Arc<AppCore>) {
     loop {
-        match claim(&core, core.clock.now()) {
-            Ok(claims) => {
-                for c in claims {
-                    let name = format!("job-{}", c.job_id);
-                    let spawned = std::thread::Builder::new().name(name).spawn({
-                        let core = Arc::clone(&core);
-                        move || run(&core, c)
-                    });
-                    if let Err(e) = spawned {
-                        eprintln!("[queue] cannot start a job thread: {e}");
-                    }
-                }
-            }
+        let claimed_at = core.clock.now();
+        match claim(&core, claimed_at) {
+            Ok(claims) => start_claims(&core, claims, spawn_thread),
             Err(e) => eprintln!("[queue] dispatch failed: {}", e.message),
         }
-        let wait = until_next_retry(&core).unwrap_or(IDLE_RECHECK).min(IDLE_RECHECK);
+        let wait = until_next_retry(&core, claimed_at).unwrap_or(IDLE_RECHECK).min(IDLE_RECHECK);
         let mut slots = core.queue.lock();
         if !slots.pending_wake && !slots.shutdown {
             slots = core.queue.wake.wait_timeout(slots, wait).unwrap_or_else(|e| e.into_inner()).0;
@@ -313,11 +357,13 @@ fn dispatch_loop(core: Arc<AppCore>) {
     }
 }
 
-fn until_next_retry(core: &AppCore) -> Option<Duration> {
-    let next = repo::next_retry_at(&*core.conn().ok()?).ok()??;
+/// Time until the next retry that was not yet due at `claimed_at` (the last claim pass).
+/// A retry that was due then but is still waiting lacks a free slot: the slot's release wakes
+/// the dispatcher, so it is not polled (at worst [`IDLE_RECHECK`] picks it up).
+fn until_next_retry(core: &AppCore, claimed_at: DateTime<Utc>) -> Option<Duration> {
+    let next = repo::next_retry_after(&*core.conn().ok()?, &iso(claimed_at)).ok()??;
     let next = DateTime::parse_from_rfc3339(&next).ok()?.with_timezone(&Utc);
-    // Never zero: a due retry is claimed on the next pass right away anyway.
-    Some((next - core.clock.now()).to_std().unwrap_or(Duration::ZERO).max(Duration::from_millis(10)))
+    Some((next - core.clock.now()).to_std().unwrap_or(Duration::ZERO))
 }
 
 // ------------------------------------------------------------------ commands
@@ -440,9 +486,6 @@ pub(crate) fn emit(core: &AppCore, job_id: &str) {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::Instant;
-
     use super::*;
     use crate::domain::GenerationStatus as G;
     use crate::error::ErrorCode;
@@ -591,35 +634,82 @@ mod tests {
         assert!(h.core.queue.running_jobs().is_empty());
     }
 
-    /// Tracks how many calls of one double overlap; each call waits briefly so overlaps show.
-    fn track_overlap(double: &TestProvider) -> Arc<AtomicUsize> {
-        let now = Arc::new(AtomicUsize::new(0));
-        let max = Arc::new(AtomicUsize::new(0));
-        let (n, m) = (now.clone(), max.clone());
-        double.set_hook(move || {
-            let v = n.fetch_add(1, Ordering::SeqCst) + 1;
-            m.fetch_max(v, Ordering::SeqCst);
-            std::thread::sleep(Duration::from_millis(150));
-            n.fetch_sub(1, Ordering::SeqCst);
-        });
-        max
+    /// Calls of the test doubles block here until the test opens the gate, so overlaps are
+    /// observed by explicit synchronisation instead of sleeps.
+    #[derive(Default)]
+    struct Gate {
+        state: Mutex<GateState>,
+        changed: Condvar,
+    }
+
+    #[derive(Default)]
+    struct GateState {
+        open: bool,
+        /// provider id -> calls inside the double right now / at most at once
+        inside: HashMap<&'static str, usize>,
+        max: HashMap<&'static str, usize>,
+    }
+
+    impl Gate {
+        fn hold(self: &Arc<Self>, double: &TestProvider, provider: &'static str) {
+            let gate = Arc::clone(self);
+            double.set_hook(move || {
+                let mut s = gate.state.lock().unwrap();
+                let n = s.inside.entry(provider).or_default();
+                *n += 1;
+                let n = *n;
+                let m = s.max.entry(provider).or_default();
+                *m = (*m).max(n);
+                gate.changed.notify_all();
+                while !s.open {
+                    s = gate.changed.wait(s).unwrap();
+                }
+                *s.inside.get_mut(provider).unwrap() -= 1;
+            });
+        }
+
+        /// Wait until `want` calls per provider are blocked inside the doubles.
+        fn wait_inside(&self, want: &[(&'static str, usize)]) {
+            let deadline = Instant::now() + Duration::from_secs(20);
+            let mut s = self.state.lock().unwrap();
+            while !want.iter().all(|(p, n)| s.inside.get(p).copied().unwrap_or(0) == *n) {
+                let left = deadline.checked_duration_since(Instant::now()).expect("calls did not start in time");
+                s = self.changed.wait_timeout(s, left).unwrap().0;
+            }
+        }
+
+        fn open(&self) {
+            self.state.lock().unwrap().open = true;
+            self.changed.notify_all();
+        }
+
+        fn max(&self, provider: &str) -> usize {
+            self.state.lock().unwrap().max.get(provider).copied().unwrap_or(0)
+        }
     }
 
     #[test]
     fn worker_runs_local_and_remote_in_parallel_within_limits() {
         let (h, pid) = setup();
-        let local_max = track_overlap(&h.local);
-        let remote_max = track_overlap(&h.remote);
-        let mut both_running = false;
-        let ids: Vec<String> = (0..3).map(|_| local(&h, &pid)).chain((0..2).map(|_| remote(&h, &pid))).collect();
+        let gate = Arc::new(Gate::default());
+        gate.hold(&h.local, TEST_LOCAL_PROVIDER);
+        gate.hold(&h.remote, TEST_PROVIDER);
+        let locals: Vec<String> = (0..3).map(|_| local(&h, &pid)).collect();
+        let remotes: Vec<String> = (0..2).map(|_| remote(&h, &pid)).collect();
 
         let worker = start_worker(h.core.clone()).unwrap();
+        // Two local calls and one remote call are inside the providers at the same time...
+        gate.wait_inside(&[(TEST_LOCAL_PROVIDER, LOCAL_SLOTS), (TEST_PROVIDER, REMOTE_SLOTS)]);
+        // ...and every slot is taken, so the rest wait in the queue (claims happen before calls).
+        assert_eq!(job(&h, &locals[2]).status, JobStatus::Queued);
+        assert_eq!(job(&h, &remotes[1]).status, JobStatus::Queued);
+        assert_eq!(h.core.queue.running_jobs().len(), LOCAL_SLOTS + REMOTE_SLOTS);
+        gate.open();
+
         let deadline = Instant::now() + Duration::from_secs(20);
+        let ids: Vec<&String> = locals.iter().chain(&remotes).collect();
         loop {
             let jobs: Vec<JobDto> = ids.iter().map(|id| job(&h, id)).collect();
-            let running: std::collections::HashSet<&str> =
-                jobs.iter().filter(|j| j.status == JobStatus::Running).map(|j| j.provider_id.as_str()).collect();
-            both_running |= running.len() == 2;
             if jobs.iter().all(|j| j.status == JobStatus::Completed) {
                 break;
             }
@@ -628,9 +718,8 @@ mod tests {
         }
         stop_worker(&h.core);
         worker.join().unwrap();
-        assert_eq!(local_max.load(Ordering::SeqCst), LOCAL_SLOTS, "local jobs run 2 at a time");
-        assert_eq!(remote_max.load(Ordering::SeqCst), REMOTE_SLOTS, "one remote call per provider");
-        assert!(both_running, "a local and a remote job ran at the same time");
+        assert_eq!(gate.max(TEST_LOCAL_PROVIDER), LOCAL_SLOTS, "local jobs run 2 at a time");
+        assert_eq!(gate.max(TEST_PROVIDER), REMOTE_SLOTS, "one remote call per provider");
         assert_eq!(count(&h, "assets"), 5);
     }
 
@@ -939,15 +1028,80 @@ mod tests {
     }
 
     #[test]
-    fn a_panicking_attempt_still_frees_its_slot() {
+    fn a_panicking_attempt_fails_the_job_and_frees_its_slot() {
         let (h, pid) = setup();
         h.remote.set_hook(|| panic!("simulated adapter bug"));
         let id = remote(&h, &pid);
         let c = claim(&h.core, h.clock.now()).unwrap().pop().unwrap();
+        h.events.take();
         let core = h.core.clone();
-        assert!(std::thread::spawn(move || run(&core, c)).join().is_err());
+        assert!(std::thread::spawn(move || run(&core, c)).join().is_ok(), "the panic stays inside the attempt");
         assert!(h.core.queue.running_jobs().is_empty());
-        assert_eq!(job(&h, &id).status, JobStatus::Running, "becomes interrupted on the next start");
+        let j = job(&h, &id);
+        assert_eq!((j.status, j.attempt), (JobStatus::Failed, 1));
+        let e = j.error.clone().unwrap();
+        assert_eq!((e.kind.as_str(), e.retryable), ("interrupted", true));
+        assert!(e.message.contains("simulated adapter bug"), "{}", e.message);
+        let g = generation(&h, &j);
+        assert_eq!(g.status, G::Failed);
+        assert_eq!(h.events.job_statuses(&id), ["failed"]);
+        assert_eq!(retry(&h.core, &id).unwrap().status, JobStatus::Queued, "the user can retry it");
+    }
+
+    #[test]
+    fn a_job_thread_that_cannot_start_fails_the_job_and_frees_its_slot() {
+        let (h, pid) = setup();
+        let id = remote(&h, &pid);
+        let waiting = remote(&h, &pid);
+        let claims = claim(&h.core, h.clock.now()).unwrap();
+        assert_eq!(claims.len(), 1);
+        h.events.take();
+        h.core.queue.lock().pending_wake = false;
+        start_claims(&h.core, claims, |_, _| Err(std::io::Error::other("no threads left")));
+        assert!(h.core.queue.running_jobs().is_empty(), "slot released");
+        assert!(h.core.queue.lock().pending_wake, "dispatcher woken to use the free slot");
+        let j = job(&h, &id);
+        assert_eq!(j.status, JobStatus::Failed);
+        let e = j.error.clone().unwrap();
+        assert_eq!((e.kind.as_str(), e.retryable), ("interrupted", true));
+        assert!(e.message.contains("no threads left"), "{}", e.message);
+        assert_eq!(generation(&h, &j).status, G::Failed);
+        assert_eq!(h.events.job_statuses(&id), ["failed"]);
+        // The other job gets the slot on the next pass.
+        assert_eq!(tick_now(&h), 1);
+        assert_eq!(job(&h, &waiting).status, JobStatus::Completed);
+    }
+
+    #[test]
+    fn an_overdue_retry_waiting_for_a_slot_does_not_busy_poll() {
+        let (h, pid) = setup();
+        h.remote.script(&[TestBehavior::Fail(ProviderErrorKind::RateLimited)]);
+        let retrying = remote(&h, &pid);
+        tick_now(&h);
+        assert_eq!(job(&h, &retrying).status, JobStatus::Retrying);
+        let start = h.clock.now();
+        assert_eq!(until_next_retry(&h.core, start), Some(Duration::from_secs(15)), "future retry: its time");
+
+        // The retry is due but a higher-priority job takes the only remote slot first.
+        let blocker = remote(&h, &pid);
+        // Raise the blocker above the retry so it takes the slot first.
+        h.core.conn().unwrap().execute("UPDATE jobs SET priority = 10 WHERE id = ?1", [&blocker]).unwrap();
+        h.clock.advance_secs(20);
+        let claimed_at = h.clock.now();
+        let claims = claim(&h.core, claimed_at).unwrap();
+        assert_eq!(claims.iter().map(|c| c.job_id.as_str()).collect::<Vec<_>>(), [blocker.as_str()]);
+        assert_eq!(job(&h, &retrying).status, JobStatus::Retrying, "due but no free slot");
+        assert_eq!(
+            until_next_retry(&h.core, claimed_at),
+            None,
+            "an overdue retry waits for the slot-release wake, not a 10 ms poll"
+        );
+        for c in claims {
+            run(&h.core, c);
+        }
+        assert!(h.core.queue.lock().pending_wake, "the freed slot wakes the dispatcher");
+        assert_eq!(tick_now(&h), 1);
+        assert_eq!(job(&h, &retrying).status, JobStatus::Completed);
     }
 
     #[test]
