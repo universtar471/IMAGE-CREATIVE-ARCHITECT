@@ -11,6 +11,7 @@ pub mod grade;
 pub mod projects;
 pub mod prompt_enhance;
 pub mod provider_settings;
+pub mod qc;
 pub mod queue;
 pub mod status;
 pub mod workflow;
@@ -420,6 +421,7 @@ pub(crate) mod tests_support {
             supports_seed: false,
             quality_options: Vec::new(),
             price_hint: None,
+            vision: false,
         }
     }
 

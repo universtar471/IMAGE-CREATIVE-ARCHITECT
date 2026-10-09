@@ -1,0 +1,25 @@
+{
+  "command": "qc_run",
+  "response": {
+    "assetId": "AST_00000000000000000000000002",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "id": "QC_00000000000000000000000004",
+    "local": {
+      "clippedPct": 0.0,
+      "edgeAlignment": 0.0,
+      "sharpness": 0.0
+    },
+    "overall": 0.0,
+    "projectId": "PRJ_00000000000000000000000001",
+    "referenceAssetIds": [
+      "AST_00000000000000000000000003"
+    ],
+    "result": "warn",
+    "thresholds": {
+      "categoryMin": 55.0,
+      "highArtifactFails": true,
+      "passMin": 72.0
+    },
+    "vision": null
+  }
+}

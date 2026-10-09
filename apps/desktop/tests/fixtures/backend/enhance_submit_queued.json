@@ -7,8 +7,8 @@
     "durationMs": null,
     "error": null,
     "finishedAt": null,
-    "id": "GEN_00000000000000000000000004",
-    "jobId": "JOB_00000000000000000000000005",
+    "id": "GEN_00000000000000000000000005",
+    "jobId": "JOB_00000000000000000000000006",
     "modelId": "lanczos3",
     "outputAssetIds": [],
     "params": {

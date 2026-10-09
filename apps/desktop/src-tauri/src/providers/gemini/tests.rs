@@ -89,6 +89,7 @@ fn request(outputs: u32) -> ProviderRequest {
             seed: None,
             quality: None,
             enhance: None,
+            repair: None,
         },
         api_key: Some(KEY.into()),
     }
@@ -678,6 +679,7 @@ fn gemini_live_smoke() {
             seed: None,
             quality: None,
             enhance: None,
+            repair: None,
         },
         api_key: Some(key),
     };

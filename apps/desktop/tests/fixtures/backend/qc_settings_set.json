@@ -1,0 +1,13 @@
+{
+  "command": "qc_settings_set",
+  "response": {
+    "autoQc": "off",
+    "autoRepairMax": 0,
+    "categoryMin": 55.0,
+    "highArtifactFails": true,
+    "passMin": 72.0,
+    "schemaVersion": 1,
+    "visionModel": null,
+    "visionProviderId": null
+  }
+}

@@ -39,7 +39,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -68,7 +69,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -102,7 +104,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -129,7 +132,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -154,7 +158,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         }
       ],
       "requiresApiKey": true
@@ -189,7 +194,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -214,7 +220,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [
@@ -239,7 +246,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         }
       ],
       "requiresApiKey": true
@@ -286,7 +294,8 @@
           ],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         },
         {
           "aspectRatios": [
@@ -317,7 +326,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         },
         {
           "aspectRatios": [
@@ -354,7 +364,8 @@
           ],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         },
         {
           "aspectRatios": [
@@ -391,7 +402,8 @@
           ],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         },
         {
           "aspectRatios": [
@@ -422,7 +434,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         },
         {
           "aspectRatios": [
@@ -453,7 +466,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": true
         }
       ],
       "requiresApiKey": true
@@ -487,7 +501,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": true,
           "supportsSeed": true,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         }
       ],
       "requiresApiKey": false
@@ -511,7 +526,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": false
+          "textToImage": false,
+          "vision": false
         }
       ],
       "requiresApiKey": false
@@ -544,7 +560,8 @@
           ],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [],
@@ -558,7 +575,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": true,
-          "textToImage": true
+          "textToImage": true,
+          "vision": false
         },
         {
           "aspectRatios": [],
@@ -572,7 +590,8 @@
           "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
-          "textToImage": false
+          "textToImage": false,
+          "vision": false
         }
       ],
       "requiresApiKey": true
