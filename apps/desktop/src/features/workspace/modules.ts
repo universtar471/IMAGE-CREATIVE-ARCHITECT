@@ -1,7 +1,8 @@
 /**
  * Workspace module registry — the permanent left-navigation information architecture.
  * Future modules keep their fixed positions now; Phase N only flips `availableIn` to null
- * and plugs in a canvas view + property panel.
+ * and plugs in a canvas view + property panel. `label` is the canonical English name; the UI
+ * shows `modules.<id>.label` / `.description` from the i18n dictionaries.
  */
 import {
   Camera,
@@ -38,7 +39,6 @@ export type WorkspaceModule = {
   group: "project" | "scene" | "production";
   /** Phase in which the module becomes functional; null = available now. */
   availableIn: number | null;
-  description: string;
 };
 
 export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
@@ -48,7 +48,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: LayoutDashboard,
     group: "project",
     availableIn: null,
-    description: "Project summary, readiness and prompt preview.",
   },
   {
     id: "design_dna",
@@ -56,7 +55,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Dna,
     group: "project",
     availableIn: null,
-    description: "Building form, style, materials and colors.",
   },
   {
     id: "context",
@@ -64,7 +62,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: MapPinned,
     group: "project",
     availableIn: null,
-    description: "Site surroundings by direction.",
   },
   {
     id: "references",
@@ -72,7 +69,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Images,
     group: "project",
     availableIn: null,
-    description: "Imported images, roles and the master image.",
   },
   {
     id: "camera",
@@ -80,7 +76,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Camera,
     group: "scene",
     availableIn: null,
-    description: "Camera presets, anchor views and the Camera Director.",
   },
   {
     id: "lighting",
@@ -88,7 +83,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: SunMedium,
     group: "scene",
     availableIn: 4,
-    description: "Sun, sky and artificial lighting systems.",
   },
   {
     id: "mood_grade",
@@ -96,7 +90,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Palette,
     group: "scene",
     availableIn: 4,
-    description: "Weather, mood presets and color grading.",
   },
   {
     id: "generate",
@@ -104,7 +97,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Sparkles,
     group: "production",
     availableIn: null,
-    description: "Provider-neutral image generation and the hero workflow.",
   },
   {
     id: "enhance",
@@ -112,7 +104,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Wand2,
     group: "production",
     availableIn: 5,
-    description: "Upscale to 2K/4K with architecture preservation.",
   },
   {
     id: "qc",
@@ -120,7 +111,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: ScanSearch,
     group: "production",
     availableIn: 6,
-    description: "Vision QC scores, overlays and repair requests.",
   },
   {
     id: "export",
@@ -128,7 +118,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     icon: Download,
     group: "production",
     availableIn: 9,
-    description: "Presentation, social and contact-sheet export presets.",
   },
 ];
 
@@ -141,25 +130,9 @@ export const TRAY_TABS: readonly {
   id: TrayTabId;
   label: string;
   availableIn: number | null;
-  note: string;
 }[] = [
-  { id: "assets", label: "Assets", availableIn: null, note: "" },
-  {
-    id: "versions",
-    label: "Versions",
-    availableIn: null,
-    note: "Lineage tree: imports are roots; generated images branch from their parent's version.",
-  },
-  {
-    id: "jobs",
-    label: "Jobs",
-    availableIn: null,
-    note: "The job queue: live status, attempts, cancel and retry for every project.",
-  },
-  {
-    id: "history",
-    label: "History",
-    availableIn: null,
-    note: "Every generation with its status, settings and outputs.",
-  },
+  { id: "assets", label: "Assets", availableIn: null },
+  { id: "versions", label: "Versions", availableIn: null },
+  { id: "jobs", label: "Jobs", availableIn: null },
+  { id: "history", label: "History", availableIn: null },
 ];
