@@ -73,3 +73,21 @@ Không chạy test theo yêu cầu. Tôi không tìm thấy ADR-022 trong các f
 - Thử trên bản mock (port 1422): nav nhóm đúng, StepFrame + Cách dùng + Ghim hiện đúng, xác nhận bước 1 mở bước 2, bước 4 khoá có banner "Hoàn thành Tham chiếu trước" và các ô nằm trong fieldset disabled.
 - NÊN SỬA (lead): mục nav bước 1 và tiêu đề panel vẫn ghi "DNA thiết kế" (trùng tên nhóm) — phải là "Kiến trúc" / "Architecture"; panel bên phải giữ vị trí cuộn cũ khi đổi bước — cuộn về đầu.
 - Ghi chú: ADR-022 có trên main (docs/DECISIONS.md:231); nhận xét "không tìm thấy" của reviewer là nhầm.
+
+---
+
+# Review Phase 4B — vòng 3
+
+## Kết luận: ĐẠT
+
+- **Gate DNA → Tạo ảnh nhất quán:** [workflow.ts:82](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/packages/domain/src/workflow/workflow.ts:82) khóa Master, Anchor và Render khi DNA chưa hoàn tất; [workflow.ts:234](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/packages/domain/src/workflow/workflow.ts:234) vẫn cho phép variation nếu Master đã duyệt. Rust áp dụng cùng quy tắc ở [workflow.rs:124](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src-tauri/src/services/workflow.rs:124); mock dùng gate domain ở `mockBackend.ts:512`; UI gate nút tạo ảnh và Anchor/Render ở [GeneratePanel.tsx:84](/D:/worktrees/IMAGE-CREATIVE-ARCHITECT/wf-integrate/apps/desktop/src/features/generate/GeneratePanel.tsx:84) và `GeneratePanel.tsx:230`.
+
+- **Tên bước và nhóm:** nhãn bước đầu là “Architecture” / “Kiến trúc”, còn “Design DNA” / “DNA thiết kế” được giữ làm tiêu đề nhóm. Cả nav và panel lấy nhãn từ cùng khóa i18n.
+
+- **Cuộn panel:** `PropertyPanel.tsx:25–27` đặt `scrollTop` về 0 khi module đổi.
+
+- **Có kiểm thử hồi quy** cho domain, Rust, mock và UI; các kiểm thử bao gồm variation và khôi phục trạng thái sau khi xác nhận lại DNA. Theo yêu cầu, tôi không chạy test.
+
+## Lead verify (Claude, 059757d)
+
+- `npm run verify` xanh: 369 Vitest, 236 Rust; fmt, clippy, prettier sạch.
