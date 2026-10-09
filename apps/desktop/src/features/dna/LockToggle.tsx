@@ -11,10 +11,10 @@ export function LockToggle({ section }: { section: DnaLockSection }) {
       onClick={toggle}
       disabled={readOnly}
       aria-pressed={locked}
-      title={locked ? t("dna.lockedTitle") : t("dna.lockTitle")}
+      title={t("dna.pinTitle")}
     >
       {locked ? <Lock size={13} /> : <Unlock size={13} />}
-      {locked ? t("dna.locked") : t("dna.lock")}
+      {locked ? t("dna.pinned") : t("dna.pin")}
     </button>
   );
 }

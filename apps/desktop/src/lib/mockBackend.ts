@@ -43,6 +43,14 @@ import {
 } from "@arch/domain";
 import type { CommandName, EventSink, Requests, Transport, VersionDTO } from "./bridge";
 import { neutralGrade } from "./grade";
+import {
+  DNA_STEP_IDS,
+  confirmStep,
+  isGenerationAllowed,
+  reopenStep,
+  type WorkflowFacts,
+  type WorkflowStepState,
+} from "./workflow";
 
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
@@ -57,6 +65,7 @@ type Db = {
   jobs?: MockJob[];
   batches?: MockBatch[];
   anchors?: CameraAnchorDTO[];
+  workflow?: Record<string, WorkflowStepState[]>;
 };
 
 /** A job plus what the mock needs to run and retry it (never sent to the UI). */
@@ -323,6 +332,18 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const jobs = (db.jobs ??= []);
   const batches = (db.batches ??= []);
   db.anchors ??= [];
+  db.workflow ??= {};
+  // Migration stand-in: projects that already had an approved master are grandfathered in.
+  const workflowMigrationTime = new Date().toISOString();
+  for (const [projectId, project] of Object.entries(db.projects)) {
+    if (project.masterApprovedAt && !db.workflow[projectId]) {
+      db.workflow[projectId] = DNA_STEP_IDS.map((stepId) => ({
+        stepId,
+        status: "confirmed",
+        confirmedAt: workflowMigrationTime,
+      }));
+    }
+  }
   for (const v of db.versions) v.generationId ??= null;
   // Phase 2 snapshots: fill the Phase 3 generation fields.
   for (const g of generations) {
@@ -491,6 +512,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
   const validateRequest = (req: GenerationSubmitRequest) => {
     writable(req.projectId);
+    const gate = isGenerationAllowed(
+      req.purpose,
+      workflowRows(req.projectId),
+      workflowFacts(req.projectId),
+    );
+    if (!gate.allowed) {
+      fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
+    }
     const provider = getProvider(req.providerId);
     const model =
       provider.models.find((m) => m.id === req.modelId) ??
@@ -727,6 +756,26 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const publicBatch = (b: MockBatch): BatchDTO => ({ ...b, counts: countsOf(b.jobIds) });
   const projectAnchors = (projectId: string) =>
     db.anchors!.filter((a) => a.projectId === projectId);
+  const workflowRows = (projectId: string): WorkflowStepState[] =>
+    DNA_STEP_IDS.map(
+      (stepId) =>
+        db.workflow![projectId]?.find((row) => row.stepId === stepId) ?? {
+          stepId,
+          status: "open",
+          confirmedAt: null,
+        },
+    );
+  const workflowFacts = (projectId: string): WorkflowFacts => {
+    const dna = db.dna[projectId]!;
+    const anchors = projectAnchors(projectId);
+    return {
+      masterApproved: !!db.projects[projectId]?.masterApprovedAt,
+      anchorCameraIds: dna.cameras
+        .filter((camera) => camera.isAnchorView)
+        .map((camera) => camera.id),
+      approvedAnchorCameraIds: anchors.map((anchor) => anchor.cameraId),
+    };
+  };
 
   // Resume queued/retrying jobs left from a previous session.
   if (jobs.some((j) => !isTerminal(j))) schedulePump();
@@ -812,6 +861,35 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       refreshStatus(p.id);
       save();
       return publicProject(p);
+    },
+
+    workflow_get: (req) => {
+      getProject(req.projectId);
+      return { steps: workflowRows(req.projectId) };
+    },
+
+    workflow_confirm_step: (req) => {
+      writable(req.projectId);
+      try {
+        const next = confirmStep(workflowRows(req.projectId), req.stepId, now());
+        db.workflow![req.projectId] = next;
+        save();
+        return { steps: next };
+      } catch (error) {
+        fail("VALIDATION_ERROR", error instanceof Error ? error.message : String(error));
+      }
+    },
+
+    workflow_reopen_step: (req) => {
+      writable(req.projectId);
+      try {
+        const next = reopenStep(workflowRows(req.projectId), req.stepId);
+        db.workflow![req.projectId] = next;
+        save();
+        return { steps: next };
+      } catch (error) {
+        fail("VALIDATION_ERROR", error instanceof Error ? error.message : String(error));
+      }
     },
 
     dna_get: (req) => {

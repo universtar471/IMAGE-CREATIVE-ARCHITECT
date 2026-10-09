@@ -20,6 +20,7 @@ export function OverviewPanel() {
   const setCenterView = useStudio((s) => s.setCenterView);
   const readOnly = useStudio(selectReadOnly);
   const adoptProject = useStudio((s) => s.adoptProject);
+  const refreshWorkflow = useStudio((s) => s.refreshWorkflow);
   const master = assets.find((a) => a.id === project.activeMasterAssetId) ?? null;
   const readiness = dnaReadiness(dna, project.projectType);
   const { pack, match } = knowledge.resolve(project.projectType, project.subtype);
@@ -29,7 +30,10 @@ export function OverviewPanel() {
     const p = await attempt(() =>
       call("project_approve_master", { projectId: project.id, approved }),
     );
-    if (p) adoptProject(p);
+    if (p) {
+      adoptProject(p);
+      void refreshWorkflow();
+    }
   };
 
   return (
@@ -85,6 +89,8 @@ export function OverviewPanel() {
         </div>
       </SectionPanel>
 
+      <WorkflowOverview />
+
       <SectionPanel title={t("overview.masterImage")}>
         {master ? (
           <>
@@ -128,6 +134,95 @@ export function OverviewPanel() {
       </SectionPanel>
     </>
   );
+}
+
+function WorkflowOverview() {
+  const workflow = useStudio((s) => s.workflowView);
+  const ws = useStudio((s) => s.workspace!);
+  const setModule = useStudio((s) => s.setModule);
+  const confirm = useStudio((s) => s.confirmWorkflowStep);
+  const reopen = useStudio((s) => s.reopenWorkflowStep);
+  const t = useT();
+  const stages = ["dna", "generate", "post"] as const;
+  if (!workflow) return null;
+  return (
+    <SectionPanel title={t("workflow.overviewTitle")}>
+      {stages.map((stage) => (
+        <div className="workflow-overview-stage" key={stage}>
+          <h3>{t(`workflow.stage.${stage}`)}</h3>
+          {workflow.steps
+            .filter((step) => step.stage === stage)
+            .map((step) => {
+              const summary = workflowSummary(step.id, ws, t);
+              return (
+                <details className="workflow-overview-row" key={step.id}>
+                  <summary>
+                    <span className="workflow-overview-name">
+                      <span className={`badge workflow-status-${step.status}`}>
+                        {t(`workflow.status.${step.status}`)}
+                      </span>
+                      {t(`workflow.steps.${step.id}.name`)}
+                    </span>
+                    <span className="field-hint">{summary}</span>
+                  </summary>
+                  <div className="workflow-overview-actions">
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => setModule(step.module as Parameters<typeof setModule>[0])}
+                    >
+                      {t("workflow.open")}
+                    </button>
+                    {step.status === "available" && step.id.startsWith("dna.") && (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => void confirm(step.id)}
+                      >
+                        {t("workflow.confirm")}
+                      </button>
+                    )}
+                    {(step.status === "confirmed" || step.status === "needs_review") &&
+                      step.id.startsWith("dna.") && (
+                        <button
+                          className="btn btn-sm btn-ghost"
+                          onClick={() => void reopen(step.id)}
+                        >
+                          {t("workflow.reopen")}
+                        </button>
+                      )}
+                  </div>
+                </details>
+              );
+            })}
+        </div>
+      ))}
+    </SectionPanel>
+  );
+}
+
+function workflowSummary(
+  stepId: string,
+  ws: NonNullable<ReturnType<typeof useStudio.getState>["workspace"]>,
+  t: ReturnType<typeof useT>,
+) {
+  if (stepId === "dna.camera") {
+    const anchors = ws.anchors.filter((anchor) =>
+      ws.draftDna.cameras.some((camera) => camera.id === anchor.cameraId),
+    );
+    return t("workflow.cameraSummary", {
+      cameras: ws.draftDna.cameras.length,
+      anchors: anchors.length,
+    });
+  }
+  if (stepId === "generate.master") {
+    return ws.project.activeMasterAssetId
+      ? t("workflow.masterApproved")
+      : t("workflow.masterMissing");
+  }
+  if (stepId === "dna.lighting") {
+    const lighting = ws.draftDna.lighting as { timeOfDay?: string; artificialLighting?: unknown[] };
+    return `${lighting.timeOfDay ?? "—"} · ${lighting.artificialLighting?.length ?? 0} ${t("workflow.lights")}`;
+  }
+  return t("workflow.reviewValues");
 }
 
 function ProjectNameField({ project, disabled }: { project: ProjectDTO; disabled: boolean }) {

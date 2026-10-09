@@ -107,6 +107,7 @@ export function LightingPanel() {
         />
         <SelectField
           label={t("lighting.timeOfDay")}
+          hint={t("lighting.fieldHint")}
           value={lighting.timeOfDay as string | undefined}
           disabled={lightLocked}
           options={TIMES.map((v) => ({ value: v, label: t(`lighting.timeOptions.${v}` as never) }))}
@@ -115,12 +116,14 @@ export function LightingPanel() {
         <div className="field-row">
           <TextField
             label={t("lighting.sunDirection")}
+            hint={t("lighting.fieldHint")}
             value={lighting.sunDirection as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("sunDirection", v)}
           />
           <TextField
             label={t("lighting.sunElevation")}
+            hint={t("lighting.fieldHint")}
             value={lighting.sunElevation as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("sunElevation", v)}
@@ -129,12 +132,14 @@ export function LightingPanel() {
         <div className="field-row">
           <TextField
             label={t("lighting.intensity")}
+            hint={t("lighting.fieldHint")}
             value={lighting.intensity as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("intensity", v)}
           />
           <TextField
             label={t("lighting.ambient")}
+            hint={t("lighting.fieldHint")}
             value={lighting.ambientLight as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("ambientLight", v)}
@@ -143,12 +148,14 @@ export function LightingPanel() {
         <div className="field-row">
           <TextField
             label={t("lighting.shadowLength")}
+            hint={t("lighting.fieldHint")}
             value={lighting.shadowLength as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("shadowLength", v)}
           />
           <TextField
             label={t("lighting.shadowSoftness")}
+            hint={t("lighting.fieldHint")}
             value={lighting.shadowSoftness as string | undefined}
             disabled={lightLocked}
             onChange={(v) => setLight("shadowSoftness", v)}
@@ -187,12 +194,14 @@ export function LightingPanel() {
             <div className="field-row">
               <TextField
                 label={t("lighting.type")}
+                hint={t("lighting.fieldHint")}
                 value={item.type as string | undefined}
                 disabled={lightLocked}
                 onChange={(v) => updateLight(index, { type: v })}
               />
               <SelectField
                 label={t("lighting.zone")}
+                hint={t("lighting.fieldHint")}
                 value={item.zone as string | undefined}
                 disabled={lightLocked}
                 options={ZONES.map((v) => ({ value: v, label: t(`lighting.zones.${v}` as never) }))}
@@ -257,12 +266,14 @@ export function LightingPanel() {
         <div className="field-row">
           <TextField
             label={t("lighting.sky")}
+            hint={t("lighting.fieldHint")}
             value={weather.sky}
             disabled={weatherLocked}
             onChange={(v) => setWeather("sky", v)}
           />
           <TextField
             label={t("lighting.humidity")}
+            hint={t("lighting.fieldHint")}
             value={weather.humidity}
             disabled={weatherLocked}
             onChange={(v) => setWeather("humidity", v)}
@@ -271,12 +282,14 @@ export function LightingPanel() {
         <div className="field-row">
           <TextField
             label={t("lighting.groundWetness")}
+            hint={t("lighting.fieldHint")}
             value={weather.groundWetness}
             disabled={weatherLocked}
             onChange={(v) => setWeather("groundWetness", v)}
           />
           <TextField
             label={t("lighting.haze")}
+            hint={t("lighting.fieldHint")}
             value={weather.haze}
             disabled={weatherLocked}
             onChange={(v) => setWeather("haze", v)}
