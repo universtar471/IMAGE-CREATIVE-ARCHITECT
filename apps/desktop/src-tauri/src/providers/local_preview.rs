@@ -180,6 +180,7 @@ mod tests {
                 output_count: count,
                 seed,
                 quality: None,
+                enhance: None,
             },
             api_key: None,
         }

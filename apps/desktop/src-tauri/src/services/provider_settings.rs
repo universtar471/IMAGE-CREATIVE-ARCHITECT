@@ -166,7 +166,7 @@ mod tests {
         let mut core =
             AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
         let ids: Vec<String> = list(&core).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, ["gemini", "openai", "hhtech", "local_preview"]);
+        assert_eq!(ids, ["gemini", "openai", "hhtech", "local_preview", "local_upscale"]);
         assert!(!find(&list(&core), "openai").configured);
 
         assert_eq!(crate::secrets::env_var_name("openai"), "ARCH_STUDIO_OPENAI_API_KEY");

@@ -126,7 +126,7 @@ pub(crate) fn ensure_generation_allowed(
     project: &ProjectRow,
     purpose: GenerationPurpose,
 ) -> AppResult<()> {
-    if matches!(purpose, GenerationPurpose::Variation) {
+    if matches!(purpose, GenerationPurpose::Variation | GenerationPurpose::Enhance) {
         if project.master_approved_at.is_none() {
             return Err(gate_error("generate.master", "Master"));
         }

@@ -61,7 +61,14 @@ fn request(references: Vec<ReferenceImage>) -> ProviderRequest {
         model_id: "gpt-image-2".into(),
         prompt: prompt(),
         references,
-        params: GenerationParams { aspect_ratio: None, image_size: None, output_count: 1, seed: None, quality: None },
+        params: GenerationParams {
+            aspect_ratio: None,
+            image_size: None,
+            output_count: 1,
+            seed: None,
+            quality: None,
+            enhance: None,
+        },
         api_key: Some(KEY.into()),
     }
 }
@@ -716,6 +723,7 @@ fn live_request(key: &str, references: Vec<ReferenceImage>) -> ProviderRequest {
             output_count: 1,
             seed: None,
             quality: None,
+            enhance: None,
         },
         api_key: Some(key.to_string()),
     }
@@ -767,5 +775,31 @@ fn hhtech_live_edit() {
     match provider.generate(&live_request(&key, vec![reference])) {
         Ok(out) => save("edit", &out),
         Err(e) => panic!("edit failed ({:?}): {}", e.kind, e.message),
+    }
+}
+
+#[test]
+#[ignore = "calls the real HHTECH gateway (one enhancement edit); needs HHTECH_BASE_URL + key"]
+fn hhtech_live_enhance() {
+    let (provider, key) = live();
+    let reference = ReferenceImage {
+        asset_id: "AST_LIVE".into(),
+        role: "master_architecture".into(),
+        mime_type: "image/png".into(),
+        bytes: small_png(),
+    };
+    let mut request = live_request(&key, vec![reference]);
+    request.model_id = "gemini-3-pro-image".into();
+    request.prompt.positive = "Architecture Preserve: keep geometry, openings, proportions, materials, camera and composition exactly; add only fine detail and texture.".into();
+    request.params.image_size = Some(catalog::enhance_tier(Some(2048)).into());
+    request.params.enhance = Some(super::super::EnhanceParams {
+        mode: super::super::EnhanceMode::Generative,
+        target_long_edge: Some(2048),
+        detail_strength: 40,
+        architecture_preserve: true,
+    });
+    match provider.generate(&request) {
+        Ok(out) => save("enhance", &out),
+        Err(e) => panic!("enhance failed ({:?}): {}", e.kind, e.message),
     }
 }

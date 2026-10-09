@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 
 use crate::domain::{GenerationStatus, JobStatus};
 use crate::providers::local_preview::{self, LocalPreviewProvider};
+use crate::providers::local_upscale::{self, LocalUpscaleProvider};
 use crate::providers::{gemini::GeminiProvider, hhtech, openai::OpenAiProvider, ProviderErrorKind, ProviderRegistry};
 use crate::secrets::{env_var_names, EnvSource, FixedEnv, MemorySecretStore, ProcessEnv};
 use crate::services::anchors::{self, AnchorClearRequest, AnchorSetRequest};
@@ -158,6 +159,7 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
         // Configured from an injected environment (never the process one): default models.
         Arc::new(hhtech::provider(&FixedEnv::with(hhtech::ENV_BASE_URL, UNROUTABLE_HHTECH_URL))),
         Arc::new(LocalPreviewProvider),
+        Arc::new(LocalUpscaleProvider),
         double.clone(),
     ]);
     let core = AppCore::open_with(&data_root, registry, Arc::new(MemorySecretStore::default())).unwrap();
@@ -226,6 +228,25 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     )
     .unwrap();
     rec.record("grade_apply", "grade_apply", &graded);
+
+    let enhance_request: SubmitRequest = serde_json::from_value(json!({
+        "projectId": p.id,
+        "providerId": local_upscale::ID,
+        "modelId": local_upscale::MODEL_ID,
+        "purpose": "enhance",
+        "prompt": { "compilerVersion": "", "positivePrompt": "", "negativePrompt": "", "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+        "referenceAssetIds": [master.id],
+        "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null,
+                    "enhance": { "mode": "conservative", "targetLongEdge": 2048, "detailStrength": 40, "architecturePreserve": true } }
+    })).unwrap();
+    let enhance_queued = generations::submit(&core, enhance_request).unwrap();
+    rec.record("enhance_submit_queued", "generation_submit", &enhance_queued);
+    run_queue(&core);
+    rec.record(
+        "enhance_generation_get",
+        "generation_get",
+        &generations::get(&core, &p.id, &enhance_queued.id).unwrap(),
+    );
 
     // generation_submit returns the queued generation; the queue then completes it.
     let mut hero = submit_request(&p.id, local_preview::ID, local_preview::MODEL_ID, &[&master.id], 2);

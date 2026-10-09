@@ -2,17 +2,17 @@
   "command": "generation_list",
   "response": [
     {
-      "batchId": "BAT_0000000000000000000000000E",
+      "batchId": "BAT_0000000000000000000000000H",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000H",
-      "jobId": "JOB_0000000000000000000000000G",
+      "id": "GEN_0000000000000000000000000M",
+      "jobId": "JOB_0000000000000000000000000K",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000R"
+        "AST_0000000000000000000000000V"
       ],
       "params": {
         "aspectRatio": null,
@@ -42,17 +42,17 @@
       "status": "completed"
     },
     {
-      "batchId": "BAT_0000000000000000000000000E",
+      "batchId": "BAT_0000000000000000000000000H",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA",
       "createdAt": "2026-01-01T00:00:00.000Z",
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000J",
-      "jobId": "JOB_0000000000000000000000000F",
+      "id": "GEN_0000000000000000000000000N",
+      "jobId": "JOB_0000000000000000000000000J",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000Q"
+        "AST_0000000000000000000000000T"
       ],
       "params": {
         "aspectRatio": null,
@@ -88,11 +88,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000C",
-      "jobId": "JOB_0000000000000000000000000D",
+      "id": "GEN_0000000000000000000000000F",
+      "jobId": "JOB_0000000000000000000000000G",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_0000000000000000000000000T"
+        "AST_0000000000000000000000000X"
       ],
       "params": {
         "aspectRatio": null,
@@ -126,8 +126,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000A",
-      "jobId": "JOB_0000000000000000000000000B",
+      "id": "GEN_0000000000000000000000000D",
+      "jobId": "JOB_0000000000000000000000000E",
       "modelId": "placeholder-v1",
       "outputAssetIds": [],
       "params": {
@@ -162,11 +162,11 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_0000000000000000000000000K",
-      "jobId": "JOB_0000000000000000000000000M",
+      "id": "GEN_0000000000000000000000000P",
+      "jobId": "JOB_0000000000000000000000000Q",
       "modelId": "full",
       "outputAssetIds": [
-        "AST_0000000000000000000000000S"
+        "AST_0000000000000000000000000W"
       ],
       "params": {
         "aspectRatio": null,
@@ -200,8 +200,8 @@
       "durationMs": null,
       "error": null,
       "finishedAt": null,
-      "id": "GEN_0000000000000000000000000N",
-      "jobId": "JOB_0000000000000000000000000P",
+      "id": "GEN_0000000000000000000000000R",
+      "jobId": "JOB_0000000000000000000000000S",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -240,8 +240,8 @@
         "retryable": false
       },
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000008",
-      "jobId": "JOB_00000000000000000000000009",
+      "id": "GEN_0000000000000000000000000B",
+      "jobId": "JOB_0000000000000000000000000C",
       "modelId": "full",
       "outputAssetIds": [],
       "params": {
@@ -276,12 +276,12 @@
       "durationMs": 1234,
       "error": null,
       "finishedAt": "2026-01-01T00:00:00.000Z",
-      "id": "GEN_00000000000000000000000004",
-      "jobId": "JOB_00000000000000000000000005",
+      "id": "GEN_00000000000000000000000007",
+      "jobId": "JOB_00000000000000000000000008",
       "modelId": "placeholder-v1",
       "outputAssetIds": [
-        "AST_00000000000000000000000006",
-        "AST_00000000000000000000000007"
+        "AST_00000000000000000000000009",
+        "AST_0000000000000000000000000A"
       ],
       "params": {
         "aspectRatio": null,
@@ -304,6 +304,50 @@
       },
       "providerId": "local_preview",
       "purpose": "hero",
+      "referenceAssetIds": [
+        "AST_00000000000000000000000003"
+      ],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_00000000000000000000000004",
+      "jobId": "JOB_00000000000000000000000005",
+      "modelId": "lanczos3",
+      "outputAssetIds": [
+        "AST_00000000000000000000000006"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "enhance": {
+          "architecturePreserve": true,
+          "detailStrength": 40,
+          "mode": "conservative",
+          "targetLongEdge": 2048
+        },
+        "imageSize": null,
+        "outputCount": 1,
+        "quality": null,
+        "seed": null
+      },
+      "parentAssetId": "AST_00000000000000000000000003",
+      "projectId": "PRJ_00000000000000000000000001",
+      "prompt": {
+        "compilerVersion": "",
+        "metadata": {},
+        "negativePrompt": "",
+        "positivePrompt": "",
+        "preservationInstructions": "",
+        "referenceInstructions": ""
+      },
+      "providerId": "local_upscale",
+      "purpose": "enhance",
       "referenceAssetIds": [
         "AST_00000000000000000000000003"
       ],
