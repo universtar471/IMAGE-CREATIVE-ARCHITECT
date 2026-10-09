@@ -128,7 +128,10 @@ export const MoodPresetSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   tags: textList,
-  values: MoodPartialSchema,
+  values: MoodPartialSchema.extend({
+    lighting: LightingPartialSchema.optional(),
+    weather: WeatherPartialSchema.optional(),
+  }),
 });
 export type MoodPreset = z.infer<typeof MoodPresetSchema>;
 

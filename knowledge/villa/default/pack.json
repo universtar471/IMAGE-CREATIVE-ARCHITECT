@@ -204,7 +204,10 @@
       "id": "cinematic",
       "label": "Cinematic dusk",
       "tags": ["cinematic"],
-      "values": { "atmosphere": "cinematic dusk" }
+      "values": {
+        "atmosphere": "cinematic dusk",
+        "lighting": { "timeOfDay": "blue_hour" }
+      }
     },
     {
       "id": "fresh",

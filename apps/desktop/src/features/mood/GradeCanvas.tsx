@@ -59,7 +59,8 @@ export function GradeCanvas({ asset, grade }: { asset: AssetDTO | null; grade: C
       const process = () => {
         if (!alive) return;
         const end = Math.min(graded.length, offset + chunkSize);
-        applyGradeToImageData(graded.subarray(offset, end), grade);
+        const chunk = graded.subarray(offset, end);
+        applyGradeToImageData(chunk, grade, chunk);
         offset = end;
         if (offset < graded.length) schedule(process);
         else finish();

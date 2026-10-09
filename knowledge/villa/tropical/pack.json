@@ -206,7 +206,11 @@
       "id": "cinematic",
       "label": "Cinematic dusk",
       "tags": ["cinematic"],
-      "values": { "atmosphere": "cinematic tropical dusk" }
+      "values": {
+        "atmosphere": "cinematic tropical dusk",
+        "lighting": { "timeOfDay": "blue_hour", "ambientLight": "cool" },
+        "weather": { "sky": "humid dusk haze", "haze": "light" }
+      }
     },
     {
       "id": "fresh",
