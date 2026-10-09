@@ -100,7 +100,8 @@ export function closestAspectRatio(
 
 /**
  * Default parameters for a model: the offered ratio closest to the anchor image (first option
- * without one), the first offered size (null when the model lists none), 1 output, no seed.
+ * without one), the first offered size (null when the model lists none), 1 output, no seed,
+ * the provider's default quality.
  */
 export function defaultGenerationParams(
   model: ModelCapabilities,
@@ -111,6 +112,7 @@ export function defaultGenerationParams(
     imageSize: model.imageSizes[0] ?? null,
     outputCount: 1,
     seed: null,
+    quality: null,
   };
 }
 
@@ -135,11 +137,15 @@ export function adaptGenerationParams(
         : d.imageSize,
     outputCount: Math.min(Math.max(1, params.outputCount), model.maxOutputs),
     seed: model.supportsSeed ? params.seed : null,
+    quality:
+      params.quality !== null && model.qualityOptions.includes(params.quality)
+        ? params.quality
+        : null,
   };
 }
 
 export type GenerationIssueField =
-  "prompt" | "references" | "outputCount" | "aspectRatio" | "imageSize" | "seed";
+  "prompt" | "references" | "outputCount" | "aspectRatio" | "imageSize" | "seed" | "quality";
 
 export type GenerationIssue = { field: GenerationIssueField; message: string };
 
@@ -224,7 +230,54 @@ export function validateGenerationRequest(
   if (p.seed !== null && (!Number.isInteger(p.seed) || p.seed < 0)) {
     issues.push({ field: "seed", message: "Seed must be a whole number ≥ 0." });
   }
+  // Older rows and callers may omit quality; treat that as null (provider default).
+  const quality = p.quality ?? null;
+  if (quality !== null && !model.qualityOptions.includes(quality)) {
+    issues.push({
+      field: "quality",
+      message: model.qualityOptions.length
+        ? `Quality ${quality} is not offered by ${model.label}.`
+        : `${model.label} has no quality choice; leave it unset.`,
+    });
+  }
   return issues;
+}
+
+/**
+ * Estimated cost in VND of `images` images at the chosen tier, from the model's `priceHint`.
+ * Null when the model has no price list, no tier is chosen, or the tier has no published price.
+ */
+export function estimateCostVnd(
+  model: Pick<ModelCapabilities, "priceHint">,
+  imageSize: string | null,
+  images: number,
+): number | null {
+  if (!model.priceHint || imageSize === null) return null;
+  const price = model.priceHint[imageSize];
+  return price === undefined ? null : price * images;
+}
+
+/** VND with a dot as thousands separator, as the HHTECH price list writes it: 1200 → "1.200đ". */
+export function formatVnd(amount: number): string {
+  const digits = String(Math.round(amount));
+  return `${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}đ`;
+}
+
+/**
+ * Short cost text for a run, e.g. "≈ 1.200đ"; for a priced model whose tier has no published
+ * price, says so. Null for models without a price list (other providers).
+ */
+export function costHintText(
+  model: Pick<ModelCapabilities, "priceHint">,
+  imageSize: string | null,
+  images: number,
+): string | null {
+  if (!model.priceHint) return null;
+  const cost = estimateCostVnd(model, imageSize, images);
+  if (cost === null) {
+    return imageSize ? `No published price for ${imageSize}` : null;
+  }
+  return `≈ ${formatVnd(cost)}`;
 }
 
 /**

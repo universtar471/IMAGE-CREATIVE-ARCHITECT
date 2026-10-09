@@ -55,7 +55,7 @@ const request = (projectId: string, over: Partial<GenerationSubmitRequest> = {})
       metadata: {},
     },
     referenceAssetIds: [],
-    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     cameraId: null,
     ...over,
   }) satisfies GenerationSubmitRequest;
@@ -64,7 +64,7 @@ const geminiRequest = (projectId: string, prompt = "A villa") =>
   request(projectId, {
     providerId: "gemini",
     modelId: "gemini-nano-banana-2.1",
-    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+    params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     prompt: { ...request(projectId).prompt, positivePrompt: prompt },
   });
 
@@ -310,7 +310,7 @@ describe("store with backend events", () => {
       modelId: "placeholder-v1",
       purpose: "hero",
       referenceAssetIds: ["AST_M"],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 2, seed: null, quality: null },
     });
     await waitFor(
       () => useStudio.getState().workspace!.assets.length === 3,
@@ -334,7 +334,7 @@ describe("store with backend events", () => {
       modelId: "placeholder-v1",
       purpose: "variation" as const,
       referenceAssetIds: [],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     };
     const g = (await useStudio.getState().submitGeneration(input))!;
     await useStudio.getState().cancelJob(g.jobId!);
@@ -365,7 +365,7 @@ describe("store with backend events", () => {
       modelId: "placeholder-v1",
       purpose: "variation",
       referenceAssetIds: [],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     }))!;
     await useStudio.getState().refreshJobs();
     await settled(p.id, g.id);
@@ -393,7 +393,7 @@ describe("stale polls never overwrite newer state", () => {
       modelId: "placeholder-v1",
       purpose: "variation",
       referenceAssetIds: [],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     }))!;
     return { p, g };
   }
@@ -440,7 +440,7 @@ describe("stale polls never overwrite newer state", () => {
       modelId: "placeholder-v1",
       purpose: "variation" as const,
       referenceAssetIds: [],
-      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null },
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
     };
     const failing = { ...request(p.id).prompt, positivePrompt: "[fail]" };
 

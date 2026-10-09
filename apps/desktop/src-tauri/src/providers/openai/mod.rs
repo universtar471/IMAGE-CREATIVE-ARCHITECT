@@ -36,6 +36,7 @@ mod wire;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -46,7 +47,10 @@ use super::{
     ProviderRequest,
 };
 
-pub use models::{api_size, gateway_model, ratio_of, ASPECT_RATIOS, DEFAULT_MODEL, MAX_OUTPUTS, MAX_REFERENCE_IMAGES};
+pub use models::{
+    api_size, gateway_model, ratio_of, tier_model_id, tier_size, Route, TierStrategy, ASPECT_RATIOS, DEFAULT_MODEL,
+    MAX_OUTPUTS, MAX_REFERENCE_IMAGES, TIER_LONG_EDGES,
+};
 pub use prompt::{build_prompt, MAX_PROMPT_CHARS};
 
 pub const ID: &str = "openai";
@@ -79,8 +83,13 @@ pub struct Config {
     pub base_url: Result<String, String>,
     pub flavor: Flavor,
     pub models: Vec<ModelCapabilities>,
-    /// Gateway: size sent without an aspect ratio, and for the ratio it has; `None` = omit.
+    /// Tier / quality routing by model id; a model without an entry gets [`Route::default`]
+    /// (no tiers, `quality` sent).
+    pub routes: HashMap<String, Route>,
+    /// Gateway: size sent when no tier is chosen, without an aspect ratio, and for the ratio it
+    /// has; `None` = omit.
     pub default_size: Option<String>,
+    /// `quality` sent when the request leaves it null (and the route sends one).
     pub quality: String,
     /// Chat model for prompt enhancement; `None` = not offered.
     pub chat_model: Option<String>,
@@ -99,6 +108,7 @@ impl Config {
             base_url: Ok(base_url.trim_end_matches('/').to_string()),
             flavor: Flavor::Official,
             models: models::all(),
+            routes: HashMap::new(),
             default_size: None,
             quality: models::QUALITY.to_string(),
             chat_model: None,
@@ -106,6 +116,17 @@ impl Config {
             generate_timeout: GENERATE_TIMEOUT,
         }
     }
+}
+
+/// What one images call sends besides `n` and the references.
+#[derive(Debug, Clone, Copy)]
+struct Call<'a> {
+    /// The id on the wire (a tier-suffixed id for [`TierStrategy::IdSuffix`]).
+    model: &'a str,
+    prompt: &'a str,
+    size: Option<&'a str>,
+    /// `None` = the field is not sent.
+    quality: Option<&'a str>,
 }
 
 pub struct OpenAiProvider {
@@ -223,20 +244,44 @@ impl OpenAiProvider {
         api_size(aspect_ratio).map(str::to_string)
     }
 
+    fn route(&self, model_id: &str) -> Route {
+        self.cfg.routes.get(model_id).copied().unwrap_or_default()
+    }
+
+    /// The `size` to send. Without a tier (or for a model without tiers) see [`Self::size_for`].
+    /// With a tier the size is computed from the ratio and the tier; without a ratio it uses the
+    /// configured default size's ratio, else 1:1.
+    fn request_size(&self, route: Route, aspect_ratio: Option<&str>, tier: Option<&str>) -> Option<String> {
+        let tier = match (route.tiers, tier) {
+            (TierStrategy::None, _) | (_, None) => return self.size_for(aspect_ratio),
+            (_, Some(tier)) => tier,
+        };
+        let ratio = match aspect_ratio {
+            Some(ratio) => ratio.to_string(),
+            None => self.cfg.default_size.as_deref().and_then(ratio_of).unwrap_or_else(|| "1:1".into()),
+        };
+        tier_size(&ratio, tier).or_else(|| self.size_for(aspect_ratio))
+    }
+
     /// One images call (generations or edits). A gateway that rejects `response_format` is
     /// asked once more without it.
     fn images_call(
         &self,
-        model: &str,
-        prompt: &str,
+        call: Call<'_>,
         n: u32,
-        size: Option<&str>,
         request: &ProviderRequest,
         api_key: &str,
     ) -> Result<Value, ProviderError> {
         let base = self.base_url()?;
         let client = self.client(self.generate_timeout)?;
-        let fields = wire::Fields { model, prompt, n, size, quality: &self.cfg.quality, flavor: self.cfg.flavor };
+        let fields = wire::Fields {
+            model: call.model,
+            prompt: call.prompt,
+            n,
+            size: call.size,
+            quality: call.quality,
+            flavor: self.cfg.flavor,
+        };
         let build = |response_format: bool| -> Result<reqwest::blocking::RequestBuilder, ProviderError> {
             Ok(if request.references.is_empty() {
                 client.post(format!("{base}/images/generations")).json(&fields.json_body(response_format))
@@ -257,27 +302,25 @@ impl OpenAiProvider {
     /// One images call, with any returned URLs downloaded, trimmed to `n` images.
     fn one_call(
         &self,
-        model: &str,
-        prompt: &str,
+        call: Call<'_>,
         n: u32,
-        size: Option<&str>,
         request: &ProviderRequest,
         api_key: &str,
     ) -> Result<(wire::CallResult, usize), ProviderError> {
-        let value = self.images_call(model, prompt, n, size, request, api_key)?;
+        let value = self.images_call(call, n, request, api_key)?;
         let allow_urls = self.cfg.flavor == Flavor::Gateway;
-        let mut call = wire::parse_success(&value, self.cfg.vendor, api_key, allow_urls)?;
+        let mut result = wire::parse_success(&value, self.cfg.vendor, api_key, allow_urls)?;
         let mut downloaded = 0;
-        for url in std::mem::take(&mut call.urls) {
-            if call.images.len() >= n as usize {
+        for url in std::mem::take(&mut result.urls) {
+            if result.images.len() >= n as usize {
                 break;
             }
-            call.images.push(download::fetch(self.cfg.vendor, &url, self.generate_timeout)?);
+            result.images.push(download::fetch(self.cfg.vendor, &url, self.generate_timeout)?);
             downloaded += 1;
         }
         // The API may in principle return more than `n`; never store more than requested.
-        call.images.truncate(n as usize);
-        Ok((call, downloaded))
+        result.images.truncate(n as usize);
+        Ok((result, downloaded))
     }
 
     /// `n` single-image calls in parallel. Succeeds with whatever images came back when at
@@ -285,16 +328,13 @@ impl OpenAiProvider {
     /// call's error, so a quota or auth failure keeps its kind.
     fn parallel_calls(
         &self,
-        model: &str,
-        prompt: &str,
+        call: Call<'_>,
         n: u32,
-        size: Option<&str>,
         request: &ProviderRequest,
         api_key: &str,
     ) -> Result<(wire::CallResult, usize, usize), ProviderError> {
         let results: Vec<Result<(wire::CallResult, usize), ProviderError>> = std::thread::scope(|scope| {
-            let handles: Vec<_> =
-                (0..n).map(|_| scope.spawn(|| self.one_call(model, prompt, 1, size, request, api_key))).collect();
+            let handles: Vec<_> = (0..n).map(|_| scope.spawn(|| self.one_call(call, 1, request, api_key))).collect();
             handles
                 .into_iter()
                 .map(|h| {
@@ -464,6 +504,11 @@ fn validate(model: &ModelCapabilities, request: &ProviderRequest, prompt: &str) 
             ));
         }
     }
+    if let Some(quality) = &params.quality {
+        if !model.quality_options.contains(quality) {
+            return invalid(format!("{} does not offer quality {quality}.", model.label));
+        }
+    }
     if prompt.is_empty() {
         return invalid("The prompt is empty.".into());
     }
@@ -501,27 +546,36 @@ impl ImageProvider for OpenAiProvider {
         // Validation messages echo request values; redact in case a key was pasted into one.
         validate(&model, request, &prompt).map_err(|e| ProviderError::new(e.kind, sanitize(&e.message, api_key)))?;
 
-        let size = self.size_for(request.params.aspect_ratio.as_deref());
+        let route = self.route(&model.id);
+        let tier = request.params.image_size.as_deref();
+        let size = self.request_size(route, request.params.aspect_ratio.as_deref(), tier);
+        let request_model = tier_model_id(&model.id, route.tiers, tier);
+        let quality =
+            route.sends_quality.then(|| request.params.quality.clone().unwrap_or_else(|| self.cfg.quality.clone()));
+        let call = Call { model: &request_model, prompt: &prompt, size: size.as_deref(), quality: quality.as_deref() };
         let n = request.params.output_count;
         // Gateways tend to render `n` images one after another inside a single HTTP call (or
         // ignore `n`), so several outputs are asked for as parallel single-image calls: the wall
         // time stays that of one image, and one slow image does not time out the others.
-        let (call, downloaded, failed) = if self.cfg.flavor == Flavor::Gateway && n > 1 {
-            self.parallel_calls(&model.id, &prompt, n, size.as_deref(), request, api_key)?
+        let (result, downloaded, failed) = if self.cfg.flavor == Flavor::Gateway && n > 1 {
+            self.parallel_calls(call, n, request, api_key)?
         } else {
-            let (call, downloaded) = self.one_call(&model.id, &prompt, n, size.as_deref(), request, api_key)?;
-            (call, downloaded, 0)
+            let (result, downloaded) = self.one_call(call, n, request, api_key)?;
+            (result, downloaded, 0)
         };
 
         let endpoint = if request.references.is_empty() { "generations" } else { "edits" };
         let mut meta = json!({
             "model": model.id,
+            // The id actually sent (tier-suffixed for HHTECH Gemini) and the tier asked for.
+            "requestModel": request_model,
+            "tier": tier,
             "endpoint": endpoint,
             "requested": n,
-            "returned": call.images.len(),
-            "size": call.size.or(size),
-            "quality": call.quality,
-            "outputFormat": call.output_format,
+            "returned": result.images.len(),
+            "size": result.size.or(size),
+            "quality": result.quality.or(quality),
+            "outputFormat": result.output_format,
         });
         if downloaded > 0 {
             meta["downloaded"] = json!(downloaded);
@@ -529,7 +583,7 @@ impl ImageProvider for OpenAiProvider {
         if failed > 0 {
             meta["failedCalls"] = json!(failed);
         }
-        Ok(ProviderOutput { images: call.images, meta })
+        Ok(ProviderOutput { images: result.images, meta })
     }
 
     fn test_connection(&self, api_key: Option<&str>) -> Result<String, ProviderError> {

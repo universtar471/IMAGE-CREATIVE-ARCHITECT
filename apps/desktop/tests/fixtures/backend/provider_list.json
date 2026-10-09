@@ -35,6 +35,8 @@
           "label": "Nano Banana 2.1 (Gemini)",
           "maxOutputs": 4,
           "maxReferenceImages": 14,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -62,6 +64,8 @@
           "label": "Nano Banana Pro (Gemini 3 Pro Image)",
           "maxOutputs": 4,
           "maxReferenceImages": 14,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -94,6 +98,8 @@
           "label": "Nano Banana 2 (Gemini 3.1 Flash Image)",
           "maxOutputs": 4,
           "maxReferenceImages": 14,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -119,6 +125,8 @@
           "label": "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
           "maxOutputs": 4,
           "maxReferenceImages": 14,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -142,6 +150,8 @@
           "label": "Nano Banana (Gemini 2.5 Flash Image, legacy)",
           "maxOutputs": 4,
           "maxReferenceImages": 3,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -175,6 +185,8 @@
           "label": "GPT Image 2.5 Sunburst",
           "maxOutputs": 4,
           "maxReferenceImages": 16,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -198,6 +210,8 @@
           "label": "GPT Image 2.5 Flare",
           "maxOutputs": 4,
           "maxReferenceImages": 16,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -221,6 +235,8 @@
           "label": "GPT Image 2 (earlier model)",
           "maxOutputs": 4,
           "maxReferenceImages": 16,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -248,12 +264,196 @@
             "16:9",
             "21:9"
           ],
-          "id": "gpt-image-2",
-          "imageSizes": [],
+          "id": "gpt-image-2.5-sunburst",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
           "imageToImage": true,
-          "label": "gpt-image-2",
+          "label": "GPT Image 2.5 Sunburst · 1K 280đ / 2K 600đ / 4K 900đ",
           "maxOutputs": 4,
           "maxReferenceImages": 16,
+          "priceHint": {
+            "1K": 280,
+            "2K": 600,
+            "4K": 900
+          },
+          "qualityOptions": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-3-pro-image",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Gemini 3 Pro Image (Banana) · 2K 500đ / 4K 800đ",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "priceHint": {
+            "2K": 500,
+            "4K": 800
+          },
+          "qualityOptions": [],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2.5-flare",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "GPT Image 2.5 Flare · 1K 280đ / 2K 600đ / 4K 900đ",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "priceHint": {
+            "1K": 280,
+            "2K": 600,
+            "4K": 900
+          },
+          "qualityOptions": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gpt-image-2",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "GPT Image 2 · 1K 180đ / 2K 500đ / 4K 800đ",
+          "maxOutputs": 4,
+          "maxReferenceImages": 16,
+          "priceHint": {
+            "1K": 180,
+            "2K": 500,
+            "4K": 800
+          },
+          "qualityOptions": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-3.1-flash-image",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Gemini 3.1 Flash Image · 2K 500đ / 4K 800đ",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "priceHint": {
+            "2K": 500,
+            "4K": 800
+          },
+          "qualityOptions": [],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": true
+        },
+        {
+          "aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "id": "gemini-2.5-flash-image",
+          "imageSizes": [
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "imageToImage": true,
+          "label": "Gemini 2.5 Flash Image · 2K 500đ / 4K 800đ",
+          "maxOutputs": 4,
+          "maxReferenceImages": 14,
+          "priceHint": {
+            "2K": 500,
+            "4K": 800
+          },
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -286,6 +486,8 @@
           "label": "Placeholder renderer",
           "maxOutputs": 4,
           "maxReferenceImages": 14,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": true,
           "supportsSeed": true,
           "textToImage": true
@@ -314,6 +516,11 @@
           "label": "Test full",
           "maxOutputs": 2,
           "maxReferenceImages": 2,
+          "priceHint": null,
+          "qualityOptions": [
+            "low",
+            "high"
+          ],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": true
@@ -326,6 +533,8 @@
           "label": "Test text-only",
           "maxOutputs": 1,
           "maxReferenceImages": 0,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": true,
           "textToImage": true
@@ -338,6 +547,8 @@
           "label": "Test edit-only",
           "maxOutputs": 1,
           "maxReferenceImages": 1,
+          "priceHint": null,
+          "qualityOptions": [],
           "supportsNegativePrompt": false,
           "supportsSeed": false,
           "textToImage": false

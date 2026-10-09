@@ -33,6 +33,7 @@ const FALLBACK_PARAMS: GenerationParams = {
   imageSize: null,
   outputCount: 1,
   seed: null,
+  quality: null,
 };
 
 export function resolveGenerateForm(

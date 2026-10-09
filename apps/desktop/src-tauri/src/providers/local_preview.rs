@@ -47,6 +47,8 @@ impl ImageProvider for LocalPreviewProvider {
                 image_sizes: vec!["1K".into()],
                 supports_negative_prompt: true,
                 supports_seed: true,
+                quality_options: Vec::new(),
+                price_hint: None,
             }],
         }
     }
@@ -177,6 +179,7 @@ mod tests {
                 image_size: None,
                 output_count: count,
                 seed,
+                quality: None,
             },
             api_key: None,
         }

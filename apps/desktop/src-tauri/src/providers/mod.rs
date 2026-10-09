@@ -17,6 +17,7 @@ pub mod text;
 #[cfg(test)]
 mod test_http;
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -43,7 +44,15 @@ pub struct ModelCapabilities {
     pub image_sizes: Vec<String>,
     pub supports_negative_prompt: bool,
     pub supports_seed: bool,
+    /// `quality` values the model accepts in [`GenerationParams::quality`]; empty = only null.
+    pub quality_options: Vec<String>,
+    /// Estimated price per image in VND by `image_sizes` tier (HHTECH catalog); `None` = no
+    /// price known. A tier missing from the map has no published price.
+    pub price_hint: Option<BTreeMap<String, u32>>,
 }
+
+/// Every `quality` value the contract knows (`GenerationQualitySchema`).
+pub const QUALITY_VALUES: [&str; 3] = ["low", "medium", "high"];
 
 /// Static description of a provider; the service adds `configured` / `keySource`.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,6 +78,10 @@ pub struct GenerationParams {
     pub image_size: Option<String>,
     pub output_count: u32,
     pub seed: Option<u64>,
+    /// `low` / `medium` / `high`, or `None` = the provider's default. Absent in requests and
+    /// rows written before it existed.
+    #[serde(default)]
+    pub quality: Option<String>,
 }
 
 /// The text parts of a compiled `PromptBundle`, as adapters consume them.

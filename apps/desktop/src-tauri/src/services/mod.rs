@@ -385,6 +385,8 @@ pub(crate) mod tests_support {
             image_sizes: vec![],
             supports_negative_prompt: false,
             supports_seed: false,
+            quality_options: Vec::new(),
+            price_hint: None,
         }
     }
 
@@ -393,6 +395,7 @@ pub(crate) mod tests_support {
             let mut full = model("full", true, true, 2, 2);
             full.aspect_ratios = vec!["1:1".into(), "16:9".into()];
             full.image_sizes = vec!["1K".into(), "2K".into()];
+            full.quality_options = vec!["low".into(), "high".into()];
             let mut text_only = model("text-only", true, false, 0, 1);
             text_only.supports_seed = true;
             if self.local {

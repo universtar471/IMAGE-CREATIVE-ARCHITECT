@@ -9,6 +9,10 @@ import { PromptBundleSchema } from "./prompt";
 export const ProviderKindSchema = z.enum(["local", "remote"]);
 export type ProviderKind = z.infer<typeof ProviderKindSchema>;
 
+/** Image quality a model may let the user choose; null in params = provider default. */
+export const GenerationQualitySchema = z.enum(["low", "medium", "high"]);
+export type GenerationQuality = z.infer<typeof GenerationQualitySchema>;
+
 /** What one model of a provider can do. The UI derives every control from this. */
 export const ModelCapabilitiesSchema = z.object({
   id: z.string(),
@@ -23,6 +27,13 @@ export const ModelCapabilitiesSchema = z.object({
   imageSizes: z.array(z.string()),
   supportsNegativePrompt: z.boolean(),
   supportsSeed: z.boolean(),
+  /** `quality` values the model accepts. Empty = no choice; `params.quality` must be null. */
+  qualityOptions: z.array(GenerationQualitySchema),
+  /**
+   * Estimated price per image in VND by `imageSizes` tier (HHTECH). Null = no price known; a
+   * tier missing from the map has no published price.
+   */
+  priceHint: z.record(z.string(), z.number().int().nonnegative()).nullable(),
 });
 export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
 
@@ -67,6 +78,8 @@ export const GenerationParamsSchema = z.object({
   imageSize: z.string().nullable(),
   outputCount: z.number().int().min(1).max(4),
   seed: z.number().int().nonnegative().nullable(),
+  /** One of the model's `qualityOptions`; null = provider default. Absent in older rows. */
+  quality: GenerationQualitySchema.nullable().default(null),
 });
 export type GenerationParams = z.infer<typeof GenerationParamsSchema>;
 

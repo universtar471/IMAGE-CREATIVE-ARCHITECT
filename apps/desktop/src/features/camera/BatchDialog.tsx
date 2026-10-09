@@ -41,7 +41,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
         ...paramsDraft,
         seed: model.supportsSeed ? (paramsDraft?.seed ?? null) : null,
       }
-    : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null };
+    : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const [name, setName] = useState<string | undefined>(undefined);
   const [cameraIds, setCameraIds] = useState<string[]>(() =>
     mode === "anchor" ? [] : cameras.map((c) => c.id),

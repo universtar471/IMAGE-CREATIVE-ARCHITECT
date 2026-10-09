@@ -280,6 +280,19 @@ fn validate_against_model(req: &SubmitRequest, model: &ModelCapabilities) -> App
     if p.seed.is_some() && !model.supports_seed {
         return Err(AppError::validation(format!("{} does not support a fixed seed.", model.label)));
     }
+    if let Some(quality) = &p.quality {
+        if !model.quality_options.contains(quality) {
+            return Err(AppError::validation(if model.quality_options.is_empty() {
+                format!("{} has no quality choice; leave quality unset.", model.label)
+            } else {
+                format!(
+                    "{} does not offer quality '{quality}'; use one of: {}.",
+                    model.label,
+                    model.quality_options.join(", ")
+                )
+            }));
+        }
+    }
     Ok(())
 }
 
@@ -820,7 +833,7 @@ mod tests {
     }
 
     fn params(count: u32) -> GenerationParams {
-        GenerationParams { aspect_ratio: None, image_size: None, output_count: count, seed: None }
+        GenerationParams { aspect_ratio: None, image_size: None, output_count: count, seed: None, quality: None }
     }
 
     fn request(
@@ -986,6 +999,12 @@ mod tests {
             ("aspect ratio not offered", full(&[], with(&|p| p.aspect_ratio = Some("4:3".into()))), ValidationError),
             ("image size not offered", full(&[], with(&|p| p.image_size = Some("4K".into()))), ValidationError),
             ("seed without support", full(&[], with(&|p| p.seed = Some(1))), ValidationError),
+            ("quality not offered", full(&[], with(&|p| p.quality = Some("medium".into()))), ValidationError),
+            (
+                "quality on a model that lists none",
+                request(&p.id, TEST_PROVIDER, "text-only", &[], with(&|p| p.quality = Some("high".into()))),
+                ValidationError,
+            ),
             (
                 "image size on a model that lists none",
                 request(&p.id, TEST_PROVIDER, "text-only", &[], with(&|p| p.image_size = Some("1K".into()))),
@@ -1010,7 +1029,13 @@ mod tests {
             assert_eq!(err.code, code, "{what}: {}", err.message);
         }
         // Offered values pass.
-        let ok = full(&[&r1.id], with(&|p| p.aspect_ratio = Some("16:9".into())));
+        let ok = full(
+            &[&r1.id],
+            with(&|p| {
+                p.aspect_ratio = Some("16:9".into());
+                p.quality = Some("high".into());
+            }),
+        );
         assert_eq!(submit(&core, ok).unwrap().status, GenerationStatus::Completed);
         assert_eq!(count(&core, "generations"), 1);
         assert_eq!(double.calls(), 1);
@@ -1227,7 +1252,7 @@ mod tests {
                 "status"
             ]
         );
-        assert_eq!(keys(&value["params"]), ["aspectRatio", "imageSize", "outputCount", "seed"]);
+        assert_eq!(keys(&value["params"]), ["aspectRatio", "imageSize", "outputCount", "quality", "seed"]);
         assert_eq!(
             keys(&value["prompt"]),
             [

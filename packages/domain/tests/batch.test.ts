@@ -41,6 +41,8 @@ const model = (over: Partial<ModelCapabilities> = {}): ModelCapabilities => ({
   imageSizes: ["1K"],
   supportsNegativePrompt: true,
   supportsSeed: true,
+  qualityOptions: [],
+  priceHint: null,
   ...over,
 });
 
@@ -49,6 +51,7 @@ const params: GenerationParams = {
   imageSize: "1K",
   outputCount: 2,
   seed: null,
+  quality: null,
 };
 
 const assets: BatchAsset[] = [

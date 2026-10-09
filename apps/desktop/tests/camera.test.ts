@@ -164,7 +164,7 @@ async function bundleWithCameras(): Promise<ProjectBundle> {
   return call("project_get", { projectId: p.id });
 }
 
-const params = { aspectRatio: "1:1", imageSize: "1K", outputCount: 2, seed: null };
+const params = { aspectRatio: "1:1", imageSize: "1K", outputCount: 2, seed: null, quality: null };
 
 describe("batch dialog planning", () => {
   it("anchor batch: one item per anchor view, master only, camera aspect and section", async () => {
@@ -203,7 +203,7 @@ describe("batch dialog planning", () => {
         mode: "production",
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image", // max 3 references
-        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null, quality: null },
         cameraIds: [aerial!.id, front!.id],
         extraReferenceIds: ["AST_CTX", "AST_MAT"],
       },
@@ -260,7 +260,7 @@ describe("batch dialog planning", () => {
         mode: "production",
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image",
-        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null },
+        params: { aspectRatio: "1:1", imageSize: null, outputCount: 1, seed: null, quality: null },
         cameraIds: [front!.id],
         extraReferenceIds: [],
       },

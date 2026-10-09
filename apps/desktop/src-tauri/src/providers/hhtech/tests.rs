@@ -58,10 +58,10 @@ fn reference(n: u8) -> ReferenceImage {
 
 fn request(references: Vec<ReferenceImage>) -> ProviderRequest {
     ProviderRequest {
-        model_id: DEFAULT_IMAGE_MODEL.into(),
+        model_id: "gpt-image-2".into(),
         prompt: prompt(),
         references,
-        params: GenerationParams { aspect_ratio: None, image_size: None, output_count: 1, seed: None },
+        params: GenerationParams { aspect_ratio: None, image_size: None, output_count: 1, seed: None, quality: None },
         api_key: Some(KEY.into()),
     }
 }
@@ -174,13 +174,37 @@ fn defaults_and_info() {
     assert_eq!((info.id, info.label), ("hhtech", "HHTECH (OpenAI-compatible)"));
     assert!(info.requires_api_key);
     assert_eq!(info.kind, super::super::ProviderKind::Remote);
-    assert_eq!(info.models.len(), 1);
+    // Unset HHTECH_IMAGE_MODEL: the full catalog, best first.
+    let ids: Vec<_> = info.models.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(ids, catalog::CATALOG.iter().map(|e| e.id).collect::<Vec<_>>());
+    assert_eq!(ids[0], "gpt-image-2.5-sunburst");
     let model = &info.models[0];
-    assert_eq!((model.id.as_str(), model.label.as_str()), ("gpt-image-2", "gpt-image-2"));
-    assert!(model.image_sizes.is_empty(), "no invented size tiers");
+    assert_eq!(model.label, "GPT Image 2.5 Sunburst · 1K 280đ / 2K 600đ / 4K 900đ");
+    assert_eq!(model.image_sizes, ["1K", "2K", "4K"], "real billed tiers on this gateway");
     assert_eq!(model.aspect_ratios.len(), 10);
     assert!(model.max_outputs <= 4 && model.max_outputs >= 1);
     assert!(!model.supports_seed && !model.supports_negative_prompt);
+}
+
+#[test]
+fn the_image_model_setting_restricts_and_orders_the_catalog() {
+    let base = (ENV_BASE_URL, "https://gw.example.com/v1");
+    // Existing users' `.env` keeps working: one catalog model, now with tiers and prices.
+    let cfg = config(&env(&[base, (ENV_IMAGE_MODEL, "gpt-image-2")]));
+    assert!(cfg.base_url.is_ok());
+    assert_eq!(cfg.models.len(), 1);
+    assert_eq!(cfg.models[0].label, "GPT Image 2 · 1K 180đ / 2K 500đ / 4K 800đ");
+    assert_eq!(cfg.models[0].quality_options, ["low", "medium", "high"]);
+
+    let cfg = config(&env(&[base, (ENV_IMAGE_MODEL, "gemini-3-pro-image, my-custom-model ,gpt-image-2.5-flare")]));
+    let ids: Vec<_> = cfg.models.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(ids, ["gemini-3-pro-image", "my-custom-model", "gpt-image-2.5-flare"], "env order wins");
+    let custom = &cfg.models[1];
+    assert_eq!(custom.label, "my-custom-model");
+    assert!(custom.image_sizes.is_empty() && custom.price_hint.is_none(), "unknown ids: no tiers, as before");
+    assert!(cfg.models[0].quality_options.is_empty(), "no quality for Gemini");
+    assert_eq!(cfg.routes["gemini-3-pro-image"].tiers, super::super::openai::TierStrategy::IdSuffix);
+    assert_eq!(cfg.routes["my-custom-model"], Route::default());
 }
 
 #[test]
@@ -226,7 +250,7 @@ fn missing_or_unsafe_settings_make_the_provider_not_configured() {
     assert!(err.message.contains("HHTECH_BASE_URL"), "{err:?}");
     assert!(p.test_connection(Some(KEY)).unwrap_err().message.contains("HHTECH_BASE_URL"));
     assert!(p.chat("s", "u", Some(KEY)).unwrap_err().message.contains("HHTECH_BASE_URL"));
-    assert!(p.info().models.len() == 1, "still listed with its default model");
+    assert_eq!(p.info().models.len(), catalog::CATALOG.len(), "still listed with the catalog");
 }
 
 // ---------------------------------------------------------------- images
@@ -274,6 +298,142 @@ fn aspect_ratio_picks_the_size_and_the_default_size_keeps_its_ratio() {
     assert_eq!(size_sent(None, &[(ENV_IMAGE_SIZE, "1536x1024")]), Some(json!("1536x1024")));
     assert_eq!(size_sent(Some("1:1"), &[(ENV_IMAGE_SIZE, "1536x1024")]), Some(json!("1024x1024")));
     assert_eq!(size_sent(None, &[(ENV_IMAGE_SIZE, "auto")]), None);
+}
+
+/// What one generate call sent: path, the `model` / `size` / `quality` fields (JSON body or
+/// multipart parts) and the output meta.
+struct Sent {
+    path: String,
+    model: Option<String>,
+    size: Option<String>,
+    quality: Option<String>,
+    meta: Value,
+}
+
+/// The value of a multipart text part, e.g. `name="model"` → `gemini-3-pro-image-2k`.
+fn form_field(body: &str, name: &str) -> Option<String> {
+    let start = body.find(&format!("name=\"{name}\""))?;
+    let value = &body[start..];
+    let value = &value[value.find("\r\n\r\n")? + 4..];
+    Some(value[..value.find("\r\n")?].to_string())
+}
+
+fn send_with(
+    model: &str,
+    ratio: Option<&str>,
+    tier: Option<&str>,
+    quality: Option<&str>,
+    references: Vec<ReferenceImage>,
+    extra: &[(&str, &str)],
+) -> Sent {
+    let mut server = serve(vec![b64_reply(&[PNG_BYTES])]);
+    let mut req = request(references);
+    req.model_id = model.into();
+    req.params.aspect_ratio = ratio.map(str::to_string);
+    req.params.image_size = tier.map(str::to_string);
+    req.params.quality = quality.map(str::to_string);
+    let out = gateway(&server, extra).generate(&req).unwrap();
+    let recorded = &server.requests()[0];
+    let (model, size, quality) = if recorded.path.ends_with("/edits") {
+        (form_field(&recorded.body, "model"), form_field(&recorded.body, "size"), form_field(&recorded.body, "quality"))
+    } else {
+        let body: Value = serde_json::from_str(&recorded.body).unwrap();
+        let field = |name: &str| body.get(name).and_then(Value::as_str).map(str::to_string);
+        (field("model"), field("size"), field("quality"))
+    };
+    Sent { path: recorded.path.clone(), model, size, quality, meta: out.meta }
+}
+
+#[test]
+fn gpt_tiers_set_the_size_from_ratio_and_tier_with_the_base_id() {
+    let cases = [
+        (Some("1:1"), "1K", "1024x1024"),
+        (Some("1:1"), "2K", "2048x2048"),
+        (Some("1:1"), "4K", "3840x3840"),
+        (Some("16:9"), "1K", "1024x576"),
+        (Some("16:9"), "2K", "2048x1152"),
+        (Some("16:9"), "4K", "3840x2160"),
+        (Some("2:3"), "2K", "1360x2048"),
+        (Some("21:9"), "4K", "3840x1648"),
+        // No ratio: the default size's ratio (1:1 for 1024x1024).
+        (None, "2K", "2048x2048"),
+    ];
+    for (ratio, tier, size) in cases {
+        let sent = send_with("gpt-image-2.5-sunburst", ratio, Some(tier), None, vec![], &[]);
+        assert_eq!(sent.path, "/v1/images/generations");
+        assert_eq!(sent.model.as_deref(), Some("gpt-image-2.5-sunburst"), "no suffix for GPT");
+        assert_eq!(sent.size.as_deref(), Some(size), "{ratio:?} {tier}");
+        assert_eq!(sent.meta["tier"], tier);
+        assert_eq!(sent.meta["requestModel"], "gpt-image-2.5-sunburst");
+    }
+    // Edits use the same base id and the computed size.
+    let sent = send_with("gpt-image-2", Some("4:3"), Some("4K"), None, vec![reference(1)], &[]);
+    assert_eq!(sent.path, "/v1/images/edits");
+    assert_eq!((sent.model.as_deref(), sent.size.as_deref()), (Some("gpt-image-2"), Some("3840x2880")));
+    // Without a ratio the tier keeps the ratio of HHTECH_IMAGE_SIZE.
+    let sent = send_with("gpt-image-2", None, Some("2K"), None, vec![], &[(ENV_IMAGE_SIZE, "1536x1024")]);
+    assert_eq!(sent.size.as_deref(), Some("2048x1360"));
+}
+
+#[test]
+fn no_tier_falls_back_to_the_configured_size() {
+    let sent = send_with("gpt-image-2", None, None, None, vec![], &[(ENV_IMAGE_SIZE, "1536x1024")]);
+    assert_eq!(sent.size.as_deref(), Some("1536x1024"));
+    assert_eq!(sent.meta["tier"], Value::Null);
+    assert_eq!(sent.meta["requestModel"], "gpt-image-2");
+}
+
+#[test]
+fn gemini_tiers_are_id_suffixes_on_both_endpoints_and_size_keeps_the_aspect() {
+    for references in [vec![], vec![reference(1)]] {
+        let endpoint = if references.is_empty() { "/v1/images/generations" } else { "/v1/images/edits" };
+        for (tier, model, size) in [
+            ("1K", "gemini-3-pro-image", "1024x576"),
+            ("2K", "gemini-3-pro-image-2k", "2048x1152"),
+            ("4K", "gemini-3-pro-image-4k", "3840x2160"),
+        ] {
+            let sent = send_with("gemini-3-pro-image", Some("16:9"), Some(tier), None, references.clone(), &[]);
+            assert_eq!(sent.path, endpoint);
+            assert_eq!(sent.model.as_deref(), Some(model), "{endpoint} {tier}");
+            assert!(!model.contains("-edit"), "-edit ids returned 502 live");
+            assert_eq!(sent.size.as_deref(), Some(size));
+            assert_eq!(sent.quality, None, "quality is never sent to Gemini");
+            assert_eq!(sent.meta["requestModel"], model);
+            assert_eq!(sent.meta["model"], "gemini-3-pro-image");
+            assert_eq!(sent.meta["tier"], tier);
+            assert_eq!(sent.meta["quality"], Value::Null);
+        }
+    }
+}
+
+#[test]
+fn gpt_quality_is_the_choice_else_the_configured_default() {
+    let sent = send_with("gpt-image-2.5-flare", Some("1:1"), Some("1K"), Some("high"), vec![], &[]);
+    assert_eq!(sent.quality.as_deref(), Some("high"));
+    assert_eq!(sent.meta["quality"], "high");
+    let sent = send_with("gpt-image-2.5-flare", Some("1:1"), Some("1K"), None, vec![], &[]);
+    assert_eq!(sent.quality.as_deref(), Some("medium"), "HHTECH_IMAGE_QUALITY default");
+    let sent = send_with("gpt-image-2", None, None, None, vec![reference(1)], &[(ENV_IMAGE_QUALITY, "low")]);
+    assert_eq!(sent.quality.as_deref(), Some("low"));
+    let sent = send_with("gpt-image-2", None, None, Some("medium"), vec![reference(1)], &[(ENV_IMAGE_QUALITY, "low")]);
+    assert_eq!(sent.quality.as_deref(), Some("medium"));
+}
+
+#[test]
+fn tiers_and_quality_the_model_lacks_are_rejected_before_any_call() {
+    let reject = |model: &str, tier: Option<&str>, quality: Option<&str>, extra: &[(&str, &str)]| {
+        let server = serve(vec![]);
+        let mut req = request(vec![]);
+        req.model_id = model.into();
+        req.params.image_size = tier.map(str::to_string);
+        req.params.quality = quality.map(str::to_string);
+        let err = gateway(&server, extra).generate(&req).unwrap_err();
+        assert_eq!(err.kind, ProviderErrorKind::InvalidRequest, "{err:?}");
+    };
+    reject("gemini-3-pro-image", None, Some("high"), &[]);
+    reject("gpt-image-2", Some("8K"), None, &[]);
+    reject("gpt-image-2", None, Some("ultra"), &[]);
+    reject("my-model", Some("2K"), None, &[(ENV_IMAGE_MODEL, "my-model")]);
 }
 
 #[test]
@@ -532,7 +692,7 @@ fn live_request(key: &str, references: Vec<ReferenceImage>) -> ProviderRequest {
             .ok()
             .and_then(|m| m.split(',').next().map(|s| s.trim().to_string()))
             .filter(|m| !m.is_empty())
-            .unwrap_or_else(|| DEFAULT_IMAGE_MODEL.into()),
+            .unwrap_or_else(|| catalog::CATALOG[0].id.into()),
         prompt: PromptText {
             positive: "A small white concrete pavilion in a green meadow, architectural photograph, overcast light."
                 .into(),
@@ -541,7 +701,13 @@ fn live_request(key: &str, references: Vec<ReferenceImage>) -> ProviderRequest {
             preservation_instructions: String::new(),
         },
         references,
-        params: GenerationParams { aspect_ratio: Some("1:1".into()), image_size: None, output_count: 1, seed: None },
+        params: GenerationParams {
+            aspect_ratio: Some("1:1".into()),
+            image_size: None,
+            output_count: 1,
+            seed: None,
+            quality: None,
+        },
         api_key: Some(key.to_string()),
     }
 }

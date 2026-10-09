@@ -243,6 +243,8 @@ mod tests {
                 "label",
                 "maxOutputs",
                 "maxReferenceImages",
+                "priceHint",
+                "qualityOptions",
                 "supportsNegativePrompt",
                 "supportsSeed",
                 "textToImage"

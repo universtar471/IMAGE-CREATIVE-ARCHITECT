@@ -18,6 +18,7 @@
       "aspectRatio": null,
       "imageSize": null,
       "outputCount": 2,
+      "quality": null,
       "seed": null
     },
     "parentAssetId": "AST_00000000000000000000000003",

@@ -86,6 +86,8 @@ fn to_capabilities(spec: &Spec) -> ModelCapabilities {
         supports_negative_prompt: false,
         // The docs do not state that image models honour `generationConfig.seed`.
         supports_seed: false,
+        quality_options: Vec::new(),
+        price_hint: None,
     }
 }
 

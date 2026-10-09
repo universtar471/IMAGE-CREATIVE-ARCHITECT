@@ -6,8 +6,8 @@
 //! (2026-10-09, base `https://hhtechapi.com/v1`):
 //! - `GET /models` → 200, OpenAI list shape `{ data: [{ id, object, owned_by, … }] }`. The
 //!   gateway also encodes resolution and edit variants in model ids (`gpt-image-2-2k`,
-//!   `gpt-image-2-edit-1k`, …); plain base ids work on both image endpoints, so the app lists
-//!   only what `HHTECH_IMAGE_MODEL` names.
+//!   `gpt-image-2-edit-1k`, …). The app lists base ids only: the built-in [`catalog`] (tiers,
+//!   prices, which ids take a tier suffix) or what `HHTECH_IMAGE_MODEL` names.
 //! - `POST /chat/completions` (`claude-sonnet-5`) → standard `choices[0].message.content`.
 //! - `POST /images/generations` `{model, prompt, size, quality, n, response_format: "b64_json"}`
 //!   → `{ created, data: [{ b64_json }] }` after ~100 s (PNG ~3 MB).
@@ -22,16 +22,20 @@
 //! |---|---|---|
 //! | `HHTECH_API_KEY` (or `ARCH_STUDIO_HHTECH_API_KEY`) | — | Bearer key |
 //! | `HHTECH_BASE_URL` | — (required) | e.g. `https://hhtechapi.com/v1` |
-//! | `HHTECH_IMAGE_MODEL` | `gpt-image-2` | comma-separated model ids for the picker |
-//! | `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent without an aspect ratio (and for its ratio); `auto` omits it |
-//! | `HHTECH_IMAGE_QUALITY` | `medium` | `quality` field |
+//! | `HHTECH_IMAGE_MODEL` | — (the full [`catalog`]) | comma-separated base ids that restrict and order the picker; ids outside the catalog become plain entries without tiers |
+//! | `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent when no tier is chosen, without an aspect ratio (and for its ratio); `auto` omits it |
+//! | `HHTECH_IMAGE_QUALITY` | `medium` | `quality` sent to GPT models when the request leaves it null (never sent to Gemini) |
 //! | `HHTECH_CHAT_MODEL` | `claude-sonnet-5` | prompt enhancement |
 //! | `HHTECH_TIMEOUT_SECS` | `600` | per images call (30–3600); several outputs run as parallel calls |
 
+pub mod catalog;
 #[cfg(test)]
 mod tests;
 
-use super::openai::{gateway_model, Config, Flavor, OpenAiProvider};
+use std::collections::HashMap;
+
+use super::openai::{Config, Flavor, OpenAiProvider, Route};
+use super::ModelCapabilities;
 use crate::secrets::EnvSource;
 
 pub const ID: &str = "hhtech";
@@ -46,7 +50,6 @@ pub const ENV_IMAGE_QUALITY: &str = "HHTECH_IMAGE_QUALITY";
 pub const ENV_CHAT_MODEL: &str = "HHTECH_CHAT_MODEL";
 pub const ENV_TIMEOUT_SECS: &str = "HHTECH_TIMEOUT_SECS";
 
-pub const DEFAULT_IMAGE_MODEL: &str = "gpt-image-2";
 pub const DEFAULT_IMAGE_SIZE: &str = "1024x1024";
 pub const DEFAULT_QUALITY: &str = "medium";
 /// A live 1024x1024 medium image took about 100 s through the gateway (2026-10-09); allow for
@@ -62,7 +65,7 @@ pub fn provider(env: &dyn EnvSource) -> OpenAiProvider {
 }
 
 /// Build the adapter config. Invalid settings never panic: the first problem becomes the
-/// provider's "not configured" reason, and the model list falls back to the default so the
+/// provider's "not configured" reason, and the model list falls back to the full catalog so the
 /// provider can still be listed.
 pub fn config(env: &dyn EnvSource) -> Config {
     let var = |name: &str| env.var(name).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
@@ -76,8 +79,8 @@ pub fn config(env: &dyn EnvSource) -> Config {
         Some(url) => parse_base_url(&url),
     };
 
-    let models: Vec<String> = match var(ENV_IMAGE_MODEL) {
-        None => vec![DEFAULT_IMAGE_MODEL.to_string()],
+    let ids: Vec<String> = match var(ENV_IMAGE_MODEL) {
+        None => Vec::new(),
         Some(list) => {
             let mut ids: Vec<String> = Vec::new();
             for id in list.split(',').map(str::trim).filter(|id| !id.is_empty()) {
@@ -87,12 +90,19 @@ pub fn config(env: &dyn EnvSource) -> Config {
                     ids.push(id.to_string());
                 }
             }
-            if ids.is_empty() {
-                vec![DEFAULT_IMAGE_MODEL.to_string()]
-            } else {
-                ids
-            }
+            ids
         }
+    };
+    // Unset (or nothing valid in it): the full catalog in its default order.
+    let models: Vec<(ModelCapabilities, Route)> = if ids.is_empty() {
+        catalog::CATALOG.iter().map(|e| (e.capabilities(), e.route())).collect()
+    } else {
+        ids.iter()
+            .map(|id| match catalog::find(id) {
+                Some(entry) => (entry.capabilities(), entry.route()),
+                None => (catalog::plain_capabilities(id), Route::default()),
+            })
+            .collect()
     };
 
     let default_size = match var(ENV_IMAGE_SIZE).as_deref() {
@@ -147,7 +157,8 @@ pub fn config(env: &dyn EnvSource) -> Config {
         vendor: VENDOR,
         base_url,
         flavor: Flavor::Gateway,
-        models: models.iter().map(|id| gateway_model(id)).collect(),
+        routes: models.iter().map(|(m, route)| (m.id.clone(), *route)).collect::<HashMap<_, _>>(),
+        models: models.into_iter().map(|(m, _)| m).collect(),
         default_size,
         quality,
         chat_model: Some(chat_model),
