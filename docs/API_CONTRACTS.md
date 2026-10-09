@@ -541,3 +541,56 @@ Both return a new `persisted` value and throw a clear error on an invalid step o
 ### 13.5 Migration
 
 Migration `0004_workflow.sql`: table `workflow_steps(project_id, step_id, status, confirmed_at, PRIMARY KEY(project_id, step_id))`. Backfill: every existing project whose master is approved gets all five dna steps `confirmed` (confirmed_at = migration time), so existing work is not suddenly locked. Other projects start with no rows (= `open`).
+
+## 14. Phase 5 contracts — enhancement (ADR-023)
+
+### 14.1 Params
+
+`GenerationPurpose` gains `"enhance"`. An enhance request is an ordinary `generation_submit` / batch item with `purpose: "enhance"`, exactly one reference (the source asset, role treated as master), and `params.enhance`:
+
+```ts
+EnhanceParams = {
+  mode: "conservative" | "generative",
+  targetLongEdge: 2048 | 3072 | 4096 | null, // null = keep source size (generative only)
+  detailStrength: number,      // integer 0..100, default 40
+  architecturePreserve: boolean // default true
+}
+```
+
+Validation:
+- `conservative` requires `targetLongEdge` not null, and `providerId: "local_upscale"`.
+- `generative` requires a provider whose model supports image references.
+- A target smaller than the source long edge is rejected with `validation_error` ("Enhancement never downsizes; pick a larger target.").
+- An effective long edge above 8192 is rejected.
+
+The prompt for `generative` comes from domain `buildEnhancePrompt({ dna, params })`. `conservative` sends no prompt; the compiled prompt fields are empty strings.
+
+### 14.2 Provider `local_upscale`
+
+Capabilities:
+- `kind` local
+- no key
+- one model `lanczos3` (label "Conservative upscale (local)")
+- references 1
+- outputs 1
+- no seed / negative
+- `qualityOptions` []
+- `priceHint` null
+
+The output is PNG.
+
+Unsharp mask:
+- radius 1.0 px at the output scale
+- amount = `detailStrength / 100 * 0.6`
+- threshold 2/255
+
+### 14.3 Output
+
+- Every enhance output is resized (Lanczos3) to exactly `targetLongEdge` on the long side, keeping aspect, when that is set.
+- The asset role is `regular_image`.
+- The version has `operation = "enhance"`, `operation_json` = the params plus the provider/model actually used, and `parent_version_id` = the source's latest version.
+- Meta records `sourceLongEdge`, `providerLongEdge` and `finalLongEdge`.
+
+### 14.4 Gating
+
+ADR-022 §13.4 is extended: `enhance` needs an approved master, like `variation`.

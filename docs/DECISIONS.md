@@ -265,3 +265,32 @@ The workspace is a guided pipeline so users cannot run steps out of order:
   - `production` additionally needs anchors done or skipped.
   - `variation` needs an approved master only.
 - "Dùng mood này" in the post stage may update confirmed lighting/weather after an explicit confirmation dialog. It is a deliberate change of direction, and the step stays confirmed.
+
+## ADR-023 — Enhancement: conservative local upscale and generative detail through edit providers
+
+Status: accepted (Phase 5; planned by the lead overnight on the user's instruction to continue to the next phase)
+
+Enhancement takes one ready image and produces a NEW asset and version (`operation = "enhance"`). The source is never modified (ADR-004). There are two modes.
+
+**`conservative`**
+- A local, deterministic, free resize to a target long edge: Lanczos3 from the `image` crate, then a mild unsharp mask scaled by detail strength.
+- It runs as a job on the local lane (ADR-017 local concurrency) with provider id `local_upscale`.
+- No network, no prompt.
+
+**`generative`**
+- An image edit through an existing remote provider that supports image-to-image (HHTECH, OpenAI, Gemini).
+- The source is the only reference and has the master role semantics.
+- The prompt is built by the domain from:
+  - an **Architecture Preserve** instruction (default on): keep geometry, openings, proportions, materials, camera and composition exactly; add only fine detail and texture, and fix soft or noisy areas
+  - a detail-strength wording bucket (low / medium / high)
+  - a short DNA material summary
+- With Architecture Preserve off, the wording allows richer generative detail but still forbids changing the building.
+- The provider's own output size is not exact (gateway tiers). The job therefore finishes with the same local Lanczos resize to the requested long edge, so every enhance output has an exact long edge.
+- HHTECH default model: Gemini 3 Pro Image at the 4K tier when the target long edge is greater than 2048, otherwise 2K. It is the best measured geometry preservation; see `docs/agent-notes/hhtech-models.md`.
+
+**Shared mechanics**
+- Long-edge targets: 2048, 3072, 4096 (and "keep" for generative detail at the source size). Hard cap 8192.
+- Enhancement uses the existing generation and job pipeline with a new generation purpose `enhance`.
+- Batch enhancement is an ordinary batch (ADR-018), with one item per selected image.
+- Workflow gating (ADR-022): `enhance` needs an approved master, like `variation`.
+- The UI lives in Hậu kỳ › Nâng cấp. A compare view shows source and result with before / after / split, generalising the grade preview's compare.
