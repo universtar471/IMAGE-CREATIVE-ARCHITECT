@@ -5,7 +5,8 @@ architectural data ("DNA"), references and — in later phases — replaceable A
 
 Current state: **Phase 2** — provider-neutral AI foundation on top of the Phase 1 local core:
 Generate module (Hero / Variation), provider settings, generation History and version lineage.
-Providers: Google Gemini (needs an API key) and an offline `local_preview` placeholder renderer.
+Providers: Google Gemini and OpenAI GPT Image (each needs an API key) and an offline
+`local_preview` placeholder renderer.
 See `CLAUDE.md`, `docs/`, `tasks/PHASE_01.md` and `tasks/PHASE_02.md` for the product plan.
 
 ## Layout
@@ -64,17 +65,31 @@ Set `ARCH_STUDIO_DATA_DIR` to use a different folder (e.g. a throwaway test prof
 
 Open **Generate → Provider settings** (or the provider chip in the top bar), paste the key and
 press Save. Keys are stored in the OS credential store (Windows Credential Manager, entry
-`com.archaistudio.desktop.provider` / `gemini`), never in SQLite, project files or the webview.
-For development you can instead set `ARCH_STUDIO_GEMINI_API_KEY`.
+`com.archaistudio.desktop.provider` / `<provider id>`), never in SQLite, project files or the
+webview. For development you can instead set `ARCH_STUDIO_GEMINI_API_KEY` or
+`ARCH_STUDIO_OPENAI_API_KEY`.
+
+| Provider | Get a key | Account needs |
+|---|---|---|
+| `gemini` | aistudio.google.com/apikey | billing on the key's project (image models have little or no free quota) |
+| `openai` | platform.openai.com/api-keys | prepaid credits (platform.openai.com/settings/organization/billing); GPT Image models may require Organization Verification (platform.openai.com/settings/organization/general) |
+
+OpenAI models: GPT Image 2.5 Sunburst, GPT Image 2.5 Flare and GPT Image 2. Requests without
+references use `/v1/images/generations`; with references (up to 16) `/v1/images/edits`. Each
+request asks for quality `high` and PNG output; aspect ratio + 1K/2K map to a concrete size.
+A 429 for missing credit or a spend limit fails at once with a billing hint instead of being
+retried.
 
 `local_preview` needs no key and no network: it produces deterministic placeholder images so the
 whole flow (history, lineage, "Use as master") can be tried for free.
 
-Live Gemini smoke test (costs one image, never prints the key):
+Live smoke tests (each costs one image, never prints the key):
 
 ```bash
 cd apps/desktop/src-tauri
 ARCH_STUDIO_GEMINI_API_KEY=<key> cargo test gemini_live -- --ignored --nocapture
+ARCH_STUDIO_OPENAI_API_KEY=<key> cargo test openai_live -- --ignored --nocapture
+# optional: ARCH_STUDIO_OPENAI_MODEL=gpt-image-2.5-flare (default gpt-image-2.5-sunburst)
 ```
 
 Contract fixtures: `cargo test` checks the JSON in `apps/desktop/tests/fixtures/backend` that the
