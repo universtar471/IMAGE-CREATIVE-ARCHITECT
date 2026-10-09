@@ -662,3 +662,69 @@ After `commit_outputs` of every successful generation (including `repair` output
 2. If the result is `fail` and `repairDepth < autoRepairMax`, it submits one repair generation through the normal gated path. A repair output is QC'd even when its depth has reached `autoRepairMax`; it simply cannot enqueue another repair.
 
 Failures of automation are logged and stored nowhere else. They never fail the original generation.
+
+## 16. Phase 7 contracts — region editing (ADR-025)
+
+### 16.1 Shapes (Zod in `packages/domain/src/regions/`, Rust DTOs camelCase)
+
+```ts
+RegionShape =
+  | { type: "rect", x: number, y: number, w: number, h: number }                // normalised 0..1
+  | { type: "polygon", points: [number, number][] }                             // >= 3 points
+  | { type: "brush", strokes: { points: [number, number][], radius: number }[] } // radius normalised to the long edge
+RegionDTO = { id: "RGN_<ULID>", projectId, assetId, label: string, kind: "object" | "zone" | "material",
+              objectId: string | null, shape: RegionShape, createdAt: string, updatedAt: string }
+SceneObject = { id: "OBJ_<ULID>", name: string,
+                category: "wall" | "roof" | "window" | "door" | "floor" | "landscape" | "furniture" | "sky" | "other",
+                material?: string, relations: { type: "on" | "next_to" | "inside" | "above" | "below", targetId: string }[] }
+ProjectDNA.scene = { schemaVersion: 1, objects: SceneObject[] } // optional, additive
+RegionEditParams = { regionIds: string[] /* >= 1 */, instruction: string, mode: "edit" | "material_replace", material?: string }
+```
+
+Validation:
+- `material` is required when `mode` is `material_replace`.
+- `instruction` may be empty only in that mode.
+
+Domain pure functions:
+- `rasterizeMask(shapes, width, height) -> Uint8Array`: 255 inside, 0 outside, union. Polygon uses even-odd fill. A pixel is inside when its centre is inside. Brush draws discs at every point and capsules between consecutive points.
+- `featherMask(mask, width, height, radiusPx) -> Uint8Array`: a box blur repeated 3 times.
+- `buildRegionEditPrompt({ dna, regions, params, nativeMask })`.
+- Scene helpers:
+  - `newSceneObjectId()`
+  - `sceneObjectLines(dna)`: the prompt lines for pinned objects
+  - The compiler includes pinned-object preservation lines. The compiler version bumps to `pc-1.3.0`.
+- Test vectors: `packages/domain/test-vectors/masks.json`. Small sizes; all three shape types, a union and feathering. Rust must match exactly. Feathering may differ by ±1 per pixel.
+
+### 16.2 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `region_list` | `{ projectId, assetId }` | `RegionDTO[]` |
+| `region_save` | `{ projectId, assetId, region: { id?, label, kind, objectId, shape } }` | `RegionDTO` (create when no `id`, else update) |
+| `region_delete` | `{ projectId, regionId }` | `{ deleted: true }` |
+
+- `region_save` validates the shape and requires that the `objectId` exists in `dna.scene` when it is set.
+- An archived project returns the existing error.
+
+### 16.3 Region edit generation
+
+- `GenerationPurpose` gains `"region_edit"`. Gating is the same as `variation`.
+- The request has exactly one reference, the asset, plus `params.region`.
+- Every `regionId` must belong to that asset.
+- Model capabilities gain `supportsMask: boolean`:
+  - true: OpenAI official, HHTECH GPT models
+  - false: Gemini, local
+- Backend steps:
+  1. Rasterise the union at the source size.
+  2. Native: send `mask` (PNG; alpha 0 = edit) in images/edits.
+  3. Otherwise: add the mask, as a white-on-black PNG, as a second image after the source. Tell the model about it in the prompt.
+  4. Resize the provider output to the source size.
+  5. Composite with the mask feathered by 8 px.
+  6. Write the new asset and version: `operation = "region_edit"`, `operation_json = { params, regionShapes, nativeMask, providerId, model }`.
+- Meta records `nativeMask` and `maskCoveragePct`.
+
+### 16.4 Storage
+
+Migration `0006_regions.sql` creates `regions(id, project_id, asset_id, label, kind, object_id, shape_json, created_at, updated_at)`:
+- index on `(project_id, asset_id)`
+- cascade on project and asset delete

@@ -347,3 +347,54 @@ QC scores a ready image against its references and stores a report. It never mod
 
 QC lives in Hậu kỳ › QC. The canvas can overlay artifact boxes.
 - Operational note: QC work in flight on a detached automation thread is not resumed after an app restart; no automation state is persisted.
+
+## ADR-025 — Region editing: per-asset regions, project scene objects, masked edits always composited locally
+
+Status: accepted (Phase 7; planned by the lead overnight on the user's instruction to continue to the next phase)
+
+**Regions**
+- A region is a shape drawn on one asset: rectangle, polygon or brush strokes.
+- Coordinates are normalised 0..1 to the asset's pixel size.
+- Regions are stored per asset in a `regions` table.
+- A region has:
+  - a label
+  - a kind: `object`, `zone` or `material`
+  - an optional link to a project scene object
+
+**Scene objects**
+- They live in the DNA as an additive `scene` section: `objects[{ id: OBJ_<ULID>, name, category, material?, relations[{ type, targetId }] }]`.
+- They give stable object IDs across images.
+- The existing `LockState.objectIds` pins objects. A pinned object adds a preservation line to every prompt.
+- The scene section is not one of the five guided DNA steps. It stays editable at any stage.
+
+**Masks**
+- Masks are rasterised deterministically from regions:
+  - rectangle and polygon use even-odd fill
+  - brush draws round strokes of a given radius
+- The rules are implemented in TS (UI preview and mock) and in Rust (backend), checked against shared test vectors.
+- A union of the selected regions forms the edit mask.
+
+**Selective edit**
+- A selective edit is a generation with purpose `region_edit`. The asset is the only reference.
+- `params.region` holds:
+  - `regionIds`
+  - `instruction`
+  - `mode`: `edit` or `material_replace`
+  - `material`: required when `mode` is `material_replace`
+- Providers whose model advertises `supportsMask` receive the mask natively, following the OpenAI images/edits convention: transparent pixels = area to edit.
+  - These are OpenAI official and the HHTECH GPT models.
+  - Mask support was not live-verified during planning; a `#[ignore]` live test documents how to check it.
+- Other models (Gemini) get the mask as a second reference image, plus an instruction to change only the white area.
+
+**Composite rule (always applied)**
+- Whatever the provider returns is resized to the source size.
+- It is then composited over the source with the mask feathered by 8 px at the source scale.
+- Pixels outside the edit mask are therefore guaranteed to stay the source's, for every provider.
+- The output is a new asset and version with `operation = "region_edit"`. The source is never modified.
+
+**Auto-select**
+- Segmentation needs a model this app does not ship. The tool is shown disabled as "later" and is deferred.
+
+**Gating**
+- The same as `variation`: needs an approved master.
+- The UI lives in Hậu kỳ › Chỉnh vùng.
