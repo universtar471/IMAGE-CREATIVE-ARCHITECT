@@ -291,6 +291,16 @@ Zod source of truth: `packages/domain/src/schemas/generation.ts`. Rust mirrors i
 `src-tauri/src/providers/mod.rs` + `src-tauri/src/dto.rs` (camelCase). New error code:
 `PROVIDER_NOT_CONFIGURED` (details: `{ providerId }`).
 
+Capabilities and params added for priced gateways (HHTECH, §11):
+- `ModelCapabilities.qualityOptions`: `("low" | "medium" | "high")[]`, the values
+  `GenerationParams.quality` may take; empty for official OpenAI (always sends `high`), Gemini
+  and `local_preview`.
+- `ModelCapabilities.priceHint`: `Record<tier, VND> | null`, estimated price per image by
+  `imageSizes` tier; a tier missing from the map has no published price; `null` for every
+  provider except HHTECH catalog models. The UI multiplies it by the image count.
+- `GenerationParams.quality`: `"low" | "medium" | "high" | null`; `null` = the provider's
+  default. Requests and stored rows without the field read as `null`.
+
 | Command | Request | Response |
 |---|---|---|
 | `provider_list` | `{}` | `ProviderDescriptorDTO[]` |
@@ -307,7 +317,8 @@ Zod source of truth: `packages/domain/src/schemas/generation.ts`. Rust mirrors i
 - `INVALID_STATE` — project archived, reference file missing
 - `VALIDATION_ERROR` — empty positive prompt, duplicate references, too many references,
   `outputCount` above `maxOutputs`, `aspectRatio`/`imageSize` not in the model's list
-  (an empty list means the provider decides, so the value must be `null`), `seed` set on a model without seed support, references on a
+  (an empty list means the provider decides, so the value must be `null`), `seed` set on a model without seed support,
+  `quality` not in the model's `qualityOptions` (empty = only `null`), references on a
   model without image-to-image, no references on a model without text-to-image
 - `PROVIDER_NOT_CONFIGURED` — provider needs a key and none is available
 
@@ -373,9 +384,18 @@ Zod source of truth: `PromptEnhanceRequestSchema` / `PromptEnhanceResultSchema` 
   for a failed call, details `{ providerId, kind, retryable }` with `kind` as in §9.
 
 Provider `hhtech` ("HHTECH (OpenAI-compatible)", remote, key required) appears in
-`provider_list` between `openai` and `local_preview`. Its models come from `HHTECH_IMAGE_MODEL`
-(default `gpt-image-2`), with the GPT Image aspect ratios and no `imageSizes` (the size follows
-the aspect ratio; `HHTECH_IMAGE_SIZE` without one). `configured` is false while
+`provider_list` between `openai` and `local_preview`. Its models are the built-in catalog
+(`providers/hhtech/catalog.rs`; order: `gpt-image-2.5-sunburst`, `gemini-3-pro-image`,
+`gpt-image-2.5-flare`, `gpt-image-2`, `gemini-3.1-flash-image`, `gemini-2.5-flash-image`),
+restricted and reordered by `HHTECH_IMAGE_MODEL` when set (ids outside the catalog: plain
+entries, no `imageSizes`, `priceHint: null`). Catalog models have the ten GPT Image aspect
+ratios, `imageSizes` `["1K","2K","4K"]` (real billed tiers on this gateway), labels with the
+price list and a `priceHint`. GPT models: `qualityOptions` low/medium/high, 16 references, tier
+sent as `size` (long edge 1024/2048/3840 by aspect ratio, multiples of 16). Gemini models: no
+quality options, 14 references (unverified beyond 1), tier sent as the model id (`<base>` = 1K,
+`<base>-2k`, `<base>-4k`; never `-edit-*`) with the computed size for the aspect. No tier:
+`HHTECH_IMAGE_SIZE` as before. Generation `meta` records `tier` and `requestModel` (the id
+sent). `configured` is false while
 `HHTECH_BASE_URL` is missing or invalid, even if a key exists (`keySource` still says where the
 key is). Base URL, models, size, quality and chat model are read from the environment / `.env`
 only and never appear in SQLite, logs or DTOs other than the model ids.
