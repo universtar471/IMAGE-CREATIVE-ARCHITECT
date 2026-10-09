@@ -227,3 +227,41 @@ that preset's sections overriding the DNA and a preservation instruction to keep
 architecture, camera and composition and change only light, weather and atmosphere.
 Locked sections are not overridden. Choosing a result ("Adopt this mood") writes that
 preset's sections into the DNA; nothing is written before the user adopts.
+
+## ADR-022 — Guided workflow: stages, ordered steps, confirm-and-lock
+Status: accepted (Phase 4B, requested by the user after testing Phase 4)
+
+The workspace is a guided pipeline so users cannot run steps out of order:
+
+1. **DNA thiết kế** (stage `dna`): Kiến trúc → Bối cảnh → Tham chiếu → Góc máy → Ánh sáng. Each is a sub-tab.
+2. **Tạo ảnh** (stage `generate`): Ảnh Master → Anchor → Render các góc máy.
+3. **Hậu kỳ** (stage `post`): Mood / Chỉnh màu (and later Enhance, QC).
+4. **Tổng quan** summarises every step, allows quick edits of key fields, and links to each sub-tab.
+
+**Confirming a step.**
+- A DNA step is finished with "Xác nhận & khoá". Defaults are acceptable: an untouched step can be confirmed.
+- A confirmed step is read-only until "Mở khoá".
+- Reopening a step marks every LATER confirmed DNA step `needs_review`. Generated images are never deleted.
+
+**Viewing a locked step.**
+- A step whose prerequisite is unmet can be viewed but not edited or run.
+- It shows a banner naming the blocking step, with a button to jump there.
+
+**Generate-stage steps are derived from data, not confirmed by hand.**
+- Master is done when the project has an approved master.
+- Anchor is done when every anchor-view camera has an approved anchor. It is skipped when no camera is an anchor view.
+- Camera setup (defining views) stays in DNA › Góc máy.
+- Creating and approving anchors and rendering cameras move to the Tạo ảnh stage.
+
+**Post stage** needs an approved master only, not the DNA confirmations, so grading existing images never depends on DNA edits.
+
+**Workflow locks vs. prompt locks.** Workflow step state is separate from the DNA `LockState`, which keeps meaning "preserve this section in prompts, presets and variations". In the UI the prompt lock is renamed "Ghim" (pin) so the two kinds of lock are not confused.
+
+**Enforcement.**
+- Edits are enforced in the UI.
+- Generation is also enforced in the backend:
+  - `hero` needs all DNA steps confirmed.
+  - `anchor` additionally needs an approved master.
+  - `production` additionally needs anchors done or skipped.
+  - `variation` needs an approved master only.
+- "Dùng mood này" in the post stage may update confirmed lighting/weather after an explicit confirmation dialog. It is a deliberate change of direction, and the step stays confirmed.
