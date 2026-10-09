@@ -18,7 +18,10 @@ type AppErrorCode =
   | "DB_ERROR"
   | "CONFLICT"
   | "UNSUPPORTED_FILE"
-  | "INVALID_STATE";
+  | "INVALID_STATE"
+  | "DUPLICATE_ASSET"
+  | "PROVIDER_NOT_CONFIGURED"
+  | "PROVIDER_ERROR";
 
 type AppError = {
   code: AppErrorCode;
@@ -343,3 +346,32 @@ New commands:
 `batch_create` validates every item like `generation_submit` before inserting anything
 (all-or-nothing). Events (Tauri `emit`, payload = DTO): `job://updated` (`JobDTO`),
 `generation://updated` (`GenerationDTO`).
+
+## 11. Prompt enhancement and the HHTECH provider
+
+Zod source of truth: `PromptEnhanceRequestSchema` / `PromptEnhanceResultSchema` in
+`packages/domain/src/schemas/generation.ts`; Rust: `src-tauri/src/services/prompt_enhance.rs`.
+
+| Command | Request | Response |
+|---|---|---|
+| `prompt_enhance` | `{ projectId, providerId, text, context }` | `{ text }` |
+
+- `text`: the user's editable extra prompt (1–4000 chars after trimming). `context`: Project DNA
+  facts to keep (the UI sends the compiled positive + preservation text; ≤ 20000 chars, may be
+  empty). Nothing is stored; the UI previews the result for Accept / Discard.
+- The provider must offer chat (today only `hhtech`, model `HHTECH_CHAT_MODEL`); the backend
+  sends a fixed system prompt (more specific materials, light, camera, atmosphere; keep every
+  DNA fact; no invented dimensions; return only the prompt) and the user message
+  `Project DNA context (facts to preserve): … Prompt to rewrite: …`.
+- Errors: `NOT_FOUND` (project or provider), `VALIDATION_ERROR` (empty/too long text or context,
+  provider without chat), `PROVIDER_NOT_CONFIGURED` (no key, or the provider's own setup problem
+  such as a missing `HHTECH_BASE_URL`; details `{ providerId }`), and the new `PROVIDER_ERROR`
+  for a failed call, details `{ providerId, kind, retryable }` with `kind` as in §9.
+
+Provider `hhtech` ("HHTECH (OpenAI-compatible)", remote, key required) appears in
+`provider_list` between `openai` and `local_preview`. Its models come from `HHTECH_IMAGE_MODEL`
+(default `gpt-image-2`), with the GPT Image aspect ratios and no `imageSizes` (the size follows
+the aspect ratio; `HHTECH_IMAGE_SIZE` without one). `configured` is false while
+`HHTECH_BASE_URL` is missing or invalid, even if a key exists (`keySource` still says where the
+key is). Base URL, models, size, quality and chat model are read from the environment / `.env`
+only and never appear in SQLite, logs or DTOs other than the model ids.
