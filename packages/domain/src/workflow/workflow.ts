@@ -237,9 +237,9 @@ export function isGenerationAllowed(
   facts: WorkflowFacts,
 ): GenerationAllowed {
   const first = firstUnconfirmed(persisted);
-  if (purpose !== "variation" && purpose !== "enhance" && first)
+  if (purpose !== "variation" && purpose !== "enhance" && purpose !== "repair" && first)
     return { ok: false, blockedBy: first };
-  if (purpose === "variation" || purpose === "enhance") {
+  if (purpose === "variation" || purpose === "enhance" || purpose === "repair") {
     return facts.masterApproved ? { ok: true } : { ok: false, blockedBy: "generate.master" };
   }
   if ((purpose === "anchor" || purpose === "production") && !facts.masterApproved) {
