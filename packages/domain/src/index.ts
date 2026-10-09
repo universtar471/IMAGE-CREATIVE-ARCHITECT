@@ -19,6 +19,7 @@ export * from "./ids";
 export type * from "./providers";
 export * from "./camera/describe";
 export * from "./generation/batch";
+export * from "./generation/enhance";
 export * from "./grade";
 export * from "./workflow/schemas";
 export * from "./workflow/workflow";
