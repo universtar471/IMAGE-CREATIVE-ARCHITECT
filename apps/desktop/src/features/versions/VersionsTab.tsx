@@ -72,9 +72,11 @@ export function VersionsTab() {
               </span>
               <span className={`badge ${v.generationId ? "badge-info" : "badge-neutral"}`}>
                 {v.generationId && <Sparkles size={10} />}
-                {v.operation === "import" || v.operation === "generate"
-                  ? t(`labels.operation.${v.operation}`)
-                  : v.operation}
+                {v.operation === "enhance"
+                  ? enhanceVersionLabel(gen, t)
+                  : v.operation === "import" || v.operation === "generate"
+                    ? t(`labels.operation.${v.operation}`)
+                    : v.operation}
               </span>
               {v.generationId && (
                 <span className="field-hint version-gen">
@@ -94,4 +96,29 @@ export function VersionsTab() {
       })}
     </ul>
   );
+}
+
+function enhanceVersionLabel(
+  generation: { params: unknown } | undefined,
+  translate: ReturnType<typeof useT>,
+): string {
+  const enhance = (
+    generation?.params as
+      | { enhance?: { mode?: string; targetLongEdge?: number | null; detailStrength?: number } }
+      | undefined
+  )?.enhance;
+  if (!enhance) return translate("enhance.title");
+  const target = enhance.targetLongEdge
+    ? `${enhance.targetLongEdge}px`
+    : translate("enhance.keepSize");
+  const mode =
+    enhance.mode === "generative"
+      ? translate("enhance.aiDetail")
+      : translate("enhance.preserveDetail");
+  return translate("versions.enhanceSummary", {
+    count: 1,
+    target,
+    mode,
+    strength: enhance.detailStrength ?? 40,
+  });
 }

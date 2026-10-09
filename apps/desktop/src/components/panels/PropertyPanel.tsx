@@ -12,6 +12,7 @@ import { FutureModulePlaceholder } from "../common/states";
 import { useT } from "../../i18n";
 import { LightingPanel } from "../../features/lighting/LightingPanel";
 import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
+import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 
 /** Contextual right panel: content depends on the active module / selection. */
@@ -74,6 +75,7 @@ export function PropertyPanel() {
             <MoodGradePanel />
           </PostStepFrame>
         )}
+        {active === "enhance" && <EnhancePanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact
