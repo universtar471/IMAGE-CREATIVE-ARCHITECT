@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { assetPreview } from "../src/lib/bridge";
 import { asset } from "./helpers";
+import { findSubmittedEnhanceResult } from "../src/features/workspace/ProjectWorkspace";
+import type { GenerationDTO } from "@arch/domain";
 import {
   buildEnhanceItems,
   buildEnhanceRequest,
@@ -14,6 +16,24 @@ vi.mock("../src/lib/bridge", () => ({
 }));
 
 describe("enhance UI contract", () => {
+  it("ignores a completed result after switching projects", () => {
+    const generation = {
+      id: "gen-old",
+      projectId: "project-old",
+      purpose: "enhance",
+      status: "completed",
+      outputAssetIds: ["result-old"],
+    } as GenerationDTO;
+    expect(
+      findSubmittedEnhanceResult(
+        "project-new",
+        { projectId: "project-old", generationId: "gen-old" },
+        [generation],
+        [asset("project-old", "result-old")],
+      ),
+    ).toBeNull();
+  });
+
   it("disables targets below the source long edge", () => {
     expect(disabledEnhanceTargets(3000)).toEqual({ 2048: true, 3072: false, 4096: false });
     expect(disabledEnhanceTargets(4096)).toEqual({ 2048: true, 3072: true, 4096: false });
@@ -111,5 +131,33 @@ describe("CompareCanvas", () => {
       assetId: "result",
       maxEdge: 1600,
     });
+  });
+
+  it("clears the old pair immediately and revokes a late preview URL", async () => {
+    const { CompareCanvas } = await import("../src/components/canvas/CompareCanvas");
+    const revoke = vi.spyOn(URL, "revokeObjectURL");
+    let resolvePreview!: (blob: Blob) => void;
+    vi.mocked(assetPreview).mockReset();
+    vi.mocked(assetPreview).mockImplementation(({ projectId }) =>
+      projectId === "p"
+        ? new Promise<Blob>((resolve) => (resolvePreview = resolve))
+        : Promise.resolve(new Blob(["new"], { type: "image/png" })),
+    );
+    const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:late");
+    const first = render(
+      <CompareCanvas source={asset("p", "source")} result={asset("p", "result")} />,
+    );
+    await waitFor(() => expect(assetPreview).toHaveBeenCalled());
+    await act(async () => {
+      first.rerender(
+        <CompareCanvas source={asset("p2", "new-source")} result={asset("p2", "new-result")} />,
+      );
+      await Promise.resolve();
+    });
+    expect(first.container.querySelectorAll('img[alt="Before"]')).toHaveLength(1);
+    await act(async () => resolvePreview(new Blob(["late"], { type: "image/png" })));
+    expect(revoke).toHaveBeenCalledWith("blob:late");
+    create.mockRestore();
+    revoke.mockRestore();
   });
 });

@@ -684,6 +684,7 @@ export const vi: Dict = {
     allRoles: "Mọi vai trò",
     importAs: "Nhập với vai trò",
     listLabel: "Ảnh của dự án",
+    batchSelect: "Chọn",
     importing: "Đang nhập {done}/{total}…",
     importImages: "Nhập ảnh",
     noneWithRole: "Không có ảnh nào mang vai trò này",
@@ -812,6 +813,19 @@ export const vi: Dict = {
     after: "Sau",
     split: "Vị trí chia",
     previewError: "Không tải được bản xem trước ảnh.",
+    batchSubmit: "Queue {count} images",
+    batchSelected: "Selected ready images: {count}",
+    batchTargetReason: "Source long edge {edge}px is larger than this target",
+    batchTargetBlocked: "Choose a target that is not smaller than any selected source.",
+    batchCost: "Estimated HHTECH cost: {amount}đ ({tier})",
+    batchCostFree: "{count} ảnh · xử lý tại máy, miễn phí",
+    batchPromptHint:
+      "Generative enhancement uses the Architecture Preserve prompt for every source.",
+    howToUse: "How to use",
+    howToUseConservative:
+      "Conservative is free and local: sharper and larger without design changes.",
+    howToUseGenerative: "Generative adds real AI detail and uses credits.",
+    howToUsePreserve: "Architecture Preserve keeps the building, openings, proportions and camera.",
   },
 
   extra: {

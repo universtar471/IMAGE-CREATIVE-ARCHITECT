@@ -14,7 +14,27 @@ import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
-import type { ColorGradeDNA } from "@arch/domain";
+import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
+
+export function findSubmittedEnhanceResult(
+  projectId: string,
+  submission: { projectId: string; generationId: string } | null,
+  generations: readonly GenerationDTO[],
+  assets: readonly AssetDTO[],
+): AssetDTO | null {
+  if (!submission || submission.projectId !== projectId) return null;
+  const generation = generations.find(
+    (item) =>
+      item.id === submission.generationId &&
+      item.projectId === projectId &&
+      item.purpose === "enhance" &&
+      item.status === "completed",
+  );
+  return (
+    generation?.outputAssetIds.map((id) => assets.find((asset) => asset.id === id)).find(Boolean) ??
+    null
+  );
+}
 
 /** Permanent four-zone workspace: top bar / nav | center | properties / bottom tray. */
 export function ProjectWorkspace({ projectId }: { projectId: string }) {
@@ -75,15 +95,21 @@ function CenterArea() {
   const asset =
     assets.find((a) => a.id === selectedId) ?? assets.find((a) => a.id === masterId) ?? null;
   const generations = useStudio((s) => s.workspace!.generations);
-  const enhanceGeneration = [...generations]
-    .reverse()
-    .find((generation) => generation.purpose === "enhance" && generation.status === "completed");
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const enhanceSubmission = useStudio((s) => s.enhanceSubmission);
+  const submittedResult = findSubmittedEnhanceResult(
+    projectId,
+    enhanceSubmission,
+    generations,
+    assets,
+  );
+  const enhanceGeneration = enhanceSubmission
+    ? generations.find((generation) => generation.id === enhanceSubmission.generationId)
+    : undefined;
   const enhanceSource = enhanceGeneration
     ? (assets.find((item) => item.id === enhanceGeneration.referenceAssetIds[0]) ?? null)
     : null;
-  const enhanceResult = enhanceGeneration
-    ? (assets.find((item) => item.id === enhanceGeneration.outputAssetIds[0]) ?? null)
-    : null;
+  const enhanceResult = submittedResult;
   const grade = (useStudio((s) => s.workspace!.draftDna.colorGrade) ?? {
     schemaVersion: 1,
     exposure: 0,
@@ -105,7 +131,7 @@ function CenterArea() {
       useStudio.getState().selectAsset(enhanceResult.id);
       setCenterView("canvas");
     }
-  }, [active, enhanceResult, selectedId, setCenterView]);
+  }, [active, enhanceResult, selectedId, setCenterView, projectId, enhanceSubmission]);
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>

@@ -680,6 +680,7 @@ export const en = {
     allRoles: "All roles",
     importAs: "Import as",
     listLabel: "Project assets",
+    batchSelect: "Select",
     importing: "Importing {done}/{total}…",
     importImages: "Import images",
     noneWithRole: "No assets with this role",
@@ -799,6 +800,20 @@ export const en = {
     showPrompt: "Show enhance prompt",
     submit: "Enhance",
     batch: "Batch enhance",
+    batchSubmit: "Queue {count} images",
+    batchSelected: "Selected ready images: {count}",
+    batchTargetReason: "Source long edge {edge}px is larger than this target",
+    batchTargetBlocked: "Choose a target that is not smaller than any selected source.",
+    batchCost: "Estimated HHTECH cost: {amount}đ ({tier})",
+    batchCostFree: "{count} images · free local processing",
+    batchPromptHint:
+      "Generative enhancement uses the Architecture Preserve prompt for every source.",
+    howToUse: "How to use",
+    howToUseConservative:
+      "Conservative is free and local: it makes the image sharper and larger without changing the design.",
+    howToUseGenerative: "Generative adds real AI detail and uses credits.",
+    howToUsePreserve:
+      "Architecture Preserve keeps the building, openings, proportions and camera intact.",
     needsMaster: "Approve a master architecture image before enhancing.",
     noSource: "Select a ready image to enhance.",
     noCompare: "Complete an enhancement to compare before and after.",

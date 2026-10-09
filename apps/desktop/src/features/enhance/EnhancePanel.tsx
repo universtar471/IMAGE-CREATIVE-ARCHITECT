@@ -6,10 +6,10 @@ import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, SelectField } from "../../components/panels/fields";
 import { useT } from "../../i18n";
 import { isMasterApproved } from "../camera/labels";
+import { EnhanceBatchDialog } from "./EnhanceBatchDialog";
 import {
   DEFAULT_ENHANCE_PARAMS,
   ENHANCE_TARGETS,
-  buildEnhanceItems,
   buildEnhanceRequest,
   enhancePrompt,
   sourceLongEdge,
@@ -30,7 +30,6 @@ export function EnhancePanel() {
   const providers = useStudio((s) => s.providers ?? []);
   const loadProviders = useStudio((s) => s.loadProviders);
   const submit = useStudio((s) => s.submitGeneration);
-  const createBatch = useStudio((s) => s.createBatch);
   const readOnly = useStudio(selectReadOnly);
   const selectedId = useStudio((s) => s.selectedAssetId) ?? ws.project.activeMasterAssetId;
   const source =
@@ -40,6 +39,7 @@ export function EnhancePanel() {
   const [modelId, setModelId] = useState("lanczos3");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   const t = useT();
 
   const approved = isMasterApproved(ws.project.status);
@@ -61,10 +61,8 @@ export function EnhancePanel() {
     ) ?? [];
   const model = models.find((item) => item.id === modelId) ?? models[0] ?? null;
   const prompt = useMemo(() => enhancePrompt(params, ws.draftDna), [params, ws.draftDna]);
-  const cost =
-    model?.priceHint && params.targetLongEdge
-      ? model.priceHint[params.targetLongEdge > 2048 ? "4K" : "2K"]
-      : null;
+  const costTier = params.targetLongEdge === 4096 ? "4K" : "2K";
+  const cost = model?.priceHint ? model.priceHint[costTier] : null;
   const disabled = readOnly || !approved || !source || !!validation || !provider || !model || busy;
 
   useEffect(() => {
@@ -98,29 +96,6 @@ export function EnhancePanel() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const batch = async () => {
-    if (!source || !provider || !model || validation) return;
-    const items = buildEnhanceItems({
-      projectId: ws.project.id,
-      assetIds: [source.id],
-      params,
-      assets: ws.assets,
-      baseParams: EMPTY_PARAMS,
-      providerId: provider.id,
-      model,
-      dna: ws.draftDna,
-    });
-    await createBatch({
-      projectId: ws.project.id,
-      providerId: provider.id,
-      modelId: model.id,
-      purpose: "enhance",
-      name: `${t("enhance.title")} · ${source.originalName ?? source.id}`,
-      priority: 0,
-      items,
-    });
   };
 
   return (
@@ -224,6 +199,11 @@ export function EnhancePanel() {
           </div>
         )}
       </SectionPanel>
+      <SectionPanel title={t("enhance.howToUse")} defaultOpen={false}>
+        <p className="field-hint">{t("enhance.howToUseConservative")}</p>
+        <p className="field-hint">{t("enhance.howToUseGenerative")}</p>
+        <p className="field-hint">{t("enhance.howToUsePreserve")}</p>
+      </SectionPanel>
       {params.mode === "generative" && (
         <SectionPanel title={t("enhance.provider")}>
           <div className="field-row">
@@ -288,12 +268,19 @@ export function EnhancePanel() {
         <button
           className="btn"
           disabled={disabled}
-          onClick={() => void batch()}
+          onClick={() => setBatchOpen(true)}
           data-testid="enhance-batch"
         >
           <Layers size={14} /> {t("enhance.batch")}
         </button>
       </div>
+      {batchOpen && source && (
+        <EnhanceBatchDialog
+          sources={[source]}
+          initialParams={params}
+          onClose={() => setBatchOpen(false)}
+        />
+      )}
     </div>
   );
 }

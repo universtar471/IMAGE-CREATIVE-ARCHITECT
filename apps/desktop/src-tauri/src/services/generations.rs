@@ -1765,4 +1765,59 @@ mod tests {
         assert!(validate(&core, down).unwrap_err().message.contains("target must be 2048"));
         assert!(!tmp.path().as_os_str().is_empty());
     }
+
+    #[test]
+    fn enhance_validation_rejects_negative_detail_strength() {
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Enhance detail strength");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [1, 2, 3]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let mut request = enhance_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            crate::providers::EnhanceMode::Conservative,
+            Some(2048),
+        );
+        request.params.enhance.as_mut().unwrap().detail_strength = -1;
+        let err = validate(&core, request).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("integer from 0 to 100"));
+    }
+
+    #[test]
+    fn enhance_request_with_fractional_detail_strength_cannot_be_deserialized() {
+        let raw = serde_json::json!({
+            "projectId": "p",
+            "providerId": "local_upscale",
+            "modelId": "lanczos3",
+            "purpose": "enhance",
+            "referenceAssetIds": ["a"],
+            "params": {
+                "aspectRatio": null,
+                "imageSize": null,
+                "outputCount": 1,
+                "seed": null,
+                "quality": null,
+                "enhance": {
+                    "mode": "conservative",
+                    "targetLongEdge": 2048,
+                    "detailStrength": 40.5,
+                    "architecturePreserve": true
+                }
+            },
+            "cameraId": null,
+            "prompt": {
+                "compilerVersion": "",
+                "positivePrompt": "",
+                "negativePrompt": "",
+                "referenceInstructions": "",
+                "preservationInstructions": "",
+                "metadata": {}
+            }
+        });
+        let err = serde_json::from_value::<SubmitRequest>(raw).unwrap_err();
+        assert!(err.to_string().contains("invalid type"));
+    }
 }

@@ -18,13 +18,15 @@ export function CompareCanvas({
   const t = useT();
   const [mode, setMode] = useState<CompareMode>("split");
   const [split, setSplit] = useState(50);
-  const [urls, setUrls] = useState<{ source: string | null; result: string | null }>({
+  const [urls, setUrls] = useState<{ key: string; source: string | null; result: string | null }>({
+    key: "",
     source: null,
     result: null,
   });
-  const [error, setError] = useState(false);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const sourceId = source?.id;
   const resultId = result?.id;
+  const pairKey = `${projectId}:${sourceId ?? ""}:${resultId ?? ""}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +39,10 @@ export function CompareCanvas({
       const promise = assetPreview({ projectId, assetId, maxEdge: 1600 }).then((blob) => {
         if (typeof URL.createObjectURL !== "function") return "";
         const url = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return null;
+        }
         created.push(url);
         return url;
       });
@@ -46,18 +52,21 @@ export function CompareCanvas({
     void Promise.all([load(sourceId), load(resultId)])
       .then(([sourceUrl, resultUrl]) => {
         if (!cancelled) {
-          setError(false);
-          setUrls({ source: sourceUrl, result: resultUrl });
+          setErrorKey(null);
+          setUrls({ key: pairKey, source: sourceUrl, result: resultUrl });
         }
       })
       .catch(() => {
-        if (!cancelled) setError(true);
+        if (!cancelled) {
+          setErrorKey(pairKey);
+          setUrls({ key: pairKey, source: null, result: null });
+        }
       });
     return () => {
       cancelled = true;
       for (const url of created) URL.revokeObjectURL(url);
     };
-  }, [projectId, resultId, sourceId]);
+  }, [pairKey, projectId, resultId, sourceId]);
 
   if (!source || !result)
     return (
@@ -72,10 +81,10 @@ export function CompareCanvas({
       aria-label={t("enhance.compare")}
     >
       <div className="compare-canvas-stage">
-        {urls.source && (
+        {urls.key === pairKey && urls.source && (
           <img className="compare-canvas-image" src={urls.source} alt={t("enhance.before")} />
         )}
-        {urls.result && mode !== "before" && (
+        {urls.key === pairKey && urls.result && mode !== "before" && (
           <img
             className="compare-canvas-image compare-canvas-after"
             src={urls.result}
@@ -86,7 +95,7 @@ export function CompareCanvas({
         {mode === "split" && (
           <span className="compare-canvas-divider" style={{ left: `${split}%` }} />
         )}
-        {error && (
+        {errorKey === pairKey && (
           <div className="state" role="alert">
             {t("enhance.previewError")}
           </div>

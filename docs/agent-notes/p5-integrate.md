@@ -49,3 +49,17 @@ kiem tra tren nhanh tich hop.
 - Lenh `npm run schema:export` van phu thuoc loi `uv_os_get_passwd ENOMEM`; ban bundle esbuild
   da chay thanh cong va tao cung output canonical.
 
+## Round 1 fixes
+
+- Backend/Tauri now maps malformed enhancement numeric input to `VALIDATION_ERROR`; negative,
+  fractional and out-of-range detail strength are covered by Rust tests. Mock/domain validation
+  remains integer-only 0..100.
+- Added a shared `EnhanceBatchDialog` with ready-image listings, per-source target reasons,
+  conservative/generative controls, Architecture Preserve, total cost/free hint and
+  `buildEnhanceItems`; asset tray and Contact Sheet now support checkbox multi-select.
+- Added the collapsible bilingual “How to use” guidance and 2K default cost hint for keep-size.
+- Enhance result auto-selection is scoped to the submitted `{projectId, generationId}` and has a
+  project-switch race regression test.
+- CompareCanvas clears stale pairs by request key and revokes object URLs that resolve after
+  cleanup; lifecycle regression coverage is included.
+

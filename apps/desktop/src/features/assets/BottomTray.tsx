@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, ImagePlus, Lock } from "lucide-react";
+import { ChevronDown, ChevronUp, ImagePlus, Layers, Lock } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { AssetRoleSchema, type AssetRole } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
@@ -12,6 +12,7 @@ import { TRAY_TABS } from "../workspace/modules";
 import { AssetThumbnail } from "./AssetThumbnail";
 import { useAssetImport } from "./useAssetImport";
 import { useT } from "../../i18n";
+import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
 
 const ROLE_FILTERS = AssetRoleSchema.options;
 
@@ -77,12 +78,17 @@ function AssetsTab() {
   const [filter, setFilter] = useState<AssetRole | "all">("all");
   const [importRole, setImportRole] = useState<AssetRole>("regular_image");
   const [dropping, setDropping] = useState(false);
+  const [batchIds, setBatchIds] = useState<string[]>([]);
+  const [batchOpen, setBatchOpen] = useState(false);
   const { busy, duplicate, importPaths, pickAndImport } = useAssetImport();
   const t = useT();
 
   const visible = useMemo(
     () => (filter === "all" ? assets : assets.filter((a) => a.role === filter)),
     [assets, filter],
+  );
+  const batchSources = assets.filter(
+    (asset) => batchIds.includes(asset.id) && asset.status === "ready",
   );
 
   // Native file drag & drop onto the window (Tauri provides real paths).
@@ -168,12 +174,22 @@ function AssetsTab() {
           <span className="field-hint">JPEG · PNG · WebP</span>
         </button>
         {visible.map((a) => (
-          <AssetThumbnail
-            key={a.id}
-            asset={a}
-            selected={a.id === selectedId}
-            onSelect={selectAsset}
-          />
+          <div className="asset-select-wrap" key={a.id}>
+            <label className="asset-select-check">
+              <input
+                type="checkbox"
+                checked={batchIds.includes(a.id)}
+                disabled={a.status !== "ready"}
+                onChange={(event) =>
+                  setBatchIds((current) =>
+                    event.target.checked ? [...current, a.id] : current.filter((id) => id !== a.id),
+                  )
+                }
+              />
+              {t("assets.batchSelect")}
+            </label>
+            <AssetThumbnail asset={a} selected={a.id === selectedId} onSelect={selectAsset} />
+          </div>
         ))}
         {assets.length > 0 && visible.length === 0 && (
           <EmptyState title={t("assets.noneWithRole")}>{t("assets.changeFilter")}</EmptyState>
@@ -184,6 +200,15 @@ function AssetsTab() {
           </div>
         )}
       </div>
+
+      {batchIds.length >= 2 && (
+        <button className="btn btn-primary btn-sm" onClick={() => setBatchOpen(true)}>
+          <Layers size={13} /> {t("enhance.batch")} ({batchIds.length})
+        </button>
+      )}
+      {batchOpen && batchSources.length >= 2 && (
+        <EnhanceBatchDialog sources={batchSources} onClose={() => setBatchOpen(false)} />
+      )}
 
       {duplicate && (
         <ConfirmDialog
