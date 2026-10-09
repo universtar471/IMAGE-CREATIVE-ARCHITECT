@@ -141,9 +141,26 @@ pub fn parse_success(body: &Value, vendor: &str, api_key: &str, allow_urls: bool
         }
     }
     if result.images.is_empty() && result.urls.is_empty() {
-        return Err(ProviderError::new(ProviderErrorKind::BadResponse, format!("{vendor} answered without an image.")));
+        return Err(ProviderError::new(ProviderErrorKind::BadResponse, no_image_message(body, vendor, api_key)));
     }
     Ok(result)
+}
+
+/// Why a 200 answer had no image, quoting the vendor when it explained (a gateway that has
+/// already sent its 200 headers can only report a late failure inside the body).
+fn no_image_message(body: &Value, vendor: &str, api_key: &str) -> String {
+    let detail = gateway_detail(&body.to_string(), api_key);
+    if !detail.is_empty() {
+        return format!("{vendor} answered without an image. {vendor} says: \"{detail}\" Try again later.");
+    }
+    match body.get("data").and_then(Value::as_array) {
+        Some(items) if items.is_empty() => {
+            format!(
+                "{vendor} answered with an empty image list. The request may have been refused; try again or rephrase."
+            )
+        }
+        _ => format!("{vendor} answered without an image."),
+    }
 }
 
 /// `error.code` / `error.type` values that mean money or a spend/usage cap, not request pace.

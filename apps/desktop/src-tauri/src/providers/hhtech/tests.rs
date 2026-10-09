@@ -118,6 +118,32 @@ fn all_calls_failing_returns_the_error_kind() {
 }
 
 #[test]
+fn a_200_without_an_image_quotes_what_the_gateway_said() {
+    // Seen live: the gateway sends 200 headers and keep-alive newlines at once, so a failure
+    // after a long render arrives as an error object inside a 200 body.
+    let mut server = serve(vec![
+        Reply::Json(
+            200,
+            format!(
+                "
+
+{}",
+                json!({ "error": { "message": format!("upstream timed out {KEY}") } })
+            ),
+        ),
+        Reply::Json(200, json!({ "created": 1, "data": [] }).to_string()),
+    ]);
+    let p = gateway(&server, &[]);
+    let err = p.generate(&request(vec![])).unwrap_err();
+    assert_eq!(err.kind, ProviderErrorKind::BadResponse);
+    assert!(err.message.contains("upstream timed out"), "{err:?}");
+    assert_key_free(&err);
+    let err = p.generate(&request(vec![])).unwrap_err();
+    assert!(err.message.contains("empty"), "{err:?}");
+    assert_eq!(server.requests().len(), 2);
+}
+
+#[test]
 fn the_gateway_timeouts_are_left_to_the_user_but_official_openai_retries() {
     let hhtech = provider(&env(&[(ENV_BASE_URL, "https://gw.example.com/v1")]));
     assert!(!hhtech.auto_retries_timeouts());
