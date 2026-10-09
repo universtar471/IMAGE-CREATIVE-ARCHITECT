@@ -3,13 +3,13 @@
   "response": [
     {
       "approvedAt": "2026-01-01T00:00:00.000Z",
-      "assetId": "AST_0000000000000000000000000Q",
+      "assetId": "AST_0000000000000000000000000T",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZA",
       "projectId": "PRJ_00000000000000000000000001"
     },
     {
       "approvedAt": "2026-01-01T00:00:00.000Z",
-      "assetId": "AST_0000000000000000000000000R",
+      "assetId": "AST_0000000000000000000000000V",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
       "projectId": "PRJ_00000000000000000000000001"
     }

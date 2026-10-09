@@ -65,6 +65,15 @@ pub fn find(id: &str) -> Option<&'static Entry> {
     CATALOG.iter().find(|e| e.id == id)
 }
 
+/// Tier selected for the default Gemini 3 Pro Image enhancement route.
+pub fn enhance_tier(target_long_edge: Option<u32>) -> &'static str {
+    if target_long_edge.is_some_and(|edge| edge > 2048) {
+        "4K"
+    } else {
+        "2K"
+    }
+}
+
 impl Entry {
     pub fn route(&self) -> Route {
         match self.family {
@@ -193,5 +202,12 @@ mod tests {
         assert_eq!(format_vnd(280), "280đ");
         assert_eq!(format_vnd(1200), "1.200đ");
         assert_eq!(format_vnd(1234567), "1.234.567đ");
+    }
+
+    #[test]
+    fn enhancement_tier_follows_requested_long_edge() {
+        assert_eq!(enhance_tier(Some(2048)), "2K");
+        assert_eq!(enhance_tier(Some(4096)), "4K");
+        assert_eq!(enhance_tier(None), "2K");
     }
 }

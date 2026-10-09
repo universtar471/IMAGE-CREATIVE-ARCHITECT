@@ -99,6 +99,7 @@ string_enum!(GenerationPurpose {
     Variation => "variation",
     Anchor => "anchor",
     Production => "production",
+    Enhance => "enhance",
 });
 
 impl GenerationPurpose {
@@ -109,6 +110,7 @@ impl GenerationPurpose {
             Self::Variation => "Variation",
             Self::Anchor => "Anchor",
             Self::Production => "Production",
+            Self::Enhance => "Enhance",
         }
     }
 }

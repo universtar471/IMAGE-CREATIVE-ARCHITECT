@@ -493,6 +493,30 @@
       "requiresApiKey": false
     },
     {
+      "configured": true,
+      "id": "local_upscale",
+      "keySource": null,
+      "kind": "local",
+      "label": "Local upscale",
+      "models": [
+        {
+          "aspectRatios": [],
+          "id": "lanczos3",
+          "imageSizes": [],
+          "imageToImage": true,
+          "label": "Conservative upscale (local)",
+          "maxOutputs": 1,
+          "maxReferenceImages": 1,
+          "priceHint": null,
+          "qualityOptions": [],
+          "supportsNegativePrompt": false,
+          "supportsSeed": false,
+          "textToImage": false
+        }
+      ],
+      "requiresApiKey": false
+    },
+    {
       "configured": false,
       "id": "test_remote",
       "keySource": null,
