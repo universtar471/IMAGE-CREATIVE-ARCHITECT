@@ -104,5 +104,5 @@ cd apps/desktop/src-tauri; cargo test --lib queue; cargo test --lib camera_remov
   `generation_list`, `refreshJobs` có thể treo vì nhánh "missed" gọi `refreshGenerations`
   — test jobs và generations tách riêng.
 - `waitFor` trong `tests/helpers.ts` không hỗ trợ điều kiện async (Promise luôn truthy).
-- Đừng chạy `prettier --write` trên `docs/API_CONTRACTS.md`: nó định dạng lại cả file
-  (file không nằm trong phạm vi `format:check` hiện tại theo cách đó) — chỉ sửa tay.
+- `prettier --write docs/API_CONTRACTS.md` đổi định dạng khoảng 90 dòng không liên quan
+  (bảng, xuống dòng) — sửa file này bằng tay, không chạy prettier trực tiếp.
