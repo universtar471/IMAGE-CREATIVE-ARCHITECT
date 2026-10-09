@@ -103,10 +103,11 @@ describe("bridge parsing of Phase 2 responses", () => {
 });
 
 describe("mock providers", () => {
-  it("lists gemini (unconfigured) and local_preview (always configured)", async () => {
+  it("lists gemini and openai (unconfigured) and local_preview (always configured)", async () => {
     const list = await call("provider_list", {});
     expect(list.map((p) => [p.id, p.configured, p.keySource])).toEqual([
       ["gemini", false, null],
+      ["openai", false, null],
       ["local_preview", true, null],
     ]);
   });

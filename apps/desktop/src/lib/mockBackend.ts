@@ -4,7 +4,7 @@
  * UI, but it is NOT the source of truth — the Rust backend and its tests are.
  * Data persists to localStorage so reloads behave like reopening the app.
  *
- * Phase 2: two mock providers mirror the Rust registry (`gemini`, `local_preview`).
+ * Mock providers mirror the Rust registry (`gemini`, `openai`, `local_preview`).
  * API keys are never stored here — only a "configured" boolean per provider.
  * Generated outputs are cheap SVG placeholders. A positive prompt containing `[fail]`
  * produces a `failed` generation so the error UI can be exercised.
@@ -147,6 +147,29 @@ const GEMINI_MODELS: ModelCapabilities[] = (
   supportsSeed: false,
 }));
 
+/**
+ * Mirrors `providers/openai/models.rs`: one request with `n` outputs (max 4), up to 16
+ * references, aspect ratio + 1K/2K tier mapped to a concrete size by the adapter.
+ */
+const OPENAI_MODELS: ModelCapabilities[] = (
+  [
+    ["gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst"],
+    ["gpt-image-2.5-flare", "GPT Image 2.5 Flare"],
+    ["gpt-image-2", "GPT Image 2 (earlier model)"],
+  ] as const
+).map(([id, label]) => ({
+  id,
+  label,
+  textToImage: true,
+  imageToImage: true,
+  maxReferenceImages: 16,
+  maxOutputs: 4,
+  aspectRatios: [...RATIOS_STANDARD],
+  imageSizes: ["1K", "2K"],
+  supportsNegativePrompt: false,
+  supportsSeed: false,
+}));
+
 /** Mirrors `ProviderRegistry::builtin()` in src-tauri/src/providers. */
 export const MOCK_PROVIDERS: readonly MockProvider[] = [
   {
@@ -155,6 +178,13 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
     kind: "remote",
     requiresApiKey: true,
     models: GEMINI_MODELS,
+  },
+  {
+    id: "openai",
+    label: "OpenAI (GPT Image)",
+    kind: "remote",
+    requiresApiKey: true,
+    models: OPENAI_MODELS,
   },
   {
     id: "local_preview",

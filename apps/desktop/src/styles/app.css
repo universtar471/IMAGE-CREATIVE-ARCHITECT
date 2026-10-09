@@ -1394,6 +1394,14 @@ textarea {
 .provider-card header .spacer {
   flex: 1;
 }
+.provider-help {
+  margin: 0;
+  padding-left: 16px;
+}
+.provider-help-url {
+  font-family: var(--mono);
+  user-select: all;
+}
 .key-row {
   display: flex;
   gap: 6px;

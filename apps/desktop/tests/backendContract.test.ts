@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { AppErrorSchema } from "@arch/domain";
 import { responses, type CommandName } from "../src/lib/bridge";
+import { MOCK_PROVIDERS } from "../src/lib/mockBackend";
 
 type Fixture = { command: string; response: unknown };
 const modules = import.meta.glob<Fixture>("./fixtures/backend/*.json", {
@@ -53,5 +54,18 @@ describe("backend contract fixtures", () => {
 
   it("never carries an API key", () => {
     for (const f of fixtures) expect(JSON.stringify(f.response)).not.toContain("fixture-key");
+  });
+
+  it("mock providers mirror the builtin Rust providers and models", () => {
+    const list = fixtures.find((f) => f.file === "provider_list.json")!.response as {
+      id: string;
+      configured: boolean;
+      keySource: string | null;
+    }[];
+    // The fixture registry is the builtin order plus a test double at the end.
+    const builtin = list
+      .slice(0, MOCK_PROVIDERS.length)
+      .map(({ configured: _c, keySource: _k, ...rest }) => rest);
+    expect(builtin).toEqual(MOCK_PROVIDERS);
   });
 });
