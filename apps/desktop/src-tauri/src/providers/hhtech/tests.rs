@@ -118,6 +118,13 @@ fn all_calls_failing_returns_the_error_kind() {
 }
 
 #[test]
+fn the_gateway_timeouts_are_left_to_the_user_but_official_openai_retries() {
+    let hhtech = provider(&env(&[(ENV_BASE_URL, "https://gw.example.com/v1")]));
+    assert!(!hhtech.auto_retries_timeouts());
+    assert!(OpenAiProvider::new().auto_retries_timeouts());
+}
+
+#[test]
 fn timeout_defaults_to_ten_minutes_and_is_configurable() {
     let base = (ENV_BASE_URL, "https://gw.example.com/v1");
     assert_eq!(config(&env(&[base])).generate_timeout.as_secs(), 600);

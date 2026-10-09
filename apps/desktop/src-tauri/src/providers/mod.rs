@@ -173,6 +173,13 @@ pub trait ImageProvider: Send + Sync {
         None
     }
 
+    /// Whether the job queue may retry a timed-out call by itself. A paid gateway may bill a
+    /// call that the app gave up on, so such providers return false and leave the retry to
+    /// the user.
+    fn auto_retries_timeouts(&self) -> bool {
+        true
+    }
+
     /// Chat model used for prompt enhancement, if this provider offers one.
     fn chat_model(&self) -> Option<String> {
         None

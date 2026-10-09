@@ -171,7 +171,10 @@ picks the highest-priority oldest runnable job whose provider has a free slot:
 `local` providers 2 concurrent, `remote` providers 1 (constants in one place).
 Retryable provider errors (`rate_limited`, `network`, `timeout`) are retried up to
 `max_attempts = 3` with backoff 15 s, 60 s (`retrying` + `nextAttemptAt`); others fail
-immediately. Cancel: a queued/retrying job becomes `cancelled` at once; a running job is
+immediately. Exception (2026-10-09): a provider may opt out of automatic `timeout`
+retries (`ImageProvider::auto_retries_timeouts`); OpenAI-compatible gateways such as HHTECH
+do, because a gateway can keep rendering and bill a call the app stopped waiting for; the
+job fails at once and the user decides whether to press Retry. Cancel: a queued/retrying job becomes `cancelled` at once; a running job is
 marked `cancelled` and its result is discarded when the provider call returns.
 On startup `running` jobs become `interrupted` (never re-sent automatically: remote calls
 cost money); `queued`/`retrying` jobs resume. The backend emits `job://updated` and

@@ -95,7 +95,7 @@ models under one base URL. It is configured only from the environment (never SQL
 | `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent without an aspect ratio (and for its own ratio); `auto` omits it |
 | `HHTECH_IMAGE_QUALITY` | `medium` | `quality` field |
 | `HHTECH_CHAT_MODEL` | `claude-sonnet-5` | chat model used by **Enhance prompt** |
-| `HHTECH_TIMEOUT_SECS` | `600` | seconds one images call may take (30–3600); several outputs are sent as parallel single-image calls |
+| `HHTECH_TIMEOUT_SECS` | `600` | seconds one images call may take (30–3600); several outputs are sent as parallel single-image calls; a timed-out call is not retried automatically (press Retry) |
 
 Requests: `POST {BASE}/images/generations` (JSON, `response_format: b64_json`) without
 references, `POST {BASE}/images/edits` (multipart; one reference as `image`, several as
