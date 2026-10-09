@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "projectType": "villa",
   "subtype": "tropical",
   "label": "Tropical villa",
@@ -141,6 +141,78 @@
       "aspectRatio": "4:5",
       "composition": "close-up of timber screens, deep overhangs and planting",
       "anchorRecommended": false
+    }
+  ],
+  "lightingPresets": [
+    {
+      "id": "daylight",
+      "label": "Tropical daylight",
+      "tags": ["day"],
+      "values": { "timeOfDay": "morning", "intensity": "bright" }
+    },
+    {
+      "id": "golden_hour",
+      "label": "Golden hour",
+      "tags": ["warm"],
+      "values": { "timeOfDay": "golden_hour", "shadowSoftness": "soft" }
+    },
+    {
+      "id": "blue_hour",
+      "label": "Blue hour",
+      "tags": ["blue"],
+      "values": { "timeOfDay": "blue_hour", "ambientLight": "cool" }
+    },
+    {
+      "id": "monsoon_rain",
+      "label": "Monsoon rain",
+      "tags": ["monsoon", "rain"],
+      "values": { "timeOfDay": "afternoon", "intensity": "diffuse" }
+    }
+  ],
+  "weatherPresets": [
+    {
+      "id": "clear",
+      "label": "Clear tropical sky",
+      "tags": ["clear"],
+      "values": { "sky": "clear blue" }
+    },
+    {
+      "id": "overcast",
+      "label": "Humid overcast",
+      "tags": ["soft"],
+      "values": { "sky": "bright tropical overcast", "haze": "humid" }
+    },
+    {
+      "id": "monsoon_rain",
+      "label": "Monsoon rain",
+      "tags": ["monsoon", "rain"],
+      "values": { "sky": "heavy monsoon rain", "groundWetness": "soaked", "haze": "rain mist" }
+    }
+  ],
+  "moodPresets": [
+    {
+      "id": "calm",
+      "label": "Calm tropical",
+      "tags": ["quiet"],
+      "values": { "atmosphere": "calm tropical retreat" }
+    },
+    {
+      "id": "warm",
+      "label": "Warm resort",
+      "tags": ["warm"],
+      "values": { "atmosphere": "warm resort welcome" }
+    },
+    {
+      "id": "cinematic",
+      "label": "Cinematic dusk",
+      "tags": ["cinematic"],
+      "values": { "atmosphere": "cinematic tropical dusk" }
+    },
+    {
+      "id": "fresh",
+      "label": "Fresh after rain",
+      "tags": ["fresh"],
+      "values": { "atmosphere": "fresh after monsoon rain" }
     }
   ],
   "negativeConstraints": ["snow", "bare deciduous trees", "dense urban street"]

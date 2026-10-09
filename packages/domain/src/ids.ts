@@ -12,6 +12,7 @@ export const ID_PREFIX = {
   generation: "GEN",
   batch: "BAT",
   material: "MAT",
+  light: "LGT",
 } as const;
 
 const ULID = "[0-9A-HJKMNP-TV-Z]{26}";
@@ -90,4 +91,9 @@ export const newUlid = createUlidGenerator();
 /** A fresh `CAM_<ULID>` for a camera created in the UI (ADR-016); time-ordered. */
 export function newCameraId(): string {
   return `${ID_PREFIX.camera}_${newUlid()}`;
+}
+
+/** A fresh `LGT_<ULID>` for an artificial light created in the UI. */
+export function newLightingId(): string {
+  return `${ID_PREFIX.light}_${newUlid()}`;
 }

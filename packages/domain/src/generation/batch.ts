@@ -5,11 +5,15 @@
 import { anchorViews } from "../camera/cameras";
 import {
   compilePrompt,
+  compileWithOverrides,
   sortReferences,
   type PromptCompileInput,
   type PromptReference,
 } from "../prompt/compiler";
 import type { CameraDNA } from "../schemas/future";
+import type { MoodDNA } from "../schemas/future";
+import type { MoodPreset } from "../knowledge/pack";
+import type { ProjectDNA } from "../schemas/projectDna";
 import type { GenerationParams, ModelCapabilities } from "../schemas/generation";
 import type { BatchItem, CameraAnchorDTO } from "../schemas/jobs";
 import type { ReferenceCandidate } from "./helpers";
@@ -31,6 +35,104 @@ export type BatchBuildInput = Omit<PromptCompileInput, "references" | "cameraId"
 
 /** Upper bound of `BatchCreateRequest.items` (ADR-018). */
 export const MAX_BATCH_ITEMS = 50;
+
+export type MoodVariationBuildInput = Omit<
+  BatchBuildInput,
+  "masterAssetId" | "extraReferenceIds"
+> & {
+  sourceAssetId: string;
+  presets: readonly MoodPreset[];
+  masterAssetId?: string | null;
+};
+
+type VariationPreset = MoodPreset & {
+  values: MoodPreset["values"] & {
+    lighting?: Partial<NonNullable<ProjectDNA["lighting"]>>;
+    weather?: Partial<NonNullable<ProjectDNA["weather"]>>;
+    mood?: Partial<NonNullable<ProjectDNA["mood"]>>;
+  };
+};
+
+export class MoodVariationReferenceLimitError extends Error {
+  constructor(
+    readonly max: number,
+    modelLabel: string,
+  ) {
+    super(
+      `Mood variations need the source image as a reference, but ${modelLabel} accepts at most ${max} reference images.`,
+    );
+    this.name = "MoodVariationReferenceLimitError";
+  }
+}
+
+/** Build one variation item per mood preset, preserving the source as reference #1. */
+export function buildMoodVariationItems(input: MoodVariationBuildInput): BatchItem[] {
+  const source = input.assets.find((asset) => asset.id === input.sourceAssetId);
+  if (!source) throw new Error(`Mood variation source asset not found: ${input.sourceAssetId}`);
+  const cap = input.model.imageToImage ? input.model.maxReferenceImages : 0;
+  if (cap < 1) throw new MoodVariationReferenceLimitError(cap, input.model.label);
+  const master = input.masterAssetId
+    ? input.assets.find((asset) => asset.id === input.masterAssetId)
+    : undefined;
+  const sourceReference: PromptReference = {
+    ...toReference(source),
+    role: master?.id === source.id ? "master_architecture" : source.role,
+  };
+  return input.presets.map((preset) => {
+    const prompt = compileWithOverrides(
+      { project: input.project, dna: input.dna, pack: input.pack, references: [sourceReference] },
+      {
+        lighting: (preset.values as VariationPreset["values"]).lighting,
+        weather: (preset.values as VariationPreset["values"]).weather,
+        mood:
+          (preset.values as VariationPreset["values"]).mood ?? (preset.values as Partial<MoodDNA>),
+      },
+    );
+    prompt.preservationInstructions +=
+      "\nKeep the architecture, camera and composition; change only light, weather and atmosphere.";
+    return {
+      cameraId: null,
+      label: preset.label,
+      prompt,
+      referenceAssetIds: [source.id],
+      params: input.params,
+    };
+  });
+}
+
+/** Adopt a mood preset without mutating the original DNA; locked mood is unchanged. */
+export function adoptMoodPreset(dna: ProjectDNA, preset: MoodPreset): ProjectDNA {
+  const next = structuredClone(dna);
+  const values = preset.values as VariationPreset["values"];
+  if (values.lighting && !next.locks.lighting)
+    next.lighting = {
+      schemaVersion: 1,
+      artificialLighting: [],
+      ...(next.lighting ?? {}),
+      ...values.lighting,
+    };
+  if (values.weather && !next.locks.weather)
+    next.weather = { schemaVersion: 1, notes: "", ...(next.weather ?? {}), ...values.weather };
+  if (values.mood && !next.locks.mood)
+    next.mood = {
+      schemaVersion: 1,
+      notes: "",
+      ...(next.mood ?? {}),
+      ...values.mood,
+      presetId: preset.id,
+      preset: preset.label,
+    };
+  else if (!next.locks.mood && !values.lighting && !values.weather)
+    next.mood = {
+      schemaVersion: 1,
+      notes: "",
+      ...(next.mood ?? {}),
+      ...preset.values,
+      presetId: preset.id,
+      preset: preset.label,
+    };
+  return next;
+}
 
 /**
  * The camera's aspect ratio when the model offers it, otherwise `params` unchanged

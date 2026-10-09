@@ -10,7 +10,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "schema:export": "tsx scripts/export-json-schema.ts"
+    "schema:export": "tsx scripts/export-json-schema.ts",
+    "grade:vectors": "tsx src/grade/vectors.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"

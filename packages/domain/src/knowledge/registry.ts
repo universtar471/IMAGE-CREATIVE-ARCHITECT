@@ -3,6 +3,9 @@ import {
   DEFAULT_SUBTYPE,
   KnowledgePackSchema,
   type CameraPreset,
+  type LightingPreset,
+  type WeatherPreset,
+  type MoodPreset,
   type KnowledgePack,
 } from "./pack";
 
@@ -69,6 +72,35 @@ export class KnowledgeRegistry {
     ];
     for (const pack of candidates) {
       if (pack?.cameraPresets.length) return pack.cameraPresets;
+    }
+    return [];
+  }
+
+  lightingPresets(projectType: ProjectType, subtype?: string | null): LightingPreset[] {
+    return this.resolvePresetList(projectType, subtype, (pack) => pack.lightingPresets);
+  }
+
+  weatherPresets(projectType: ProjectType, subtype?: string | null): WeatherPreset[] {
+    return this.resolvePresetList(projectType, subtype, (pack) => pack.weatherPresets);
+  }
+
+  moodPresets(projectType: ProjectType, subtype?: string | null): MoodPreset[] {
+    return this.resolvePresetList(projectType, subtype, (pack) => pack.moodPresets);
+  }
+
+  private resolvePresetList<T>(
+    projectType: ProjectType,
+    subtype: string | null | undefined,
+    read: (pack: KnowledgePack) => T[],
+  ): T[] {
+    const candidates = [
+      subtype ? this.packs.get(key(projectType, subtype)) : undefined,
+      this.packs.get(key(projectType, DEFAULT_SUBTYPE)),
+      this.packs.get(key("custom", DEFAULT_SUBTYPE)),
+    ];
+    for (const pack of candidates) {
+      const values = pack ? read(pack) : [];
+      if (values.length) return values;
     }
     return [];
   }
