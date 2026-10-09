@@ -49,6 +49,16 @@ kiem tra tren nhanh tich hop.
 - Lenh `npm run schema:export` van phu thuoc loi `uv_os_get_passwd ENOMEM`; ban bundle esbuild
   da chay thanh cong va tao cung output canonical.
 
+## Round 2 fixes
+
+- Enhance batch từ panel mở với ảnh hiện tại nhưng cho phép thêm/bớt mọi asset ready trong dialog;
+  selection của tray và Contact Sheet vẫn được giữ, submit batch 3 ảnh có một item/reference cho
+  mỗi nguồn.
+- Thêm resolver nối mọi output enhance, kể cả batch, về `referenceAssetIds[0]`; tray, Versions,
+  Contact Sheet và Enhance canvas đều mở CompareCanvas đúng cặp nguồn/kết quả.
+- Cost hint chỉ ghi miễn phí cho `local_upscale`; generative thiếu `priceHint` ghi rõ chưa có ước
+  tính giá ở panel và batch dialog, kèm test batch 3 và resolver.
+
 ## Round 1 fixes
 
 - Backend/Tauri now maps malformed enhancement numeric input to `VALIDATION_ERROR`; negative,

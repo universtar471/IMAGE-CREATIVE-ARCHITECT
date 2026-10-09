@@ -14,6 +14,7 @@ import {
   enhancePrompt,
   sourceLongEdge,
   validateEnhanceParams,
+  enhanceCost,
   type EnhanceParams,
 } from "./enhance";
 
@@ -61,8 +62,11 @@ export function EnhancePanel() {
     ) ?? [];
   const model = models.find((item) => item.id === modelId) ?? models[0] ?? null;
   const prompt = useMemo(() => enhancePrompt(params, ws.draftDna), [params, ws.draftDna]);
-  const costTier = params.targetLongEdge === 4096 ? "4K" : "2K";
-  const cost = model?.priceHint ? model.priceHint[costTier] : null;
+  const cost = enhanceCost(
+    params.mode === "conservative" ? (provider?.id ?? providerId) : (provider?.id ?? ""),
+    model,
+    params.targetLongEdge,
+  );
   const disabled = readOnly || !approved || !source || !!validation || !provider || !model || busy;
 
   useEffect(() => {
@@ -227,11 +231,6 @@ export function EnhancePanel() {
               />
             )}
           </div>
-          {cost !== null && cost !== undefined && (
-            <span className="field-hint" data-testid="enhance-cost">
-              {t("enhance.cost", { amount: cost })}
-            </span>
-          )}
         </SectionPanel>
       )}
       <SectionPanel title={t("enhance.promptPreview")} defaultOpen={false}>
@@ -256,6 +255,13 @@ export function EnhancePanel() {
           {validation}
         </div>
       )}
+      <span className="field-hint" data-testid="enhance-cost">
+        {cost.kind === "free"
+          ? t("enhance.costFree")
+          : cost.kind === "unknown"
+            ? t("enhance.costUnknown")
+            : t("enhance.cost", { amount: cost.amount })}
+      </span>
       <div className="enhance-footer">
         <button
           className="btn btn-primary"
@@ -276,7 +282,8 @@ export function EnhancePanel() {
       </div>
       {batchOpen && source && (
         <EnhanceBatchDialog
-          sources={[source]}
+          sources={ws.assets.filter((asset) => asset.status === "ready")}
+          initialSelectedIds={[source.id]}
           initialParams={params}
           onClose={() => setBatchOpen(false)}
         />

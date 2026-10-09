@@ -8,6 +8,7 @@ import {
   createInitialDNA,
   type AssetDTO,
   type BatchItem,
+  type GenerationDTO,
   type EnhanceParams,
   type GenerationParams,
   type ModelCapabilities,
@@ -175,4 +176,50 @@ function defaultParams(): GenerationParams {
 
 export function sourceLongEdge(asset: Pick<AssetDTO, "widthPx" | "heightPx">): number {
   return Math.max(asset.widthPx ?? 0, asset.heightPx ?? 0);
+}
+
+export type EnhancePair = {
+  source: AssetDTO;
+  result: AssetDTO;
+  generation: GenerationDTO;
+};
+
+/** Resolve an enhance output to the exact single reference used by its generation. */
+export function resolveEnhancePair(
+  assetId: string,
+  generations: readonly GenerationDTO[],
+  assets: readonly AssetDTO[],
+): EnhancePair | null {
+  const generation = generations.find(
+    (candidate) => candidate.purpose === "enhance" && candidate.outputAssetIds.includes(assetId),
+  );
+  if (!generation) return null;
+  const sourceId = generation.referenceAssetIds[0];
+  const source = sourceId ? assets.find((asset) => asset.id === sourceId) : undefined;
+  const result = assets.find((asset) => asset.id === assetId);
+  return source &&
+    result &&
+    generation.projectId === source.projectId &&
+    generation.projectId === result.projectId
+    ? { source, result, generation }
+    : null;
+}
+
+export type EnhanceCost =
+  | { kind: "free"; count: number }
+  | { kind: "unknown"; count: number; tier: "2K" | "4K" }
+  | { kind: "priced"; amount: number; unitAmount: number; count: number; tier: "2K" | "4K" };
+
+/** Price display contract: only the local provider is known to be free. */
+export function enhanceCost(
+  providerId: string,
+  model: Pick<ModelCapabilities, "priceHint"> | null | undefined,
+  targetLongEdge: number | null,
+  count = 1,
+): EnhanceCost {
+  if (providerId === "local_upscale") return { kind: "free", count };
+  const tier = targetLongEdge === 4096 ? "4K" : "2K";
+  const unitAmount = model?.priceHint?.[tier];
+  if (unitAmount === undefined || unitAmount === null) return { kind: "unknown", count, tier };
+  return { kind: "priced", amount: unitAmount * count, unitAmount, count, tier };
 }

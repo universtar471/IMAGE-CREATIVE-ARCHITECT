@@ -9,6 +9,7 @@ import {
   DEFAULT_ENHANCE_PARAMS,
   ENHANCE_TARGETS,
   buildEnhanceItems,
+  enhanceCost,
   sourceLongEdge,
   validateEnhanceParams,
   type EnhanceParams,
@@ -18,10 +19,12 @@ export function EnhanceBatchDialog({
   sources,
   onClose,
   initialParams,
+  initialSelectedIds,
 }: {
   sources: readonly AssetDTO[];
   onClose: () => void;
   initialParams?: EnhanceParams;
+  initialSelectedIds?: readonly string[];
 }) {
   const ws = useStudio((s) => s.workspace!);
   const providers = useStudio((s) => s.providers ?? []);
@@ -33,6 +36,9 @@ export function EnhanceBatchDialog({
   const [modelId, setModelId] = useState("lanczos3");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => [
+    ...(initialSelectedIds ?? sources.map((source) => source.id)),
+  ]);
 
   useEffect(() => {
     if (!providers.length) void loadProviders();
@@ -53,21 +59,38 @@ export function EnhanceBatchDialog({
         : model.imageToImage && model.maxReferenceImages >= 1,
     ) ?? [];
   const model = models.find((item) => item.id === modelId) ?? models[0] ?? null;
+  const availableSources = useMemo(
+    () => ws.assets.filter((asset) => asset.status === "ready"),
+    [ws.assets],
+  );
+  const selectedSources = useMemo(
+    () => availableSources.filter((source) => selectedIds.includes(source.id)),
+    [availableSources, selectedIds],
+  );
   const reasons = useMemo(
     () =>
-      sources.map((source) => ({
+      selectedSources.map((source) => ({
         source,
         edge: sourceLongEdge(source),
         blocked: params.targetLongEdge !== null && params.targetLongEdge < sourceLongEdge(source),
       })),
-    [params.targetLongEdge, sources],
+    [params.targetLongEdge, selectedSources],
   );
   const invalidSources = reasons.filter((item) => item.blocked);
   const validation = validateEnhanceParams(params);
-  const tier = params.targetLongEdge === 4096 ? "4K" : "2K";
-  const cost = model?.priceHint ? model.priceHint[tier] : null;
+  const cost = enhanceCost(
+    params.mode === "conservative" ? (provider?.id ?? providerId) : (provider?.id ?? ""),
+    model,
+    params.targetLongEdge,
+    selectedSources.length,
+  );
   const disabled =
-    sources.length < 2 || !!validation || invalidSources.length > 0 || !provider || !model || busy;
+    selectedSources.length < 2 ||
+    !!validation ||
+    invalidSources.length > 0 ||
+    !provider ||
+    !model ||
+    busy;
 
   const updateMode = (mode: EnhanceParams["mode"]) => {
     setParams((current) => ({
@@ -85,7 +108,7 @@ export function EnhanceBatchDialog({
     setBusy(true);
     try {
       const items = buildEnhanceItems({
-        sources,
+        sources: selectedSources,
         params,
         providerId: provider.id,
         model,
@@ -96,7 +119,7 @@ export function EnhanceBatchDialog({
         providerId: provider.id,
         modelId: model.id,
         purpose: "enhance",
-        name: `${t("enhance.batch")} Â· ${sources.length}`,
+        name: `${t("enhance.batch")} Â· ${selectedSources.length}`,
         priority: 0,
         items,
       });
@@ -116,16 +139,37 @@ export function EnhanceBatchDialog({
             {t("common.cancel")}
           </button>
           <button className="btn btn-primary" disabled={disabled} onClick={() => void submit()}>
-            <Layers size={14} /> {t("enhance.batchSubmit", { count: sources.length })}
+            <Layers size={14} /> {t("enhance.batchSubmit", { count: selectedSources.length })}
           </button>
         </>
       }
     >
       <div className="enhance-batch-dialog" data-testid="enhance-batch-dialog">
-        <p className="field-hint">{t("enhance.batchSelected", { count: sources.length })}</p>
+        <p className="field-hint">
+          {t("enhance.batchSelected", { count: selectedSources.length })}
+        </p>
+        <fieldset className="batch-cams">
+          <legend className="field-label">{t("enhance.batchAddImages")}</legend>
+          {availableSources.map((source) => (
+            <label key={source.id} className="toggle-row">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(source.id)}
+                onChange={(event) =>
+                  setSelectedIds((current) =>
+                    event.target.checked
+                      ? [...current, source.id]
+                      : current.filter((id) => id !== source.id),
+                  )
+                }
+              />
+              {source.originalName ?? source.id}
+            </label>
+          ))}
+        </fieldset>
         <ul
           className="batch-cams"
-          aria-label={t("enhance.batchSelected", { count: sources.length })}
+          aria-label={t("enhance.batchSelected", { count: selectedSources.length })}
         >
           {reasons.map(({ source, edge, blocked }) => (
             <li key={source.id}>
@@ -239,13 +283,15 @@ export function EnhanceBatchDialog({
                 />
               )}
             </div>
-            <span className="field-hint" data-testid="enhance-batch-cost">
-              {cost !== null && cost !== undefined
-                ? t("enhance.batchCost", { amount: cost * sources.length, tier })
-                : t("enhance.batchCostFree", { count: sources.length })}
-            </span>
           </Section>
         )}
+        <span className="field-hint" data-testid="enhance-batch-cost">
+          {cost.kind === "free"
+            ? t("enhance.batchCostFree", { count: cost.count })
+            : cost.kind === "unknown"
+              ? t("enhance.batchCostUnknown", { count: cost.count })
+              : t("enhance.batchCost", { amount: cost.amount, tier: cost.tier })}
+        </span>
         {validation && (
           <div className="callout callout-warning" role="alert">
             {validation}

@@ -8,6 +8,8 @@ import {
   buildEnhanceItems,
   buildEnhanceRequest,
   disabledEnhanceTargets,
+  enhanceCost,
+  resolveEnhancePair,
   validateEnhanceParams,
 } from "../src/features/enhance/enhance";
 
@@ -81,6 +83,29 @@ describe("enhance UI contract", () => {
     );
   });
 
+  it("builds a three-image batch with one reference per item", () => {
+    const items = buildEnhanceItems({
+      sources: [asset("p", "a"), asset("p", "b"), asset("p", "c")],
+      params: {
+        aspectRatio: null,
+        imageSize: null,
+        outputCount: 1,
+        seed: null,
+        quality: null,
+        enhance: {
+          mode: "conservative",
+          targetLongEdge: 4096,
+          detailStrength: 40,
+          architecturePreserve: true,
+        },
+      },
+      providerId: "local_upscale",
+      model: { imageToImage: true, maxReferenceImages: 1, label: "Lanczos3" },
+    });
+    expect(items).toHaveLength(3);
+    expect(items.map((item) => item.referenceAssetIds)).toEqual([["a"], ["b"], ["c"]]);
+  });
+
   it("builds exact submit payloads for both modes", () => {
     const base = {
       mode: "conservative" as const,
@@ -113,6 +138,33 @@ describe("enhance UI contract", () => {
     expect(generative.purpose).toBe("enhance");
     expect(generative.prompt.positivePrompt).toContain("detail level");
     expect(generative.params.enhance.mode).toBe("generative");
+  });
+
+  it("keeps each batch enhance output paired with its single source reference", () => {
+    const sources = [asset("p", "source-1"), asset("p", "source-2"), asset("p", "source-3")];
+    const outputs = [asset("p", "output-1"), asset("p", "output-2"), asset("p", "output-3")];
+    const generations = sources.map((source, index) => ({
+      id: `gen-${index + 1}`,
+      projectId: "p",
+      purpose: "enhance",
+      status: "completed",
+      referenceAssetIds: [source.id],
+      outputAssetIds: [outputs[index]!.id],
+    })) as GenerationDTO[];
+    expect(resolveEnhancePair("output-2", generations, [...sources, ...outputs])).toEqual({
+      source: sources[1],
+      result: outputs[1],
+      generation: generations[1],
+    });
+  });
+
+  it("only reports local processing as free and unknown generative prices as unknown", () => {
+    expect(enhanceCost("local_upscale", null, 4096, 3)).toEqual({ kind: "free", count: 3 });
+    expect(enhanceCost("hhtech", { priceHint: null } as never, 4096, 3)).toEqual({
+      kind: "unknown",
+      count: 3,
+      tier: "4K",
+    });
   });
 });
 

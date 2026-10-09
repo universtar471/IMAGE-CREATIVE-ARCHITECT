@@ -15,6 +15,7 @@ import { moduleById } from "./modules";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
+import { resolveEnhancePair } from "../enhance/enhance";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -109,7 +110,11 @@ function CenterArea() {
   const enhanceSource = enhanceGeneration
     ? (assets.find((item) => item.id === enhanceGeneration.referenceAssetIds[0]) ?? null)
     : null;
-  const enhanceResult = submittedResult;
+  const selectedEnhancePair = selectedId
+    ? resolveEnhancePair(selectedId, generations, assets)
+    : null;
+  const enhanceSourceForView = selectedEnhancePair?.source ?? enhanceSource;
+  const enhanceResult = selectedEnhancePair?.result ?? submittedResult;
   const grade = (useStudio((s) => s.workspace!.draftDna.colorGrade) ?? {
     schemaVersion: 1,
     exposure: 0,
@@ -190,7 +195,7 @@ function CenterArea() {
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (
-          <CompareCanvas source={enhanceSource ?? asset} result={enhanceResult} />
+          <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
         ) : (
           <WorkspaceCanvas
             mode={{ kind: "single", asset }}

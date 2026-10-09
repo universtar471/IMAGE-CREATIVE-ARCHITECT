@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, ImagePlus, Layers, Lock } from "lucide-react";
+import { ChevronDown, ChevronUp, Columns2, ImagePlus, Layers, Lock } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { AssetRoleSchema, type AssetRole } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
@@ -13,6 +13,7 @@ import { AssetThumbnail } from "./AssetThumbnail";
 import { useAssetImport } from "./useAssetImport";
 import { useT } from "../../i18n";
 import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
+import { resolveEnhancePair } from "../enhance/enhance";
 
 const ROLE_FILTERS = AssetRoleSchema.options;
 
@@ -73,7 +74,9 @@ export function BottomTray() {
 function AssetsTab() {
   const assets = useStudio((s) => s.workspace?.assets ?? []);
   const selectedId = useStudio((s) => s.selectedAssetId);
+  const generations = useStudio((s) => s.workspace?.generations ?? []);
   const selectAsset = useStudio((s) => s.selectAsset);
+  const setModule = useStudio((s) => s.setModule);
   const readOnly = useStudio(selectReadOnly);
   const [filter, setFilter] = useState<AssetRole | "all">("all");
   const [importRole, setImportRole] = useState<AssetRole>("regular_image");
@@ -189,6 +192,19 @@ function AssetsTab() {
               {t("assets.batchSelect")}
             </label>
             <AssetThumbnail asset={a} selected={a.id === selectedId} onSelect={selectAsset} />
+            {resolveEnhancePair(a.id, generations, assets) && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                title={t("enhance.compareSource")}
+                onClick={() => {
+                  selectAsset(a.id);
+                  setModule("enhance");
+                }}
+              >
+                <Columns2 size={12} /> {t("enhance.compareSource")}
+              </button>
+            )}
           </div>
         ))}
         {assets.length > 0 && visible.length === 0 && (

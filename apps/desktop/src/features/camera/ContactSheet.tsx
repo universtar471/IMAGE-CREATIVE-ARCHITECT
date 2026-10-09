@@ -26,6 +26,8 @@ import { knowledge } from "../../lib/knowledge";
 import { adoptMoodPresetSections, type MoodVariationPreset } from "../mood/variation";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
 import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
+import { resolveEnhancePair, type EnhancePair } from "../enhance/enhance";
+import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
 import {
   groupContactSheet,
@@ -60,6 +62,7 @@ export function ContactSheet() {
   const groups = groupContactSheet(batch, ws.generations, jobs, ws.draftDna.cameras);
   const master = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
   const compare = compareId ? ws.assets.find((a) => a.id === compareId) : null;
+  const comparePair = compareId ? resolveEnhancePair(compareId, ws.generations, ws.assets) : null;
   const selectedSources = ws.assets.filter(
     (asset) => selectedIds.includes(asset.id) && asset.status === "ready",
   );
@@ -89,7 +92,11 @@ export function ContactSheet() {
         )}
       </div>
       {compare ? (
-        <CompareView master={master} candidate={compare} onClose={() => setCompareId(null)} />
+        comparePair ? (
+          <EnhanceCompareView pair={comparePair} onClose={() => setCompareId(null)} />
+        ) : (
+          <CompareView master={master} candidate={compare} onClose={() => setCompareId(null)} />
+        )
       ) : (
         <div className="contact-groups">
           {groups.length === 0 && <span className="field-hint">{t("contact.loading")}</span>}
@@ -108,6 +115,7 @@ export function ContactSheet() {
               <CameraGroup
                 key={g.cameraId ?? "none"}
                 group={g}
+                enhance={batch.purpose === "enhance"}
                 onCompare={setCompareId}
                 selectedIds={selectedIds}
                 onToggle={(id) =>
@@ -256,11 +264,13 @@ function BatchCounts({ batch }: { batch: BatchDTO }) {
 
 function CameraGroup({
   group,
+  enhance,
   onCompare,
   selectedIds,
   onToggle,
 }: {
   group: ContactGroup;
+  enhance: boolean;
   onCompare: (assetId: string) => void;
   selectedIds: readonly string[];
   onToggle: (assetId: string) => void;
@@ -290,6 +300,7 @@ function CameraGroup({
             group={group}
             anchorAssetId={anchor?.assetId ?? null}
             onCompare={onCompare}
+            enhance={enhance}
             selectedIds={selectedIds}
             onToggle={onToggle}
           />
@@ -304,6 +315,7 @@ function EntryCards({
   group,
   anchorAssetId,
   onCompare,
+  enhance,
   selectedIds,
   onToggle,
 }: {
@@ -311,6 +323,7 @@ function EntryCards({
   group: ContactGroup;
   anchorAssetId: string | null;
   onCompare: (assetId: string) => void;
+  enhance: boolean;
   selectedIds: readonly string[];
   onToggle: (assetId: string) => void;
 }) {
@@ -334,6 +347,7 @@ function EntryCards({
             cameraId={group.cameraId}
             isAnchor={a.id === anchorAssetId}
             onCompare={() => onCompare(a.id)}
+            enhance={enhance}
             selected={selectedIds.includes(a.id)}
             onToggle={() => onToggle(a.id)}
           />
@@ -389,6 +403,7 @@ function OutputCard({
   cameraId,
   isAnchor,
   onCompare,
+  enhance,
   selected,
   onToggle,
 }: {
@@ -397,6 +412,7 @@ function OutputCard({
   cameraId: string | null;
   isAnchor: boolean;
   onCompare: () => void;
+  enhance: boolean;
   selected: boolean;
   onToggle: () => void;
 }) {
@@ -442,8 +458,12 @@ function OutputCard({
             <Anchor size={12} /> {isAnchor ? t("common.anchor") : t("contact.approve")}
           </button>
         )}
-        <button className="btn btn-sm" onClick={onCompare} title={t("contact.compareTitle")}>
-          <Columns2 size={12} /> {t("contact.compare")}
+        <button
+          className="btn btn-sm"
+          onClick={onCompare}
+          title={enhance ? t("enhance.compareSource") : t("contact.compareTitle")}
+        >
+          <Columns2 size={12} /> {enhance ? t("enhance.compareSource") : t("contact.compare")}
         </button>
         <button
           className="btn btn-sm btn-icon"
@@ -495,6 +515,22 @@ function CompareView({
         )}
         {pane(candidate, candidate.originalName ?? t("contact.candidate"))}
       </div>
+    </div>
+  );
+}
+
+function EnhanceCompareView({ pair, onClose }: { pair: EnhancePair; onClose: () => void }) {
+  const t = useT();
+  return (
+    <div className="compare" data-testid="compare-view">
+      <div className="compare-head">
+        <strong>{t("enhance.compareSource")}</strong>
+        <span className="spacer" />
+        <button className="btn btn-sm" onClick={onClose}>
+          <X size={13} /> {t("contact.back")}
+        </button>
+      </div>
+      <CompareCanvas source={pair.source} result={pair.result} />
     </div>
   );
 }

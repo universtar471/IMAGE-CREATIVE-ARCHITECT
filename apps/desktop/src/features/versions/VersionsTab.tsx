@@ -7,6 +7,7 @@ import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
 import { useT } from "../../i18n";
 import { buildVersionTree } from "./tree";
+import { resolveEnhancePair } from "../enhance/enhance";
 
 /** Version lineage: imports are roots, generated outputs hang under their parent's version. */
 export function VersionsTab() {
@@ -16,6 +17,7 @@ export function VersionsTab() {
   const generations = useStudio((s) => s.workspace!.generations);
   const selectedId = useStudio((s) => s.selectedAssetId);
   const selectAsset = useStudio((s) => s.selectAsset);
+  const setModule = useStudio((s) => s.setModule);
   const revision = useStudio((s) => s.dataRevision);
   const [loaded, setLoaded] = useState<{ key: string; versions?: VersionDTO[]; error?: string }>();
   const key = `${projectId}|${revision}`;
@@ -91,6 +93,19 @@ export function VersionsTab() {
               <span className="spacer" />
               <span className="field-hint">{formatRelativeTime(v.createdAt)}</span>
             </button>
+            {asset && resolveEnhancePair(asset.id, generations, assets) && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                title={t("enhance.compareSource")}
+                onClick={() => {
+                  selectAsset(asset.id);
+                  setModule("enhance");
+                }}
+              >
+                <Sparkles size={10} /> {t("enhance.compareSource")}
+              </button>
+            )}
           </li>
         );
       })}
