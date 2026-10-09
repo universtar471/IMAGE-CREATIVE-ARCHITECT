@@ -350,8 +350,8 @@ pub fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
 }
 
 /// Insert one `queued` generation and its job inside the caller's transaction. The project
-/// may have been archived, and references removed, since validation: both are checked again.
-/// Returns `(generation id, job id)`.
+/// may have been archived, references removed and the camera dropped from the DNA since
+/// validation: all are checked again. Returns `(generation id, job id)`.
 pub(crate) fn insert_queued(
     core: &AppCore,
     conn: &Connection,
@@ -362,6 +362,9 @@ pub(crate) fn insert_queued(
     ensure_not_archived(&repo::get_project(conn, &v.project_id)?)?;
     for id in &v.snapshot.reference_asset_ids {
         check_reference(core, conn, &v.project_id, id)?;
+    }
+    if let Some(id) = &v.camera_id {
+        camera_name(&repo::get_dna(conn, &v.project_id)?, id)?;
     }
     let generation = GenerationRow {
         id: new_id(prefix::GENERATION),
@@ -794,7 +797,8 @@ mod tests {
     use crate::services::projects;
     use crate::services::provider_settings;
     use crate::services::tests_support::{
-        core_with_double, open_test_core, submit_and_run, test_create_villa, write_png, TestBehavior, TEST_PROVIDER,
+        core_with_double, open_test_core, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior,
+        CAM_A, TEST_PROVIDER,
     };
 
     /// Phase 2 tests check a whole run: submit, then let the queue run it on this thread.
@@ -1087,13 +1091,15 @@ mod tests {
             let (core, double) = open_test_core(&root);
             let p = test_create_villa(&core, "A");
             set_key(&core, "k");
-            // Simulate the app dying mid-call: the provider call never returns normally,
-            // after the running row was committed.
-            double.set_hook(|| panic!("simulated app exit during the provider call"));
+            // Simulate the app dying mid-call: the job is claimed (the running row is
+            // committed) but the attempt never reports back.
             let req = request(&p.id, TEST_PROVIDER, "full", &[], params(1));
-            let died = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| submit(&core, req)));
-            assert!(died.is_err());
+            super::submit(&core, req).unwrap();
+            let claims = queue::claim(&core, core.clock.now()).unwrap();
+            assert_eq!(claims.len(), 1);
+            drop(claims);
             assert_eq!(list(&core, &p.id).unwrap()[0].status, GenerationStatus::Running);
+            assert_eq!(double.calls(), 0);
             p.id
         };
         let (core, _) = open_test_core(&root);
@@ -1345,6 +1351,25 @@ mod tests {
             assert_eq!(count(&core, "generations"), 0);
             assert_eq!(double.calls(), 0, "nothing may be sent");
         }
+    }
+
+    #[test]
+    fn camera_removed_before_insert_is_rejected_without_a_row() {
+        let (_tmp, core, double) = core_with_double();
+        let p = test_create_villa(&core, "A");
+        set_cameras(&core, &p.id, &[(CAM_A, "Front", true)]);
+        let weak = Arc::downgrade(&core);
+        let pid = p.id.clone();
+        AFTER_PREPARE.with(|h| {
+            *h.borrow_mut() = Some(Box::new(move || set_cameras(&weak.upgrade().unwrap(), &pid, &[])));
+        });
+        let mut req = local(&p.id, &[], 1);
+        req.camera_id = Some(CAM_A.into());
+        let err = submit(&core, req).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError, "{}", err.message);
+        assert!(err.message.contains(CAM_A), "{}", err.message);
+        assert_eq!((count(&core, "generations"), count(&core, "jobs")), (0, 0));
+        assert_eq!(double.calls(), 0);
     }
 
     #[test]

@@ -63,14 +63,7 @@ pub fn create(core: &AppCore, req: BatchCreateRequest) -> AppResult<BatchDto> {
 
     let mut validated = Vec::with_capacity(req.items.len());
     for (index, item) in req.items.into_iter().enumerate() {
-        let item_error = |e: AppError| {
-            let message = format!("Item {} ('{}'): {}", index + 1, item.label.trim(), e.message);
-            let mut details = e.details.clone().unwrap_or_else(|| json!({}));
-            if let Some(map) = details.as_object_mut() {
-                map.insert("itemIndex".into(), json!(index));
-            }
-            AppError { code: e.code, message, details: Some(details) }
-        };
+        let item_error = |e: AppError| item_error(index, &item.label, e);
         let label = item.label.trim().to_string();
         if label.is_empty() {
             return Err(item_error(AppError::validation("The item label is empty.")));
@@ -88,6 +81,10 @@ pub fn create(core: &AppCore, req: BatchCreateRequest) -> AppResult<BatchDto> {
         let v = generations::validate(core, request).map_err(item_error)?;
         validated.push((v, label));
     }
+    #[cfg(test)]
+    if let Some(hook) = generations::AFTER_PREPARE.with(|h| h.borrow_mut().take()) {
+        hook();
+    }
 
     let now = core.now_iso();
     let batch = BatchRow {
@@ -104,9 +101,13 @@ pub fn create(core: &AppCore, req: BatchCreateRequest) -> AppResult<BatchDto> {
         let tx = conn.transaction()?;
         repo::insert_batch(&tx, &batch)?;
         let mut job_ids = Vec::with_capacity(validated.len());
-        for (v, label) in &validated {
+        // Re-checked inside the transaction: any item that became invalid (e.g. its camera was
+        // removed from the DNA) rolls back the whole batch.
+        for (index, (v, label)) in validated.iter().enumerate() {
             let options = JobOptions { label: label.clone(), priority: req.priority, batch_id: Some(batch.id.clone()) };
-            job_ids.push(generations::insert_queued(core, &tx, v, &options, &now)?.1);
+            let (_, job_id) =
+                generations::insert_queued(core, &tx, v, &options, &now).map_err(|e| item_error(index, label, e))?;
+            job_ids.push(job_id);
         }
         tx.commit()?;
         job_ids
@@ -114,6 +115,16 @@ pub fn create(core: &AppCore, req: BatchCreateRequest) -> AppResult<BatchDto> {
     queue::enqueued(core, &job_ids);
     let conn = core.conn()?;
     to_dto(&conn, batch)
+}
+
+/// Prefix an item's error with its position and label; `details.itemIndex` is 0-based.
+fn item_error(index: usize, label: &str, e: AppError) -> AppError {
+    let message = format!("Item {} ('{}'): {}", index + 1, label.trim(), e.message);
+    let mut details = e.details.clone().unwrap_or_else(|| json!({}));
+    if let Some(map) = details.as_object_mut() {
+        map.insert("itemIndex".into(), json!(index));
+    }
+    AppError { code: e.code, message, details: Some(details) }
 }
 
 fn to_dto(conn: &rusqlite::Connection, b: BatchRow) -> AppResult<BatchDto> {
@@ -211,6 +222,26 @@ mod tests {
         assert_eq!(listed.len(), 1);
         assert_eq!((listed[0].counts.completed, listed[0].counts.queued), (2, 0));
         assert_eq!(listed[0].job_ids, b.job_ids, "item order");
+    }
+
+    #[test]
+    fn camera_removed_after_validation_rejects_the_whole_batch() {
+        let h = queue_harness();
+        let p = test_create_villa(&h.core, "Batch villa");
+        set_cameras(&h.core, &p.id, &[(CAM_A, "Front", true), (CAM_B, "Rear", true)]);
+        let weak = std::sync::Arc::downgrade(&h.core);
+        let pid = p.id.clone();
+        generations::AFTER_PREPARE.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move || {
+                set_cameras(&weak.upgrade().unwrap(), &pid, &[(CAM_A, "Front", true)]);
+            }))
+        });
+        let req = request(&p.id, TEST_LOCAL_PROVIDER, vec![item("a", Some(CAM_A), &[]), item("b", Some(CAM_B), &[])]);
+        let err = create(&h.core, req).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError, "{}", err.message);
+        assert!(err.message.starts_with("Item 2 ('b'): Camera"), "{}", err.message);
+        assert_eq!(err.details.as_ref().unwrap()["itemIndex"], json!(1));
+        assert_eq!(rows(&h), (0, 0, 0), "nothing of the batch is kept");
     }
 
     #[test]
