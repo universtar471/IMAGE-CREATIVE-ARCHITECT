@@ -11,7 +11,7 @@ import {
 import { createProject } from "../src/app/services";
 import { EMPTY_GENERATE_DRAFT, startBackendSync, useStudio } from "../src/app/store";
 import { jobElapsedMs, visibleJobs } from "../src/features/jobs/JobsTab";
-import { call, eventsReady, setTransport, subscribe } from "../src/lib/bridge";
+import { call, eventsReady, setTransport, subscribe, type Transport } from "../src/lib/bridge";
 import { createMockTransport, MOCK_PROVIDER_SLOTS } from "../src/lib/mockBackend";
 import { asset, deferredTransport, settled, sleep, waitFor } from "./helpers";
 
@@ -472,6 +472,54 @@ describe("stale polls never overwrite newer state", () => {
     d.release("generation_list");
     await older;
     expect(storeGen(g.id)?.status).toBe("completed");
+  });
+});
+
+describe("bridge event connection", () => {
+  function countingTransport() {
+    const counts = { connects: 0, teardowns: 0 };
+    const t: Transport = Object.assign(createMockTransport(), {
+      connectEvents: () => {
+        counts.connects++;
+        return () => {
+          counts.teardowns++;
+        };
+      },
+    });
+    setTransport(t);
+    return counts;
+  }
+
+  it("tears the listener down when the last subscriber leaves", async () => {
+    const counts = countingTransport();
+    const offA = subscribe(JOB_UPDATED_EVENT, () => {});
+    const offB = subscribe(GENERATION_UPDATED_EVENT, () => {});
+    await eventsReady();
+    expect(counts).toEqual({ connects: 1, teardowns: 0 });
+    offA();
+    expect(counts.teardowns).toBe(0);
+    offB();
+    expect(counts.teardowns).toBe(1);
+    const offC = subscribe(JOB_UPDATED_EVENT, () => {});
+    await eventsReady();
+    expect(counts).toEqual({ connects: 2, teardowns: 1 });
+    offC();
+    expect(counts).toEqual({ connects: 2, teardowns: 2 });
+  });
+
+  it("an unsubscribe while connecting closes the listener once it opens", async () => {
+    const counts = countingTransport();
+    const off = subscribe(JOB_UPDATED_EVENT, () => {});
+    off(); // the connection is still pending
+    await sleep(0);
+    expect(counts).toEqual({ connects: 1, teardowns: 1 });
+    // A new subscriber still gets a live connection.
+    const seen: string[] = [];
+    const again = subscribe(JOB_UPDATED_EVENT, (j) => seen.push(j.id));
+    await eventsReady();
+    expect(counts).toEqual({ connects: 2, teardowns: 1 });
+    again();
+    expect(counts.teardowns).toBe(2);
   });
 });
 
