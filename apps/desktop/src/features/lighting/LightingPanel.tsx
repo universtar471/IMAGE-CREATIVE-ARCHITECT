@@ -3,6 +3,7 @@ import {
   newLightingId,
   type LightingDNA,
   type LightingPreset,
+  type ProjectDNA,
   type WeatherDNA,
   type WeatherPreset,
 } from "@arch/domain";
@@ -12,7 +13,6 @@ import { FieldGroup, SelectField, TextAreaField, TextField } from "../../compone
 import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
 import { useT } from "../../i18n";
-import type { ProjectDNAWithInterior } from "../../lib/interior";
 
 const TIMES = [
   "dawn",
@@ -313,7 +313,7 @@ function InteriorLightingPanel() {
   const editDna = useStudio((state) => state.editDna);
   const readOnly = useStudio(selectReadOnly);
   const t = useT();
-  const interior = (ws.draftDna as ProjectDNAWithInterior).interior;
+  const interior = (ws.draftDna as ProjectDNA).interior;
   if (!interior) return <span className="field-hint">{t("interior.legacyLightingHint")}</span>;
   const disabled = readOnly || !!ws.draftDna.locks.lighting;
   const patch = (field: string, value: unknown) => editDna(`interior.${field}`, value);

@@ -6,6 +6,7 @@ import {
   TIME_OF_DAY_VALUES,
   dnaReadiness,
   type AssetRole,
+  type ProjectDNA,
   type ProjectDTO,
 } from "@arch/domain";
 import { attempt, selectReadOnly, useStudio, type WorkspaceData } from "../../app/store";
@@ -22,14 +23,7 @@ import { packLabel } from "../../i18n/knowledge";
 import type { DnaStepId, DerivedWorkflowStep } from "../../lib/workflow";
 import { NextStepBar } from "../workflow/NextStepBar";
 import { Moodboard } from "../dna/InteriorDnaPanel";
-import {
-  BUILDING_USES,
-  INTERIOR_STYLES,
-  PALETTES,
-  ROOMS,
-  catalogLabel,
-  type ProjectDNAWithInterior,
-} from "../../lib/interior";
+import { BUILDING_USES, INTERIOR_STYLES, PALETTES, ROOMS, catalogLabel } from "../../lib/interior";
 import { currentLocale, useLocale } from "../../i18n";
 
 export function OverviewPanel() {
@@ -46,7 +40,7 @@ export function OverviewPanel() {
   const { pack, match } = knowledge.resolve(project.projectType, project.subtype);
   const t = useT();
   const locale = useLocale((state) => state.locale);
-  const interior = (dna as ProjectDNAWithInterior).interior;
+  const interior = (dna as ProjectDNA).interior;
 
   const approve = async (approved: boolean) => {
     const p = await attempt(() =>
@@ -253,7 +247,7 @@ function workflowSummary(stepId: string, ws: WorkspaceData, t: ReturnType<typeof
     });
   }
   if (stepId === "dna.building") {
-    const interior = (ws.draftDna as ProjectDNAWithInterior).interior;
+    const interior = (ws.draftDna as ProjectDNA).interior;
     if (ws.project.projectType === "interior" && interior) {
       const locale = currentLocale();
       return values(

@@ -5,6 +5,8 @@
 import {
   compilePrompt,
   createInitialDNA,
+  type InteriorDNA,
+  type ProjectDNA,
   type ProjectDTO,
   type ProjectType,
   type PromptBundle,
@@ -12,7 +14,6 @@ import {
 } from "@arch/domain";
 import { call, type CommandResponse } from "../lib/bridge";
 import { knowledge } from "../lib/knowledge";
-import type { InteriorDNA, ProjectDNAWithInterior } from "../lib/interior";
 
 export type NewProjectInput = {
   name: string;
@@ -31,7 +32,7 @@ export async function createProject(input: NewProjectInput): Promise<ProjectDTO>
     pack,
     starter: input.starter,
   });
-  const dna: ProjectDNAWithInterior = input.interior ? { ...base, interior: input.interior } : base;
+  const dna: ProjectDNA = input.interior ? { ...base, interior: input.interior } : base;
   return call("project_create", {
     name: input.name,
     projectType: input.projectType,

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { createInitialDNA } from "@arch/domain";
-import { createProject } from "../src/app/services";
+import { createInitialDNA, ProjectDNASchema } from "@arch/domain";
+import { compileFromBundle, createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
 import { NewProjectWizard } from "../src/features/projects/NewProjectWizard";
 import { InteriorDnaPanel } from "../src/features/dna/InteriorDnaPanel";
@@ -9,14 +9,13 @@ import { BuildingDnaPanel } from "../src/features/dna/BuildingDnaPanel";
 import { ContextDnaPanel } from "../src/features/dna/ContextDnaPanel";
 import { LightingPanel } from "../src/features/lighting/LightingPanel";
 import { CameraPanel } from "../src/features/camera/CameraPanel";
-import { call, setTransport } from "../src/lib/bridge";
+import { call, fieldErrorsOf, setTransport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 import {
   defaultInteriorDNA,
   furnitureForRoom,
   proposeInteriorFromLegacy,
   roomsForUse,
-  type ProjectDNAWithInterior,
 } from "../src/lib/interior";
 import type { ProjectDNA } from "@arch/domain";
 
@@ -87,12 +86,65 @@ describe("interior project UI", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(created).toBeTruthy();
     const project = created as { id: string };
-    expect((db.dna[project.id] as ProjectDNAWithInterior).interior).toMatchObject({
+    expect((db.dna[project.id] as ProjectDNA).interior).toMatchObject({
       buildingUseId: "office",
       roomId: "meeting_room",
       styleId: "modern",
       paletteId: "cool_neutral",
     });
+  });
+
+  it("creates schema-valid DNA that compiles with the interior prompt sections", async () => {
+    let created: { id: string } | undefined;
+    render(
+      <NewProjectWizard onClose={() => undefined} onCreated={(project) => (created = project)} />,
+    );
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "Prompt interior" },
+    });
+    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
+    fireEvent.change(screen.getByLabelText("Room"), { target: { value: "meeting_room" } });
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create/ }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(created).toBeTruthy();
+    const bundle = await call("project_get", { projectId: created!.id });
+    const parsed = ProjectDNASchema.safeParse(bundle.dna);
+    expect(parsed.success).toBe(true);
+    const prompt = compileFromBundle(bundle).positivePrompt;
+    expect(prompt).toContain("Interior space: office meeting room.");
+    expect(prompt).toContain("Interior style: Modern, clean lines and flat planes.");
+    expect(prompt).toContain("Materials and colors:");
+    expect(prompt).toContain("Furnishing:");
+  });
+
+  it("makes the mock backend reject an invalid interior room and surface id", async () => {
+    const project = await openInterior();
+    const invalid = structuredClone(db.dna[project.id]!);
+    invalid.interior = {
+      ...invalid.interior!,
+      surfaces: { ...invalid.interior!.surfaces, floor: ["paint" as never] },
+    };
+    const surfaceError = await call("dna_update", { projectId: project.id, dna: invalid }).catch(
+      (caught) => caught,
+    );
+    expect(surfaceError).toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(fieldErrorsOf(surfaceError)).toEqual({
+      "interior.surfaces.floor.0": expect.any(String),
+    });
+
+    const roomInvalid = structuredClone(db.dna[project.id]!);
+    roomInvalid.interior = { ...roomInvalid.interior!, roomId: "meeting_room" as never };
+    const roomError = await call("dna_update", { projectId: project.id, dna: roomInvalid }).catch(
+      (caught) => caught,
+    );
+    expect(roomError).toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(fieldErrorsOf(roomError)).toEqual({ "interior.roomId": expect.any(String) });
   });
 
   it("resets an invalid room and shows the live material moodboard", async () => {
@@ -125,14 +177,12 @@ describe("interior project UI", () => {
     render(<BuildingDnaPanel />);
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
     expect(confirm).toHaveBeenCalledWith("Apply the style's material set?");
-    expect(
-      (useStudio.getState().workspace!.draftDna as ProjectDNAWithInterior).interior?.styleId,
-    ).toBe("japandi");
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior?.styleId).toBe(
+      "japandi",
+    );
     confirm.mockReturnValue(true);
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    expect(
-      (useStudio.getState().workspace!.draftDna as ProjectDNAWithInterior).interior,
-    ).toMatchObject({
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
       styleId: "modern",
       paletteId: "cool_neutral",
       materialPresetId: "modern_clean",
@@ -174,15 +224,13 @@ describe("interior project UI", () => {
     expect(screen.getByText("This interior uses legacy free-text DNA.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Convert to pick-lists" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(
-      (useStudio.getState().workspace!.draftDna as ProjectDNAWithInterior).interior,
-    ).toBeUndefined();
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toBeUndefined();
     fireEvent.click(screen.getByRole("button", { name: "Convert to pick-lists" }));
     const dialog = screen.getByRole("dialog", { name: "Convert legacy interior?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Convert to pick-lists" }));
-    expect(
-      (useStudio.getState().workspace!.draftDna as ProjectDNAWithInterior).interior,
-    ).toMatchObject({ buildingUseId: "office" });
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
+      buildingUseId: "office",
+    });
   });
 
   it("keeps the exterior architecture panel unchanged", async () => {

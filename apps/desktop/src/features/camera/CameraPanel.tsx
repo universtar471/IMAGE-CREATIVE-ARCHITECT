@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Anchor, Copy, Plus, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import {
   blankCamera,
+  CAMERA_PRESETS,
   cameraFromPreset,
   cameraReadiness,
   CameraViewTypeSchema,
   duplicateCamera,
   uniqueCameraName,
   type CameraDNA,
+  type ProjectDNA,
   type PromptBundle,
 } from "@arch/domain";
 import { compilePromptPreview } from "../../app/services";
@@ -22,38 +24,21 @@ import { CAMERA_ASPECT_RATIOS } from "./labels";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
-import type { ProjectDNAWithInterior } from "../../lib/interior";
 
-const INTERIOR_CAMERA_PRESETS = [
-  {
-    id: "wide_entrance",
-    nameKey: "wideEntrance",
-    viewType: "interior_wide",
-    lensMm: 20,
-    composition: "wide view from the entrance",
-  },
-  {
-    id: "corner",
-    nameKey: "corner",
-    viewType: "interior_wide",
-    lensMm: 20,
-    composition: "two-point view from a room corner",
-  },
-  {
-    id: "one_point",
-    nameKey: "onePoint",
-    viewType: "interior_wide",
-    lensMm: 20,
-    composition: "centred one-point perspective",
-  },
-  {
-    id: "detail",
-    nameKey: "detail",
-    viewType: "interior_detail",
-    lensMm: 35,
-    composition: "close material and furniture detail",
-  },
-] as const;
+const INTERIOR_CAMERA_NAME_KEYS = {
+  wide_entrance: "wideEntrance",
+  corner: "corner",
+  one_point: "onePoint",
+  detail: "detail",
+} as const;
+
+const INTERIOR_CAMERA_PRESETS = CAMERA_PRESETS.map((preset) => ({
+  ...preset,
+  nameKey: INTERIOR_CAMERA_NAME_KEYS[preset.id],
+  viewType: preset.id === "detail" ? ("interior_detail" as const) : ("interior_wide" as const),
+  lensMm: preset.id === "detail" ? 35 : 20,
+  composition: preset.prompt,
+}));
 
 /** Right panel of the Camera module: camera list, field editor and prompt preview. */
 export function CameraPanel() {
@@ -260,7 +245,7 @@ function CameraListSection() {
 
 function editInteriorCameraPreset(id: (typeof INTERIOR_CAMERA_PRESETS)[number]["id"]) {
   const state = useStudio.getState();
-  const dna = state.workspace?.draftDna as ProjectDNAWithInterior | undefined;
+  const dna = state.workspace?.draftDna as ProjectDNA | undefined;
   if (dna?.interior) state.editDna("interior.cameraPresetId", id);
 }
 

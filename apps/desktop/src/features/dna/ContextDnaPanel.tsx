@@ -1,11 +1,10 @@
-import { CONTEXT_DIRECTIONS, DensitySchema } from "@arch/domain";
+import { CONTEXT_DIRECTIONS, DensitySchema, type ProjectDNA } from "@arch/domain";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { SelectField } from "../../components/panels/fields";
 import { DnaSelect, DnaTags, DnaText, DnaTextArea } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 import { useT } from "../../i18n";
 import { selectReadOnly, useStudio } from "../../app/store";
-import type { ProjectDNAWithInterior } from "../../lib/interior";
 
 export function ContextDnaPanel() {
   const t = useT();
@@ -89,7 +88,7 @@ export function ContextDnaPanel() {
 function InteriorContextPanel() {
   const t = useT();
   const editDna = useStudio((state) => state.editDna);
-  const dna = useStudio((state) => state.workspace!.draftDna as ProjectDNAWithInterior);
+  const dna = useStudio((state) => state.workspace!.draftDna as ProjectDNA);
   const readOnly = useStudio(selectReadOnly);
   const locked = useStudio((state) => !!state.workspace?.draftDna.locks.context);
   const interior = dna.interior;

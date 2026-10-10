@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { InteriorOption, InteriorSurfaces, ProjectDNA } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { SectionPanel } from "../../components/panels/SectionPanel";
@@ -7,29 +8,28 @@ import { useLocale, useT } from "../../i18n";
 import {
   BUILDING_USES,
   FURNITURE,
+  INTERIOR_CATALOG,
   INTERIOR_STYLES,
   MATERIAL_PRESETS,
   PALETTES,
-  PALETTE_SWATCHES,
   ROOMS,
-  SURFACE_CATALOG,
   applyStyleDefaults,
   catalogLabel,
   furnitureForRoom,
   presetSurfaces,
   proposeInteriorFromLegacy,
   roomsForUse,
-  type CatalogOption,
   type FurnitureId,
   type InteriorDNA,
   type InteriorStyleId,
-  type ProjectDNAWithInterior,
-  type SurfaceSlot,
 } from "../../lib/interior";
+
+type SurfaceSlot = keyof InteriorSurfaces;
+type SurfaceOption = InteriorOption<string> & { swatch: string };
 
 export function InteriorDnaPanel() {
   const ws = useStudio((state) => state.workspace!);
-  const interior = (ws.draftDna as ProjectDNAWithInterior).interior;
+  const interior = (ws.draftDna as ProjectDNA).interior;
   return interior ? <InteriorEditor interior={interior} /> : <LegacyInteriorCallout />;
 }
 
@@ -133,11 +133,11 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
         </SectionPanel>
 
         <SectionPanel title={t("interior.surfaces")}>
-          {(Object.keys(SURFACE_CATALOG) as SurfaceSlot[]).map((slot) => (
+          {(Object.keys(INTERIOR_CATALOG.surfaces) as SurfaceSlot[]).map((slot) => (
             <CatalogMultiSelect
               key={slot}
               label={t(`interior.surface.${slot}`)}
-              options={SURFACE_CATALOG[slot]}
+              options={INTERIOR_CATALOG.surfaces[slot]}
               value={interior.surfaces[slot]}
               locale={locale}
               disabled={disabled}
@@ -203,7 +203,7 @@ function CatalogMultiSelect<T extends string>({
 }: {
   label: string;
   hint?: string;
-  options: readonly CatalogOption<T>[];
+  options: readonly InteriorOption<T>[];
   value: readonly T[];
   locale: "vi" | "en";
   disabled: boolean;
@@ -242,10 +242,10 @@ function suggestedFurniture(roomId: InteriorDNA["roomId"]) {
 export function Moodboard({ interior, mini = false }: { interior: InteriorDNA; mini?: boolean }) {
   const locale = useLocale((state) => state.locale);
   const t = useT();
-  const materials = (Object.keys(SURFACE_CATALOG) as SurfaceSlot[]).flatMap((slot) =>
+  const materials = (Object.keys(INTERIOR_CATALOG.surfaces) as SurfaceSlot[]).flatMap((slot) =>
     interior.surfaces[slot].map((id) => ({
       slot,
-      item: (SURFACE_CATALOG[slot] as readonly CatalogOption<string>[]).find(
+      item: (INTERIOR_CATALOG.surfaces[slot] as readonly SurfaceOption[]).find(
         (candidate) => candidate.id === id,
       ),
     })),
@@ -258,7 +258,10 @@ export function Moodboard({ interior, mini = false }: { interior: InteriorDNA; m
       {!mini && <h3>{t("interior.moodboard")}</h3>}
       <strong>{catalogLabel(INTERIOR_STYLES, interior.styleId, locale)}</strong>
       <div className="moodboard-palette" aria-label={t("interior.paletteSwatches")}>
-        {(interior.paletteId ? PALETTE_SWATCHES[interior.paletteId] : []).map((color) => (
+        {(interior.paletteId
+          ? (PALETTES.find((palette) => palette.id === interior.paletteId)?.swatches ?? [])
+          : []
+        ).map((color) => (
           <span
             key={color}
             className="moodboard-swatch"
