@@ -99,6 +99,9 @@ pub fn run() {
             commands::camera_anchor_list,
             commands::camera_anchor_set,
             commands::camera_anchor_clear,
+            commands::region_list,
+            commands::region_save,
+            commands::region_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");

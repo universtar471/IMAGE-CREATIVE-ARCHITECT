@@ -51,6 +51,7 @@ pub struct ModelCapabilities {
     /// price known. A tier missing from the map has no published price.
     pub price_hint: Option<BTreeMap<String, u32>>,
     pub vision: bool,
+    pub supports_mask: bool,
 }
 
 /// Every `quality` value the contract knows (`GenerationQualitySchema`).
@@ -89,12 +90,31 @@ pub struct GenerationParams {
     pub enhance: Option<EnhanceParams>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repair: Option<RepairParams>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<RegionEditParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RepairParams {
     pub qc_report_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionEditParams {
+    pub region_ids: Vec<String>,
+    pub instruction: String,
+    pub mode: RegionEditMode,
+    #[serde(default)]
+    pub material: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RegionEditMode {
+    Edit,
+    MaterialReplace,
 }
 
 /// Mirrors `EnhanceParams` in API_CONTRACTS \u00a714.1.
@@ -150,6 +170,16 @@ pub struct ProviderRequest {
     pub params: GenerationParams,
     /// `None` for providers that need no key. Never logged, never persisted.
     pub api_key: Option<String>,
+    /// Region mask PNG. Native providers upload it as `mask`; other providers receive it as
+    /// the final reference image.
+    pub mask: Option<MaskImage>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MaskImage {
+    pub bytes: Vec<u8>,
+    pub mime_type: String,
+    pub native: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
