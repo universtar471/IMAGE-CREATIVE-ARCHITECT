@@ -26,6 +26,7 @@ export function WorkspaceTopBar() {
   const flushDna = useStudio((s) => s.flushDna);
   const adoptProject = useStudio((s) => s.adoptProject);
   const notify = useStudio((s) => s.notify);
+  const setModule = useStudio((s) => s.setModule);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const t = useT();
   const archived = !!project.archivedAt;
@@ -58,7 +59,19 @@ export function WorkspaceTopBar() {
           {t(`labels.projectType.${project.projectType}`)}
           {project.subtype ? ` · ${subtypeLabel(project.projectType, project.subtype)}` : ""}
         </span>
-        <StatusBadge status={project.status} />
+        {project.status === "master_pending" ? (
+          // The approve button lives in Overview; the pending badge is the shortcut to it.
+          <button
+            type="button"
+            className="badge-button"
+            title={t("workflow.goApproveMaster")}
+            onClick={() => setModule("overview")}
+          >
+            <StatusBadge status={project.status} />
+          </button>
+        ) : (
+          <StatusBadge status={project.status} />
+        )}
       </div>
       <span className="spacer" />
       <QueueIndicator />
