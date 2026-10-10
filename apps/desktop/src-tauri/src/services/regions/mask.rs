@@ -57,26 +57,38 @@ pub fn feather_mask(mask: &[u8], width: u32, height: u32, radius_px: u32) -> Vec
     if radius_px == 0 {
         return mask.to_vec();
     }
-    let mut cur: Vec<f32> = mask.iter().map(|v| *v as f32).collect();
+    let mut cur = mask.to_vec();
     for _ in 0..3 {
-        let mut next = vec![0.0; cur.len()];
-        for y in 0..height {
-            for x in 0..width {
-                let mut sum = 0.0;
-                let mut n = 0.0;
-                let r = radius_px as i32;
-                for yy in (y as i32 - r).max(0)..=(y as i32 + r).min(height as i32 - 1) {
-                    for xx in (x as i32 - r).max(0)..=(x as i32 + r).min(width as i32 - 1) {
-                        sum += cur[(yy as u32 * width + xx as u32) as usize];
-                        n += 1.0;
-                    }
-                }
-                next[(y * width + x) as usize] = sum / n;
-            }
-        }
-        cur = next;
+        cur = box_blur(&cur, width, height, radius_px);
     }
-    cur.into_iter().map(|v| v.round().clamp(0.0, 255.0) as u8).collect()
+    cur
+}
+
+fn box_blur(input: &[u8], width: u32, height: u32, radius: u32) -> Vec<u8> {
+    let mut horizontal = vec![0; input.len()];
+    let size = radius * 2 + 1;
+    for y in 0..height {
+        for x in 0..width {
+            let mut sum = 0_u32;
+            for delta in -(radius as i64)..=radius as i64 {
+                let xx = (x as i64 + delta).clamp(0, width as i64 - 1) as u32;
+                sum += u32::from(input[(y * width + xx) as usize]);
+            }
+            horizontal[(y * width + x) as usize] = ((sum + size / 2) / size) as u8;
+        }
+    }
+    let mut output = vec![0; input.len()];
+    for y in 0..height {
+        for x in 0..width {
+            let mut sum = 0_u32;
+            for delta in -(radius as i64)..=radius as i64 {
+                let yy = (y as i64 + delta).clamp(0, height as i64 - 1) as u32;
+                sum += u32::from(horizontal[(yy * width + x) as usize]);
+            }
+            output[(y * width + x) as usize] = ((sum + size / 2) / size) as u8;
+        }
+    }
+    output
 }
 pub fn png_mask(mask: &[u8], width: u32, height: u32, alpha_zero: bool) -> Result<Vec<u8>, image::ImageError> {
     let mut img: RgbaImage = ImageBuffer::new(width, height);
@@ -115,14 +127,47 @@ pub fn composite(
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn rectangle_and_union() {
-        let m = rasterize_mask(&[RegionShape::Rect { x: 0.0, y: 0.0, w: 0.5, h: 1.0 }], 4, 2);
-        assert_eq!(m, [255, 255, 0, 0, 255, 255, 0, 0]);
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Vector {
+        name: String,
+        width: u32,
+        height: u32,
+        shapes: Vec<RegionShape>,
+        mask: Vec<u8>,
+        feather: Option<Feather>,
     }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Feather {
+        radius_px: u32,
+        output: Vec<u8>,
+    }
+
     #[test]
-    fn feather_changes_edges() {
-        let f = feather_mask(&[255, 255, 0, 0], 4, 1, 1);
-        assert!(f[0] < 255 && f[1] > f[2]);
+    fn matches_domain_mask_vectors() {
+        let vectors: Vec<Vector> = serde_json::from_str(include_str!(
+            "../../../../../../packages/domain/test-vectors/masks.json"
+        ))
+        .expect("domain mask vectors must be valid JSON");
+        assert!(!vectors.is_empty());
+        for vector in vectors {
+            let actual = rasterize_mask(&vector.shapes, vector.width, vector.height);
+            assert_eq!(actual, vector.mask, "mask vector {}", vector.name);
+            if let Some(feather) = vector.feather {
+                let actual = feather_mask(&actual, vector.width, vector.height, feather.radius_px);
+                assert_eq!(actual.len(), feather.output.len(), "feather vector {}", vector.name);
+                for (index, (actual, expected)) in actual.iter().zip(&feather.output).enumerate() {
+                    assert!(
+                        actual.abs_diff(*expected) <= 1,
+                        "feather vector {} differs at {index}: expected {expected}, got {actual}",
+                        vector.name
+                    );
+                }
+            }
+        }
     }
 }

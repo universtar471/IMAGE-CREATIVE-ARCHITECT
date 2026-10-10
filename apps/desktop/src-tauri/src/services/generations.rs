@@ -912,18 +912,6 @@ fn commit_outputs(
         .first()
         .and_then(|reference| imaging::inspect(&reference.bytes, "source image").ok())
         .map(|info| info.width.max(info.height));
-    let mask_coverage_pct = if prepared.purpose == GenerationPurpose::RegionEdit {
-        prepared.references.first().and_then(|reference| imaging::inspect(&reference.bytes, "source image").ok()).map(
-            |info| {
-                let mask =
-                    crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, info.width, info.height);
-                let inside = mask.iter().filter(|v| **v > 0).count() as f64;
-                inside * 100.0 / mask.len().max(1) as f64
-            },
-        )
-    } else {
-        None
-    };
     for (index, (files, checked)) in stored.iter().zip(checked).enumerate() {
         let asset_id = &files.asset_id;
         let index = index as u32;
@@ -935,8 +923,6 @@ fn commit_outputs(
                 "nativeMask": prepared.model.supports_mask,
                 "providerId": generation.provider_id,
                 "model": generation.model_id,
-                "maskCoveragePct": mask_coverage_pct,
-                "outputIndex": index,
             })
         } else if prepared.purpose == GenerationPurpose::Enhance {
             json!({

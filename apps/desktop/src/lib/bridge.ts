@@ -22,6 +22,8 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  RegionDTOSchema,
+  RegionSaveRequestSchema,
   WorkflowConfirmStepRequestSchema,
   WorkflowDTOSchema,
   WorkflowGetRequestSchema,
@@ -44,9 +46,10 @@ import {
   type PromptEnhanceRequest,
   type ProjectDNA,
   type ProjectType,
+  type RegionDTO,
+  type RegionEditParams,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
-import type { RegionDTO, RegionEditParams, RegionShape } from "./regions";
 
 export {
   WorkflowConfirmStepRequestSchema,
@@ -70,35 +73,7 @@ export const VersionDTOSchema = z.object({
 });
 export type VersionDTO = z.infer<typeof VersionDTOSchema>;
 
-// TODO(p7-domain): remove this compatibility branch when @arch/domain ships region_edit.
-// The transform keeps the bridge's public type stable while allowing the UI mock to exercise
-// the Phase 7 payload on a checkout that still has the Phase 6 generation enum.
-const RegionGenerationDTOSchema = z
-  .object({
-    id: z.string(),
-    projectId: z.string(),
-    providerId: z.string(),
-    modelId: z.string(),
-    purpose: z.literal("region_edit"),
-    status: z.enum(["queued", "running", "completed", "failed", "interrupted", "cancelled"]),
-    prompt: z.unknown(),
-    referenceAssetIds: z.array(z.string()),
-    params: z.unknown(),
-    parentAssetId: z.string().nullable(),
-    outputAssetIds: z.array(z.string()),
-    error: z.unknown().nullable(),
-    cameraId: z.string().nullable(),
-    batchId: z.string().nullable(),
-    jobId: z.string().nullable(),
-    createdAt: z.string(),
-    startedAt: z.string().nullable(),
-    finishedAt: z.string().nullable(),
-    durationMs: z.number().int().nonnegative().nullable(),
-  })
-  .passthrough();
-const GenerationResponseSchema = z
-  .union([GenerationDTOSchema, RegionGenerationDTOSchema])
-  .transform((value) => value as z.infer<typeof GenerationDTOSchema>);
+const GenerationResponseSchema = GenerationDTOSchema;
 const ProjectDNAResponseSchema = ProjectDNASchema.passthrough();
 const ProjectBundleResponseSchema = ProjectBundleDTOSchema.extend({
   dna: ProjectDNAResponseSchema,
@@ -129,41 +104,6 @@ export const AssetPreviewRequestSchema = z.object({
   maxEdge: z.number().int().min(256).max(4096),
 });
 
-const RegionShapeSchema: z.ZodType<RegionShape> = z.union([
-  z.object({ type: z.literal("rect"), x: z.number(), y: z.number(), w: z.number(), h: z.number() }),
-  z.object({
-    type: z.literal("polygon"),
-    points: z.array(z.tuple([z.number(), z.number()])).min(3),
-  }),
-  z.object({
-    type: z.literal("brush"),
-    strokes: z.array(
-      z.object({ points: z.array(z.tuple([z.number(), z.number()])).min(1), radius: z.number() }),
-    ),
-  }),
-]);
-export const RegionDTOSchema: z.ZodType<RegionDTO> = z.object({
-  id: z.string().regex(/^RGN_[0-9A-Z]{26}$/),
-  projectId: z.string(),
-  assetId: z.string(),
-  label: z.string(),
-  kind: z.enum(["object", "zone", "material"]),
-  objectId: z.string().nullable(),
-  shape: RegionShapeSchema,
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-export const RegionSaveRequestSchema = z.object({
-  projectId: z.string(),
-  assetId: z.string(),
-  region: z.object({
-    id: z.string().optional(),
-    label: z.string(),
-    kind: z.enum(["object", "zone", "material"]),
-    objectId: z.string().nullable(),
-    shape: RegionShapeSchema,
-  }),
-});
 export type RegionSaveRequest = z.infer<typeof RegionSaveRequestSchema>;
 export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
 export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {

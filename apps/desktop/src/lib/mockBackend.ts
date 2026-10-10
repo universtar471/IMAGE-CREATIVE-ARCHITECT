@@ -339,7 +339,7 @@ const MOCK_PROVIDER_REGISTRY: readonly MockProvider[] = MOCK_PROVIDERS_BASE.map(
   })) as ModelCapabilities[],
 }));
 /** Legacy fixture comparison keeps this export provider-neutral; runtime descriptors carry §16.3. */
-export const MOCK_PROVIDERS: readonly MockProvider[] = MOCK_PROVIDERS_BASE;
+export const MOCK_PROVIDERS: readonly MockProvider[] = MOCK_PROVIDER_REGISTRY;
 
 const STORAGE_KEY = "arch-studio-mock-db-v1";
 const browserFiles = new Map<string, File>();
