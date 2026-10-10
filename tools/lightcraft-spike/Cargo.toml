@@ -1,0 +1,16 @@
+[package]
+name = "lightcraft-spike"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+image = { version = "0.25", features = ["jpeg", "png"] }
+lightcraft-color = { package = "lightcraft-color", git = "https://github.com/storytold/lightcraft", rev = "964d9338bafac524146ecf24a1fab54bd22b052e" }
+lightcraft-develop = { package = "lightcraft-develop", git = "https://github.com/storytold/lightcraft", rev = "964d9338bafac524146ecf24a1fab54bd22b052e" }
+lightcraft-geom = { package = "lightcraft-geom", git = "https://github.com/storytold/lightcraft", rev = "964d9338bafac524146ecf24a1fab54bd22b052e" }
+lightcraft-pipeline = { package = "lightcraft-pipeline", git = "https://github.com/storytold/lightcraft", rev = "964d9338bafac524146ecf24a1fab54bd22b052e" }
+lightcraft-raster = { package = "lightcraft-raster", git = "https://github.com/storytold/lightcraft", rev = "964d9338bafac524146ecf24a1fab54bd22b052e" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
