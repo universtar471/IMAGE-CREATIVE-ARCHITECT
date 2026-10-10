@@ -360,6 +360,28 @@ export const en = {
     needsReview: "An earlier step changed — review and confirm again.",
     generateLabel: "Image workflow",
     generationBlocked: "Finish workflow step '{step}' before generating.",
+    whyLocked: "Why is this locked?",
+    goToStep: "Go to this step",
+    explain: {
+      "dna.building":
+        "The building definition is the source for every prompt, so later steps need a stable structure.",
+      "dna.context":
+        "The site context keeps surroundings and orientation consistent across every image.",
+      "dna.references":
+        "References and the Master give generation a reliable visual basis before images are created.",
+      "dna.camera":
+        "Camera definitions fix viewpoint and composition so anchors and renders can be compared.",
+      "dna.lighting":
+        "Lighting is confirmed before generation so the intended atmosphere is not changed accidentally.",
+      "generate.master":
+        "The Master is the approved architectural source for anchors and production renders.",
+      "generate.anchors":
+        "Anchors hold a fixed viewpoint for each camera; production renders use them to keep the building consistent.",
+      "generate.render":
+        "Production renders need the approved Master and any required camera Anchors first.",
+      "post.grade":
+        "Post-production works from an approved Master so edits always have a trusted source.",
+    },
     blockedNoMaster:
       "No Master image yet — pick the Hero purpose, generate, then press 'Use as master' under Latest result.",
     blockedMasterPending:
@@ -429,6 +451,38 @@ export const en = {
         grade: { name: "Mood / Grade", guide: "Apply a mood or color grade to approved imagery." },
       },
     },
+  },
+
+  nextStep: {
+    label: "Next step",
+    go: "Go to",
+    here: "You are here: {title}",
+    masterCreate: "Create a Hero image, then use it as Master",
+    masterApprove: "Approve the Master image",
+    steps: {
+      "dna.building": "Confirm Building",
+      "dna.context": "Confirm Context",
+      "dna.references": "Confirm References",
+      "dna.camera": "Confirm Camera",
+      "dna.lighting": "Confirm Lighting",
+      "generate.master": "Create or approve the Master image",
+      "generate.anchors": "Create / approve Anchors for {count} camera(s)",
+      "generate.render": "Render the camera views",
+      "post.grade": "Post-production: grade, enhance and QC",
+    },
+  },
+
+  spend: {
+    title: "Confirm cost",
+    provider: "Provider",
+    model: "Model",
+    images: "Images",
+    estimate: "Estimated total",
+    unknown: "No price estimate",
+    create: "Create images",
+    remember: "Do not ask again below {threshold}đ",
+    threshold: "Spend threshold",
+    reset: "Reset threshold",
   },
 
   tray: {
@@ -1303,6 +1357,7 @@ export const en = {
     anchorApproved: "Anchor approved for this camera.",
     openInCanvas: "Open in the canvas",
     approve: "Approve as anchor",
+    rerunAnchor: "Re-run this view",
     compareTitle: "Compare with the master",
     compare: "Compare",
     back: "Back to the sheet",

@@ -17,6 +17,7 @@ import {
   enhanceCost,
   type EnhanceParams,
 } from "./enhance";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 
 const EMPTY_PARAMS: GenerationParams = {
   aspectRatio: null,
@@ -42,6 +43,7 @@ export function EnhancePanel() {
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const t = useT();
+  const spend = useSpendConfirm();
 
   const approved = isMasterApproved(ws.project.status);
   const sourceEdge = source ? sourceLongEdge(source) : 0;
@@ -96,6 +98,17 @@ export function EnhancePanel() {
         baseParams: EMPTY_PARAMS,
         dna: ws.draftDna,
       });
+      if (
+        !(await spend.request({
+          providerId: provider.id,
+          provider: provider.label,
+          model: model.label,
+          imageCount: 1,
+          costText: cost.kind === "priced" ? t("enhance.cost", { amount: cost.amount }) : null,
+          estimatedTotal: cost.kind === "priced" ? cost.amount : null,
+        }))
+      )
+        return;
       await submit(request, request.prompt);
     } finally {
       setBusy(false);
@@ -288,6 +301,7 @@ export function EnhancePanel() {
           onClose={() => setBatchOpen(false)}
         />
       )}
+      {spend.dialog}
     </div>
   );
 }

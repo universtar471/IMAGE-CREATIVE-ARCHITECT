@@ -14,6 +14,7 @@ import {
 import { isMasterApproved } from "../camera/labels";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { useT } from "../../i18n";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 
 const EMPTY_PARAMS: GenerationParams = {
   aspectRatio: null,
@@ -50,6 +51,7 @@ export function QcPanel() {
   const loadToken = useRef(0);
   const [reportsProjectId, setReportsProjectId] = useState<string | null>(null);
   const t = useT();
+  const spend = useSpendConfirm();
   const approved = isMasterApproved(ws.project.status);
 
   const visionProviders = providers.filter((provider) =>
@@ -119,6 +121,19 @@ export function QcPanel() {
 
   const runSelected = async () => {
     if (!selected || busy || readOnly || !approved) return;
+    if (
+      visionMode &&
+      provider &&
+      !(await spend.request({
+        providerId: provider.id,
+        provider: provider.label,
+        model: model?.label ?? model?.id ?? t("qc.model"),
+        imageCount: 1,
+        costText: null,
+        estimatedTotal: null,
+      }))
+    )
+      return;
     setBusy(true);
     try {
       await run(selected.id, visionMode);
@@ -133,6 +148,19 @@ export function QcPanel() {
       ? selectedBatchIds
       : ws.assets.filter((asset) => asset.status === "ready").map((asset) => asset.id);
     if (!ids.length || busy || readOnly || !approved) return;
+    if (
+      visionMode &&
+      provider &&
+      !(await spend.request({
+        providerId: provider.id,
+        provider: provider.label,
+        model: model?.label ?? model?.id ?? t("qc.model"),
+        imageCount: ids.length,
+        costText: null,
+        estimatedTotal: null,
+      }))
+    )
+      return;
     setBusy(true);
     setBatchProgress({ done: 0, total: ids.length });
     const batchKey = `${ws.project.id}:${selectedId ?? ""}`;
@@ -177,6 +205,21 @@ export function QcPanel() {
       prompt: buildRepairPrompt({ dna: ws.draftDna, report: latest }),
       params: EMPTY_PARAMS,
     });
+    const repairProviderDescriptor = providers.find((item) => item.id === repairProvider);
+    const repairModelDescriptor = repairProviderDescriptor?.models.find(
+      (item) => item.id === repairModel,
+    );
+    if (
+      !(await spend.request({
+        providerId: repairProvider,
+        provider: repairProviderDescriptor?.label ?? repairProvider,
+        model: repairModelDescriptor?.label ?? repairModel,
+        imageCount: request.params.outputCount,
+        costText: null,
+        estimatedTotal: null,
+      }))
+    )
+      return;
     await submitGeneration(request as never, request.prompt as never);
   };
 
@@ -297,6 +340,7 @@ export function QcPanel() {
         </button>
       </SectionPanel>
       <ReportView report={latest} onRepair={() => void repair()} />
+      {spend.dialog}
       <SectionPanel title={t("qc.history")} defaultOpen={false}>
         {reports.length ? (
           reports.map((report) => (

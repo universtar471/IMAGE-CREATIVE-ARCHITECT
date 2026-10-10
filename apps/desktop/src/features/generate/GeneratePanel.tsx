@@ -41,6 +41,8 @@ import type { BatchMode } from "../camera/batch";
 import { isMasterApproved } from "../camera/labels";
 import { useAssetImport } from "../assets/useAssetImport";
 import { ConfirmDialog } from "../../components/common/Dialog";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { BlockedExplainer } from "../workflow/BlockedExplainer";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -59,6 +61,7 @@ export function GeneratePanel() {
   const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
+  const spend = useSpendConfirm();
 
   if (!providers) {
     if (providersError) {
@@ -110,8 +113,21 @@ export function GeneratePanel() {
     : null;
   const cost = costText ? translateDomainMessage(costText, t) : null;
 
-  const generate = () => {
+  const generate = async () => {
     if (!form.provider || !form.model) return;
+    const unit = form.params.imageSize ? form.model.priceHint?.[form.params.imageSize] : undefined;
+    const estimatedTotal = unit === undefined ? null : unit * form.params.outputCount;
+    if (
+      !(await spend.request({
+        providerId: form.provider.id,
+        provider: form.provider.label,
+        model: form.model.label,
+        imageCount: form.params.outputCount,
+        costText: cost,
+        estimatedTotal,
+      }))
+    )
+      return;
     void submit({
       projectId: project.id,
       providerId: form.provider.id,
@@ -197,7 +213,7 @@ export function GeneratePanel() {
         <button
           className="btn btn-primary generate-btn"
           disabled={disabledReason !== null}
-          onClick={generate}
+          onClick={() => void generate()}
           data-testid="generate-button"
         >
           <Sparkles size={15} />
@@ -210,12 +226,14 @@ export function GeneratePanel() {
           </span>
         )}
         {disabledReason && (
-          <span className="field-hint" data-testid="generate-disabled-reason">
-            {disabledReason}
-          </span>
+          <div data-testid="generate-disabled-reason">
+            <span className="field-hint">{disabledReason}</span>
+            {!workflowGate.ok && <BlockedExplainer stepId={workflowGate.blockedBy} />}
+          </div>
         )}
       </div>
       {batchMode && <BatchDialog mode={batchMode} onClose={() => setBatchMode(null)} />}
+      {spend.dialog}
     </div>
   );
 }
@@ -243,6 +261,11 @@ function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
         : blockedReason(t, gate.blockedBy, !!ws.project.activeMasterAssetId);
   const anchorReason = reason(anchorGate);
   const renderReason = reason(renderGate);
+  const blockedBy = !anchorGate.ok
+    ? anchorGate.blockedBy
+    : !renderGate.ok
+      ? renderGate.blockedBy
+      : null;
   const anchorViewsCount = anchorViews(ws.draftDna).length;
   return (
     <SectionPanel title={t("camera.workflow")}>
@@ -272,9 +295,10 @@ function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
         </button>
       </div>
       {(anchorReason ?? renderReason) ? (
-        <span className="field-hint" data-testid="anchor-disabled-reason">
-          {anchorReason ?? renderReason}
-        </span>
+        <div data-testid="anchor-disabled-reason">
+          <span className="field-hint">{anchorReason ?? renderReason}</span>
+          {blockedBy && <BlockedExplainer stepId={blockedBy} />}
+        </div>
       ) : anchorViewsCount === 0 ? (
         <span className="field-hint">{t("workflow.steps.generate.anchors.guide")}</span>
       ) : (
