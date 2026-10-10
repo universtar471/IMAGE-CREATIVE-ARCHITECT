@@ -755,6 +755,10 @@ export const en = {
     purpose: "Purpose",
     heroHint: "Hero: the main presentation image, anchored on the master.",
     variationHint: "Variation: an alternative take for exploration.",
+    masterPinned:
+      "Variations always send the master as image 1 to keep the same building; it cannot be unticked.",
+    reasonVariationNeedsRefs:
+      "Variations need a model that accepts reference images to keep the master — {model} does not. Pick another model.",
     variationNoMaster:
       "Variation: needs an approved master — generate a hero, press 'Use as master', then approve it.",
     heroNoMaster:

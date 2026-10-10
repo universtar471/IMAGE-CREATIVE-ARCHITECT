@@ -174,15 +174,21 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
     );
   };
 
-  // Generate again: same settings, prompt recompiled from the current DNA.
+  // Generate again: same settings, prompt recompiled from the current DNA. A variation always
+  // carries the current master as image 1, even if the original run was sent without it.
   const again = () => {
     reuse(g);
+    const masterId = project.activeMasterAssetId;
+    const refs =
+      g.purpose === "variation" && masterId && !g.referenceAssetIds.includes(masterId)
+        ? [masterId, ...g.referenceAssetIds]
+        : g.referenceAssetIds;
     void submit({
       projectId: g.projectId,
       providerId: g.providerId,
       modelId: g.modelId,
       purpose: g.purpose,
-      referenceAssetIds: g.referenceAssetIds,
+      referenceAssetIds: refs,
       params: g.params,
       cameraId: g.cameraId,
     });

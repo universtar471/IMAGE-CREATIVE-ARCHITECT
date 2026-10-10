@@ -543,6 +543,7 @@ function ReferenceSection({
   const atCap = selected.length >= cap;
   const toggle = (id: string, on: boolean) =>
     onChange(on ? [...selected, id] : selected.filter((x) => x !== id));
+  const pinned = form.pinnedIds;
   const t = useT();
 
   return (
@@ -571,12 +572,13 @@ function ReferenceSection({
                   asset={a}
                   checked={checked}
                   imageNumber={checked ? index + 1 : null}
-                  disabled={disabled || unavailable || (!checked && atCap)}
+                  disabled={disabled || unavailable || pinned.includes(a.id) || (!checked && atCap)}
                   onToggle={(on) => toggle(a.id, on)}
                 />
               );
             })}
           </ul>
+          {pinned.length > 0 && <span className="field-hint">{t("generate.masterPinned")}</span>}
           <span className="field-hint">
             {t("generate.refsOrder", { cap, model: model.label })}{" "}
             <button className="link-btn" onClick={onReset} disabled={disabled}>

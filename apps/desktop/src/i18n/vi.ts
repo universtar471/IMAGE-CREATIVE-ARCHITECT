@@ -759,6 +759,10 @@ export const vi: Dict = {
     purpose: "Mục đích",
     heroHint: "Hero: ảnh trình bày chính, bám theo ảnh Master.",
     variationHint: "Biến thể: một phương án khác để khám phá.",
+    masterPinned:
+      "Biến thể luôn gửi kèm ảnh Master làm ảnh 1 để giữ đúng công trình; không bỏ chọn được.",
+    reasonVariationNeedsRefs:
+      "Biến thể cần model nhận ảnh tham chiếu để giữ ảnh Master — {model} không nhận ảnh. Chọn model khác.",
     variationNoMaster:
       "Biến thể: cần ảnh Master đã duyệt — tạo ảnh Hero, bấm 'Dùng làm Master' rồi duyệt.",
     heroNoMaster:

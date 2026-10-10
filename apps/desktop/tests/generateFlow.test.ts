@@ -282,6 +282,69 @@ describe("Generate form derivation", () => {
     expect(none.params.aspectRatio).toBe("1:1");
   });
 
+  it("a variation always carries the master as image 1, pinned", () => {
+    // The user's run was sent with no references: the model only saw text.
+    const empty = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, purpose: "variation", referenceAssetIds: [] },
+      providers(false),
+      assets,
+      "AST_master",
+    );
+    expect(empty.referenceIds).toEqual(["AST_master"]);
+    expect(empty.pinnedIds).toEqual(["AST_master"]);
+    expect(generateDisabledReason(empty, ctx)).toBeNull();
+
+    const chosen = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, purpose: "variation", referenceAssetIds: ["AST_ref"] },
+      providers(false),
+      assets,
+      "AST_master",
+    );
+    expect(chosen.referenceIds).toEqual(["AST_master", "AST_ref"]);
+
+    // At the model cap the master keeps its slot and the last unpinned reference drops.
+    const many = ["AST_a", "AST_b", "AST_c"].map((id) => asset("P", id));
+    const capped = resolveGenerateForm(
+      {
+        ...EMPTY_GENERATE_DRAFT,
+        purpose: "variation",
+        providerId: "gemini",
+        modelId: "gemini-2.5-flash-image",
+        referenceAssetIds: ["AST_a", "AST_b", "AST_c"],
+      },
+      providers(true),
+      [...assets, ...many],
+      "AST_master",
+    );
+    expect(capped.referenceIds).toEqual(["AST_master", "AST_a", "AST_b"]);
+
+    // Hero keeps the free choice.
+    const hero = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, purpose: "hero", referenceAssetIds: [] },
+      providers(false),
+      assets,
+      "AST_master",
+    );
+    expect(hero.referenceIds).toEqual([]);
+    expect(hero.pinnedIds).toEqual([]);
+  });
+
+  it("a variation needs a model that accepts reference images", () => {
+    const textOnly = providers(false).map((p) =>
+      p.id === "local_preview"
+        ? { ...p, models: p.models.map((m) => ({ ...m, imageToImage: false })) }
+        : p,
+    );
+    const f = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, purpose: "variation" },
+      textOnly,
+      assets,
+      "AST_master",
+    );
+    expect(f.pinnedIds).toEqual([]);
+    expect(generateDisabledReason(f, ctx)).toMatch(/reference images/);
+  });
+
   it("legacy model without image sizes sends imageSize null", () => {
     const f = resolveGenerateForm(
       { ...EMPTY_GENERATE_DRAFT, providerId: "gemini", modelId: "gemini-2.5-flash-image" },
