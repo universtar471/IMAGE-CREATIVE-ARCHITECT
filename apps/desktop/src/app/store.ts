@@ -508,8 +508,17 @@ export const useStudio = create<State>((set, get) => {
           // Scene objects are additive in Phase 7; preserve them on older domain builds that
           // do not yet include the optional `scene` field in ProjectDNA's inferred type.
           const additive = submitted as ProjectDNA & { scene?: unknown };
+          const contextAdditive = submitted.context as ProjectDNA["context"] & {
+            siteTopology?: unknown;
+          };
           const dnaToSave = {
             ...v.dna,
+            context: {
+              ...v.dna.context,
+              ...(contextAdditive.siteTopology === undefined
+                ? {}
+                : { siteTopology: contextAdditive.siteTopology }),
+            },
             ...(additive.scene === undefined ? {} : { scene: additive.scene }),
             ...(additive.interior === undefined ? {} : { interior: additive.interior }),
           } as ProjectDNA;

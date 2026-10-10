@@ -15,6 +15,8 @@ import { QualityField } from "../generate/QualityField";
 import { planBatch, type BatchMode } from "./batch";
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { SiteTopologyChip } from "./SiteTopologyChip";
+import { cameraSitePlan, type TopologyContext } from "../../lib/siteTopology";
 
 /**
  * "Generate anchors" (one item per anchor view, master as reference) and "Render cameras"
@@ -119,6 +121,10 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
   const toggle = (list: string[], id: string, on: boolean) =>
     on ? [...list, id] : list.filter((x) => x !== id);
   const views = anchorViews(ws.draftDna);
+  const context = ws.draftDna.context as unknown as TopologyContext;
+  const unresolved = cameras.filter(
+    (camera) => cameraSitePlan(camera, context, ws.project.projectType).mode === "unknown_side",
+  );
 
   return (
     <Dialog
@@ -255,6 +261,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
                   {ws.anchors.some((a) => a.cameraId === c.id) && (
                     <span className="badge badge-success">{t("batch.rerender")}</span>
                   )}
+                  <SiteTopologyChip camera={c} />
                 </li>
               ))}
             </ul>
@@ -282,6 +289,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
                       ) : (
                         <span className="badge badge-neutral">{t("batch.masterOnly")}</span>
                       )}
+                      <SiteTopologyChip camera={c} />
                     </li>
                   );
                 })}
@@ -316,6 +324,19 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           </>
         )}
         {unsaved && <span className="field-hint">{t("batch.unsaved")}</span>}
+        {unresolved.length > 0 && (
+          <div className="callout callout-warning" data-testid="batch-unresolved">
+            <strong>{t("topology.unresolved")}</strong>
+            <ul className="batch-cams">
+              {unresolved.map((camera) => (
+                <li key={camera.id}>
+                  <span>{camera.name}</span>
+                  <SiteTopologyChip camera={camera} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {plan.issues.length > 0 && (
           <div className="callout callout-warning" role="alert" data-testid="batch-issues">
             {plan.issues[0]}
