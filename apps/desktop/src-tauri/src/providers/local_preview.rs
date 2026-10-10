@@ -50,6 +50,7 @@ impl ImageProvider for LocalPreviewProvider {
                 quality_options: Vec::new(),
                 price_hint: None,
                 vision: false,
+                supports_mask: false,
             }],
         }
     }
@@ -183,8 +184,10 @@ mod tests {
                 quality: None,
                 enhance: None,
                 repair: None,
+                region: None,
             },
             api_key: None,
+            mask: None,
         }
     }
 

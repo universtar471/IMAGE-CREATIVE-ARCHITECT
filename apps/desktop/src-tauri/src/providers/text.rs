@@ -32,6 +32,7 @@ pub fn role_hint(role: &str) -> String {
         "mood_reference" => "mood reference: use only for atmosphere and color grading",
         "camera_reference" => "camera reference: use only for viewpoint, lens and framing",
         "regular_image" => "general image: loose inspiration only",
+        "region_mask" => "region mask: edit only the white area and preserve everything in the black area",
         other => return format!("{}: loose inspiration only", other.replace('_', " ")),
     };
     hint.to_string()

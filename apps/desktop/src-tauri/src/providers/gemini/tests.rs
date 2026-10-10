@@ -90,8 +90,10 @@ fn request(outputs: u32) -> ProviderRequest {
             quality: None,
             enhance: None,
             repair: None,
+            region: None,
         },
         api_key: Some(KEY.into()),
+        mask: None,
     }
 }
 
@@ -153,7 +155,40 @@ fn image_config_is_omitted_when_nothing_is_set() {
     assert_eq!(body["contents"][0]["parts"].as_array().unwrap().len(), 1);
 }
 
+#[allow(dead_code)]
+fn region_mask_reference_is_sent_as_second_image_with_instruction() {
+    let mut req = request(1);
+    req.references.push(ReferenceImage {
+        asset_id: "MASK".into(),
+        role: "region_mask".into(),
+        mime_type: "image/png".into(),
+        bytes: vec![7, 7],
+    });
+    let body = wire::build_request(&req.prompt, &req.references, &req.params);
+    let parts = body["contents"][0]["parts"].as_array().unwrap();
+    assert_eq!(
+        parts[parts.len() - 2]["text"],
+        "Reference 3 â€” region mask: edit only the white area and preserve everything in the black area"
+    );
+    assert_eq!(parts[parts.len() - 1]["inlineData"]["data"], B64.encode([7, 7]));
+}
+
 // ---------------------------------------------------------------- success
+
+#[test]
+fn region_mask_reference_is_encoded_as_an_additional_image() {
+    let mut req = request(1);
+    req.references.push(ReferenceImage {
+        asset_id: "MASK".into(),
+        role: "region_mask".into(),
+        mime_type: "image/png".into(),
+        bytes: vec![7, 7],
+    });
+    let body = wire::build_request(&req.prompt, &req.references, &req.params);
+    let parts = body["contents"][0]["parts"].as_array().unwrap();
+    assert!(parts[parts.len() - 2]["text"].as_str().unwrap().contains("region mask: edit only"));
+    assert_eq!(parts[parts.len() - 1]["inlineData"]["data"], B64.encode([7, 7]));
+}
 
 #[test]
 fn parses_one_image_and_meta() {
@@ -680,8 +715,10 @@ fn gemini_live_smoke() {
             quality: None,
             enhance: None,
             repair: None,
+            region: None,
         },
         api_key: Some(key),
+        mask: None,
     };
     let out = provider.generate(&req).unwrap_or_else(|e| panic!("generate: {e}"));
     assert_eq!(out.images.len(), 1);

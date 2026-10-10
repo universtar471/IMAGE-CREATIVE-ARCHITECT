@@ -16,6 +16,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (3, include_str!("../migrations/0003_jobs.sql")),
     (4, include_str!("../migrations/0004_workflow.sql")),
     (5, include_str!("../migrations/0005_qc.sql")),
+    (6, include_str!("../migrations/0006_regions.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -109,6 +110,7 @@ mod tests {
                 "projects",
                 "qc_reports",
                 "qc_settings",
+                "regions",
                 "schema_migrations",
                 "versions",
                 "workflow_steps"
@@ -128,6 +130,18 @@ mod tests {
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_qc_reports_project_asset_created'",
             [], |r| r.get(0)).unwrap();
         assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn migration_0006_regions_cascade_when_asset_is_deleted() {
+        let conn = open_in_memory().unwrap();
+        conn.execute("INSERT INTO projects (id,name,project_type,status,created_at,updated_at) VALUES ('PRJ_R','R','villa','draft','t','t')", []).unwrap();
+        conn.execute("INSERT INTO project_dna (project_id,schema_version,dna_json,created_at,updated_at) VALUES ('PRJ_R',1,'{}','t','t')", []).unwrap();
+        conn.execute("INSERT INTO assets (id,project_id,source,role,status,managed_rel_path,created_at,updated_at) VALUES ('AST_R','PRJ_R','external','regular_image','ready','x','t','t')", []).unwrap();
+        conn.execute("INSERT INTO regions (id,project_id,asset_id,label,kind,shape_json,created_at,updated_at) VALUES ('RGN_R','PRJ_R','AST_R','wall','object','{}','t','t')", []).unwrap();
+        conn.execute("DELETE FROM assets WHERE id='AST_R'", []).unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM regions WHERE id='RGN_R'", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 0);
     }
 
     #[test]
@@ -370,7 +384,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 5);
+            assert_eq!(schema_version(&conn).unwrap(), 6);
             let violations: i64 =
                 conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
             assert_eq!(violations, 0);

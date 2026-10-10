@@ -13,6 +13,7 @@ pub mod prompt_enhance;
 pub mod provider_settings;
 pub mod qc;
 pub mod queue;
+pub mod regions;
 pub mod status;
 pub mod workflow;
 
@@ -422,6 +423,7 @@ pub(crate) mod tests_support {
             quality_options: Vec::new(),
             price_hint: None,
             vision: false,
+            supports_mask: false,
         }
     }
 
