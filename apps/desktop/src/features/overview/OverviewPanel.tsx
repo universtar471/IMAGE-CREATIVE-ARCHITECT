@@ -25,6 +25,7 @@ import { NextStepBar } from "../workflow/NextStepBar";
 import { Moodboard } from "../dna/InteriorDnaPanel";
 import { BUILDING_USES, INTERIOR_STYLES, PALETTES, ROOMS, catalogLabel } from "../../lib/interior";
 import { currentLocale, useLocale } from "../../i18n";
+import { resolveSiteTopology, type TopologyContext } from "../../lib/siteTopology";
 
 export function OverviewPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -92,6 +93,12 @@ export function OverviewPanel() {
             {catalogLabel(PALETTES, interior.paletteId, locale)}
           </p>
           <Moodboard interior={interior} mini />
+        </SectionPanel>
+      )}
+
+      {project.projectType !== "interior" && (
+        <SectionPanel title={t("overview.lotPosition")}>
+          <p className="interior-summary-line">{lotPositionSummary(dna.context, t)}</p>
         </SectionPanel>
       )}
 
@@ -164,6 +171,21 @@ export function OverviewPanel() {
       </SectionPanel>
     </>
   );
+}
+
+function lotPositionSummary(context: ProjectDNA["context"], t: ReturnType<typeof useT>): string {
+  const topology = resolveSiteTopology(context as unknown as TopologyContext);
+  if (topology.cornerLot && topology.cornerSide)
+    return `${t("topology.cornerLot")} · ${t(`topology.${topology.cornerSide}Label`)}`;
+  if (topology.left === "attached" && topology.right === "attached")
+    return `${t("topology.middle")} · ${t("topology.attachedBoth")}`;
+  if (topology.left === "attached")
+    return `${t("topology.middle")} · ${t("topology.attachedSide", { side: t("topology.leftLabel") })}`;
+  if (topology.right === "attached")
+    return `${t("topology.middle")} · ${t("topology.attachedSide", { side: t("topology.rightLabel") })}`;
+  if (topology.left === "open" && topology.right === "open")
+    return `${t("topology.middle")} · ${t("topology.openBoth")}`;
+  return `${t("topology.middle")} · ${t("topology.unknownContext")}`;
 }
 
 function WorkflowOverview() {

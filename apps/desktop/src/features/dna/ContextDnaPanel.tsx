@@ -5,6 +5,12 @@ import { DnaSelect, DnaTags, DnaText, DnaTextArea } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 import { useT } from "../../i18n";
 import { selectReadOnly, useStudio } from "../../app/store";
+import {
+  resolveSiteTopology,
+  type CornerSide,
+  type SiteTopology,
+  type TopologyContext,
+} from "../../lib/siteTopology";
 
 export function ContextDnaPanel() {
   const t = useT();
@@ -30,6 +36,8 @@ export function ContextDnaPanel() {
         />
         <DnaSelect path="context.density" label={t("context.density")} options={densityOptions} />
       </SectionPanel>
+
+      <SiteTopologyCard />
 
       {CONTEXT_DIRECTIONS.map((dir) => (
         <SectionPanel
@@ -82,6 +90,92 @@ export function ContextDnaPanel() {
         />
       </SectionPanel>
     </>
+  );
+}
+
+function SiteTopologyCard() {
+  const t = useT();
+  const editDna = useStudio((state) => state.editDna);
+  const context = useStudio(
+    (state) => state.workspace!.draftDna.context as unknown as TopologyContext,
+  );
+  const readOnly = useStudio(selectReadOnly);
+  const locked = useStudio((state) => !!state.workspace?.draftDna.locks.context);
+  const topology = resolveSiteTopology(context);
+  const disabled = readOnly || locked;
+  const raw = context.siteTopology ?? {};
+  const update = (patch: Partial<SiteTopology>) => {
+    const next: SiteTopology = {
+      left: raw.left ?? topology.left,
+      right: raw.right ?? topology.right,
+      cornerLot: raw.cornerLot === true,
+      ...(raw.cornerSide ? { cornerSide: raw.cornerSide } : {}),
+      ...patch,
+    };
+    if (next.cornerLot && (!next.cornerSide || next[next.cornerSide] === "attached")) {
+      const candidate = (["left", "right"] as const).find((side) => next[side] !== "attached");
+      if (candidate) next.cornerSide = candidate;
+      else next.cornerLot = false;
+    }
+    if (!next.cornerLot) delete next.cornerSide;
+    editDna("context.siteTopology", next);
+  };
+  const options = [
+    { value: "attached" as const, label: t("topology.attached") },
+    { value: "open" as const, label: t("topology.open") },
+    { value: "unknown" as const, label: t("topology.unknown") },
+  ];
+  const cornerOptions = (["left", "right"] as const).map((side) => ({
+    value: side,
+    label: t(`topology.${side}`),
+    disabled: topology[side] === "attached",
+  }));
+
+  return (
+    <SectionPanel title={t("topology.title")}>
+      <div className="field-row" data-testid="site-topology-card">
+        {(["left", "right"] as const).map((side) => (
+          <SelectField
+            key={side}
+            label={t(`topology.${side}`)}
+            value={topology[side]}
+            allowEmpty={false}
+            disabled={disabled}
+            options={options}
+            onChange={(value) => value && update({ [side]: value })}
+          />
+        ))}
+      </div>
+      <div className="field-row">
+        {(["left", "right"] as const).map(
+          (side) =>
+            topology.source[side] === "inferred" && (
+              <span className="field-hint" key={`${side}-hint`}>
+                {t("topology.inferred")}
+              </span>
+            ),
+        )}
+      </div>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={topology.cornerLot}
+          disabled={disabled}
+          onChange={(event) => update({ cornerLot: event.target.checked })}
+        />
+        {t("topology.cornerLot")}
+      </label>
+      {topology.cornerLot && (
+        <SelectField
+          label={t("topology.cornerSide")}
+          value={topology.cornerSide}
+          allowEmpty={false}
+          disabled={disabled}
+          options={cornerOptions}
+          onChange={(value) => value && update({ cornerSide: value as CornerSide })}
+        />
+      )}
+    </SectionPanel>
   );
 }
 

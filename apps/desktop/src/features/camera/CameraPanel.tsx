@@ -24,6 +24,7 @@ import { CAMERA_ASPECT_RATIOS } from "./labels";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
+import { SiteTopologyChip } from "./SiteTopologyChip";
 
 const INTERIOR_CAMERA_NAME_KEYS = {
   wide_entrance: "wideEntrance",
@@ -188,6 +189,7 @@ function CameraListSection() {
                       {c.azimuthDeg !== undefined ? ` · ${Math.round(c.azimuthDeg)}°` : ""}
                       {c.distanceM !== undefined ? ` · ${c.distanceM} m` : ""}
                     </span>
+                    <SiteTopologyChip camera={c} />
                   </span>
                   {anchor ? (
                     <span className="badge badge-success">{t("camera.anchored")}</span>

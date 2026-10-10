@@ -623,6 +623,7 @@ export const vi: Dict = {
     prompt: "Prompt",
     openPrompt: "Mở Xem Prompt",
     promptHint: "Prompt được biên dịch từ DNA có cấu trúc; nó không bao giờ là dữ liệu gốc.",
+    lotPosition: "Vị trí lô đất",
   },
 
   interior: {
@@ -790,6 +791,33 @@ export const vi: Dict = {
     mustNotAppear: "Không được xuất hiện",
     negativeHint: "Được đưa vào negative prompt.",
     negativePlaceholder: "VD: snow",
+  },
+
+  topology: {
+    title: "Vị trí lô đất",
+    left: "Trái",
+    right: "Phải",
+    cornerLot: "Lô góc",
+    cornerSide: "Mặt hông lô góc",
+    attached: "Liền kề",
+    open: "Trống",
+    unknown: "Chưa rõ",
+    inferred: "(tự nhận từ mô tả)",
+    normal: "Góc nhìn khu đất bình thường",
+    obliqueStreet: "Nhìn chéo dọc phố — không lộ hông (liền kề)",
+    aerialBlock: "Giữ nguyên dãy phố",
+    cornerSideChip: "Lô góc — hiện mặt hông {side}",
+    unknownSide: "Góc này lộ hông {side} chưa xác định",
+    resolveAttached: "Liền kề",
+    resolveCorner: "Lô góc",
+    leftLabel: "trái",
+    rightLabel: "phải",
+    unresolved: "Mặt hông chưa xác định",
+    middle: "Lô giữa dãy",
+    attachedBoth: "liền kề 2 bên",
+    attachedSide: "liền kề bên {side}",
+    openBoth: "trống 2 bên",
+    unknownContext: "chưa xác định mặt hông",
   },
 
   assets: {
