@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   COMPILER_VERSION,
   compilePrompt,
@@ -8,10 +10,17 @@ import {
   type PromptCompileInput,
   type PromptReference,
   type ProjectType,
+  type ProjectDNA,
 } from "../src";
 import { loadSeedRegistry } from "./helpers";
 
 const registry = loadSeedRegistry();
+const townhouseFixture = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("../../../apps/desktop/tests/fixtures/nhapho-dna.json", import.meta.url)),
+    "utf8",
+  ),
+) as ProjectDNA;
 
 function input(
   projectType: ProjectType,
@@ -346,5 +355,107 @@ describe("anchor references (pc-1.1.0)", () => {
     expect(both.referenceInstructions).toMatch(/is the MASTER/);
     expect(both.referenceInstructions).not.toMatch(/ANCHOR/);
     expect(both.metadata.anchorImage).toBeNull();
+  });
+});
+
+describe("townhouse fixture plan modes (ADR-028, API contract 19.3)", () => {
+  const master = [{ assetId: "MASTER", role: "master_architecture" as const }];
+  const fixtureInput = (dna: ProjectDNA, pack = registry.resolve("townhouse").pack) =>
+    ({
+      project: { id: "PRJ_FIXTURE", name: "Fixture", projectType: "townhouse" as const },
+      dna,
+      references: master,
+      pack,
+    }) satisfies PromptCompileInput;
+
+  it("never emits an unresolved master image placeholder across packs, presets, and topologies", () => {
+    const projectTypes: ProjectType[] = [
+      "interior",
+      "townhouse",
+      "single_storey_house",
+      "villa",
+      "urban_villa",
+      "prefab_modular",
+      "cafe",
+      "restaurant",
+      "hotel",
+      "office",
+      "commercial",
+      "resort",
+      "custom",
+    ];
+    const packs = projectTypes.flatMap((projectType) => registry.listSubtypes(projectType));
+    const topologies = [
+      { left: "attached", right: "attached", cornerLot: false },
+      { left: "attached", right: "open", cornerLot: false },
+      { left: "unknown", right: "open", cornerLot: false },
+      { left: "open", right: "open", cornerLot: true, cornerSide: "left" },
+    ] as const;
+    for (const pack of packs) {
+      for (const preset of pack.cameraPresets) {
+        for (const topology of topologies) {
+          const dna = structuredClone(townhouseFixture);
+          dna.context.siteTopology = { ...topology };
+          dna.cameras = [
+            {
+              ...townhouseFixture.cameras[0]!,
+              id: "CAM_01M4K1Q5C6PGJBEGD65E0JFSY0",
+              name: preset.label,
+              presetId: preset.id,
+              viewType: preset.viewType,
+              azimuthDeg: preset.azimuthDeg,
+              elevationDeg: preset.elevationDeg,
+              heightM: preset.heightM,
+              distanceM: preset.distanceM,
+              lensMm: preset.lensMm,
+              composition: preset.composition,
+            },
+          ];
+          const bundle = compilePrompt({
+            ...fixtureInput(dna, pack),
+            cameraId: dna.cameras[0]!.id,
+          });
+          expect(
+            [
+              bundle.positivePrompt,
+              bundle.negativePrompt,
+              bundle.referenceInstructions,
+              bundle.preservationInstructions,
+            ].join("\n"),
+            `${pack.projectType}/${pack.subtype}/${preset.id}/${JSON.stringify(topology)}`,
+          ).not.toContain("Image N");
+        }
+      }
+    }
+  });
+
+  it("retains measured viewpoint, lens, and distance in aerial and oblique plan camera lines", () => {
+    const aerial = townhouseFixture.cameras.find((camera) => camera.viewType === "aerial")!;
+    const oblique = townhouseFixture.cameras.find(
+      (camera) => camera.viewType === "exterior_corner",
+    )!;
+    const aerialBundle = compilePrompt({
+      ...fixtureInput(structuredClone(townhouseFixture)),
+      cameraId: aerial.id,
+    });
+    const obliqueBundle = compilePrompt({
+      ...fixtureInput(structuredClone(townhouseFixture)),
+      cameraId: oblique.id,
+    });
+    const aerialCamera = aerialBundle.positivePrompt
+      .split("\n\n")
+      .find((line) => line.startsWith("Camera:"))!;
+    const obliqueCamera = obliqueBundle.positivePrompt
+      .split("\n\n")
+      .find((line) => line.startsWith("Camera:"))!;
+
+    expect(aerialCamera).toContain("front-left");
+    expect(aerialCamera).toContain("about 30° down");
+    expect(aerialCamera).toContain("35 mm");
+    expect(aerialCamera).toContain("45 m");
+    expect(aerialCamera).not.toMatch(/plot|and the left side/i);
+    expect(obliqueCamera).toContain("24 mm");
+    expect(obliqueCamera).toContain("16 m");
+    expect(obliqueCamera).not.toMatch(/plot|and the left side/i);
   });
 });

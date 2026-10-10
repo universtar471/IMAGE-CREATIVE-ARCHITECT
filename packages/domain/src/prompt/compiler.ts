@@ -522,15 +522,15 @@ function preservationSection(
       );
     } else if (plan.mode === "aerial_block") {
       lines.push(
-        "Keep the same continuous mid-block street and neighbourhood shown in Image N. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image N; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.",
+        `Keep the same continuous mid-block street and neighbourhood shown in Image ${masterIndex + 1}. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image ${masterIndex + 1}; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.`,
       );
     } else if (plan.mode === "corner_side" && plan.side) {
       lines.push(
-        `This is a corner plot: a side street runs along the ${plan.side} side; reveal that side facade consistently with Image N.`,
+        `This is a corner plot: a side street runs along the ${plan.side} side; reveal that side facade consistently with Image ${masterIndex + 1}.`,
       );
     } else if (plan.mode === "unknown_side" && plan.side) {
       lines.push(
-        `Do not invent a corner plot, side street or new neighbour arrangement; reveal the ${plan.side} side only as a plain continuation consistent with Image N.`,
+        `Do not invent a corner plot, side street or new neighbour arrangement; reveal the ${plan.side} side only as a plain continuation consistent with Image ${masterIndex + 1}.`,
       );
     }
   }
@@ -546,12 +546,42 @@ function cameraSectionTextForPlan(
   const plan = cameraSitePlan(camera, dna.context, projectType);
   if (plan.mode === "oblique_street") {
     const side = plan.side ?? "side";
-    return `Camera: ${side === "left" ? "front-left" : "front-right"} oblique street view from eye level; composition: front facade dominant, seen at an angle along the street; the ${side} side wall stays hidden behind the attached neighbour.`;
+    return cameraSectionForPlan(camera, {
+      viewpoint: `${side === "left" ? "front-left" : "front-right"} oblique street view from eye level`,
+      composition: `front facade dominant, seen at an angle along the street; the ${side} side wall stays hidden behind the attached neighbour`,
+    });
   }
   if (plan.mode === "aerial_block") {
-    return `Camera: aerial architectural view; composition: same street block and surrounding rooftops.`;
+    const base = cameraSectionText(camera);
+    const composition = base.match(/(?:^|; )composition: (.*?)(?:; camera notes:|\.$)/)?.[1];
+    const blockComposition = composition
+      ? composition.replace(
+          /\bplot(?: and surroundings)?\b/gi,
+          "same street block and surrounding rooftops",
+        )
+      : "same street block and surrounding rooftops";
+    return cameraSectionForPlan(camera, { composition: blockComposition });
   }
   return cameraSectionText(camera);
+}
+
+/** Keep measured camera fields while applying the narrowly scoped plan-mode substitutions. */
+function cameraSectionForPlan(
+  camera: CameraDNA,
+  replacements: { viewpoint?: string; composition: string },
+): string {
+  const parts = cameraSectionText(camera).slice("Camera: ".length, -1).split("; ");
+  const viewType = parts[0]!;
+  const measured = parts.filter(
+    (part) =>
+      part !== viewType && !part.startsWith("viewpoint: ") && !part.startsWith("composition: "),
+  );
+  const viewpoint = replacements.viewpoint
+    ? `viewpoint: ${replacements.viewpoint}`
+    : parts.find((part) => part.startsWith("viewpoint: "));
+  return `Camera: ${[viewType, viewpoint, ...measured, `composition: ${replacements.composition}`]
+    .filter((part): part is string => Boolean(part))
+    .join("; ")}.`;
 }
 
 // ---------------------------------------------------------------- helpers

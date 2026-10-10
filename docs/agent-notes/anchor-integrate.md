@@ -33,3 +33,13 @@ Hoàn tất tích hợp ADR-028/API §19 giữa domain, Rust, mock backend và U
 - PowerShell chặn shim `npm.ps1`; dùng `npm.cmd`/`npx.cmd`.
 - Rust `cornerSide` không phải string cần bị từ chối ngay cả khi không bật lô góc; chỉ kiểm tra enum khi đã convert sang string là không khớp Zod.
 - `SiteTopologyChip` chứa nút xử lý; đặt bên trong `camera-row-main` tạo nested buttons và làm click bubble chọn camera.
+
+## Compiler plan-mode regression follow-up
+
+- Added fixture-based domain compiler coverage for every loaded knowledge pack and camera preset across attached, open, unknown, and corner topology variants. The test rejects unresolved `Image N` text in compiled prompt parts.
+- Updated plan camera lines to retain the stored viewpoint measurements, lens, and distance while replacing only the viewpoint/composition fields allowed by API contract §19.3. Master references are numbered in all topology-specific preservation lines.
+- `npm.cmd run verify`: passed; 43 Vitest files / 518 tests, Rust 272 passed / 6 ignored.
+- `cargo fmt --check --manifest-path apps/desktop/src-tauri/Cargo.toml`: passed.
+- `cargo clippy --all-targets --manifest-path apps/desktop/src-tauri/Cargo.toml -- -D warnings`: passed.
+- `npx.cmd prettier --check .`: passed.
+- No live provider calls; no commit created.
