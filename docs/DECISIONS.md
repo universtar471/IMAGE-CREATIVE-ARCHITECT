@@ -506,3 +506,26 @@ Status: accepted (2026-10-10, user "làm cả 3"; audit by Codex read-only consu
   - Bối cảnh gets a "Vị trí lô đất" control.
   - The camera and anchor steps show each camera's plan, with one-click resolution when a side is unknown.
 - **Existing projects.** The rules work on the stored DNA through inference; there is no migration. Stored camera compositions that contradict an attached side are overridden at compile time.
+
+## ADR-029 — Lighter workflow confirmation, inline next step, visual previews
+
+Status: accepted (2026-10-11). Source: user feedback after the first real anchor run.
+
+**Problem**
+
+- Going back to add an anchor camera forced the user to reconfirm every later step one by one, because ADR-022's reopen cascades `needs_review`.
+- The next-step title showed raw i18n keys, and its floating hint overlapped the header.
+- Thumbnails were cropped.
+- Presets for lighting, mood/grade and context could not be imagined before spending credit.
+
+**Decision**
+
+- **Workflow.** Reopening a DNA step reopens only that step. DNA steps are independent inputs, and the master and anchor checks, such as MasterDnaCheck, already catch drift. Legacy `needs_review` rows can be reconfirmed in one click, or all at once.
+- **Next step.** It is a compact button in the step header next to status, lock and confirm. Overview keeps the large card. Titles use flat i18n keys.
+- **Image strip.** Thumbnails use contain instead of cover. Three view modes: small grid, large, list.
+- **Compiler pc-1.5.1.** The oblique-street viewpoint states about 30–35° off the facade axis.
+- **Previews.** These are free and local, with no API calls.
+  - SVG scene previews for lighting and mood presets.
+  - The colour grade is previewed live on the master image with a CSS or canvas approximation.
+  - A top-down site diagram shows context and site topology.
+  - AI sample photos per preset are deferred. They would need a paid one-off generation and user approval.
