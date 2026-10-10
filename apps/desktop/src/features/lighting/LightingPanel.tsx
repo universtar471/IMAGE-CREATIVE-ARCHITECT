@@ -13,6 +13,7 @@ import { FieldGroup, SelectField, TextAreaField, TextField } from "../../compone
 import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
 import { useT } from "../../i18n";
+import { LightingPreview, LightingPresetCards } from "../previews/LightingPreview";
 
 const TIMES = [
   "dawn",
@@ -97,15 +98,12 @@ export function LightingPanel() {
   return (
     <div data-testid="lighting-panel">
       <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
-        <SelectField
-          label={t("lighting.preset")}
-          value={lighting.presetId as string | undefined}
+        <LightingPreview lighting={lighting} />
+        <LightingPresetCards
+          presets={presets}
+          lighting={lighting}
           disabled={lightLocked}
-          options={presets.map((p) => ({ value: p.id, label: p.label }))}
-          onChange={(id) => {
-            const p = presets.find((x) => x.id === id);
-            if (p) applyPreset(p, "lighting");
-          }}
+          onChoose={(preset) => applyPreset(preset, "lighting")}
         />
         <SelectField
           label={t("lighting.timeOfDay")}

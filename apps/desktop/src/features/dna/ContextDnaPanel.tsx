@@ -1,10 +1,18 @@
-import { CONTEXT_DIRECTIONS, DensitySchema, type ProjectDNA } from "@arch/domain";
+import {
+  CONTEXT_DIRECTIONS,
+  DensitySchema,
+  type ContextDNA,
+  type ContextPreset,
+  type ProjectDNA,
+} from "@arch/domain";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { SelectField } from "../../components/panels/fields";
 import { DnaSelect, DnaTags, DnaText, DnaTextArea } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 import { useT } from "../../i18n";
 import { selectReadOnly, useStudio } from "../../app/store";
+import { knowledge } from "../../lib/knowledge";
+import { ContextPresetCards, ContextPreview } from "../previews/ContextPreview";
 import {
   resolveSiteTopology,
   type CornerSide,
@@ -14,14 +22,37 @@ import {
 
 export function ContextDnaPanel() {
   const t = useT();
-  const projectType = useStudio((state) => state.workspace!.project.projectType);
+  const project = useStudio((state) => state.workspace!.project);
+  const projectType = project.projectType;
+  const context = useStudio((state) => state.workspace!.draftDna.context as ContextDNA);
+  const editDna = useStudio((state) => state.editDna);
+  const readOnly = useStudio(selectReadOnly);
+  const contextLocked = useStudio((state) => !!state.workspace?.draftDna.locks.context);
+  const presets =
+    knowledge.resolve(project.projectType, project.subtype).pack?.contextPresets ?? [];
   if (projectType === "interior") return <InteriorContextPanel />;
+  const applyContextPreset = (preset: ContextPreset) => {
+    const next = { ...context, ...preset.context };
+    for (const dir of CONTEXT_DIRECTIONS) {
+      if (preset.context[dir]) next[dir] = { ...context[dir], ...preset.context[dir] };
+    }
+    editDna("context", next);
+  };
   const densityOptions = DensitySchema.options.map((d) => ({
     value: d,
     label: t(`labels.density.${d}`),
   }));
   return (
     <>
+      <ContextPreview context={context} />
+      {presets.length > 0 && (
+        <ContextPresetCards
+          presets={presets}
+          context={context}
+          disabled={readOnly || contextLocked}
+          onChoose={applyContextPreset}
+        />
+      )}
       <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
       <SectionPanel title={t("context.setting")} aside={<LockToggle section="context" />}>
         <DnaText
@@ -188,8 +219,14 @@ function InteriorContextPanel() {
   const interior = dna.interior;
   if (!interior) return <span className="field-hint">{t("interior.legacyContextHint")}</span>;
   const disabled = readOnly || locked;
+  const context = dna.context as ContextDNA;
   return (
     <>
+      <ContextPreview
+        context={context}
+        projectType="interior"
+        daylightDirection={interior.daylightDirection}
+      />
       <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
       <SectionPanel title={t("interior.window")}>
         <DnaText path="building.openings.windowType" label={t("interior.windowType")} />

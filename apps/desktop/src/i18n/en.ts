@@ -1422,6 +1422,19 @@ export const en = {
     previewError: "Unable to load the image preview.",
   },
 
+  previews: {
+    lightingTitle: "Lighting preview",
+    moodTitle: "Mood preview",
+    gradeTitle: "Colour grade preview",
+    contextTitle: "Site context preview",
+    interiorTitle: "Interior daylight preview",
+    palette: "Mood colour palette",
+    lot: "LOT",
+    rear: "REAR ZONE",
+    frontRoad: "Front road",
+    daylight: "DAYLIGHT",
+  },
+
   batch: {
     defaultAnchors: "Anchors",
     defaultProduction: "Production",
