@@ -13,6 +13,7 @@ import { useT } from "../../i18n";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { knowledge } from "../../lib/knowledge";
 import { ContextPresetCards, ContextPreview } from "../previews/ContextPreview";
+import { AssistControl } from "../assist/AssistControl";
 import {
   resolveSiteTopology,
   type CornerSide,
@@ -55,6 +56,7 @@ export function ContextDnaPanel() {
       )}
       <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
       <SectionPanel title={t("context.setting")} aside={<LockToggle section="context" />}>
+        <AssistControl scope="context" stepId="dna.context" projectType={projectType} projectId={useStudio.getState().workspace!.project.id} dna={useStudio.getState().workspace!.draftDna} assets={useStudio.getState().workspace!.assets} hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))} />
         <DnaText
           path="context.macroContext"
           label={t("context.macro")}

@@ -43,6 +43,26 @@ export const vi: Dict = {
     previewBanner: "Bản xem trên trình duyệt · backend giả lập trong bộ nhớ",
   },
 
+  assist: {
+    button: "AI gợi ý",
+    title: "AI gợi ý DNA",
+    estimate: "Ước tính vài chục đồng",
+    mode: { brief: "Từ mô tả", images: "Từ ảnh tham chiếu", master: "Từ ảnh Master" },
+    briefLabel: "Mô tả",
+    briefPlaceholder: "Ví dụ: Japandi ấm cho gia đình trẻ",
+    noReferences: "Chưa có ảnh tham chiếu sẵn sàng.",
+    continue: "Tiếp tục",
+    apply: "Áp dụng {count} mục",
+    dropped: "Mục bị bỏ ({count})",
+    reopenConfirm: "Bước này đã xác nhận. Mở lại bước để áp dụng đề xuất AI?",
+    notConfigured: "Chưa thiết lập nhà cung cấp AI.",
+    providerSettings: "Mở cài đặt nhà cung cấp",
+    translate: "Dịch sang tiếng Anh cho prompt",
+    translateApplied: "Đã dịch sang tiếng Anh",
+    error: { quota: "Hết credit HHTECH — nạp thêm để dùng AI gợi ý", invalid: "AI trả về dữ liệu không hợp lệ. Hãy thử lại.", other: "Không thể chạy AI gợi ý lúc này." },
+    primary: "chính",
+  },
+
   format: {
     justNow: "vừa xong",
     minutesAgo: "{count} phút trước",
@@ -520,6 +540,7 @@ export const vi: Dict = {
     generateEmpty:
       "Chưa có gì để hiển thị. Tạo ảnh bằng bảng bên phải, hoặc nhập ảnh Master ở khay Ảnh.",
     properties: "Thuộc tính",
+    resizePanel: "Thay đổi chiều rộng bảng thuộc tính",
     selectedAsset: "Ảnh đang chọn",
     readOnly: "Đã lưu trữ — chỉ xem. Khôi phục để chỉnh sửa.",
   },
@@ -1166,6 +1187,7 @@ export const vi: Dict = {
   },
 
   masterCheck: {
+    sync: "Đồng bộ DNA từ Master",
     floors: "{n} tầng",
     text: "DNA đang ghi: {facts}. Nếu ảnh Master khác (số tầng, vật liệu), sửa DNA cho khớp trước khi tạo Anchor — ảnh Master được ưu tiên, nhưng chữ lệch vẫn làm AI vẽ sai.",
     edit: "Sửa DNA › Kiến trúc",

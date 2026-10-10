@@ -24,6 +24,8 @@ import {
   type InteriorDNA,
   type InteriorStyleId,
 } from "../../lib/interior";
+import { AssistControl } from "../assist/AssistControl";
+import { presetPhoto } from "../../lib/previewPhotos";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -91,9 +93,11 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
   };
 
   return (
-    <div className="interior-layout">
+    <div className="interior-layout" data-testid="interior-layout">
+      <Moodboard interior={interior} />
       <div className="interior-fields">
         <SectionPanel title={t("interior.space")}>
+          <AssistControl scope="interior" stepId="dna.building" projectType="interior" projectId={useStudio.getState().workspace!.project.id} dna={useStudio.getState().workspace!.draftDna as ProjectDNA} assets={useStudio.getState().workspace!.assets} hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
           <SelectField
             label={t("interior.buildingUse")}
             allowEmpty={false}
@@ -140,9 +144,21 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
           />
         </SectionPanel>
 
-        <SectionPanel title={t("interior.surfaces")}>
+        <SectionPanel title={t("interior.style")}>
+          <div className="interior-style-cards">
+            {INTERIOR_STYLES.map((style) => {
+              const photo = presetPhoto("style", style.id);
+              return <button key={style.id} type="button" className="interior-style-card" aria-pressed={interior.styleId === style.id} onClick={() => !disabled && changeStyle(style.id)} disabled={disabled}>
+                {photo ? <img src={photo.src} width={photo.w} height={photo.h} loading="lazy" alt={style[locale]} /> : <span className="interior-style-fallback">{style[locale]}</span>}
+                <span>{style[locale]}</span>
+              </button>;
+            })}
+          </div>
+        </SectionPanel>
+
+        <SectionPanel title={t("interior.surfaces")} defaultOpen={false}>
           {(Object.keys(INTERIOR_CATALOG.surfaces) as SurfaceSlot[]).map((slot) => (
-            <CatalogMultiSelect
+            <CatalogChips
               key={slot}
               label={t(`interior.surface.${slot}`)}
               options={INTERIOR_CATALOG.surfaces[slot]}
@@ -156,8 +172,8 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
           ))}
         </SectionPanel>
 
-        <SectionPanel title={t("interior.furniture")}>
-          <CatalogMultiSelect
+        <SectionPanel title={t("interior.furniture")} defaultOpen={false}>
+          <CatalogChips
             label={t("interior.furniture")}
             hint={t("interior.furnitureHint")}
             options={suggestedFurniture(interior.roomId)}
@@ -195,12 +211,11 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
           </div>
         </SectionPanel>
       </div>
-      <Moodboard interior={interior} />
     </div>
   );
 }
 
-function CatalogMultiSelect<T extends string>({
+function CatalogChips<T extends string>({
   label,
   hint,
   options,
@@ -217,23 +232,14 @@ function CatalogMultiSelect<T extends string>({
   disabled: boolean;
   onChange: (value: T[]) => void;
 }) {
+  const t = useT();
   return (
     <FieldGroup label={label} hint={hint}>
-      <div className="catalog-checks">
+      <div className="catalog-chips" role="group" aria-label={label}>
         {options.map((item) => (
-          <label className="check-row" key={item.id}>
-            <input
-              type="checkbox"
-              checked={value.includes(item.id)}
-              disabled={disabled}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked ? [...value, item.id] : value.filter((id) => id !== item.id),
-                )
-              }
-            />
-            {item[locale]}
-          </label>
+          <button className="catalog-chip" type="button" key={item.id} aria-pressed={value.includes(item.id)} disabled={disabled} onClick={() => onChange(value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id])}>
+            {item[locale]} {value[0] === item.id && <small>{t("assist.primary")}</small>}
+          </button>
         ))}
       </div>
     </FieldGroup>

@@ -14,6 +14,7 @@ import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
 import { useT } from "../../i18n";
 import { LightingPreview, LightingPresetCards } from "../previews/LightingPreview";
+import { AssistControl } from "../assist/AssistControl";
 
 const TIMES = [
   "dawn",
@@ -98,6 +99,7 @@ export function LightingPanel() {
   return (
     <div data-testid="lighting-panel">
       <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
+        <AssistControl scope="lighting" stepId="dna.lighting" projectType={ws.project.projectType} projectId={ws.project.id} dna={ws.draftDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
         <LightingPreview lighting={lighting} />
         <LightingPresetCards
           presets={presets}
@@ -321,6 +323,7 @@ function InteriorLightingPanel() {
   return (
     <div data-testid="interior-lighting-panel">
       <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
+        <AssistControl scope="lighting" stepId="dna.lighting" projectType="interior" projectId={ws.project.id} dna={ws.draftDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
         <SelectField
           label={t("lighting.timeOfDay")}
           value={interior.timeOfDay}
