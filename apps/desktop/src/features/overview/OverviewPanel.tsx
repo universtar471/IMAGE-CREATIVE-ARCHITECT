@@ -36,12 +36,26 @@ export function OverviewPanel() {
   const readOnly = useStudio(selectReadOnly);
   const adoptProject = useStudio((s) => s.adoptProject);
   const refreshWorkflow = useStudio((s) => s.refreshWorkflow);
+  const workflow = useStudio((s) => s.workflowView);
+  const confirmWorkflowStep = useStudio((s) => s.confirmWorkflowStep);
+  const reopenWorkflowStep = useStudio((s) => s.reopenWorkflowStep);
   const master = assets.find((a) => a.id === project.activeMasterAssetId) ?? null;
   const readiness = dnaReadiness(dna, project.projectType);
   const { pack, match } = knowledge.resolve(project.projectType, project.subtype);
   const t = useT();
   const locale = useLocale((state) => state.locale);
   const interior = (dna as ProjectDNA).interior;
+  const reviewSteps =
+    workflow?.steps.filter(
+      (step) => step.id.startsWith("dna.") && step.status === "needs_review",
+    ) ?? [];
+
+  const confirmAllReviews = async () => {
+    for (const step of reviewSteps) {
+      const id = step.id as DnaStepId;
+      if (await reopenWorkflowStep(id)) await confirmWorkflowStep(id);
+    }
+  };
 
   const approve = async (approved: boolean) => {
     const p = await attempt(() =>
@@ -56,6 +70,15 @@ export function OverviewPanel() {
   return (
     <>
       <NextStepBar large />
+      {reviewSteps.length >= 2 && (
+        <button
+          className="btn btn-primary"
+          disabled={readOnly}
+          onClick={() => void confirmAllReviews()}
+        >
+          {t("workflow.confirmAllReviews")}
+        </button>
+      )}
       <SectionPanel title={t("overview.project")}>
         <ProjectNameField
           key={project.id + project.updatedAt}

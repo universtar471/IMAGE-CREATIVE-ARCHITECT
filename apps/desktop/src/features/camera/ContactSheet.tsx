@@ -19,7 +19,7 @@ import { costHintText, type AssetDTO, type BatchDTO, type ProjectDNA } from "@ar
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
 import { fileUrl } from "../../lib/files";
-import { formatRelativeTime } from "../../lib/format";
+import { formatDimensions, formatRelativeTime } from "../../lib/format";
 import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
 import { translateDomainMessage } from "../../i18n/domain";
@@ -493,13 +493,21 @@ function OutputCard({
         title={t("contact.openInCanvas")}
       >
         {src ? <img src={src} alt={asset.originalName ?? ""} /> : <ImageOff size={22} />}
-        <QcBadge assetId={asset.id} projectId={asset.projectId} />
-        {isAnchor && (
-          <span className="badge badge-success contact-anchor-badge">
-            <Anchor size={10} /> {t("common.anchor")}
-          </span>
-        )}
       </button>
+      <div className="contact-meta">
+        <span className="contact-asset-name" title={asset.originalName ?? asset.id}>
+          {asset.originalName ?? asset.id}
+        </span>
+        <span className="contact-asset-detail">
+          <QcBadge assetId={asset.id} projectId={asset.projectId} />
+          {isAnchor && (
+            <span className="badge badge-success">
+              <Anchor size={10} /> {t("common.anchor")}
+            </span>
+          )}
+          <span className="field-hint">{formatDimensions(asset.widthPx, asset.heightPx)}</span>
+        </span>
+      </div>
       <div className="btn-row">
         {canAnchor && (
           <button

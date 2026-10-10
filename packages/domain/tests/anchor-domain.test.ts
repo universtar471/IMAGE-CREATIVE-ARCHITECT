@@ -231,7 +231,7 @@ describe("ADR-028 compiler", () => {
 
   it("uses view-aware framing, master surroundings, party-wall rules and aerial block", () => {
     const left = compilePrompt(input("townhouse", "left"));
-    expect(left.compilerVersion).toBe("pc-1.5.0");
+    expect(left.compilerVersion).toBe("pc-1.5.1");
     expect(left.positivePrompt).toContain("exterior three-quarter view");
     expect(left.positivePrompt).not.toContain("street-level exterior view");
     expect(left.positivePrompt).not.toContain("showing the front facade and the left side");
@@ -254,7 +254,9 @@ describe("ADR-028 compiler", () => {
       }),
     });
     expect(right.positivePrompt).not.toContain("showing the front facade and the right side");
-    expect(right.positivePrompt).toContain("front-right oblique street view");
+    expect(right.positivePrompt).toContain(
+      "front-right oblique street view from eye level, about 30–35° off the facade axis, looking along the street",
+    );
     expect(right.preservationInstructions).toContain(
       "The building is attached to neighbouring buildings on both sides.",
     );
@@ -283,7 +285,7 @@ describe("ADR-028 compiler", () => {
     });
     expect(openVilla.preservationInstructions).not.toContain("oblique street view");
     const interior = compilePrompt(input("interior", undefined));
-    expect(interior.compilerVersion).toBe("pc-1.5.0");
+    expect(interior.compilerVersion).toBe("pc-1.5.1");
     expect(interior.preservationInstructions).toContain(
       "Keep the same room, window positions, view outside and lighting character.",
     );

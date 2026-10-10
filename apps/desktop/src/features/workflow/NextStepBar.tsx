@@ -4,12 +4,39 @@ import { useT } from "../../i18n";
 import { nextStep } from "../../lib/nextStep";
 import type { ModuleId } from "../workspace/modules";
 
-export function nextStepBarMode(active: ModuleId, target: ModuleId): "hidden" | "hint" | "bar" {
+export function nextStepBarMode(active: ModuleId): "hidden" | "bar" {
   if (active === "export") return "hidden";
-  return active === target ? "hint" : "bar";
+  return "bar";
 }
 
-export function NextStepBar({ large = false }: { large?: boolean }) {
+const STEP_TITLE_KEYS: Record<string, string> = {
+  "dna.building": "building",
+  "dna.context": "context",
+  "dna.references": "references",
+  "dna.camera": "camera",
+  "dna.lighting": "lighting",
+  "generate.master": "master",
+  "generate.anchors": "anchors",
+  "generate.render": "render",
+  "post.grade": "grade",
+};
+
+export function nextStepTitleKey(stepId: string): string {
+  return STEP_TITLE_KEYS[stepId] ?? "building";
+}
+
+export function NextStepTitle({ stepId }: { stepId: string }) {
+  const t = useT();
+  return <>{t(`nextStep.steps.${nextStepTitleKey(stepId)}` as never)}</>;
+}
+
+export function NextStepBar({
+  large = false,
+  compact = false,
+}: {
+  large?: boolean;
+  compact?: boolean;
+}) {
   const workspace = useStudio((state) => state.workspace);
   const workflow = useStudio((state) => state.workflowView);
   const active = useStudio((state) => state.activeModule);
@@ -17,7 +44,7 @@ export function NextStepBar({ large = false }: { large?: boolean }) {
   const t = useT();
   if (!workspace) return null;
   const step = nextStep(workspace, workflow);
-  const mode = large ? "bar" : nextStepBarMode(active, step.module);
+  const mode = large ? "bar" : nextStepBarMode(active);
   if (mode === "hidden") return null;
   const count =
     step.id === "generate.anchors"
@@ -34,8 +61,19 @@ export function NextStepBar({ large = false }: { large?: boolean }) {
         ? t("nextStep.masterCreate")
         : step.focus === "approve-master"
           ? t("nextStep.masterApprove")
-          : t(`nextStep.steps.${step.id}` as never, { count });
-  if (mode === "hint") return <p className="next-step-hint">{t("nextStep.here", { title })}</p>;
+          : t(`nextStep.steps.${nextStepTitleKey(step.id)}` as never, { count });
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className="next-step-compact"
+        data-testid="next-step-compact"
+        onClick={() => setModule(step.module)}
+      >
+        {t("nextStep.compact", { title })} <ArrowRight size={13} />
+      </button>
+    );
+  }
   return (
     <section
       className={`next-step-bar ${large ? "next-step-large" : ""}`}

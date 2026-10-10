@@ -214,7 +214,6 @@ export function reopenStep(
   stepId: DnaStepId | string,
 ): WorkflowStepState[] {
   assertDnaStep(stepId);
-  const index = dnaIndex(stepId);
   const current = persistedStatus(persisted, stepId);
   if (current.status !== "confirmed" && current.status !== "needs_review") {
     throw new Error(
@@ -222,9 +221,7 @@ export function reopenStep(
     );
   }
   return persisted.map((row) => {
-    const rowIndex = dnaIndex(row.stepId);
     if (row.stepId === stepId) return { ...row, status: "open", confirmedAt: null };
-    if (rowIndex > index && row.status === "confirmed") return { ...row, status: "needs_review" };
     return { ...row };
   });
 }

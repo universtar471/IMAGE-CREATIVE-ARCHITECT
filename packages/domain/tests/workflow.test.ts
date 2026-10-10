@@ -235,15 +235,15 @@ describe("workflow persistence helpers", () => {
     ]);
   });
 
-  it("reopens a step and cascades later confirmed DNA steps to needs_review", () => {
+  it("reopens only the selected step and preserves later confirmations", () => {
     const persisted = allConfirmed();
     const next = reopenStep(persisted, "dna.context");
     expect(next).toEqual([
       persisted[0],
       { stepId: "dna.context", status: "open", confirmedAt: null },
-      { stepId: "dna.references", status: "needs_review", confirmedAt: "2026-10-10T00:00:00.000Z" },
-      { stepId: "dna.camera", status: "needs_review", confirmedAt: "2026-10-10T00:00:00.000Z" },
-      { stepId: "dna.lighting", status: "needs_review", confirmedAt: "2026-10-10T00:00:00.000Z" },
+      { stepId: "dna.references", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
+      { stepId: "dna.camera", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
+      { stepId: "dna.lighting", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
     ]);
     expect(next).not.toBe(persisted);
     expect(persisted.every((row) => row.status === "confirmed")).toBe(true);
@@ -263,10 +263,20 @@ describe("workflow persistence helpers", () => {
     expect(() => reopenStep([], "generate.master")).toThrow(/DNA step/i);
   });
 
-  it("does not confirm a cascaded needs_review step until it is reopened", () => {
-    const reopened = reopenStep(allConfirmed(), "dna.context");
-    const reviewed = confirmStep(reopened, "dna.context", "reviewed");
-    expect(() => confirmStep(reviewed, "dna.references", "later")).toThrow(/locked|reopen/i);
+  it("keeps legacy needs_review rows visible and requires reopening before confirm", () => {
+    const legacy = allConfirmed().map((row) =>
+      row.stepId === "dna.references" ? { ...row, status: "needs_review" as const } : row,
+    );
+    expect(deriveWorkflow(legacy, facts()).steps[2]).toMatchObject({
+      id: "dna.references",
+      status: "needs_review",
+    });
+    expect(() => confirmStep(legacy, "dna.references", "later")).toThrow(/reopen/i);
+    const reopened = reopenStep(legacy, "dna.references");
+    expect(confirmStep(reopened, "dna.references", "reviewed")[2]).toMatchObject({
+      status: "confirmed",
+      confirmedAt: "reviewed",
+    });
   });
 });
 
