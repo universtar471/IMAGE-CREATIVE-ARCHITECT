@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { PromptBundleSchema } from "./prompt";
+import { RegionEditParamsSchema } from "../regions/schemas";
 
 export const ProviderKindSchema = z.enum(["local", "remote"]);
 export type ProviderKind = z.infer<typeof ProviderKindSchema>;
@@ -36,8 +37,13 @@ export const ModelCapabilitiesSchema = z.object({
   priceHint: z.record(z.string(), z.number().int().nonnegative()).nullable(),
   /** True when the model can be selected for optional vision QC. */
   vision: z.boolean(),
+  /** Native provider mask support; false for models that receive a second mask image. */
+  supportsMask: z.boolean().default(false),
 });
-export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
+type ParsedModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
+export type ModelCapabilities = Omit<ParsedModelCapabilities, "supportsMask"> & {
+  supportsMask?: boolean;
+};
 
 export const ProviderDescriptorDTOSchema = z.object({
   id: z.string(),
@@ -48,7 +54,10 @@ export const ProviderDescriptorDTOSchema = z.object({
   configured: z.boolean(),
   /** Where the key comes from when configured: OS keychain or environment variable. */
   keySource: z.enum(["keychain", "env"]).nullable(),
-  models: z.array(ModelCapabilitiesSchema).min(1),
+  models: z
+    .array(ModelCapabilitiesSchema)
+    .min(1)
+    .transform((models) => models as ModelCapabilities[]),
 });
 export type ProviderDescriptorDTO = z.infer<typeof ProviderDescriptorDTOSchema>;
 
@@ -65,6 +74,7 @@ export const GenerationPurposeSchema = z.enum([
   "production",
   "enhance",
   "repair",
+  "region_edit",
 ]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 
@@ -104,6 +114,7 @@ export const GenerationParamsSchema = z.object({
   quality: GenerationQualitySchema.nullable().default(null),
   enhance: EnhanceParamsSchema.optional(),
   repair: RepairParamsSchema.optional(),
+  region: RegionEditParamsSchema.optional(),
 });
 export type GenerationParams = z.infer<typeof GenerationParamsSchema>;
 
@@ -154,6 +165,22 @@ function addPurposeContractIssues(
         code: "custom",
         path: ["referenceAssetIds"],
         message: "Repair generation requires exactly two reference assets.",
+      });
+    }
+  }
+  if (value.purpose === "region_edit") {
+    if (!value.params.region) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["params", "region"],
+        message: "params.region is required when purpose is region_edit.",
+      });
+    }
+    if (value.referenceAssetIds.length !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["referenceAssetIds"],
+        message: "Region edit generation requires exactly one reference asset.",
       });
     }
   }

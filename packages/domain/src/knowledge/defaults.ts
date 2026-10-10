@@ -109,6 +109,7 @@ export function createInitialDNA({
       ]),
     },
     cameras: [],
+    scene: { schemaVersion: 1, objects: [] },
     locks: defaultLockState(),
   };
 

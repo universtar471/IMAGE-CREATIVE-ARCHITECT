@@ -687,7 +687,7 @@ Validation:
 
 Domain pure functions:
 - `rasterizeMask(shapes, width, height) -> Uint8Array`: 255 inside, 0 outside, union. Polygon uses even-odd fill. A pixel is inside when its centre is inside. Brush draws discs at every point and capsules between consecutive points.
-- `featherMask(mask, width, height, radiusPx) -> Uint8Array`: a box blur repeated 3 times.
+- `featherMask(mask, width, height, radiusPx) -> Uint8Array`: three passes of a 2D box blur over a `(2r+1)²` window, where `r = round(radiusPx)`. Samples outside the image are excluded and each pixel is averaged over the in-image sample count. Round half up to an integer after every pass.
 - `buildRegionEditPrompt({ dna, regions, params, nativeMask })`.
 - Scene helpers:
   - `newSceneObjectId()`

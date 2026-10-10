@@ -74,11 +74,13 @@ export function VersionsTab() {
               </span>
               <span className={`badge ${v.generationId ? "badge-info" : "badge-neutral"}`}>
                 {v.generationId && <Sparkles size={10} />}
-                {v.operation === "enhance"
-                  ? enhanceVersionLabel(gen, t)
-                  : v.operation === "import" || v.operation === "generate"
-                    ? t(`labels.operation.${v.operation}`)
-                    : v.operation}
+                {v.operation === "region_edit"
+                  ? regionVersionLabel(gen, t)
+                  : v.operation === "enhance"
+                    ? enhanceVersionLabel(gen, t)
+                    : v.operation === "import" || v.operation === "generate"
+                      ? t(`labels.operation.${v.operation}`)
+                      : v.operation}
               </span>
               {v.generationId && (
                 <span className="field-hint version-gen">
@@ -111,6 +113,23 @@ export function VersionsTab() {
       })}
     </ul>
   );
+}
+
+function regionVersionLabel(
+  generation: { params: unknown } | undefined,
+  translate: ReturnType<typeof useT>,
+): string {
+  const region = (
+    generation?.params as
+      { region?: { regionIds?: string[]; mode?: string; material?: string } } | undefined
+  )?.region;
+  if (!region) return translate("versions.regionEdit");
+  const count = region.regionIds?.length ?? 0;
+  const suffix =
+    region.mode === "material_replace"
+      ? (region.material ?? translate("regions.material"))
+      : translate("regions.freeEdit");
+  return translate("versions.regionSummary", { count, suffix });
 }
 
 function enhanceVersionLabel(

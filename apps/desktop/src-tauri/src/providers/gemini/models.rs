@@ -89,6 +89,7 @@ fn to_capabilities(spec: &Spec) -> ModelCapabilities {
         quality_options: Vec::new(),
         price_hint: None,
         vision: false,
+        supports_mask: false,
     }
 }
 

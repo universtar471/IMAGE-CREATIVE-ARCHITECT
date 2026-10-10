@@ -12,12 +12,53 @@ use crate::dto::{
     ProjectSummaryDto, ProviderDescriptorDto, ProviderTestResult, VersionDto,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
+use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, qc, queue,
+    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, qc, queue, regions,
     workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionListRequest {
+    project_id: String,
+    asset_id: String,
+}
+
+#[tauri::command]
+pub async fn region_list(core: Core<'_>, request: RegionListRequest) -> AppResult<Vec<RegionDto>> {
+    blocking(&core, move |c| regions::list(c, &request.project_id, &request.asset_id)).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionSaveRequest {
+    project_id: String,
+    asset_id: String,
+    region: RegionInput,
+}
+
+#[tauri::command]
+pub async fn region_save(core: Core<'_>, request: RegionSaveRequest) -> AppResult<RegionDto> {
+    blocking(&core, move |c| regions::save(c, &request.project_id, &request.asset_id, request.region)).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionDeleteRequest {
+    project_id: String,
+    region_id: String,
+}
+
+#[tauri::command]
+pub async fn region_delete(core: Core<'_>, request: RegionDeleteRequest) -> AppResult<Value> {
+    blocking(&core, move |c| {
+        regions::delete(c, &request.project_id, &request.region_id).map(|_| serde_json::json!({"deleted": true}))
+    })
+    .await
+}
 
 fn parse_validation<T: DeserializeOwned>(value: Value) -> AppResult<T> {
     serde_json::from_value(value).map_err(|err| AppError::validation(format!("Invalid request: {err}")))

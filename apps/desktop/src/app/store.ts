@@ -503,7 +503,14 @@ export const useStudio = create<State>((set, get) => {
       set({ save: { status: "saving", fieldErrors: {} } });
       savePromise = (async () => {
         try {
-          const project = await call("dna_update", { projectId: ws.project.id, dna: v.dna });
+          // Scene objects are additive in Phase 7; preserve them on older domain builds that
+          // do not yet include the optional `scene` field in ProjectDNA's inferred type.
+          const submittedWithScene = (submitted as ProjectDNA & { scene?: unknown }).scene;
+          const dnaToSave =
+            submittedWithScene === undefined
+              ? v.dna
+              : ({ ...v.dna, scene: submittedWithScene } as ProjectDNA);
+          const project = await call("dna_update", { projectId: ws.project.id, dna: dnaToSave });
           const current = get().workspace;
           if (!current || current.project.id !== project.id) return true;
           const stillDirty = current.draftDna !== submitted;

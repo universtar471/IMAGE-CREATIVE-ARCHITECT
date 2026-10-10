@@ -24,8 +24,8 @@ use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
-    EnhanceMode, GenerationParams, ImageProvider, ModelCapabilities, PromptText, ProviderOutput, ProviderRequest,
-    ReferenceImage,
+    EnhanceMode, GenerationParams, ImageProvider, MaskImage, ModelCapabilities, PromptText, ProviderOutput,
+    ProviderRequest, ReferenceImage,
 };
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
@@ -100,6 +100,7 @@ struct Prepared {
     snapshot: RequestSnapshot,
     references: Vec<ReferenceImage>,
     api_key: Option<String>,
+    region_shapes: Vec<crate::services::regions::RegionShape>,
 }
 
 struct CheckedOutput {
@@ -260,6 +261,34 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         }
     } else if enhance.is_some() {
         return Err(AppError::validation("params.enhance is only valid when purpose is 'enhance'."));
+    }
+    if purpose == GenerationPurpose::RegionEdit {
+        let params = req
+            .params
+            .region
+            .as_ref()
+            .ok_or_else(|| AppError::validation("Region edit parameters are required at params.region."))?;
+        if assets.len() != 1 {
+            return Err(AppError::validation("Region edit requires exactly one ready reference image."));
+        }
+        if params.region_ids.is_empty() {
+            return Err(AppError::validation("Region edit requires at least one region."));
+        }
+        if params.mode == crate::providers::RegionEditMode::MaterialReplace
+            && params.material.as_deref().unwrap_or("").trim().is_empty()
+        {
+            return Err(AppError::validation("Material is required for material_replace."));
+        }
+        if params.mode == crate::providers::RegionEditMode::Edit && params.instruction.trim().is_empty() {
+            return Err(AppError::validation("Instruction is required for edit."));
+        }
+        let conn = core.conn()?;
+        crate::services::regions::get_for_asset(&conn, &project.id, &assets[0].id, &params.region_ids)?;
+        if !model.image_to_image {
+            return Err(AppError::validation(format!("{} does not support region references.", model.label)));
+        }
+    } else if req.params.region.is_some() {
+        return Err(AppError::validation("params.region is only valid when purpose is 'region_edit'."));
     }
 
     // Lineage anchor: the master if referenced, else the first reference.
@@ -603,7 +632,7 @@ fn job_is_running(core: &AppCore, job_id: &str) -> Result<bool, Stop> {
 /// Load the generation, re-check and read its references, resolve the key. Things that
 /// changed since the job was queued fail the attempt, they are not bridge errors.
 fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
-    let (job, generation, assets) = {
+    let (job, generation, assets, region_shapes) = {
         let conn = core.conn()?;
         let job = repo::get_job(&conn, job_id)?;
         if job.status != JobStatus::Running {
@@ -622,7 +651,23 @@ fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
             .map(|id| check_reference(core, &conn, &generation.project_id, id))
             .collect::<AppResult<Vec<_>>>()
             .map_err(|e| not_runnable(e.message))?;
-        (job, generation, assets)
+        let region_shapes = if generation.purpose == GenerationPurpose::RegionEdit {
+            let params =
+                snapshot.params.region.as_ref().ok_or_else(|| not_runnable("Region edit parameters are missing."))?;
+            crate::services::regions::get_for_asset(
+                &conn,
+                &generation.project_id,
+                assets.first().map(|a| a.id.as_str()).unwrap_or_default(),
+                &params.region_ids,
+            )
+            .map_err(|e| not_runnable(e.message))?
+            .into_iter()
+            .map(|r| r.shape)
+            .collect()
+        } else {
+            Vec::new()
+        };
+        (job, generation, assets, region_shapes)
     };
     let references = assets
         .iter()
@@ -654,11 +699,36 @@ fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
         snapshot,
         references,
         api_key,
+        region_shapes,
     })
 }
 
 /// The provider call (no DB lock held), then storage of the outputs.
 fn call_and_store(core: &AppCore, prepared: &Prepared, clock: &Instant) -> Result<(), Stop> {
+    let mut references = prepared.references.clone();
+    let mask = if prepared.purpose == GenerationPurpose::RegionEdit {
+        let source = references
+            .first()
+            .ok_or_else(|| Failure::new("invalid_request", "Region edit has no source image.", false))?;
+        let info = imaging::inspect(&source.bytes, "source image")
+            .map_err(|_| Failure::new("invalid_request", "Region source image is unreadable.", false))?;
+        let raw = crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, info.width, info.height);
+        let native = prepared.model.supports_mask;
+        let bytes = crate::services::regions::mask::png_mask(&raw, info.width, info.height, native)
+            .map_err(|e| Failure::new("io", e.to_string(), true))?;
+        let image = MaskImage { bytes, mime_type: "image/png".into(), native };
+        if !native {
+            references.push(ReferenceImage {
+                asset_id: "MASK".into(),
+                role: "region_mask".into(),
+                mime_type: "image/png".into(),
+                bytes: image.bytes.clone(),
+            });
+        }
+        Some(image)
+    } else {
+        None
+    };
     let request = ProviderRequest {
         model_id: prepared.model.id.clone(),
         prompt: PromptText {
@@ -667,9 +737,10 @@ fn call_and_store(core: &AppCore, prepared: &Prepared, clock: &Instant) -> Resul
             reference_instructions: prepared.snapshot.prompt.reference_instructions.clone(),
             preservation_instructions: prepared.snapshot.prompt.preservation_instructions.clone(),
         },
-        references: prepared.references.clone(),
+        references,
         params: prepared.snapshot.params.clone(),
         api_key: prepared.api_key.clone(),
+        mask,
     };
     let result = prepared.provider.generate(&request);
     drop(request);
@@ -695,6 +766,24 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
     // A provider that returns more than asked for: keep the requested count only.
     let images: Vec<_> = output.images.into_iter().take(prepared.snapshot.params.output_count as usize).collect();
     // Header inspection alone accepts a PNG with corrupt pixel data; decoding proves it opens.
+    let region_composite = if prepared.purpose == GenerationPurpose::RegionEdit {
+        let source_ref = prepared
+            .references
+            .first()
+            .ok_or_else(|| Failure::new("invalid_request", "Region edit has no source image.", false))?;
+        let source_info = imaging::inspect(&source_ref.bytes, "source image")
+            .map_err(|_| Failure::new("invalid_request", "Region source image is unreadable.", false))?;
+        let source = imaging::decode(&source_ref.bytes, source_info.format).map_err(|_| {
+            Failure::new("invalid_request", "Region source image could not be decoded for compositing.", false)
+        })?;
+        let w = source.width();
+        let h = source.height();
+        let raw = crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, w, h);
+        let feather = crate::services::regions::mask::feather_mask(&raw, w, h, 8);
+        Some((source, feather, w, h))
+    } else {
+        None
+    };
     let checked = images
         .iter()
         .enumerate()
@@ -710,7 +799,13 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             let provider_decoded = imaging::decode(&img.bytes, provider_info.format).map_err(|_| unreadable())?;
             let provider_long_edge = provider_info.width.max(provider_info.height);
             let mut bytes = img.bytes.clone();
-            if prepared.purpose == GenerationPurpose::Enhance {
+            if prepared.purpose == GenerationPurpose::RegionEdit {
+                let (source, mask, width, height) = region_composite.as_ref().expect("region composite is prepared");
+                let composited =
+                    crate::services::regions::mask::composite(source, &provider_decoded, mask, *width, *height);
+                bytes.clear();
+                composited.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|_| unreadable())?;
+            } else if prepared.purpose == GenerationPurpose::Enhance {
                 let source_long_edge = prepared.references.first().and_then(|reference| {
                     imaging::inspect(&reference.bytes, "source image").ok().map(|info| info.width.max(info.height))
                 });
@@ -807,6 +902,8 @@ fn commit_outputs(
     let now = core.now_iso();
     let operation = if prepared.purpose == GenerationPurpose::Enhance {
         "enhance"
+    } else if prepared.purpose == GenerationPurpose::RegionEdit {
+        "region_edit"
     } else if prepared.purpose == GenerationPurpose::Repair {
         "repair"
     } else {
@@ -821,7 +918,15 @@ fn commit_outputs(
         let asset_id = &files.asset_id;
         let index = index as u32;
         let name = format!("{} {} — {}", prepared.purpose.label(), index + 1, prepared.model.label);
-        let operation_json = if prepared.purpose == GenerationPurpose::Enhance {
+        let operation_json = if prepared.purpose == GenerationPurpose::RegionEdit {
+            json!({
+                "params": prepared.snapshot.params,
+                "regionShapes": prepared.region_shapes,
+                "nativeMask": prepared.model.supports_mask,
+                "providerId": generation.provider_id,
+                "model": generation.model_id,
+            })
+        } else if prepared.purpose == GenerationPurpose::Enhance {
             json!({
                 "params": prepared.snapshot.params,
                 "generationId": generation.id,
@@ -1034,6 +1139,7 @@ mod tests {
             quality: None,
             enhance: None,
             repair: None,
+            region: None,
         }
     }
 

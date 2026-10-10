@@ -8,7 +8,8 @@ use serde_json::{json, Value};
 
 use super::super::test_http::{closed_port, MockServer, Reply};
 use super::super::{
-    GenerationParams, ImageProvider, PromptText, ProviderError, ProviderErrorKind, ProviderRequest, ReferenceImage,
+    GenerationParams, ImageProvider, MaskImage, PromptText, ProviderError, ProviderErrorKind, ProviderRequest,
+    ReferenceImage,
 };
 use super::OpenAiProvider;
 
@@ -98,8 +99,10 @@ fn request(outputs: u32) -> ProviderRequest {
             quality: None,
             enhance: None,
             repair: None,
+            region: None,
         },
         api_key: Some(KEY.into()),
+        mask: None,
     }
 }
 
@@ -210,6 +213,17 @@ fn references_go_to_edits_as_multipart_image_parts_in_request_order() {
     assert!(first < second, "references must keep request order");
     assert_eq!(body.matches("name=\"image[]\"").count(), 2);
     assert!(!body.contains(KEY));
+}
+
+#[test]
+fn native_mask_is_uploaded_as_mask_part() {
+    let mut req = with_references(1);
+    req.mask = Some(MaskImage { bytes: b"mask-bytes".to_vec(), mime_type: "image/png".into(), native: true });
+    let mut server = serve(vec![images_response(&[PNG_BYTES])]);
+    server.provider().generate(&req).unwrap();
+    let body = server.requests()[0].body.clone();
+    assert!(body.contains("name=\"mask\"; filename=\"mask.png\""));
+    assert!(body.contains("mask-bytes"));
 }
 
 // ---------------------------------------------------------------- success
@@ -540,8 +554,10 @@ fn openai_live_smoke() {
             quality: None,
             enhance: None,
             repair: None,
+            region: None,
         },
         api_key: Some(key),
+        mask: None,
     };
     let out = provider.generate(&req).unwrap_or_else(|e| panic!("generate: {e}"));
     assert_eq!(out.images.len(), 1);

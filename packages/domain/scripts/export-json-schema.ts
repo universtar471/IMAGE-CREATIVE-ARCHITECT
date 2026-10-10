@@ -7,6 +7,7 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { projectDnaJsonSchemaText } from "../src/jsonSchema";
 
-const target = fileURLToPath(new URL("../schema/project-dna.schema.json", import.meta.url));
+const target =
+  process.argv[2] ?? fileURLToPath(new URL("../schema/project-dna.schema.json", import.meta.url));
 writeFileSync(target, projectDnaJsonSchemaText());
 console.log(`wrote ${target}`);
