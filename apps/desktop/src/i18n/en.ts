@@ -624,6 +624,7 @@ export const en = {
     prompt: "Prompt",
     openPrompt: "Open Prompt Preview",
     promptHint: "The prompt is compiled from structured DNA; it is never the source of truth.",
+    lotPosition: "Lot position",
   },
 
   interior: {
@@ -791,6 +792,33 @@ export const en = {
     mustNotAppear: "Must not appear",
     negativeHint: "Compiled into the negative prompt.",
     negativePlaceholder: "e.g. snow",
+  },
+
+  topology: {
+    title: "Lot position",
+    left: "Left side",
+    right: "Right side",
+    cornerLot: "Corner lot",
+    cornerSide: "Corner side",
+    attached: "Attached",
+    open: "Open",
+    unknown: "Unknown",
+    inferred: "Inferred from description",
+    normal: "Normal site view",
+    obliqueStreet: "Oblique street view — attached side hidden",
+    aerialBlock: "Keep the same street block",
+    cornerSideChip: "Corner lot — reveal {side} side",
+    unknownSide: "{side} side exposed is not confirmed",
+    resolveAttached: "Attached",
+    resolveCorner: "Corner lot",
+    leftLabel: "left",
+    rightLabel: "right",
+    unresolved: "Unresolved site sides",
+    middle: "Mid-block lot",
+    attachedBoth: "attached on both sides",
+    attachedSide: "attached on the {side} side",
+    standalone: "Detached house",
+    unknownLot: "Lot position unknown",
   },
 
   assets: {

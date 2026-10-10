@@ -78,6 +78,9 @@ fn strip_additive_fields(dna: &mut Value) {
         if let Some(locks) = object.get_mut("locks").and_then(Value::as_object_mut) {
             locks.remove("mood");
         }
+        if let Some(context) = object.get_mut("context").and_then(Value::as_object_mut) {
+            context.remove("siteTopology");
+        }
     }
 }
 
@@ -141,6 +144,53 @@ fn validate_additive_fields(dna: &Value, field_errors: &mut Map<String, Value>) 
     if let Some(mood) = root.get("locks").and_then(Value::as_object).and_then(|locks| locks.get("mood")) {
         if !mood.is_boolean() {
             additive_error(field_errors, "locks.mood", "Expected a boolean.");
+        }
+    }
+    validate_site_topology(root, field_errors);
+}
+
+fn validate_site_topology(root: &Map<String, Value>, field_errors: &mut Map<String, Value>) {
+    let Some(topology) = root.get("context").and_then(Value::as_object).and_then(|context| context.get("siteTopology"))
+    else {
+        return;
+    };
+    let Some(topology) = topology.as_object() else {
+        additive_error(field_errors, "context.siteTopology", "Expected an object.");
+        return;
+    };
+    for side in ["left", "right"] {
+        if let Some(value) = topology.get(side) {
+            if !matches!(value.as_str(), Some("attached" | "open" | "unknown")) {
+                additive_error(
+                    field_errors,
+                    &format!("context.siteTopology.{side}"),
+                    "Expected attached, open, or unknown.",
+                );
+            }
+        }
+    }
+    if let Some(corner_lot) = topology.get("cornerLot") {
+        if !corner_lot.is_boolean() {
+            additive_error(field_errors, "context.siteTopology.cornerLot", "Expected a boolean.");
+        }
+    }
+    let corner_side_value = topology.get("cornerSide");
+    let corner_side = corner_side_value.and_then(Value::as_str);
+    if corner_side_value.is_some() && corner_side.is_none() {
+        additive_error(field_errors, "context.siteTopology.cornerSide", "Expected left or right.");
+    }
+    if let Some(side) = corner_side {
+        if !matches!(side, "left" | "right") {
+            additive_error(field_errors, "context.siteTopology.cornerSide", "Expected left or right.");
+        }
+    }
+    if topology.get("cornerLot").and_then(Value::as_bool) == Some(true) {
+        let Some(side) = corner_side else {
+            additive_error(field_errors, "context.siteTopology.cornerSide", "cornerSide is required for a corner lot.");
+            return;
+        };
+        if topology.get(side).and_then(Value::as_str) == Some("attached") {
+            additive_error(field_errors, "context.siteTopology.cornerSide", "cornerSide must not be attached.");
         }
     }
 }
@@ -270,6 +320,51 @@ pub(crate) mod tests {
             "artificialScenes": [], "furnitureIds": [], "furnishingDensity": "balanced"
         });
         validate_dna(&dna).unwrap();
+    }
+
+    #[test]
+    fn accepts_valid_site_topology() {
+        let mut dna = minimal();
+        dna["context"]["siteTopology"] =
+            json!({ "left": "attached", "right": "open", "cornerLot": true, "cornerSide": "right" });
+        validate_dna(&dna).unwrap();
+    }
+
+    #[test]
+    fn rejects_corner_lot_without_corner_side() {
+        let mut dna = minimal();
+        dna["context"]["siteTopology"] = json!({ "left": "open", "right": "open", "cornerLot": true });
+        assert!(validate_dna(&dna).unwrap_err().details.unwrap()["fieldErrors"]
+            .get("context.siteTopology.cornerSide")
+            .is_some());
+    }
+
+    #[test]
+    fn rejects_attached_corner_side() {
+        let mut dna = minimal();
+        dna["context"]["siteTopology"] =
+            json!({ "left": "attached", "right": "open", "cornerLot": true, "cornerSide": "left" });
+        assert!(validate_dna(&dna).unwrap_err().details.unwrap()["fieldErrors"]
+            .get("context.siteTopology.cornerSide")
+            .is_some());
+    }
+
+    #[test]
+    fn rejects_non_string_corner_side_even_without_corner_lot() {
+        let mut dna = minimal();
+        dna["context"]["siteTopology"] = json!({
+            "left": "open", "right": "open", "cornerLot": false, "cornerSide": 7
+        });
+        assert!(validate_dna(&dna).unwrap_err().details.unwrap()["fieldErrors"]
+            .get("context.siteTopology.cornerSide")
+            .is_some());
+    }
+
+    #[test]
+    fn accepts_dna_without_site_topology_unchanged() {
+        let dna = minimal();
+        validate_dna(&dna).unwrap();
+        assert!(dna["context"].get("siteTopology").is_none());
     }
 
     #[test]

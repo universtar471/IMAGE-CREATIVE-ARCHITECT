@@ -24,6 +24,7 @@ import { CAMERA_ASPECT_RATIOS } from "./labels";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
+import { SiteTopologyChip } from "./SiteTopologyChip";
 
 const INTERIOR_CAMERA_NAME_KEYS = {
   wide_entrance: "wideEntrance",
@@ -195,6 +196,7 @@ function CameraListSection() {
                     <span className="badge badge-warning">{t("camera.anchorView")}</span>
                   ) : null}
                 </button>
+                <SiteTopologyChip camera={c} />
                 <RowAction
                   icon={Anchor}
                   label={c.isAnchorView ? t("camera.unmarkAnchor") : t("camera.markAnchor")}

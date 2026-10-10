@@ -12,6 +12,8 @@ export * from "./knowledge/registry";
 export * from "./knowledge/defaults";
 export * from "./invariants/dna";
 export * from "./prompt/compiler";
+export * from "./prompt/topology";
+export * from "./prompt/stylePhrases";
 export * from "./generation/helpers";
 export * from "./camera/cameras";
 export * from "./labels";

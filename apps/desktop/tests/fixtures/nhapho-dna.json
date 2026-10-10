@@ -1,0 +1,120 @@
+{
+  "building": {
+    "architecturalStyle": "Modern tropical",
+    "buildingType": "townhouse",
+    "colorPalette": [],
+    "dimensions": { "depthM": 20, "heightM": 15, "siteDepthM": 25, "siteWidthM": 5, "widthM": 5 },
+    "floors": 3,
+    "massing": { "composition": "narrow vertical facade with stacked balconies", "voids": [] },
+    "materials": [],
+    "notes": "",
+    "openings": {},
+    "roof": { "type": "flat roof with roof terrace" },
+    "schemaVersion": 1,
+    "specialFeatures": []
+  },
+  "cameras": [
+    {
+      "aspectRatio": "3:4",
+      "azimuthDeg": 45,
+      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "distanceM": 16,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "id": "CAM_01M4K1Q5C6PGJBEGD65E0JFSY0",
+      "isAnchorView": true,
+      "lensMm": 24,
+      "name": "Front-left corner",
+      "notes": "",
+      "presetId": "front_left_corner",
+      "schemaVersion": 1,
+      "viewType": "exterior_corner"
+    },
+    {
+      "aspectRatio": "3:4",
+      "azimuthDeg": -45,
+      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "distanceM": 16,
+      "elevationDeg": 0,
+      "heightM": 1.6,
+      "id": "CAM_01M4K1QAHYASB70RRGAWGASY57",
+      "isAnchorView": true,
+      "lensMm": 24,
+      "name": "Front-right corner",
+      "notes": "",
+      "presetId": "front_right_corner",
+      "schemaVersion": 1,
+      "viewType": "exterior_corner"
+    },
+    {
+      "aspectRatio": "4:3",
+      "azimuthDeg": 35,
+      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "distanceM": 45,
+      "elevationDeg": 30,
+      "heightM": 22,
+      "id": "CAM_01M4K1QEPT19H0EZY58K5NR0PW",
+      "isAnchorView": true,
+      "lensMm": 35,
+      "name": "Aerial three-quarter",
+      "notes": "",
+      "presetId": "aerial_three_quarter",
+      "schemaVersion": 1,
+      "viewType": "aerial"
+    }
+  ],
+  "context": {
+    "atmosphereNotes": "",
+    "climateContext": "tropical monsoon",
+    "density": "high",
+    "distantBackground": [],
+    "front": { "adjacentBuildings": [], "elements": [], "notes": "", "vegetation": [] },
+    "left": {
+      "adjacentBuildings": ["attached neighbouring townhouse"],
+      "elements": [],
+      "notes": "",
+      "vegetation": []
+    },
+    "macroContext": "dense Vietnamese urban street",
+    "negativeConstraints": ["detached side walls with windows", "wide front lawn", "extra floors"],
+    "rear": { "adjacentBuildings": [], "elements": [], "notes": "", "vegetation": [] },
+    "right": {
+      "adjacentBuildings": ["attached neighbouring townhouse"],
+      "elements": [],
+      "notes": "",
+      "vegetation": []
+    },
+    "schemaVersion": 1
+  },
+  "lighting": {
+    "ambientLight": "balanced",
+    "artificialLighting": [],
+    "intensity": "bright",
+    "presetId": "daylight",
+    "schemaVersion": 1,
+    "shadowLength": "medium",
+    "shadowSoftness": "soft",
+    "sunDirection": "east",
+    "sunElevation": "35°",
+    "timeOfDay": "morning"
+  },
+  "locks": {
+    "building": false,
+    "camera": false,
+    "colorGrade": false,
+    "context": false,
+    "lighting": false,
+    "mood": false,
+    "objectIds": [],
+    "weather": false
+  },
+  "mood": {
+    "atmosphere": "warm and inviting",
+    "notes": "",
+    "preset": "Warm welcome",
+    "presetId": "warm",
+    "schemaVersion": 1
+  },
+  "scene": { "objects": [], "schemaVersion": 1 },
+  "schemaVersion": 1
+}
