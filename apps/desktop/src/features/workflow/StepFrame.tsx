@@ -1,9 +1,18 @@
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Circle, LockKeyhole } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  LockKeyhole,
+} from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { useStudio } from "../../app/store";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS, type DnaStepId, type DerivedWorkflowStep } from "../../lib/workflow";
 import { BlockedExplainer } from "./BlockedExplainer";
+import { NextStepBar } from "./NextStepBar";
 
 const DNA_IDS: readonly DnaStepId[] = [
   "dna.building",
@@ -17,18 +26,6 @@ const moduleForStep = (stepId: string) =>
   WORKFLOW_STEPS.find((step) => step.id === stepId)?.moduleId as
     "design_dna" | "context" | "references" | "camera" | "lighting" | undefined;
 
-export function laterStepsToReview(
-  workflow: { steps: readonly DerivedWorkflowStep[] } | null | undefined,
-  stepId: DnaStepId,
-): DerivedWorkflowStep[] {
-  const index = DNA_IDS.indexOf(stepId);
-  return (
-    workflow?.steps.filter(
-      (item) => DNA_IDS.indexOf(item.id as DnaStepId) > index && item.status === "confirmed",
-    ) ?? []
-  );
-}
-
 export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: ReactNode }) {
   const t = useT();
   const isInterior = useStudio((state) => state.workspace?.project.projectType === "interior");
@@ -39,7 +36,6 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const [guideOpen, setGuideOpen] = useState(true);
   const step = workflow?.steps.find((item) => item.id === stepId) ?? fallbackStep(stepId);
   const number = DNA_IDS.indexOf(stepId) + 1;
-  const laterReview = useMemo(() => laterStepsToReview(workflow, stepId), [stepId, workflow]);
   const locked = step.status === "locked";
   const readOnly = locked || step.status === "confirmed" || step.status === "needs_review";
   const statusLabel = t(`workflow.status.${step.status}`);
@@ -50,11 +46,10 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const guide = t(`workflow.steps.${stepId}.guide`);
 
   const onReopen = () => {
-    const later = laterReview.length
-      ? `\n${laterReview.map((item) => `• ${t(`workflow.steps.${item.id}.name`)}`).join("\n")}`
-      : "";
-    if (window.confirm(`${t("workflow.reopenConfirm")}\n${t("workflow.reopenLater")}${later}`))
-      void reopen(stepId);
+    if (window.confirm(t("workflow.reopenConfirm"))) void reopen(stepId);
+  };
+  const reconfirm = async () => {
+    if (await reopen(stepId)) await confirm(stepId);
   };
 
   return (
@@ -64,9 +59,17 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
           <span className="workflow-step-kicker">{t("workflow.stepNumber", { number })}</span>
           <h2>{name}</h2>
         </div>
-        <span className={`badge workflow-status workflow-status-${step.status}`}>
-          {statusIcon(step.status)} {statusLabel}
-        </span>
+        <div className="workflow-step-actions">
+          {stepId === "dna.camera" && step.status === "confirmed" && (
+            <button className="btn btn-sm" onClick={onReopen}>
+              <Camera size={13} /> {t("camera.add")}
+            </button>
+          )}
+          <span className={`badge workflow-status workflow-status-${step.status}`}>
+            {statusIcon(step.status)} {statusLabel}
+          </span>
+          <NextStepBar compact />
+        </div>
       </header>
 
       <div className="workflow-guide">
@@ -100,6 +103,9 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
       {step.status === "needs_review" && (
         <div className="callout callout-warning workflow-banner" role="alert">
           <AlertTriangle size={14} /> {t("workflow.needsReview")}
+          <button className="btn btn-sm btn-primary" onClick={() => void reconfirm()}>
+            {t("workflow.reconfirm")}
+          </button>
         </div>
       )}
 

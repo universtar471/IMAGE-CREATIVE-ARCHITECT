@@ -50,7 +50,7 @@ describe("guided workflow contract", () => {
     );
   });
 
-  it("reopening cascades later confirmed DNA steps to needs_review", () => {
+  it("reopening leaves later confirmed DNA steps confirmed", () => {
     const persisted = DNA_STEP_IDS.map((stepId, index) => ({
       stepId,
       status: index < 4 ? "confirmed" : "open",
@@ -60,8 +60,8 @@ describe("guided workflow contract", () => {
     expect(reopened.map((step) => step.status)).toEqual([
       "confirmed",
       "open",
-      "needs_review",
-      "needs_review",
+      "confirmed",
+      "confirmed",
       "open",
     ]);
   });

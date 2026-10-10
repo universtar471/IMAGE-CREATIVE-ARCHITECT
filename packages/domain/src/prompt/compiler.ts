@@ -18,7 +18,7 @@ import { interiorPromptLines } from "../interior/helpers";
 import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
 import { stylePhrase } from "./stylePhrases";
 
-export const COMPILER_VERSION = "pc-1.5.0";
+export const COMPILER_VERSION = "pc-1.5.1";
 
 export type PromptReference = {
   assetId: string;
@@ -518,7 +518,7 @@ function preservationSection(
         `The building is attached to neighbouring buildings on ${sideText}. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.`,
       );
       lines.push(
-        `Camera viewpoint: ${hidden} oblique street view from eye level. Composition: front facade dominant, seen at an angle along the street; the ${plan.side ?? "side"} side wall stays hidden behind the attached neighbour.`,
+        `Camera viewpoint: ${hidden} oblique street view from eye level, about 30–35° off the facade axis, looking along the street. Composition: front facade dominant; the ${plan.side ?? "side"} side wall stays hidden behind the attached neighbour.`,
       );
     } else if (plan.mode === "aerial_block") {
       lines.push(
@@ -547,7 +547,7 @@ function cameraSectionTextForPlan(
   if (plan.mode === "oblique_street") {
     const side = plan.side ?? "side";
     return cameraSectionForPlan(camera, {
-      viewpoint: `${side === "left" ? "front-left" : "front-right"} oblique street view from eye level`,
+      viewpoint: `${side === "left" ? "front-left" : "front-right"} oblique street view from eye level, about 30–35° off the facade axis, looking along the street`,
       composition: `front facade dominant, seen at an angle along the street; the ${side} side wall stays hidden behind the attached neighbour`,
     });
   }

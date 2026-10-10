@@ -38,14 +38,14 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           <ImageOff size={20} aria-label={t("assets.noThumbnail")} />
         )}
       </div>
-      {isMaster && (
-        <span className="badge badge-accent badge-master">
-          <Star size={10} /> {t("common.master")}
-        </span>
-      )}
       <div className="asset-thumb-meta">
         <span className="name">{asset.originalName ?? asset.id}</span>
         <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {isMaster && (
+            <span className="badge badge-accent">
+              <Star size={10} /> {t("common.master")}
+            </span>
+          )}
           {!isMaster && <RoleBadge role={asset.role} short />}
           <QcBadge assetId={asset.id} projectId={asset.projectId} />
           <span style={{ color: "var(--c-text-3)" }}>

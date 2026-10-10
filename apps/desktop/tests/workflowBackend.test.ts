@@ -14,7 +14,7 @@ beforeEach(() => {
 afterEach(() => setTransport(null));
 
 describe("mock workflow commands", () => {
-  it("returns all five open rows and persists confirm/reopen cascade", async () => {
+  it("returns all five open rows and reopens only the selected step", async () => {
     const project = await createProject({
       name: "Workflow",
       projectType: "villa",
@@ -33,8 +33,8 @@ describe("mock workflow commands", () => {
     expect(reopened.steps.map((step) => step.status)).toEqual([
       "confirmed",
       "open",
-      "needs_review",
-      "needs_review",
+      "confirmed",
+      "confirmed",
       "open",
     ]);
   });
@@ -51,7 +51,7 @@ describe("mock workflow commands", () => {
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
-  it("rejects confirming a cascaded needs_review step", async () => {
+  it("rejects confirming an already confirmed later step", async () => {
     const project = await createProject({
       name: "Workflow review",
       projectType: "villa",

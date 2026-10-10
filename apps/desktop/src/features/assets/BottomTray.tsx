@@ -14,8 +14,24 @@ import { useAssetImport } from "./useAssetImport";
 import { useT } from "../../i18n";
 import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
 import { resolveEnhancePair } from "../enhance/enhance";
+import {
+  ASSET_LIST_COLUMNS,
+  type AssetViewMode,
+  readAssetViewMode,
+  writeAssetViewMode,
+} from "./viewMode";
+import { formatDateTime, formatDimensions } from "../../lib/format";
+import { fileUrl } from "../../lib/files";
 
 const ROLE_FILTERS = AssetRoleSchema.options;
+const LIST_COLUMN_TRANSLATION = {
+  name: "tray.listName",
+  role: "tray.listRole",
+  model: "tray.listModel",
+  size: "tray.listSize",
+  date: "tray.listDate",
+  status: "tray.listStatus",
+} as const;
 
 export function BottomTray() {
   const trayTab = useStudio((s) => s.trayTab);
@@ -25,6 +41,7 @@ export function BottomTray() {
   const assetCount = useStudio((s) => s.workspace?.assets.length ?? 0);
   const historyCount = useStudio((s) => s.workspace?.generations.length ?? 0);
   const activeJobs = useStudio((s) => s.jobs.filter((j) => !isTerminalJob(j)).length);
+  const [assetView, setAssetView] = useState<AssetViewMode>(() => readAssetViewMode());
   const t = useT();
 
   return (
@@ -51,6 +68,24 @@ export function BottomTray() {
           </button>
         ))}
         <span className="spacer" />
+        {!collapsed && trayTab === "assets" && (
+          <div className="asset-view-toggle" role="group" aria-label={t("tray.viewMode")}>
+            {(["small", "large", "list"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-pressed={assetView === mode}
+                onClick={() => {
+                  setAssetView(mode);
+                  writeAssetViewMode(mode);
+                }}
+              >
+                {t(`tray.view${mode === "small" ? "Small" : mode === "large" ? "Large" : "List"}`)}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           className="btn btn-ghost btn-sm"
           onClick={toggleTray}
@@ -60,8 +95,11 @@ export function BottomTray() {
         </button>
       </div>
       {!collapsed && (
-        <div className="tray-body" role="tabpanel">
-          {trayTab === "assets" && <AssetsTab />}
+        <div
+          className={`tray-body ${trayTab === "assets" && assetView === "large" ? "tray-body-large" : ""}`}
+          role="tabpanel"
+        >
+          {trayTab === "assets" && <AssetsTab viewMode={assetView} />}
           {trayTab === "versions" && <VersionsTab />}
           {trayTab === "history" && <HistoryTab />}
           {trayTab === "jobs" && <JobsTab />}
@@ -71,7 +109,7 @@ export function BottomTray() {
   );
 }
 
-function AssetsTab() {
+function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
   const assets = useStudio((s) => s.workspace?.assets ?? []);
   const selectedId = useStudio((s) => s.selectedAssetId);
   const generations = useStudio((s) => s.workspace?.generations ?? []);
@@ -164,58 +202,114 @@ function AssetsTab() {
         </select>
       </div>
 
-      <div className="asset-strip" role="listbox" aria-label={t("assets.listLabel")}>
-        <button
-          className="asset-import-tile"
-          onClick={() => void pickAndImport(importRole)}
-          disabled={readOnly || !!busy}
+      {viewMode === "list" ? (
+        <div className="asset-list-wrap">
+          <button
+            className="asset-list-import btn btn-sm"
+            onClick={() => void pickAndImport(importRole)}
+            disabled={readOnly || !!busy}
+          >
+            <ImagePlus size={13} /> {t("assets.importImages")}
+          </button>
+          <table className="asset-list-table" aria-label={t("assets.listLabel")}>
+            <thead>
+              <tr>
+                {ASSET_LIST_COLUMNS.map((column) => (
+                  <th key={column}>{t(LIST_COLUMN_TRANSLATION[column])}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((asset) => {
+                const generation = generations.find((item) =>
+                  item.outputAssetIds.includes(asset.id),
+                );
+                return (
+                  <tr
+                    key={asset.id}
+                    className={asset.id === selectedId ? "is-selected" : ""}
+                    onClick={() => selectAsset(asset.id)}
+                  >
+                    <td>
+                      <span className="asset-list-name">
+                        <img src={fileUrl(asset.thumbnailPath) ?? undefined} alt="" />
+                        {asset.originalName ?? asset.id}
+                      </span>
+                    </td>
+                    <td>{t(`labels.assetRole.${asset.role}`)}</td>
+                    <td>{generation ? `${generation.providerId}/${generation.modelId}` : "—"}</td>
+                    <td>{formatDimensions(asset.widthPx, asset.heightPx)}</td>
+                    <td>{formatDateTime(asset.createdAt)}</td>
+                    <td>{asset.status === "ready" ? t("assets.ready") : t("assets.missing")}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {visible.length === 0 && assets.length > 0 && (
+            <EmptyState title={t("assets.noneWithRole")}>{t("assets.changeFilter")}</EmptyState>
+          )}
+        </div>
+      ) : (
+        <div
+          className={`asset-strip asset-strip-${viewMode}`}
+          role="listbox"
+          aria-label={t("assets.listLabel")}
         >
-          <ImagePlus size={22} />
-          {busy
-            ? t("assets.importing", { done: busy.done, total: busy.total })
-            : t("assets.importImages")}
-          <span className="field-hint">JPEG · PNG · WebP</span>
-        </button>
-        {visible.map((a) => (
-          <div className="asset-select-wrap" key={a.id}>
-            <label className="asset-select-check">
-              <input
-                type="checkbox"
-                checked={batchIds.includes(a.id)}
-                disabled={a.status !== "ready"}
-                onChange={(event) =>
-                  setBatchIds((current) =>
-                    event.target.checked ? [...current, a.id] : current.filter((id) => id !== a.id),
-                  )
-                }
-              />
-              {t("assets.batchSelect")}
-            </label>
-            <AssetThumbnail asset={a} selected={a.id === selectedId} onSelect={selectAsset} />
-            {resolveEnhancePair(a.id, generations, assets) && (
-              <button
-                type="button"
-                className="btn btn-sm"
-                title={t("enhance.compareSource")}
-                onClick={() => {
-                  selectAsset(a.id);
-                  setModule("enhance");
-                }}
-              >
-                <Columns2 size={12} /> {t("enhance.compareSource")}
-              </button>
-            )}
-          </div>
-        ))}
-        {assets.length > 0 && visible.length === 0 && (
-          <EmptyState title={t("assets.noneWithRole")}>{t("assets.changeFilter")}</EmptyState>
-        )}
-        {assets.length === 0 && !busy && (
-          <div className="state" style={{ alignItems: "flex-start" }}>
-            <p>{readOnly ? t("assets.archivedEmpty") : t("assets.empty")}</p>
-          </div>
-        )}
-      </div>
+          <button
+            className="asset-import-tile"
+            onClick={() => void pickAndImport(importRole)}
+            disabled={readOnly || !!busy}
+          >
+            <ImagePlus size={22} />
+            {busy
+              ? t("assets.importing", { done: busy.done, total: busy.total })
+              : t("assets.importImages")}
+            <span className="field-hint">JPEG · PNG · WebP</span>
+          </button>
+          {visible.map((a) => (
+            <div className="asset-select-wrap" key={a.id}>
+              <label className="asset-select-check">
+                <input
+                  type="checkbox"
+                  checked={batchIds.includes(a.id)}
+                  disabled={a.status !== "ready"}
+                  onChange={(event) =>
+                    setBatchIds((current) =>
+                      event.target.checked
+                        ? [...current, a.id]
+                        : current.filter((id) => id !== a.id),
+                    )
+                  }
+                />
+                {t("assets.batchSelect")}
+              </label>
+              <AssetThumbnail asset={a} selected={a.id === selectedId} onSelect={selectAsset} />
+              {resolveEnhancePair(a.id, generations, assets) && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  title={t("enhance.compareSource")}
+                  onClick={() => {
+                    selectAsset(a.id);
+                    setModule("enhance");
+                  }}
+                >
+                  <Columns2 size={12} /> {t("enhance.compareSource")}
+                </button>
+              )}
+            </div>
+          ))}
+          {assets.length > 0 && visible.length === 0 && (
+            <EmptyState title={t("assets.noneWithRole")}>{t("assets.changeFilter")}</EmptyState>
+          )}
+          {assets.length === 0 && !busy && (
+            <div className="state" style={{ alignItems: "flex-start" }}>
+              <p>{readOnly ? t("assets.archivedEmpty") : t("assets.empty")}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {batchIds.length >= 2 && (
         <button className="btn btn-primary btn-sm" onClick={() => setBatchOpen(true)}>

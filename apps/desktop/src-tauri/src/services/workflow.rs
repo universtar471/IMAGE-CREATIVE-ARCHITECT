@@ -109,12 +109,6 @@ pub fn reopen(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Work
          ON CONFLICT(project_id, step_id) DO UPDATE SET status = 'open', confirmed_at = NULL",
         rusqlite::params![project_id, step_id],
     )?;
-    for later in DNA_STEP_IDS.iter().skip(step + 1) {
-        tx.execute(
-            "UPDATE workflow_steps SET status = 'needs_review' WHERE project_id = ?1 AND step_id = ?2 AND status = 'confirmed'",
-            rusqlite::params![project_id, later],
-        )?;
-    }
     let result = get_in(&tx, project_id)?;
     tx.commit()?;
     Ok(result)
@@ -188,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn reopen_marks_later_confirmed_steps_needs_review_in_one_transaction() {
+    fn reopen_preserves_later_confirmed_steps() {
         let (_tmp, app) = core();
         let project = test_create_villa_unconfirmed(&app, "Workflow");
         for id in DNA_STEP_IDS {
@@ -197,7 +191,7 @@ mod tests {
         let reopened = reopen(&app, &project.id, "dna.context").unwrap();
         assert_eq!(reopened.steps[0].status, "confirmed");
         assert_eq!(reopened.steps[1].status, "open");
-        assert!(reopened.steps[2..].iter().all(|step| step.status == "needs_review"));
+        assert!(reopened.steps[2..].iter().all(|step| step.status == "confirmed"));
         confirm(&app, &project.id, "dna.context").unwrap();
         let err = confirm(&app, &project.id, "dna.references").unwrap_err();
         assert_eq!(err.code, ErrorCode::ValidationError);
