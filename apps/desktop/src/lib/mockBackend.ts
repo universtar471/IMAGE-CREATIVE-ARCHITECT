@@ -1274,12 +1274,16 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
 
     dna_update: (req) => {
       const v = validateProjectDNA(req.dna);
-      if (!v.ok)
-        fail("VALIDATION_ERROR", "The design DNA has invalid values and was not saved.", {
-          fieldErrors: v.fieldErrors,
-        });
+      const parsedDna = v.ok
+        ? v.dna
+        : fail("VALIDATION_ERROR", "The design DNA has invalid values and was not saved.", {
+            fieldErrors: v.fieldErrors,
+          });
       writable(req.projectId);
-      db.dna[req.projectId] = JSON.parse(JSON.stringify(req.dna)) as ProjectDNA;
+      // Persist the same normalized aggregate that the Rust validator accepts. This keeps the
+      // browser transport's round-trip semantics aligned with the real backend (including the
+      // additive siteTopology refinement).
+      db.dna[req.projectId] = JSON.parse(JSON.stringify(parsedDna)) as ProjectDNA;
       // ADR-016: anchors of cameras that no longer exist are dropped.
       const cameraIds = new Set(req.dna.cameras.map((c) => c.id));
       db.anchors = db.anchors!.filter(

@@ -180,12 +180,11 @@ function lotPositionSummary(context: ProjectDNA["context"], t: ReturnType<typeof
   if (topology.left === "attached" && topology.right === "attached")
     return `${t("topology.middle")} · ${t("topology.attachedBoth")}`;
   if (topology.left === "attached")
-    return `${t("topology.middle")} · ${t("topology.attachedSide", { side: t("topology.leftLabel") })}`;
+    return t("topology.attachedSide", { side: t("topology.leftLabel") });
   if (topology.right === "attached")
-    return `${t("topology.middle")} · ${t("topology.attachedSide", { side: t("topology.rightLabel") })}`;
-  if (topology.left === "open" && topology.right === "open")
-    return `${t("topology.middle")} · ${t("topology.openBoth")}`;
-  return `${t("topology.middle")} · ${t("topology.unknownContext")}`;
+    return t("topology.attachedSide", { side: t("topology.rightLabel") });
+  if (topology.left === "open" && topology.right === "open") return t("topology.standalone");
+  return t("topology.unknownLot");
 }
 
 function WorkflowOverview() {

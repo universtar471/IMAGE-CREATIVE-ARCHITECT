@@ -15,7 +15,7 @@ import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
-import { cameraSitePlan, viewTypeFraming } from "./topology";
+import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
 import { stylePhrase } from "./stylePhrases";
 
 export const COMPILER_VERSION = "pc-1.5.0";
@@ -506,7 +506,13 @@ function preservationSection(
   if (camera && masterIndex >= 0) {
     const plan = cameraSitePlan(camera, dna.context, projectType);
     if (plan.mode === "oblique_street") {
-      const sideText = plan.side ? `the ${plan.side} side` : "both sides";
+      const topology = resolveSiteTopology(dna.context);
+      const sideText =
+        topology.left === "attached" && topology.right === "attached"
+          ? "both sides"
+          : plan.side
+            ? `the ${plan.side} side`
+            : "both sides";
       const hidden = plan.side === "left" ? "front-left" : "front-right";
       lines.push(
         `The building is attached to neighbouring buildings on ${sideText}. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.`,

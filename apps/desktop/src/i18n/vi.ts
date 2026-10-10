@@ -816,8 +816,8 @@ export const vi: Dict = {
     middle: "Lô giữa dãy",
     attachedBoth: "liền kề 2 bên",
     attachedSide: "liền kề bên {side}",
-    openBoth: "trống 2 bên",
-    unknownContext: "chưa xác định mặt hông",
+    standalone: "Nhà đứng riêng",
+    unknownLot: "Chưa rõ vị trí lô",
   },
 
   assets: {

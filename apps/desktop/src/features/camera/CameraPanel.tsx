@@ -189,7 +189,6 @@ function CameraListSection() {
                       {c.azimuthDeg !== undefined ? ` · ${Math.round(c.azimuthDeg)}°` : ""}
                       {c.distanceM !== undefined ? ` · ${c.distanceM} m` : ""}
                     </span>
-                    <SiteTopologyChip camera={c} />
                   </span>
                   {anchor ? (
                     <span className="badge badge-success">{t("camera.anchored")}</span>
@@ -197,6 +196,7 @@ function CameraListSection() {
                     <span className="badge badge-warning">{t("camera.anchorView")}</span>
                   ) : null}
                 </button>
+                <SiteTopologyChip camera={c} />
                 <RowAction
                   icon={Anchor}
                   label={c.isAnchorView ? t("camera.unmarkAnchor") : t("camera.markAnchor")}

@@ -817,8 +817,8 @@ export const en = {
     middle: "Mid-block lot",
     attachedBoth: "attached on both sides",
     attachedSide: "attached on the {side} side",
-    openBoth: "open on both sides",
-    unknownContext: "side context not confirmed",
+    standalone: "Detached house",
+    unknownLot: "Lot position unknown",
   },
 
   assets: {

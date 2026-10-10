@@ -174,7 +174,11 @@ fn validate_site_topology(root: &Map<String, Value>, field_errors: &mut Map<Stri
             additive_error(field_errors, "context.siteTopology.cornerLot", "Expected a boolean.");
         }
     }
-    let corner_side = topology.get("cornerSide").and_then(Value::as_str);
+    let corner_side_value = topology.get("cornerSide");
+    let corner_side = corner_side_value.and_then(Value::as_str);
+    if corner_side_value.is_some() && corner_side.is_none() {
+        additive_error(field_errors, "context.siteTopology.cornerSide", "Expected left or right.");
+    }
     if let Some(side) = corner_side {
         if !matches!(side, "left" | "right") {
             additive_error(field_errors, "context.siteTopology.cornerSide", "Expected left or right.");
@@ -340,6 +344,17 @@ pub(crate) mod tests {
         let mut dna = minimal();
         dna["context"]["siteTopology"] =
             json!({ "left": "attached", "right": "open", "cornerLot": true, "cornerSide": "left" });
+        assert!(validate_dna(&dna).unwrap_err().details.unwrap()["fieldErrors"]
+            .get("context.siteTopology.cornerSide")
+            .is_some());
+    }
+
+    #[test]
+    fn rejects_non_string_corner_side_even_without_corner_lot() {
+        let mut dna = minimal();
+        dna["context"]["siteTopology"] = json!({
+            "left": "open", "right": "open", "cornerLot": false, "cornerSide": 7
+        });
         assert!(validate_dna(&dna).unwrap_err().details.unwrap()["fieldErrors"]
             .get("context.siteTopology.cornerSide")
             .is_some());

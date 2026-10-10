@@ -32,6 +32,7 @@ const camera = (overrides: Partial<CameraDNA> = {}): CameraDNA => ({
   ...overrides,
 });
 const LEFT_ID = "CAM_01J00000000000000000000001";
+const RIGHT_ID = "CAM_01J00000000000000000000003";
 const AERIAL_ID = "CAM_01J00000000000000000000002";
 
 const dna = (overrides: Record<string, unknown> = {}): ProjectDNA =>
@@ -190,6 +191,7 @@ describe("ADR-028 compiler", () => {
       },
       cameras: [
         camera({ id: LEFT_ID, presetId: "front_left_corner" }),
+        camera({ id: RIGHT_ID, presetId: "front_right_corner", azimuthDeg: -45 }),
         camera({ id: AERIAL_ID, viewType: "aerial", presetId: "aerial_three_quarter" }),
       ],
       ...(projectType === "interior"
@@ -217,7 +219,14 @@ describe("ADR-028 compiler", () => {
         : {}),
     }),
     references: [{ assetId: "master", role: "master_architecture" as const }],
-    cameraId: cameraId === "left" ? LEFT_ID : cameraId === "aerial" ? AERIAL_ID : cameraId,
+    cameraId:
+      cameraId === "left"
+        ? LEFT_ID
+        : cameraId === "right"
+          ? RIGHT_ID
+          : cameraId === "aerial"
+            ? AERIAL_ID
+            : cameraId,
   });
 
   it("uses view-aware framing, master surroundings, party-wall rules and aerial block", () => {
@@ -229,6 +238,28 @@ describe("ADR-028 compiler", () => {
     expect(left.preservationInstructions).toContain("visible site");
     expect(left.preservationInstructions).toContain("party walls hidden");
     expect(left.negativePrompt).toContain("exposed side wall");
+    const right = compilePrompt({
+      ...input("townhouse", "right"),
+      dna: dna({
+        context: {
+          schemaVersion: 1,
+          density: "high",
+          left: { adjacentBuildings: ["attached neighbouring townhouse"] },
+          right: { adjacentBuildings: ["attached neighbouring townhouse"] },
+        },
+        cameras: [
+          camera({ id: LEFT_ID, presetId: "front_left_corner", azimuthDeg: 45 }),
+          camera({ id: RIGHT_ID, presetId: "front_right_corner", azimuthDeg: -45 }),
+        ],
+      }),
+    });
+    expect(right.positivePrompt).not.toContain("showing the front facade and the right side");
+    expect(right.positivePrompt).toContain("front-right oblique street view");
+    expect(right.preservationInstructions).toContain(
+      "The building is attached to neighbouring buildings on both sides.",
+    );
+    expect(right.preservationInstructions).toContain("party walls hidden");
+    expect(right.negativePrompt).toContain("exposed side wall");
     const aerial = compilePrompt(input("townhouse", "aerial"));
     expect(
       aerial.positivePrompt.startsWith("Architectural visualization (aerial architectural view)"),
@@ -256,6 +287,67 @@ describe("ADR-028 compiler", () => {
     expect(interior.preservationInstructions).toContain(
       "Keep the same room, window positions, view outside and lighting character.",
     );
+    const pc14InteriorBundle = {
+      ...interior,
+      compilerVersion: "pc-1.4.0",
+      preservationInstructions: interior.preservationInstructions
+        .replace("Keep the same room, window positions, view outside and lighting character.", "")
+        .trim(),
+    };
+    expect(pc14InteriorBundle).toMatchInlineSnapshot(`
+      {
+        "compilerVersion": "pc-1.4.0",
+        "metadata": {
+          "anchorImage": null,
+          "cameraId": null,
+          "dnaSchemaVersion": 1,
+          "knowledgePack": null,
+          "locks": {
+            "building": false,
+            "camera": false,
+            "context": false,
+            "lighting": false,
+            "mood": false,
+            "weather": false,
+          },
+          "projectId": "P1",
+          "projectType": "interior",
+          "referenceCount": 1,
+          "referenceRoles": {
+            "master_architecture": 1,
+          },
+          "sections": [
+            "subject",
+            "form",
+            "language",
+            "materials",
+            "furnishing",
+            "context",
+            "camera",
+            "quality",
+          ],
+          "subtype": "default",
+        },
+        "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors",
+        "positivePrompt": "Architectural visualization (interior view) of a townhouse, project type: interior.
+
+      Interior space: apartment living room.
+
+      Interior style: Modern, clean lines and flat planes.
+
+      Materials and colors: soft gray, white and pale wood.
+
+      Furnishing: balanced furnishing density.
+
+      Surroundings and views: high density. On the left side: adjacent: attached neighbouring townhouse. On the right side: adjacent: attached neighbouring townhouse.
+
+      Camera: wide view from the entrance showing the whole room.
+
+      Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+        "preservationInstructions": "Preserve the architecture of Image 1 (master): do not change building massing, floor count, roof form, opening positions or facade proportions.",
+        "referenceInstructions": "Image 1 is the MASTER architecture image: treat it as the authoritative design. Match its building massing, proportions, floor count, roof form, facade composition, window layout and visible materials exactly. Where the text description differs from this image, follow this image.",
+      }
+    `);
     const exteriorNoCamera = compilePrompt(input("townhouse", undefined));
     expect(exteriorNoCamera.preservationInstructions).toContain(
       "source of truth for both the building and its visible site",

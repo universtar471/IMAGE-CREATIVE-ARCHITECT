@@ -1,14 +1,23 @@
 import type { CameraDNA, CameraViewType } from "../schemas/future";
-import type { ContextDNA } from "../schemas/context";
-import type { SideTopology } from "../schemas/context";
+import type { SideTopology, SiteTopology } from "../schemas/context";
 import type { ProjectType } from "../schemas/enums";
 
+export type CornerSide = "left" | "right";
 export type TopologySource = "explicit" | "inferred" | "default";
+
+/** The context shape needed by topology helpers; complete ContextDNA is accepted too. */
+export type TopologyContext = {
+  siteTopology?: Partial<SiteTopology>;
+  left?: { adjacentBuildings?: readonly string[]; notes?: string };
+  right?: { adjacentBuildings?: readonly string[]; notes?: string };
+  density?: string;
+};
+
 export type ResolvedSiteTopology = {
   left: SideTopology;
   right: SideTopology;
   cornerLot: boolean;
-  cornerSide?: "left" | "right";
+  cornerSide?: CornerSide;
   source: { left: TopologySource; right: TopologySource };
 };
 
@@ -18,18 +27,23 @@ function fold(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function inferredSide(context: ContextDNA, side: "left" | "right"): boolean {
+function inferredSide(context: TopologyContext, side: CornerSide): boolean {
   const zone = context[side];
-  return [...zone.adjacentBuildings, zone.notes].some((text) => ATTACHED.test(fold(text)));
+  return [...(zone?.adjacentBuildings ?? []), zone?.notes ?? ""].some((text) =>
+    ATTACHED.test(fold(text)),
+  );
 }
 
-export function resolveSiteTopology(context: ContextDNA): ResolvedSiteTopology {
-  const explicit = context.siteTopology;
-  const resolve = (side: "left" | "right"): [SideTopology, TopologySource] => {
+export function resolveSiteTopology(
+  context: TopologyContext | null | undefined,
+): ResolvedSiteTopology {
+  const safe = context ?? {};
+  const explicit = safe.siteTopology;
+  const resolve = (side: CornerSide): [SideTopology, TopologySource] => {
     const value = explicit?.[side];
     if (value && value !== "unknown") return [value, "explicit"];
-    if (inferredSide(context, side)) return ["attached", "inferred"];
-    return [value ?? "unknown", value === "unknown" ? "default" : "default"];
+    if (inferredSide(safe, side)) return ["attached", "inferred"];
+    return [value ?? "unknown", value === "unknown" ? "explicit" : "default"];
   };
   const [left, leftSource] = resolve("left");
   const [right, rightSource] = resolve("right");
@@ -43,8 +57,9 @@ export function resolveSiteTopology(context: ContextDNA): ResolvedSiteTopology {
 }
 
 export function revealedSide(
-  camera: Pick<CameraDNA, "viewType" | "azimuthDeg" | "presetId">,
-): "left" | "right" | null {
+  camera: Pick<CameraDNA, "viewType" | "azimuthDeg" | "presetId"> | null | undefined,
+): CornerSide | null {
+  if (!camera) return null;
   if (camera.viewType !== "exterior_corner" && camera.viewType !== "exterior_side") return null;
   if (camera.azimuthDeg !== undefined)
     return camera.azimuthDeg > 0 ? "left" : camera.azimuthDeg < 0 ? "right" : null;
@@ -56,35 +71,35 @@ export function revealedSide(
 
 export type SitePlan = {
   mode: "normal" | "oblique_street" | "unknown_side" | "corner_side" | "aerial_block";
-  side?: "left" | "right";
+  side?: CornerSide;
   reason: string;
 };
 
 export function cameraSitePlan(
-  camera: Pick<CameraDNA, "viewType" | "azimuthDeg" | "presetId"> | undefined,
-  context: ContextDNA,
+  camera: Pick<CameraDNA, "viewType" | "azimuthDeg" | "presetId"> | null | undefined,
+  context: TopologyContext | null | undefined,
   projectType: ProjectType,
 ): SitePlan {
   if (!camera || projectType === "interior")
-    return { mode: "normal", reason: "interior project or no camera" };
+    return { mode: "normal", reason: "interior_or_no_camera" };
   const topology = resolveSiteTopology(context);
   if (
     camera.viewType === "aerial" &&
-    (topology.left === "attached" || topology.right === "attached" || context.density === "high")
+    (topology.left === "attached" || topology.right === "attached" || context?.density === "high")
   ) {
-    return { mode: "aerial_block", reason: "aerial view over an attached or high-density block" };
+    return { mode: "aerial_block", reason: "continuous_block" };
   }
   const side = revealedSide(camera);
-  if (!side) return { mode: "normal", reason: "camera does not reveal a side" };
+  if (!side) return { mode: "normal", reason: "no_side_revealed" };
   const sideValue = topology[side];
-  if (sideValue === "attached")
-    return { mode: "oblique_street", side, reason: `the ${side} side is attached` };
+  if (sideValue === "attached") return { mode: "oblique_street", side, reason: "attached_side" };
   if (topology.cornerLot && topology.cornerSide === side)
-    return { mode: "corner_side", side, reason: `confirmed ${side} corner side` };
-  if (sideValue === "unknown")
-    return { mode: "unknown_side", side, reason: `the ${side} side is unknown` };
-  return { mode: "normal", side, reason: `the ${side} side is open` };
+    return { mode: "corner_side", side, reason: "confirmed_corner_side" };
+  if (sideValue === "unknown") return { mode: "unknown_side", side, reason: "side_not_confirmed" };
+  return { mode: "normal", side, reason: "open_side" };
 }
+
+export type CameraSitePlan = SitePlan;
 
 export const viewTypeFraming = (viewType: CameraViewType, interior: boolean): string => {
   const framing: Record<CameraViewType, string> = {
