@@ -4,6 +4,34 @@ import { DensitySchema } from "./enums";
 const optionalText = z.string().trim().min(1).optional();
 const textList = z.array(z.string().trim().min(1)).default([]);
 
+export const SideTopologySchema = z.enum(["attached", "open", "unknown"]);
+export type SideTopology = z.infer<typeof SideTopologySchema>;
+
+export const SiteTopologySchema = z
+  .object({
+    left: SideTopologySchema.default("unknown"),
+    right: SideTopologySchema.default("unknown"),
+    cornerLot: z.boolean().default(false),
+    cornerSide: z.enum(["left", "right"]).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.cornerLot && !value.cornerSide) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cornerSide"],
+        message: "cornerSide is required for a corner lot.",
+      });
+    }
+    if (value.cornerLot && value.cornerSide && value[value.cornerSide] === "attached") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cornerSide"],
+        message: "cornerSide must not be attached.",
+      });
+    }
+  });
+export type SiteTopology = z.infer<typeof SiteTopologySchema>;
+
 export const ContextZoneSchema = z.object({
   spaceType: optionalText,
   roadType: optionalText,
@@ -33,6 +61,7 @@ export const ContextDNASchema = z.object({
   rear: ContextZoneSchema.default(emptyContextZone),
   left: ContextZoneSchema.default(emptyContextZone),
   right: ContextZoneSchema.default(emptyContextZone),
+  siteTopology: SiteTopologySchema.optional(),
   distantBackground: textList,
   atmosphereNotes: z.string().default(""),
   negativeConstraints: textList,

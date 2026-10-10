@@ -441,6 +441,46 @@
           ],
           "additionalProperties": false
         },
+        "siteTopology": {
+          "type": "object",
+          "properties": {
+            "left": {
+              "default": "unknown",
+              "type": "string",
+              "enum": [
+                "attached",
+                "open",
+                "unknown"
+              ]
+            },
+            "right": {
+              "default": "unknown",
+              "type": "string",
+              "enum": [
+                "attached",
+                "open",
+                "unknown"
+              ]
+            },
+            "cornerLot": {
+              "default": false,
+              "type": "boolean"
+            },
+            "cornerSide": {
+              "type": "string",
+              "enum": [
+                "left",
+                "right"
+              ]
+            }
+          },
+          "required": [
+            "left",
+            "right",
+            "cornerLot"
+          ],
+          "additionalProperties": false
+        },
         "distantBackground": {
           "default": [],
           "type": "array",

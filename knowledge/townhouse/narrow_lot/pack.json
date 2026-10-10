@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "townhouse",
   "subtype": "narrow_lot",
   "label": "Very narrow lot (4 m or less)",
@@ -28,7 +28,8 @@
       },
       "right": {
         "adjacentBuildings": ["attached neighbouring house"]
-      }
+      },
+      "siteTopology": { "left": "attached", "right": "attached" }
     }
   },
   "styleSuggestions": ["Modern tropical", "Minimalist"],
@@ -62,26 +63,26 @@
       "id": "front_left_corner",
       "label": "Front-left corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": 45,
+      "azimuthDeg": 25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 14,
       "lensMm": 24,
       "aspectRatio": "2:3",
-      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": true
     },
     {
       "id": "front_right_corner",
       "label": "Front-right corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": -45,
+      "azimuthDeg": -25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 14,
       "lensMm": 24,
       "aspectRatio": "2:3",
-      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": false
     },
     {
@@ -94,8 +95,8 @@
       "distanceM": 10,
       "lensMm": 24,
       "aspectRatio": "2:3",
-      "composition": "steep pedestrian view along the narrow street, adjacent facades tight on both sides",
-      "anchorRecommended": false
+      "composition": "moderate oblique pedestrian view along the narrow street, adjacent facades tight on both sides",
+      "anchorRecommended": true
     },
     {
       "id": "facade_detail",

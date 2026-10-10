@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "prefab_modular",
   "subtype": "default",
   "label": "Prefab / modular",
@@ -80,7 +80,7 @@
       "distanceM": 45,
       "lensMm": 35,
       "aspectRatio": "16:9",
-      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "composition": "roof, site and immediate surroundings consistent with the master",
       "anchorRecommended": true
     },
     {
@@ -93,7 +93,7 @@
       "distanceM": 18,
       "lensMm": 24,
       "aspectRatio": "3:2",
-      "composition": "rear facade in its landscape, terrace in the foreground",
+      "composition": "rear facade in its landscape, terrace in the foreground, only where the context describes it",
       "anchorRecommended": false
     },
     {

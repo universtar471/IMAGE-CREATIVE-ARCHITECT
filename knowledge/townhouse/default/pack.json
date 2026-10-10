@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "townhouse",
   "subtype": "default",
   "label": "Standard townhouse",
@@ -28,7 +28,8 @@
       },
       "right": {
         "adjacentBuildings": ["attached neighbouring townhouse"]
-      }
+      },
+      "siteTopology": { "left": "attached", "right": "attached" }
     }
   },
   "styleSuggestions": ["Modern tropical", "Minimalist", "Indochine", "Neo-classical"],
@@ -85,26 +86,26 @@
       "id": "front_left_corner",
       "label": "Front-left corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": 45,
+      "azimuthDeg": 25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 16,
       "lensMm": 24,
       "aspectRatio": "3:4",
-      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": true
     },
     {
       "id": "front_right_corner",
       "label": "Front-right corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": -45,
+      "azimuthDeg": -25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 16,
       "lensMm": 24,
       "aspectRatio": "3:4",
-      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": false
     },
     {
@@ -118,7 +119,7 @@
       "lensMm": 24,
       "aspectRatio": "3:4",
       "composition": "pedestrian view from the opposite pavement, neighbouring townhouses framing both sides",
-      "anchorRecommended": false
+      "anchorRecommended": true
     },
     {
       "id": "aerial_three_quarter",
@@ -130,7 +131,7 @@
       "distanceM": 45,
       "lensMm": 35,
       "aspectRatio": "4:3",
-      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "composition": "same street block and surrounding rooftops",
       "anchorRecommended": false
     },
     {

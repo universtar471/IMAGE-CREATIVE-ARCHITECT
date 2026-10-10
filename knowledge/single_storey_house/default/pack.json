@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "single_storey_house",
   "subtype": "default",
   "label": "Single-storey house",
@@ -106,7 +106,7 @@
       "distanceM": 50,
       "lensMm": 35,
       "aspectRatio": "16:9",
-      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "composition": "roof, site and immediate surroundings consistent with the master",
       "anchorRecommended": true
     },
     {
@@ -119,7 +119,7 @@
       "distanceM": 18,
       "lensMm": 24,
       "aspectRatio": "3:2",
-      "composition": "rear facade seen from the garden, landscape in the foreground",
+      "composition": "rear facade seen from the garden, landscape in the foreground, only where the context describes it",
       "anchorRecommended": false
     },
     {

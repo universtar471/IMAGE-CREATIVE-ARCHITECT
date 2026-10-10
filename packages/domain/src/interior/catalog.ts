@@ -203,7 +203,13 @@ export const FLOOR_MATERIALS = [
 ] as const satisfies readonly (InteriorOption & { swatch: string })[];
 
 export const WALL_MATERIALS = [
-  { id: "paint", vi: "Sơn", en: "Paint", prompt: "painted walls", swatch: "#E7E3DA" },
+  {
+    id: "paint",
+    vi: "Sơn",
+    en: "Paint",
+    prompt: "smooth matte warm-white painted walls",
+    swatch: "#E7E3DA",
+  },
   {
     id: "limewash",
     vi: "Sơn vôi",
@@ -337,7 +343,7 @@ export const COUNTERTOP_MATERIALS = [
     id: "marble",
     vi: "Đá cẩm thạch",
     en: "Marble",
-    prompt: "marble countertop",
+    prompt: "honed white marble countertop with fine, sparse gray veining",
     swatch: "#E2DED5",
   },
   {
@@ -430,7 +436,7 @@ export const METAL_FINISHES = [
     id: "stainless_steel",
     vi: "Thép không gỉ",
     en: "Stainless steel",
-    prompt: "stainless steel",
+    prompt: "brushed stainless-steel hardware, low reflectivity",
     swatch: "#B7BDC0",
   },
   { id: "chrome", vi: "Crôm", en: "Chrome", prompt: "polished chrome", swatch: "#D4D9DB" },
@@ -575,7 +581,8 @@ export const INTERIOR_STYLES = [
     id: "minimalist",
     vi: "Tối giản",
     en: "Minimalist",
-    prompt: "Minimalist, few details and generous empty space",
+    prompt:
+      "Minimalist interior: undecorated planes, few details, generous clear space, no applied ornament",
     paletteId: "warm_neutral",
     materialPresetId: "minimal_light",
   },
@@ -583,7 +590,8 @@ export const INTERIOR_STYLES = [
     id: "japandi",
     vi: "Japandi",
     en: "Japandi",
-    prompt: "Japandi, calm minimal forms and natural craftsmanship",
+    prompt:
+      "Japandi interior: calm minimal forms, pale timber, soft neutral tones, fine craftsmanship",
     paletteId: "warm_neutral",
     materialPresetId: "japandi_natural",
   },
@@ -591,7 +599,8 @@ export const INTERIOR_STYLES = [
     id: "wabi_sabi",
     vi: "Wabi-sabi",
     en: "Wabi-Sabi",
-    prompt: "Wabi-Sabi, imperfect natural raw surfaces",
+    prompt:
+      "Wabi-Sabi interior: muted earth tones, hand-trowelled plaster with subtle irregularity, natural stone, aged timber; refined and maintained, not damaged",
     paletteId: "earth",
     materialPresetId: "wabi_earth",
   },
@@ -599,7 +608,8 @@ export const INTERIOR_STYLES = [
     id: "scandinavian",
     vi: "Bắc Âu",
     en: "Scandinavian",
-    prompt: "Scandinavian, bright and friendly",
+    prompt:
+      "Scandinavian interior: pale oak, warm white walls, simple functional furniture, soft natural daylight, restrained black accents",
     paletteId: "cool_neutral",
     materialPresetId: "scandi_light",
   },
@@ -607,7 +617,8 @@ export const INTERIOR_STYLES = [
     id: "indochine",
     vi: "Đông Dương",
     en: "Indochine",
-    prompt: "Indochine, nostalgic tropical with Asian detailing",
+    prompt:
+      "Indochine interior: dark stained timber screens, patterned cement tiles, woven cane, restrained brass details; no generic Asian ornament",
     paletteId: "earth",
     materialPresetId: "indochine_heritage",
   },
@@ -615,7 +626,8 @@ export const INTERIOR_STYLES = [
     id: "contemporary",
     vi: "Đương đại",
     en: "Contemporary",
-    prompt: "Contemporary, refined proportions and restrained contrast",
+    prompt:
+      "Contemporary interior: refined proportions, restrained contrast, durable high-quality finishes",
     paletteId: "cool_neutral",
     materialPresetId: "modern_clean",
   },
@@ -623,7 +635,8 @@ export const INTERIOR_STYLES = [
     id: "luxury",
     vi: "Sang trọng",
     en: "Luxury",
-    prompt: "Luxury, high-end finishes and precise detailing",
+    prompt:
+      "Luxury interior: high-end stone and timber finishes, tailored joinery, precise detailing, controlled sparkle",
     paletteId: "warm_neutral",
     materialPresetId: "luxury_stone",
   },
@@ -631,7 +644,8 @@ export const INTERIOR_STYLES = [
     id: "industrial",
     vi: "Công nghiệp",
     en: "Industrial",
-    prompt: "Industrial, exposed structure and raw finishes",
+    prompt:
+      "Industrial interior: exposed steel and services, concrete surfaces, factory glazing, disciplined raw finishes",
     paletteId: "monochrome",
     materialPresetId: "industrial_raw",
   },
@@ -639,7 +653,8 @@ export const INTERIOR_STYLES = [
     id: "tropical",
     vi: "Nhiệt đới",
     en: "Tropical",
-    prompt: "Tropical, airy with local natural materials",
+    prompt:
+      "Tropical interior: airy cross-ventilated rooms, local timber and woven materials, shaded greenery, humid-climate comfort",
     paletteId: "green_natural",
     materialPresetId: "tropical_craft",
   },
@@ -647,7 +662,8 @@ export const INTERIOR_STYLES = [
     id: "modern_classic",
     vi: "Tân cổ điển hiện đại",
     en: "Modern Classic",
-    prompt: "Modern Classic, restrained mouldings and symmetry",
+    prompt:
+      "Modern Classic interior: balanced symmetry, shallow pilasters, restrained mouldings, contemporary furniture",
     paletteId: "warm_neutral",
     materialPresetId: "classic_detail",
   },
@@ -655,7 +671,8 @@ export const INTERIOR_STYLES = [
     id: "neo_classic",
     vi: "Tân cổ điển",
     en: "Neo Classic",
-    prompt: "Neo Classic, symmetry and pronounced mouldings",
+    prompt:
+      "Contemporary neoclassical interior: balanced symmetry, shallow pilasters and restrained mouldings, no theatrical ornament",
     paletteId: "warm_neutral",
     materialPresetId: "classic_detail",
   },
@@ -663,7 +680,8 @@ export const INTERIOR_STYLES = [
     id: "mediterranean",
     vi: "Địa Trung Hải",
     en: "Mediterranean",
-    prompt: "Mediterranean, arches, warm plaster and handcraft",
+    prompt:
+      "Mediterranean interior: warm lime plaster, natural stone, timber beams, handcrafted ceramics; do not add arches unless present in the room geometry",
     paletteId: "blue_coastal",
     materialPresetId: "mediterranean_warm",
   },
@@ -671,7 +689,8 @@ export const INTERIOR_STYLES = [
     id: "organic_modern",
     vi: "Hữu cơ hiện đại",
     en: "Organic Modern",
-    prompt: "Organic Modern, soft forms and natural materials",
+    prompt:
+      "Organic Modern interior: softly curved forms, natural timber and stone, tactile fabrics, calm daylight",
     paletteId: "warm_neutral",
     materialPresetId: "organic_soft",
   },
@@ -679,7 +698,8 @@ export const INTERIOR_STYLES = [
     id: "mid_century_modern",
     vi: "Mid-century Modern",
     en: "Mid-century Modern",
-    prompt: "Mid-century Modern, low forms and iconic wood furniture",
+    prompt:
+      "Mid-century Modern interior: low-profile furniture, walnut and teak, tapered legs, controlled geometric patterns",
     paletteId: "earth",
     materialPresetId: "midcentury_wood",
   },

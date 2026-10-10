@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "interior",
   "subtype": "living_room",
   "label": "Living room",
@@ -35,7 +35,7 @@
       "elevationDeg": 0,
       "heightM": 1.5,
       "distanceM": 6,
-      "lensMm": 16,
+      "lensMm": 20,
       "aspectRatio": "4:3",
       "composition": "one-point view from the doorway across the living room, sofa group centered",
       "anchorRecommended": true
@@ -47,7 +47,7 @@
       "elevationDeg": 0,
       "heightM": 1.5,
       "distanceM": 6,
-      "lensMm": 18,
+      "lensMm": 22,
       "aspectRatio": "4:3",
       "composition": "two-point view from the far corner back toward the entrance",
       "anchorRecommended": true
@@ -73,7 +73,7 @@
       "distanceM": 4.5,
       "lensMm": 24,
       "aspectRatio": "4:3",
-      "composition": "frontal view of the TV / feature wall with the sofa in the foreground",
+      "composition": "frontal view of the feature wall fully visible",
       "anchorRecommended": false
     },
     {

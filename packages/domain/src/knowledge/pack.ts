@@ -11,6 +11,7 @@ import {
   MoodDNASchema,
   WeatherDNASchema,
 } from "../schemas/future";
+import { SiteTopologySchema } from "../schemas/context";
 
 const textList = z.array(z.string().trim().min(1)).default([]);
 
@@ -31,6 +32,7 @@ export const ContextPartialSchema = z.object({
   rear: ZonePartialSchema.optional(),
   left: ZonePartialSchema.optional(),
   right: ZonePartialSchema.optional(),
+  siteTopology: SiteTopologySchema.optional(),
   distantBackground: z.array(z.string()).optional(),
   atmosphereNotes: z.string().optional(),
   negativeConstraints: z.array(z.string()).optional(),
