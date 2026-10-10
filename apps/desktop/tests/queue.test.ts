@@ -106,6 +106,26 @@ const jobOf = async (generationId: string) =>
   (await call("job_list", { projectId: null })).find((j) => j.generationId === generationId)!;
 
 describe("mock queue", () => {
+  it("cancelling a job that already ended refreshes the tray instead of erroring", async () => {
+    const p = await newProject();
+    await useStudio.getState().openProject(p.id);
+    const g = await call("generation_submit", request(p.id));
+    let job = await jobOf(g.id);
+    for (let i = 0; i < 100 && job.status !== "completed"; i++) {
+      await sleep(10);
+      job = await jobOf(g.id);
+    }
+    expect(job.status).toBe("completed");
+    // The UI missed the events and still shows the job as running.
+    useStudio.setState({ jobs: [{ ...job, status: "running", finishedAt: null }], toasts: [] });
+
+    await useStudio.getState().cancelJob(job.id);
+
+    const s = useStudio.getState();
+    expect(s.jobs.find((j) => j.id === job.id)?.status).toBe("completed");
+    expect(s.toasts.map((x) => x.kind)).toEqual(["info"]);
+  });
+
   it("emits queued → running → completed for a job and its generation", async () => {
     const p = await newProject();
     const rec = await recordEvents();
