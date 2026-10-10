@@ -1226,3 +1226,107 @@ kinds: lighting, lighting_interior, mood, mood_interior, context, style
 - **Missing entry:** fall back to the SVG preview.
 
 Images load lazily, with alt text from the preset label.
+
+
+## 21. Colour grade v2 and LUT library (ADR-031)
+
+### 21.1 Domain (`packages/domain/src/grade/`)
+
+```ts
+ColorGradeDNA += {
+  highlights?, shadows?, whites?, blacks?, tint?, vibrance?, texture?, clarity?, dehaze?, vignette?, grain?: number,
+  splitTone?: { shadowsHue: number /*0..360*/, shadowsSat: number /*0..100*/, highlightsHue: number, highlightsSat: number, balance: number /*-100..100*/ },
+  toneCurve?: "none" | "soft_s" | "strong_s" | "faded" | "matte",
+  lut?: { lutId: string, strength: number /*0..100*/ },
+}
+```
+
+Numbers without their own range are -100..100. Grain is 0..100.
+
+```ts
+GRADE_STYLE_PRESETS: Record<"earthy_muted" | "heritage_warmth" | "clean_editorial" | "tropical_forest" | "concrete_steel",
+  { vi, en, grade: Partial<ColorGradeDNA>, styles: string[] }>
+gradePresetsForStyle(styleKey): presetId[]
+isGradeV2(grade): boolean
+ARCH_LUT_FILTER: { exclude: string[], prefer: string[] }
+isLogLut(name): boolean
+```
+
+- **`GRADE_STYLE_PRESETS.styles`** lists the matching interior style ids (§18) and the exterior style keys (§19 `stylePhrases`).
+- **`gradePresetsForStyle(styleKey)`** returns the preset ids for a style.
+- **`isGradeV2(grade)`** is true when any v2 field is set.
+- **`ARCH_LUT_FILTER`** holds lowercase category keywords:
+  - `exclude`: `food`, `wedding`, `portrait`, `nude`, `boho`, `insta`, `men`, `rose gold`, `peach`, `royal`, `majestic`, `bright wedding`, `rover`
+  - `prefer`: `aerial`, `drone`, `urban`, `city`, `landscape`, `scenery`, `natural`, `earthy`, `gray`, `kodak`, `film`, `japan`, `night`, `cinematic`, `moody`, `teal`, `travel`
+- **`isLogLut(name)`** is true when the name matches `/\b(d-?log|s-?log|v-?log|log)\b/i`.
+
+### 21.2 Backend
+
+**Migration `0007_luts.sql`**
+
+```sql
+lut_sources(id TEXT PK, path TEXT UNIQUE, added_at TEXT, last_scan_at TEXT, lut_count INT)
+luts(id TEXT PK, source_id TEXT FK, rel_path TEXT, pack TEXT, category TEXT, name TEXT, size INT,
+     is_log INT, favorite INT DEFAULT 0, status TEXT /*ok|missing|invalid*/, UNIQUE(source_id, rel_path))
+```
+
+**Commands**
+- `lut_source_add { path }`
+  - The path must be an existing directory.
+  - The scan is recursive and follows no symlinks.
+  - Only `*.cube` files are indexed, at most 5,000 files, each at most 64 MB.
+  - Each file is parsed for its header and validated: a 3D size of 2..65 and exactly size³ rows.
+  - `pack` is the first-level folder and `category` the folder holding the file. Release-group prefixes such as `[site.com]` are stripped from both.
+  - Returns `{ source, added, invalid }`.
+- `lut_source_remove { sourceId }` removes the index and the cached previews, never the user files.
+- `lut_source_rescan { sourceId }`
+- `lut_list { query?, sourceId?, pack?, category?, favoritesOnly?, archOnly?, limit, offset }` returns `{ items, total }`.
+  - `archOnly` applies `ARCH_LUT_FILTER`, mirrored in Rust.
+- `lut_set_favorite { lutId, favorite }`
+- `lut_preview { lutId, assetId, size? (default 256, max 512) }` returns JPEG bytes.
+  - Cached at `<appData>/cache/lut_previews/<assetSha256>/<lutId>_<size>.jpg`.
+  - The LUT is loaded from the stored path. A missing file gives status `missing` and the error `NOT_FOUND`.
+- `grade_preview { projectId, assetId, grade: ColorGradeDNA, size? (≤ 640) }` returns JPEG bytes from the v2 engine, including the LUT.
+- `grade_apply` (existing) accepts the v2 fields and a LUT, and creates a new version as today.
+
+**Engine (`services/grade_engine.rs`)**
+- Pure functions that map `ColorGradeDNA` to LightCraft settings, render, then apply the LUT.
+- The only module that imports LightCraft.
+
+**Tests**
+- the mapping of each field
+- neutral grade ≈ identity (mean absolute error ≤ 1/255 on a test image)
+- LUT parsing: valid, wrong row count, size > 65, comments, `DOMAIN_MIN`/`DOMAIN_MAX`
+- the identity LUT is a no-op
+- strength blend
+- the scan of a temp dir with nested packs, non-cube files ignored, and a bad cube marked invalid
+- cache hits
+- a missing file
+
+The fixtures are generated in the tests, never real third-party LUTs.
+
+**Mock backend:** an in-memory LUT index plus a placeholder preview, for UI tests.
+
+### 21.3 UI
+
+**Colour grade panel v2**
+- Groups:
+  - Ánh sáng: exposure, contrast, highlights, shadows, whites, blacks
+  - Màu: temperature, tint, vibrance, saturation
+  - Hiệu ứng: texture, clarity, dehaze, vignette, grain
+  - Tách tông: shadow and highlight hue and saturation, balance
+  - Đường cong: a tone-curve preset
+- Each slider has a double-click reset.
+- Live preview through `grade_preview`, debounced at 120 ms, with a before/after split.
+- **Preset grid**: the existing looks plus the five style presets. Each card shows a real thumbnail from `grade_preview` at 256 px of the current asset. Presets matching the project style get a "Hợp phong cách" badge.
+
+**Thư viện LUT** (tab inside the colour grade panel, plus a full-size dialog)
+- "Thêm thư mục LUT" through the native folder dialog. Shows a scan summary.
+- Grid of 256 px thumbnails from `lut_preview` on the current asset, lazy-loaded with an IntersectionObserver.
+- Grouped by pack and category, with search.
+- Filters: ★ favourites, and "Hợp kiến trúc" (on by default).
+- Hover enlarges the thumbnail. Log LUTs show the badge "LUT cho video log — có thể gắt".
+- Selecting a LUT sets `lut { lutId, strength 70 }`. The strength slider runs 0–100.
+- "Áp dụng" goes through `grade_apply`.
+- Manage sources: rescan, remove.
+- Missing files show a "Không tìm thấy file" state.

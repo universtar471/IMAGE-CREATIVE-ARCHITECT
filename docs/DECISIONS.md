@@ -582,3 +582,48 @@ Status: accepted (2026-10-11, user "đồng ý … làm thêm hình preview bằ
 - They are committed as small WebP files under `apps/desktop/public/previews/<kind>/<id>.webp`, listed in `apps/desktop/public/previews/manifest.json`.
 - Preset cards show the photo when the manifest has one, otherwise the existing SVG preview.
 - These images are our own generations, with no third-party assets.
+
+
+## ADR-031 — Colour grade v2 on the LightCraft develop pipeline, style grade presets, user LUT library
+
+Status: accepted (2026-10-11). Basis: the user approved, the LightCraft spike was a GO (`wt/lightcraft-spike`, `docs/agent-notes/lightcraft-spike.md`), and the user owns a The LUT Bay collection.
+
+**Problem**
+- The local grade (`services/grade.rs`, `packages/domain/src/grade`) only has exposure, contrast, temperature and saturation.
+- It cannot recover skies or open shadows.
+- Users cannot judge presets without previews.
+- Users want to use colour LUTs they own.
+
+**Decision**
+
+**Engine**
+- `lightcraft-develop` and `lightcraft-pipeline` are added as git dependencies, pinned to rev `964d9338bafac524146ecf24a1fab54bd22b052e`. Licence: MIT OR Apache-2.0; their NOTICE is kept in `THIRD_PARTY_NOTICES.md`.
+- They sit behind one adapter module `services/grade_engine.rs`. No other module imports LightCraft types.
+- The existing v1 fields map into LightCraft settings, so old grades still render.
+- The TypeScript `applyGradePixel` stays as the v1 fast path and parity-vector reference. v2 previews come from the backend.
+
+**DNA (additive)**
+- `ColorGradeDNA` gains optional v2 fields:
+  - light and colour: highlights, shadows, whites, blacks, tint, vibrance
+  - effects: texture, clarity, dehaze, vignette, grain
+  - `splitTone { shadowsHue, shadowsSat, highlightsHue, highlightsSat, balance }`
+  - `toneCurve`: one of none, soft_s, strong_s, faded, matte
+  - `lut { lutId, strength 0–100 }`
+- Absent fields mean neutral. There is no migration of stored DNA.
+
+**Style presets**
+- Five presets: `earthy_muted`, `heritage_warmth`, `clean_editorial`, `tropical_forest`, `concrete_steel`.
+- Each maps to interior and exterior styles for suggestions.
+- Final values are tuned by rendering on a real master, not copied from the source text.
+
+**LUT library**
+- Users add folders they own.
+- The backend indexes only `.cube` 3D LUTs (size ≤ 65). It stores paths and metadata, never copies or uploads the files, and never commits them.
+- Previews are rendered locally on the chosen preview image and cached in app data.
+- LUTs apply after the develop pipeline (trilinear interpolation, strength blend).
+- Names containing Log, D-Log, S-Log or V-Log are flagged as made for log footage.
+- An editable "architecture" filter hides unrelated categories (food, wedding, portrait…) by default.
+
+**Live preview**
+- `grade_preview` renders the selected asset at ≤ 640 px. LightCraft takes about 15 ms at 512 px, measured in the spike.
+- The UI debounces the call at 120 ms and shows a before/after split.
