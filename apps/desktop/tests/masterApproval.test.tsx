@@ -38,8 +38,8 @@ async function openProject() {
   return project;
 }
 
-/** A completed hero generation whose only output is `assetId`, shown as the latest result. */
-function showResult(projectId: string, assetId: string) {
+/** A completed generation whose only output is `assetId`, shown as the latest result. */
+function showResult(projectId: string, assetId: string, over: Partial<GenerationDTO> = {}) {
   const generation = {
     id: "GEN_1",
     projectId,
@@ -57,6 +57,7 @@ function showResult(projectId: string, assetId: string) {
     startedAt: null,
     finishedAt: null,
     durationMs: 1000,
+    ...over,
   } as unknown as GenerationDTO;
   const ws = useStudio.getState().workspace!;
   useStudio.setState({ workspace: { ...ws, generations: [generation] } });
@@ -112,5 +113,26 @@ describe("master approval from Generate", () => {
 
     fireEvent.click(screen.getByTitle(t("workflow.goApproveMaster")));
     expect(useStudio.getState().activeModule).toBe("overview");
+  });
+
+  it("'Generate again' on a variation sent without the master adds the master", async () => {
+    const project = await openProject();
+    db.assets.M = asset(project.id, "M", { role: "master_architecture" });
+    await call("asset_set_master", { projectId: project.id, assetId: "M" });
+    await call("project_approve_master", { projectId: project.id, approved: true });
+    await useStudio.getState().openProject(project.id);
+    showResult(project.id, "M", {
+      purpose: "variation",
+      modelId: "placeholder-v1",
+      params: { aspectRatio: "16:9", imageSize: "1K", outputCount: 1, seed: null, quality: null },
+    });
+    render(createElement(GenerationResult));
+
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("result.again")) }));
+    const sent = await waitFor(
+      () => db.generations?.find((g) => g.purpose === "variation"),
+      "resubmitted variation",
+    );
+    expect(sent.referenceAssetIds).toEqual(["M"]);
   });
 });
