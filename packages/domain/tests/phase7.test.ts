@@ -83,6 +83,18 @@ describe("phase 7 region schemas", () => {
 
   it("applies region refinements and purpose requirements", () => {
     expect(
+      RegionSaveRequestSchema.safeParse({
+        projectId: "PRJ_1",
+        assetId: "AST_1",
+        region: {
+          label: "brush",
+          kind: "zone",
+          objectId: null,
+          shape: { type: "brush", strokes: [{ points: [], radius: 0.1 }] },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
       RegionEditParamsSchema.safeParse({
         regionIds: [],
         instruction: "",

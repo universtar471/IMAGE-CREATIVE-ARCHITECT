@@ -756,6 +756,14 @@ fn elapsed_ms(clock: &Instant) -> i64 {
     i64::try_from(clock.elapsed().as_millis()).unwrap_or(i64::MAX)
 }
 
+fn mask_coverage_pct(mask: &[u8]) -> f64 {
+    if mask.is_empty() {
+        return 0.0;
+    }
+    let inside = mask.iter().filter(|value| **value > 0).count() as f64;
+    (inside * 1000.0 / mask.len() as f64).round() / 10.0
+}
+
 /// Fully decode every image, write the files, then commit all rows in one transaction.
 /// On any failure (or a cancel that lands before the commit) no asset row survives and every
 /// written file is removed.
@@ -780,7 +788,8 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
         let h = source.height();
         let raw = crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, w, h);
         let feather = crate::services::regions::mask::feather_mask(&raw, w, h, 8);
-        Some((source, feather, w, h))
+        let coverage_pct = mask_coverage_pct(&raw);
+        Some((source, feather, w, h, coverage_pct))
     } else {
         None
     };
@@ -800,7 +809,7 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             let provider_long_edge = provider_info.width.max(provider_info.height);
             let mut bytes = img.bytes.clone();
             if prepared.purpose == GenerationPurpose::RegionEdit {
-                let (source, mask, width, height) = region_composite.as_ref().expect("region composite is prepared");
+                let (source, mask, width, height, _) = region_composite.as_ref().expect("region composite is prepared");
                 let composited =
                     crate::services::regions::mask::composite(source, &provider_decoded, mask, *width, *height);
                 bytes.clear();
@@ -860,7 +869,8 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
     if let Some(hook) = BEFORE_COMMIT.with(|h| h.borrow_mut().take()) {
         hook();
     }
-    let result = commit_outputs(core, prepared, &stored, &checked, clock);
+    let coverage_pct = region_composite.as_ref().map(|(_, _, _, _, coverage)| *coverage);
+    let result = commit_outputs(core, prepared, &stored, &checked, coverage_pct, clock);
     if result.is_err() {
         cleanup(&stored);
     }
@@ -872,6 +882,7 @@ fn commit_outputs(
     prepared: &Prepared,
     stored: &[StoredImage],
     checked: &[CheckedOutput],
+    mask_coverage_pct: Option<f64>,
     clock: &Instant,
 ) -> Result<(), Stop> {
     let generation = &prepared.generation;
@@ -923,6 +934,11 @@ fn commit_outputs(
                 "params": prepared.snapshot.params,
                 "regionShapes": prepared.region_shapes,
                 "nativeMask": prepared.model.supports_mask,
+                "maskCoveragePct": mask_coverage_pct,
+                "meta": {
+                    "nativeMask": prepared.model.supports_mask,
+                    "maskCoveragePct": mask_coverage_pct,
+                },
                 "providerId": generation.provider_id,
                 "model": generation.model_id,
             })
@@ -1116,6 +1132,54 @@ mod tests {
     /// Shadows `super::submit` inside this module.
     fn submit(core: &AppCore, req: SubmitRequest) -> AppResult<GenerationDto> {
         submit_and_run(core, req)
+    }
+
+    #[test]
+    fn mask_coverage_is_a_percentage_rounded_to_one_decimal() {
+        assert_eq!(mask_coverage_pct(&[255, 0, 255, 0]), 50.0);
+        assert_eq!(mask_coverage_pct(&[255, 0, 0]), 33.3);
+        assert_eq!(mask_coverage_pct(&[]), 0.0);
+    }
+
+    #[test]
+    fn region_output_records_known_unfeathered_mask_coverage() {
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Region coverage");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [20, 40, 60]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let region = crate::services::regions::save(
+            &core,
+            &project.id,
+            &source.id,
+            crate::services::regions::RegionInput {
+                id: None,
+                label: "Left half".into(),
+                kind: "zone".into(),
+                object_id: None,
+                shape: crate::services::regions::RegionShape::Rect { x: 0.0, y: 0.0, w: 0.5, h: 1.0 },
+            },
+        )
+        .unwrap();
+        let mut req = local(&project.id, &[&source.id], 1);
+        req.purpose = "region_edit".into();
+        req.params.region = Some(crate::providers::RegionEditParams {
+            region_ids: vec![region.id],
+            instruction: "Change it".into(),
+            mode: crate::providers::RegionEditMode::Edit,
+            material: None,
+        });
+        let generation = submit(&core, req).unwrap();
+        let operation: Value = core
+            .conn()
+            .unwrap()
+            .query_row("SELECT operation_json FROM assets WHERE id = ?1", [&generation.output_asset_ids[0]], |row| {
+                row.get::<_, String>(0)
+            })
+            .map(|text| serde_json::from_str(&text).unwrap())
+            .unwrap();
+        assert_eq!(operation["nativeMask"], false);
+        assert_eq!(operation["maskCoveragePct"], 50.0);
+        assert_eq!(operation["meta"]["maskCoveragePct"], 50.0);
     }
 
     fn bundle(positive: &str) -> PromptBundle {

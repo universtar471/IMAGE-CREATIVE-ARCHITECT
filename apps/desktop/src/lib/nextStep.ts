@@ -16,7 +16,8 @@ export type NextStep = {
     | "generate"
     | "mood_grade"
     | "enhance"
-    | "qc";
+    | "qc"
+    | "regions";
   focus?: string;
 };
 

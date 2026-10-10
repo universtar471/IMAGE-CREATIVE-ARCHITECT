@@ -37,13 +37,19 @@ export type RegionDraft = Omit<
 /** IDs are generated locally only for optimistic UI state; persistence remains backend-owned. */
 export const newRegionId = () => `RGN_${newUlid()}`;
 
+export function maskCoveragePct(mask: Uint8Array): number {
+  if (mask.length === 0) return 0;
+  const inside = mask.reduce((count, value) => count + (value > 0 ? 1 : 0), 0);
+  return Math.round((inside * 1000) / mask.length) / 10;
+}
+
 export type RegionPromptBundle = {
   compilerVersion: "pc-1.3.0";
   positivePrompt: string;
   negativePrompt: string;
   referenceInstructions: string;
   preservationInstructions: string;
-  metadata: Record<string, string>;
+  metadata: Record<string, unknown>;
 };
 
 /** Adapt the domain prompt text to the persisted PromptBundle consumed by the desktop UI. */
@@ -52,6 +58,7 @@ export function buildRegionEditPrompt(input: {
   regions: readonly Pick<RegionDTO, "id" | "label" | "kind" | "objectId">[];
   params: RegionEditParams;
   nativeMask: boolean;
+  maskCoveragePct?: number;
 }): RegionPromptBundle {
   const text = buildDomainRegionEditPrompt({
     dna: input.dna as ProjectDNA,
@@ -74,6 +81,8 @@ export function buildRegionEditPrompt(input: {
     metadata: {
       purpose: "region_edit",
       regionIds: input.params.regionIds.join(","),
+      nativeMask: input.nativeMask,
+      maskCoveragePct: input.maskCoveragePct ?? 0,
     },
   };
 }
@@ -87,6 +96,7 @@ export function buildRegionGenerationRequest(input: {
   dna: ProjectDNA | (Partial<Pick<ProjectDNA, "locks">> & { scene?: SceneDNA });
   regions: readonly Pick<RegionDTO, "id" | "label" | "kind" | "objectId">[];
   nativeMask: boolean;
+  maskCoveragePct?: number;
 }) {
   return {
     projectId: input.projectId,

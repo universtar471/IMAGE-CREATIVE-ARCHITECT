@@ -51,6 +51,7 @@ import type {
 } from "./bridge";
 import {
   buildRegionEditPrompt,
+  maskCoveragePct,
   newRegionId,
   rasterizeMask,
   type RegionDTO,
@@ -76,10 +77,15 @@ import {
   type QcVision,
 } from "./qc";
 
+type MockAsset = AssetDTO & {
+  operationJson?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+};
+
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
   dna: Record<string, ProjectDNA>;
-  assets: Record<string, AssetDTO>;
+  assets: Record<string, MockAsset>;
   versions: VersionDTO[];
   /** Phase 2 (optional so Phase 1 snapshots and test fixtures still load). */
   generations?: GenerationDTO[];
@@ -530,6 +536,19 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       req.params as GenerationParams & { enhance?: { targetLongEdge: number | null } }
     ).enhance;
     const region = (req.params as GenerationParams & { region?: RegionEditParams }).region;
+    const regionMetadata = (() => {
+      if (!region || !parent) return null;
+      const shapes = projectRegions(req.projectId, parent.id)
+        .filter((item) => region.regionIds.includes(item.id))
+        .map((item) => item.shape);
+      const mask = rasterizeMask(shapes, parent.widthPx ?? 1, parent.heightPx ?? 1);
+      const provider = getProvider(req.providerId);
+      const model = provider.models.find((item) => item.id === req.modelId);
+      const nativeMask = Boolean(
+        (model as (ModelCapabilities & { supportsMask?: boolean }) | undefined)?.supportsMask,
+      );
+      return { shapes, nativeMask, maskCoveragePct: maskCoveragePct(mask) };
+    })();
     const [w, h] = enhance
       ? enhanceOutputSize(enhance.targetLongEdge, parent)
       : outputSize(req.params.aspectRatio, parent);
@@ -565,6 +584,22 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         sha256: null,
         parentAssetId: gen.parentAssetId,
         operation: region ? "region_edit" : enhance ? "enhance" : "generate",
+        ...(region && regionMetadata
+          ? {
+              operationJson: {
+                params: req.params,
+                regionShapes: regionMetadata.shapes,
+                nativeMask: regionMetadata.nativeMask,
+                maskCoveragePct: regionMetadata.maskCoveragePct,
+                providerId: req.providerId,
+                model: req.modelId,
+              },
+              meta: {
+                nativeMask: regionMetadata.nativeMask,
+                maskCoveragePct: regionMetadata.maskCoveragePct,
+              },
+            }
+          : {}),
         createdAt: t,
         updatedAt: t,
       };
@@ -688,16 +723,19 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const nativeMask = Boolean(
         (model as ModelCapabilities & { supportsMask?: boolean }).supportsMask,
       );
+      const mask = rasterizeMask(shapes, source.widthPx ?? 1, source.heightPx ?? 1);
+      const coveragePct = maskCoveragePct(mask);
       const prompt = buildRegionEditPrompt({
         dna: { ...db.dna[req.projectId]!, scene: projectScene(req.projectId) },
         regions: selected,
         params: region,
         nativeMask,
+        maskCoveragePct: coveragePct,
       });
       req.prompt.positivePrompt ||= prompt.positivePrompt;
       req.prompt.preservationInstructions ||= prompt.preservationInstructions;
       // Keep the rasterisation in the mock path so callers can inspect the same mask dimensions.
-      rasterizeMask(shapes, source.widthPx ?? 1, source.heightPx ?? 1);
+      void mask;
     }
     const validationRequest =
       req.purpose === "enhance" && enhance?.mode === "conservative"

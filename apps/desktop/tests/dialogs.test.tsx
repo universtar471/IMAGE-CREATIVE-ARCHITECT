@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { COMPILER_VERSION, type GenerationDTO } from "@arch/domain";
+import { COMPILER_VERSION, type GenerationDTO, type ProviderDescriptorDTO } from "@arch/domain";
 import { useStudio } from "../src/app/store";
 import { ConfirmDialog, Dialog } from "../src/components/common/Dialog";
 import { GenerationResult } from "../src/features/generate/GenerationResult";
@@ -90,6 +90,34 @@ describe("failed generation card", () => {
         anchors: [],
         batches: [],
       },
+      providers: [
+        {
+          id: "gemini",
+          label: "Google Gemini",
+          kind: "remote",
+          requiresApiKey: true,
+          configured: true,
+          keySource: "keychain",
+          models: [
+            {
+              id: "gemini-nano-banana-2.1",
+              label: "Nano Banana",
+              textToImage: true,
+              imageToImage: true,
+              maxReferenceImages: 14,
+              maxOutputs: 4,
+              aspectRatios: [],
+              imageSizes: [],
+              supportsNegativePrompt: false,
+              supportsSeed: false,
+              supportsMask: false,
+              qualityOptions: [],
+              priceHint: null,
+              vision: false,
+            },
+          ],
+        },
+      ] satisfies ProviderDescriptorDTO[],
     });
     render(<GenerationResult />);
   };
@@ -111,5 +139,16 @@ describe("failed generation card", () => {
     expect(screen.getByText(/Project archived mid-call\./)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Retry/ })).toBeNull();
     expect(screen.getByText(/cannot be retried/i)).toBeTruthy();
+  });
+
+  it("confirms spend before retrying a paid failed generation", async () => {
+    const retryGeneration = vi.fn(async () => undefined);
+    show(generation({ kind: "network", message: "Offline.", retryable: true }, "failed"));
+    useStudio.setState({ retryGeneration });
+    fireEvent.click(screen.getByRole("button", { name: /Retry/ }));
+    expect(await screen.findByRole("dialog", { name: "Confirm cost" })).toBeTruthy();
+    expect(retryGeneration).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(retryGeneration).not.toHaveBeenCalled();
   });
 });

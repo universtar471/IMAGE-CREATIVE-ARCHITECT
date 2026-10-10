@@ -9,6 +9,8 @@ import { GenerationStatusBadge } from "../generate/GenerationStatusBadge";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
 import { OutputThumbs } from "../generate/OutputThumbs";
 import { formatDuration, isActiveGeneration } from "../generate/labels";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { spendRequestForGeneration } from "../../lib/spend";
 
 /** Generation history of the open project, newest first. */
 export function HistoryTab() {
@@ -58,6 +60,11 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
   const canRetry = g.status === "cancelled" || (!active && !!g.error?.retryable);
   const provider = providers?.find((p) => p.id === g.providerId);
   const model = provider?.models.find((m) => m.id === g.modelId);
+  const spend = useSpendConfirm();
+  const retryPaid = async () => {
+    if (!(await spend.request(spendRequestForGeneration(g, providers, t)))) return;
+    await retry(g);
+  };
 
   return (
     <li className="history-row" data-testid="history-row">
@@ -109,10 +116,11 @@ function HistoryRow({ g }: { g: GenerationDTO }) {
         </button>
       )}
       {canRetry && (
-        <button className="btn btn-sm" disabled={readOnly} onClick={() => void retry(g)}>
+        <button className="btn btn-sm" disabled={readOnly} onClick={() => void retryPaid()}>
           <RotateCcw size={13} /> {t("common.retry")}
         </button>
       )}
+      {spend.dialog}
       <button
         className="btn btn-sm"
         onClick={() => reuse(g)}

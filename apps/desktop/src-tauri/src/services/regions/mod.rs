@@ -168,6 +168,7 @@ pub fn delete(core: &AppCore, project_id: &str, region_id: &str) -> AppResult<()
     tx.commit()?;
     Ok(())
 }
+
 pub fn get_for_asset(
     conn: &rusqlite::Connection,
     project_id: &str,
@@ -183,4 +184,17 @@ pub fn get_for_asset(
         out.push(row);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_shape, BrushStroke, RegionShape};
+
+    #[test]
+    fn brush_strokes_require_at_least_one_point() {
+        let empty = RegionShape::Brush { strokes: vec![BrushStroke { points: vec![], radius: 0.1 }] };
+        assert!(validate_shape(&empty).is_err());
+        let one = RegionShape::Brush { strokes: vec![BrushStroke { points: vec![[0.5, 0.5]], radius: 0.1 }] };
+        assert!(validate_shape(&one).is_ok());
+    }
 }

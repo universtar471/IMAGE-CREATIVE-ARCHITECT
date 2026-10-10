@@ -24,7 +24,7 @@ export const PolygonShapeSchema = z.object({
   points: z.array(point).min(3),
 });
 export const BrushStrokeSchema = z.object({
-  points: z.array(point),
+  points: z.array(point).min(1),
   radius: z.number().finite().gt(0).max(1),
 });
 export const BrushShapeSchema = z.object({

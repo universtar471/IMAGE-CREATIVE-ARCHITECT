@@ -10,6 +10,17 @@ import { deriveWorkflow, WORKFLOW_STEPS } from "../src/lib/workflow";
 import { en } from "../src/i18n/en";
 import { vi as viDict } from "../src/i18n/vi";
 
+const paidSubmitSources = import.meta.glob<string>(
+  [
+    "../src/features/generate/GenerationResult.tsx",
+    "../src/features/history/HistoryTab.tsx",
+    "../src/features/camera/ContactSheet.tsx",
+    "../src/features/jobs/JobsTab.tsx",
+    "../src/features/regions/RegionPanel.tsx",
+  ],
+  { eager: true, query: "?raw", import: "default" },
+);
+
 const project = {
   id: "P",
   name: "P",
@@ -79,6 +90,7 @@ describe("next-step guidance", () => {
     expect(nextStepBarMode("export", "generate")).toBe("hidden");
     expect(nextStepBarMode("generate", "generate")).toBe("hint");
     expect(nextStepBarMode("camera", "generate")).toBe("bar");
+    expect(nextStepBarMode("regions", "generate")).toBe("bar");
   });
 });
 
@@ -108,6 +120,26 @@ describe("spend confirmation", () => {
     fireEvent.change(screen.getByLabelText(en.spend.threshold), { target: { value: "5000" } });
     fireEvent.click(screen.getByRole("button", { name: en.spend.create }));
     expect(localStorage.getItem("arch.spendConfirmThreshold")).toBe("5000");
+  });
+
+  it.each([
+    "../src/features/generate/GenerationResult.tsx",
+    "../src/features/history/HistoryTab.tsx",
+    "../src/features/camera/ContactSheet.tsx",
+    "../src/features/jobs/JobsTab.tsx",
+  ])("keeps the paid retry in %s behind the shared confirmation", (file) => {
+    const source = paidSubmitSources[file]!;
+    expect(source).toContain("useSpendConfirm");
+    expect(source).toContain("spendRequestForGeneration");
+    expect(source).toMatch(/await spend\.request/);
+  });
+
+  it("keeps region edit submission behind the shared confirmation", () => {
+    const regionSource = paidSubmitSources["../src/features/regions/RegionPanel.tsx"]!;
+    expect(regionSource).toContain("useSpendConfirm");
+    expect(regionSource.indexOf("await spend.request")).toBeLessThan(
+      regionSource.indexOf('call("generation_submit"'),
+    );
   });
 });
 

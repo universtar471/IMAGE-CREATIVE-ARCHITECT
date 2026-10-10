@@ -4,6 +4,7 @@ import {
   buildRegionGenerationRequest,
   featherMask,
   isRegionResponseCurrent,
+  maskCoveragePct,
   newRegionId,
   newSceneObjectId,
   rasterizeMask,
@@ -54,6 +55,11 @@ describe("region contract helpers", () => {
     expect(feathered[0]).toBeLessThan(feathered[12]!);
   });
 
+  it("reports unfeathered mask coverage as a percent rounded to one decimal", () => {
+    expect(maskCoveragePct(new Uint8Array([255, 0, 0]))).toBe(33.3);
+    expect(maskCoveragePct(new Uint8Array([255, 255, 0, 0]))).toBe(50);
+  });
+
   it("builds native and secondary-image prompts from selected regions", () => {
     const prompt = buildRegionEditPrompt({
       dna: {
@@ -75,6 +81,7 @@ describe("region contract helpers", () => {
     expect(prompt.positivePrompt).toContain("brick");
     expect(prompt.positivePrompt).toContain("white-on-black");
     expect(prompt.preservationInstructions).toContain("outside");
+    expect(prompt.metadata).toMatchObject({ nativeMask: false, maskCoveragePct: 0 });
   });
 
   it("uses exactly one source reference and params.region in both mask modes", () => {
@@ -188,5 +195,87 @@ describe("region contract helpers", () => {
     });
     const listed = await transport("region_list", { request: { projectId: "p", assetId: "a" } });
     expect(listed).toHaveLength(1);
+  });
+
+  it("stores native-mask and known union coverage metadata on mock region outputs", async () => {
+    const database = {
+      projects: {
+        p: {
+          id: "p",
+          name: "P",
+          projectType: "custom",
+          subtype: null,
+          status: "master_approved",
+          activeMasterAssetId: "a",
+          masterApprovedAt: "2026-01-01T00:00:00Z",
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+          archivedAt: null,
+        },
+      },
+      dna: { p: { schemaVersion: 1, cameras: [] } },
+      assets: {
+        a: {
+          id: "a",
+          projectId: "p",
+          source: "external",
+          role: "master_architecture",
+          status: "ready",
+          originalName: "source.png",
+          managedRelPath: "assets/source.png",
+          absolutePath: "mock://source.png",
+          thumbnailPath: null,
+          mimeType: "image/png",
+          fileSizeBytes: 1,
+          widthPx: 4,
+          heightPx: 4,
+          sha256: null,
+          parentAssetId: null,
+          operation: "import",
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      },
+      versions: [],
+      regions: [
+        {
+          id: "RGN_01J00000000000000000000001",
+          projectId: "p",
+          assetId: "a",
+          label: "Left half",
+          kind: "zone",
+          objectId: null,
+          shape: { type: "rect", x: 0, y: 0, w: 0.5, h: 1 },
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+    } as never;
+    const transport = createMockTransport(database, { generationDelayMs: 0 });
+    const request = buildRegionGenerationRequest({
+      projectId: "p",
+      providerId: "local_preview",
+      modelId: "placeholder-v1",
+      sourceAssetId: "a",
+      params: {
+        regionIds: ["RGN_01J00000000000000000000001"],
+        instruction: "Change it",
+        mode: "edit",
+      },
+      dna: {} as never,
+      regions: [],
+      nativeMask: false,
+      maskCoveragePct: 50,
+    });
+    const queued = (await transport("generation_submit", { request })) as { id: string };
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const generation = (await transport("generation_get", {
+      request: { projectId: "p", generationId: queued.id },
+    })) as { outputAssetIds: string[] };
+    const output = (
+      database as { assets: Record<string, { operationJson?: unknown; meta?: unknown }> }
+    ).assets[generation.outputAssetIds[0]!]!;
+    expect(output.operationJson).toMatchObject({ nativeMask: false, maskCoveragePct: 50 });
+    expect(output.meta).toEqual({ nativeMask: false, maskCoveragePct: 50 });
   });
 });

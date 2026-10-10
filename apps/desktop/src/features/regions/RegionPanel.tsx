@@ -6,7 +6,9 @@ import { call } from "../../lib/bridge";
 import {
   buildRegionEditPrompt,
   buildRegionGenerationRequest,
+  maskCoveragePct,
   newSceneObjectId,
+  rasterizeMask,
   type RegionDTO,
   type RegionEditParams,
   type SceneDNA,
@@ -17,6 +19,9 @@ import { isMasterApproved } from "../camera/labels";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { useT } from "../../i18n";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { spendRequestForGeneration } from "../../lib/spend";
+import { BlockedExplainer } from "../workflow/BlockedExplainer";
 
 const CATEGORIES: SceneObjectCategory[] = [
   "wall",
@@ -45,6 +50,7 @@ export function RegionPanel() {
     ws.assets.find((asset) => asset.id === selectedId && asset.status === "ready") ?? null;
   const approved = isMasterApproved(ws.project.status);
   const t = useT();
+  const spend = useSpendConfirm();
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<RegionEditParams["mode"]>("edit");
@@ -104,10 +110,23 @@ export function RegionPanel() {
     }),
     [instruction, material, mode, selectedRegions],
   );
+  const coveragePct = useMemo(() => {
+    if (!selected) return 0;
+    const shapes = regions
+      .filter((region) => selectedRegions.has(region.id))
+      .map((region) => region.shape);
+    return maskCoveragePct(rasterizeMask(shapes, selected.widthPx ?? 1, selected.heightPx ?? 1));
+  }, [regions, selected, selectedRegions]);
   const prompt = useMemo(
     () =>
-      buildRegionEditPrompt({ dna: { ...dna, scene }, regions, params, nativeMask: supportsMask }),
-    [dna, regions, scene, supportsMask, params],
+      buildRegionEditPrompt({
+        dna: { ...dna, scene },
+        regions,
+        params,
+        nativeMask: supportsMask,
+        maskCoveragePct: coveragePct,
+      }),
+    [coveragePct, dna, regions, scene, supportsMask, params],
   );
 
   const updateScene = (next: SceneDNA) => editDna("scene", next);
@@ -209,19 +228,19 @@ export function RegionPanel() {
       return;
     setBusy(true);
     try {
-      await call(
-        "generation_submit",
-        buildRegionGenerationRequest({
-          projectId: ws.project.id,
-          providerId: provider.id,
-          modelId: model.id,
-          sourceAssetId: selected.id,
-          params,
-          dna: { ...dna, scene },
-          regions,
-          nativeMask: supportsMask,
-        }),
-      );
+      const request = buildRegionGenerationRequest({
+        projectId: ws.project.id,
+        providerId: provider.id,
+        modelId: model.id,
+        sourceAssetId: selected.id,
+        params,
+        dna: { ...dna, scene },
+        regions,
+        nativeMask: supportsMask,
+        maskCoveragePct: coveragePct,
+      });
+      if (!(await spend.request(spendRequestForGeneration(request, providers, t)))) return;
+      await call("generation_submit", request);
     } finally {
       setBusy(false);
     }
@@ -229,9 +248,11 @@ export function RegionPanel() {
 
   return (
     <div className="region-panel" data-testid="region-panel">
+      {spend.dialog}
       {!approved && (
         <div className="callout callout-warning">
           <Archive size={14} /> {t("regions.needsMaster")}
+          <BlockedExplainer stepId="generate.master" />
         </div>
       )}
       <SectionPanel title={t("regions.howToUse")} defaultOpen={false}>

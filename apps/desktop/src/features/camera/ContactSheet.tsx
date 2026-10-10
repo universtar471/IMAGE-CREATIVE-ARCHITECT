@@ -40,6 +40,7 @@ import {
   type ContactGroup,
 } from "./contactGroups";
 import { anchorRerunRequest } from "./batch";
+import { spendRequestForGeneration } from "../../lib/spend";
 
 export function adoptContactMood(dna: ProjectDNA, preset: MoodVariationPreset) {
   return adoptMoodPresetSections(dna, preset);
@@ -371,10 +372,12 @@ function EntryCards({
   onToggle: (assetId: string) => void;
 }) {
   const assets = useStudio((s) => s.workspace!.assets);
+  const providers = useStudio((s) => s.providers);
   const retryJob = useStudio((s) => s.retryJob);
   const cancelJob = useStudio((s) => s.cancelJob);
   const readOnly = useStudio(selectReadOnly);
   const t = useT();
+  const spend = useSpendConfirm();
   const outputs = g.outputAssetIds
     .map((id) => assets.find((a) => a.id === id))
     .filter((a): a is AssetDTO => !!a);
@@ -399,6 +402,10 @@ function EntryCards({
     );
   }
   const active = isActiveGeneration(g.status) || (job !== null && !isTerminalJob(job));
+  const retryPaid = async () => {
+    if (!job || !(await spend.request(spendRequestForGeneration(g, providers, t)))) return;
+    await retryJob(job.id);
+  };
   const status = job ? (
     <span className={`badge ${JOB_STATUS_TONE[job.status]}`}>
       {t(`labels.jobStatus.${job.status}`)}
@@ -431,11 +438,12 @@ function EntryCards({
           </button>
         )}
         {!active && job && job.status !== "completed" && (
-          <button className="btn btn-sm" disabled={readOnly} onClick={() => void retryJob(job.id)}>
+          <button className="btn btn-sm" disabled={readOnly} onClick={() => void retryPaid()}>
             <RotateCcw size={12} /> {t("common.retry")}
           </button>
         )}
       </div>
+      {spend.dialog}
     </div>
   );
 }
