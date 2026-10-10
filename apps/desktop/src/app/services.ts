@@ -12,23 +12,26 @@ import {
 } from "@arch/domain";
 import { call, type CommandResponse } from "../lib/bridge";
 import { knowledge } from "../lib/knowledge";
+import type { InteriorDNA, ProjectDNAWithInterior } from "../lib/interior";
 
 export type NewProjectInput = {
   name: string;
   projectType: ProjectType;
   subtype: string | null;
   starter: WizardStarter;
+  interior?: InteriorDNA;
 };
 
 /** Resolve pack defaults + wizard input into DNA, then create project + DNA atomically. */
 export async function createProject(input: NewProjectInput): Promise<ProjectDTO> {
   const { pack } = knowledge.resolve(input.projectType, input.subtype);
-  const dna = createInitialDNA({
+  const base = createInitialDNA({
     projectType: input.projectType,
     subtype: input.subtype,
     pack,
     starter: input.starter,
   });
+  const dna: ProjectDNAWithInterior = input.interior ? { ...base, interior: input.interior } : base;
   return call("project_create", {
     name: input.name,
     projectType: input.projectType,

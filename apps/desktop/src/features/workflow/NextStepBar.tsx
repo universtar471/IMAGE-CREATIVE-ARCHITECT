@@ -28,11 +28,13 @@ export function NextStepBar({ large = false }: { large?: boolean }) {
         ).length
       : 0;
   const title =
-    step.focus === "create-master"
-      ? t("nextStep.masterCreate")
-      : step.focus === "approve-master"
-        ? t("nextStep.masterApprove")
-        : t(`nextStep.steps.${step.id}` as never, { count });
+    workspace.project.projectType === "interior" && step.id === "dna.building"
+      ? t("nextStep.confirmInteriorSpace")
+      : step.focus === "create-master"
+        ? t("nextStep.masterCreate")
+        : step.focus === "approve-master"
+          ? t("nextStep.masterApprove")
+          : t(`nextStep.steps.${step.id}` as never, { count });
   if (mode === "hint") return <p className="next-step-hint">{t("nextStep.here", { title })}</p>;
   return (
     <section

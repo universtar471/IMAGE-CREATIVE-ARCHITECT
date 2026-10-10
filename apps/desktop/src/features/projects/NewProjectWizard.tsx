@@ -16,6 +16,19 @@ import { knowledge } from "../../lib/knowledge";
 import { useT, type TFunction } from "../../i18n";
 import { translateDomainMessage } from "../../i18n/domain";
 import { contextPresetLabel, packDescription, packLabel, styleLabel } from "../../i18n/knowledge";
+import {
+  BUILDING_USES,
+  INTERIOR_STYLES,
+  ROOMS,
+  applyStyleDefaults,
+  catalogLabel,
+  defaultInteriorDNA,
+  roomsForUse,
+  type BuildingUseId,
+  type InteriorStyleId,
+  type RoomId,
+} from "../../lib/interior";
+import { useLocale } from "../../i18n";
 
 const STEPS = ["stepBasics", "stepArchitecture", "stepContext", "stepCreate"] as const;
 
@@ -30,6 +43,9 @@ type Draft = {
   siteWidthM?: number;
   siteDepthM?: number;
   contextPresetId?: string;
+  buildingUseId: BuildingUseId;
+  roomId: RoomId;
+  interiorStyleId: InteriorStyleId;
 };
 
 /** Short wizard: nothing beyond a name is mandatory; everything is editable later. */
@@ -41,10 +57,18 @@ export function NewProjectWizard({
   onCreated: (p: ProjectDTO) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [d, setD] = useState<Draft>({ name: "", projectType: "villa", subtype: DEFAULT_SUBTYPE });
+  const [d, setD] = useState<Draft>({
+    name: "",
+    projectType: "villa",
+    subtype: DEFAULT_SUBTYPE,
+    buildingUseId: "apartment",
+    roomId: "living_room",
+    interiorStyleId: "japandi",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
+  const locale = useLocale((state) => state.locale);
   const typeOptions = ProjectTypeSchema.options.map((type) => ({
     value: type,
     label: t(`labels.projectType.${type}`),
@@ -109,6 +133,13 @@ export function NewProjectWizard({
         projectType: d.projectType,
         subtype: d.subtype === DEFAULT_SUBTYPE ? null : d.subtype,
         starter,
+        interior:
+          d.projectType === "interior"
+            ? applyStyleDefaults(
+                defaultInteriorDNA(d.buildingUseId, d.roomId, d.interiorStyleId),
+                d.interiorStyleId,
+              )
+            : undefined,
       });
       onCreated(project);
     } catch (err) {
@@ -221,61 +252,104 @@ export function NewProjectWizard({
           <p className="field-hint" style={{ margin: 0 }}>
             {t("wizard.optional")} {t("dna.englishHint")}
           </p>
-          <TextField
-            label={t("wizard.style")}
-            value={d.style}
-            suggestions={pack?.styleSuggestions}
-            suggestionLabel={styleLabel}
-            placeholder={pack?.defaults.building.architecturalStyle ?? pack?.styleSuggestions[0]}
-            onChange={(v) => set("style", v)}
-          />
-          <div className="field-row">
-            <NumberField
-              label={isInterior ? t("wizard.levels") : t("wizard.floors")}
-              value={d.floors}
-              error={archErrors.floors}
-              hint={
-                pack?.defaults.building.floors
-                  ? t("wizard.defaultValue", { value: pack.defaults.building.floors })
-                  : undefined
-              }
-              onChange={(v) => set("floors", v)}
-            />
-            <span />
-          </div>
-          <div className="field-row">
-            <NumberField
-              label={t("wizard.buildingWidth")}
-              suffix="m"
-              value={d.widthM}
-              error={archErrors.widthM}
-              onChange={(v) => set("widthM", v)}
-            />
-            <NumberField
-              label={t("wizard.buildingDepth")}
-              suffix="m"
-              value={d.depthM}
-              error={archErrors.depthM}
-              onChange={(v) => set("depthM", v)}
-            />
-          </div>
-          {!isInterior && (
-            <div className="field-row">
-              <NumberField
-                label={t("wizard.siteWidth")}
-                suffix="m"
-                value={d.siteWidthM}
-                error={archErrors.siteWidthM}
-                onChange={(v) => set("siteWidthM", v)}
+          {isInterior ? (
+            <>
+              <SelectField
+                label={t("interior.buildingUse")}
+                allowEmpty={false}
+                value={d.buildingUseId}
+                options={BUILDING_USES.map((item) => ({ value: item.id, label: item[locale] }))}
+                onChange={(value) => {
+                  if (!value) return;
+                  const rooms = roomsForUse(value);
+                  setD((previous) => ({
+                    ...previous,
+                    buildingUseId: value,
+                    roomId: rooms.includes(previous.roomId)
+                      ? previous.roomId
+                      : rooms.includes("other")
+                        ? "other"
+                        : rooms[0]!,
+                  }));
+                }}
               />
-              <NumberField
-                label={t("wizard.siteDepth")}
-                suffix="m"
-                value={d.siteDepthM}
-                error={archErrors.siteDepthM}
-                onChange={(v) => set("siteDepthM", v)}
+              <SelectField
+                label={t("interior.room")}
+                allowEmpty={false}
+                value={d.roomId}
+                options={roomsForUse(d.buildingUseId).map((id) => ({
+                  value: id,
+                  label: catalogLabel(ROOMS, id, locale),
+                }))}
+                onChange={(value) => value && set("roomId", value)}
               />
-            </div>
+              <SelectField
+                label={t("interior.style")}
+                allowEmpty={false}
+                value={d.interiorStyleId}
+                options={INTERIOR_STYLES.map((item) => ({ value: item.id, label: item[locale] }))}
+                onChange={(value) => value && set("interiorStyleId", value)}
+              />
+            </>
+          ) : (
+            <>
+              <TextField
+                label={t("wizard.style")}
+                value={d.style}
+                suggestions={pack?.styleSuggestions}
+                suggestionLabel={styleLabel}
+                placeholder={
+                  pack?.defaults.building.architecturalStyle ?? pack?.styleSuggestions[0]
+                }
+                onChange={(v) => set("style", v)}
+              />
+              <div className="field-row">
+                <NumberField
+                  label={t("wizard.floors")}
+                  value={d.floors}
+                  error={archErrors.floors}
+                  hint={
+                    pack?.defaults.building.floors
+                      ? t("wizard.defaultValue", { value: pack.defaults.building.floors })
+                      : undefined
+                  }
+                  onChange={(v) => set("floors", v)}
+                />
+                <span />
+              </div>
+              <div className="field-row">
+                <NumberField
+                  label={t("wizard.buildingWidth")}
+                  suffix="m"
+                  value={d.widthM}
+                  error={archErrors.widthM}
+                  onChange={(v) => set("widthM", v)}
+                />
+                <NumberField
+                  label={t("wizard.buildingDepth")}
+                  suffix="m"
+                  value={d.depthM}
+                  error={archErrors.depthM}
+                  onChange={(v) => set("depthM", v)}
+                />
+              </div>
+              <div className="field-row">
+                <NumberField
+                  label={t("wizard.siteWidth")}
+                  suffix="m"
+                  value={d.siteWidthM}
+                  error={archErrors.siteWidthM}
+                  onChange={(v) => set("siteWidthM", v)}
+                />
+                <NumberField
+                  label={t("wizard.siteDepth")}
+                  suffix="m"
+                  value={d.siteDepthM}
+                  error={archErrors.siteDepthM}
+                  onChange={(v) => set("siteDepthM", v)}
+                />
+              </div>
+            </>
           )}
         </>
       )}
@@ -334,6 +408,16 @@ export function NewProjectWizard({
             </tr>
             {preview ? (
               <>
+                {isInterior && (
+                  <tr>
+                    <th>{t("interior.space")}</th>
+                    <td>
+                      {catalogLabel(BUILDING_USES, d.buildingUseId, locale)} ·{" "}
+                      {catalogLabel(ROOMS, d.roomId, locale)} ·{" "}
+                      {catalogLabel(INTERIOR_STYLES, d.interiorStyleId, locale)}
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <th>{t("wizard.sumStyle")}</th>
                   <td>{preview.building.architecturalStyle ?? t("wizard.setLater")}</td>

@@ -7,12 +7,15 @@ import { useT } from "../../i18n";
 import { styleLabel } from "../../i18n/knowledge";
 import { DnaNumber, DnaTags, DnaText, DnaTextArea, useDnaLock } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
+import { InteriorDnaPanel } from "./InteriorDnaPanel";
 
 export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
   const isInterior = project.projectType === "interior";
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
   const t = useT();
+
+  if (isInterior) return <InteriorDnaPanel />;
 
   return (
     <>

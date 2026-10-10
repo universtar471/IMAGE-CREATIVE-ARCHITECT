@@ -21,6 +21,16 @@ import { readinessLabel } from "../../i18n/domain";
 import { packLabel } from "../../i18n/knowledge";
 import type { DnaStepId, DerivedWorkflowStep } from "../../lib/workflow";
 import { NextStepBar } from "../workflow/NextStepBar";
+import { Moodboard } from "../dna/InteriorDnaPanel";
+import {
+  BUILDING_USES,
+  INTERIOR_STYLES,
+  PALETTES,
+  ROOMS,
+  catalogLabel,
+  type ProjectDNAWithInterior,
+} from "../../lib/interior";
+import { currentLocale, useLocale } from "../../i18n";
 
 export function OverviewPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -35,6 +45,8 @@ export function OverviewPanel() {
   const readiness = dnaReadiness(dna, project.projectType);
   const { pack, match } = knowledge.resolve(project.projectType, project.subtype);
   const t = useT();
+  const locale = useLocale((state) => state.locale);
+  const interior = (dna as ProjectDNAWithInterior).interior;
 
   const approve = async (approved: boolean) => {
     const p = await attempt(() =>
@@ -76,6 +88,18 @@ export function OverviewPanel() {
           <dd>{formatDateTime(project.updatedAt)}</dd>
         </dl>
       </SectionPanel>
+
+      {project.projectType === "interior" && interior && (
+        <SectionPanel title={t("interior.summary")}>
+          <p className="interior-summary-line">
+            {catalogLabel(BUILDING_USES, interior.buildingUseId, locale)} ·{" "}
+            {catalogLabel(ROOMS, interior.roomId, locale)} ·{" "}
+            {catalogLabel(INTERIOR_STYLES, interior.styleId, locale)} ·{" "}
+            {catalogLabel(PALETTES, interior.paletteId, locale)}
+          </p>
+          <Moodboard interior={interior} mini />
+        </SectionPanel>
+      )}
 
       <SectionPanel title={t("overview.readiness")}>
         <ul className="checklist">
@@ -155,6 +179,10 @@ function WorkflowOverview() {
   const confirm = useStudio((s) => s.confirmWorkflowStep);
   const reopen = useStudio((s) => s.reopenWorkflowStep);
   const t = useT();
+  const stepName = (id: string) =>
+    ws.project.projectType === "interior" && id === "dna.building"
+      ? t("interior.space")
+      : t(`workflow.steps.${id}.name` as never);
   const stages = ["dna", "generate", "post"] as const;
   if (!workflow) return null;
   return (
@@ -173,7 +201,7 @@ function WorkflowOverview() {
                       <span className={`badge workflow-status-${step.status}`}>
                         {t(`workflow.status.${step.status}`)}
                       </span>
-                      {t(`workflow.steps.${step.id}.name`)}
+                      {stepName(step.id)}
                     </span>
                     <span className="field-hint">{summary}</span>
                   </summary>
@@ -225,6 +253,16 @@ function workflowSummary(stepId: string, ws: WorkspaceData, t: ReturnType<typeof
     });
   }
   if (stepId === "dna.building") {
+    const interior = (ws.draftDna as ProjectDNAWithInterior).interior;
+    if (ws.project.projectType === "interior" && interior) {
+      const locale = currentLocale();
+      return values(
+        catalogLabel(BUILDING_USES, interior.buildingUseId, locale),
+        catalogLabel(ROOMS, interior.roomId, locale),
+        catalogLabel(INTERIOR_STYLES, interior.styleId, locale),
+        catalogLabel(PALETTES, interior.paletteId, locale),
+      );
+    }
     const building = ws.draftDna.building;
     return values(
       building.buildingType,
