@@ -2296,6 +2296,116 @@ textarea {
   z-index: 2;
 }
 
+.region-overlay {
+  position: absolute;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+}
+.region-mark,
+.region-drawing {
+  position: absolute;
+  border: 1px solid #5eead4;
+  background: rgba(20, 184, 166, 0.12);
+  pointer-events: none;
+}
+.region-mark.is-selected {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.16);
+}
+.region-mark > span {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: 10px;
+  white-space: nowrap;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 2px 4px;
+}
+.region-drawing-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.region-drawing-svg polyline {
+  fill: rgba(20, 184, 166, 0.12);
+  stroke: #5eead4;
+  stroke-width: 0.003;
+  vector-effect: non-scaling-stroke;
+}
+.region-brush-cursor {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  border: 1px solid #fbbf24;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.region-mask-preview {
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.2);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.region-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.region-tools .is-active {
+  color: var(--c-accent);
+  background: var(--c-surface-3);
+}
+.region-brush-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--c-text-2);
+}
+.region-brush-size input {
+  width: 72px;
+}
+.region-list-row,
+.scene-object-row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) minmax(72px, 0.7fr) minmax(90px, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+  margin: 5px 0;
+}
+.scene-object-row {
+  grid-template-columns: minmax(80px, 1fr) minmax(80px, 0.8fr) minmax(80px, 1fr) auto auto;
+}
+.scene-relations {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+  padding-left: 8px;
+}
+.scene-relation {
+  display: grid;
+  grid-template-columns: 90px minmax(90px, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+.region-list-row input,
+.region-list-row select,
+.scene-object-row input,
+.scene-object-row select {
+  min-width: 0;
+}
+.prompt-preview {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
 .qc-overlay-box {
   position: absolute;
   display: block;

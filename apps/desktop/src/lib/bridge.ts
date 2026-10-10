@@ -38,6 +38,7 @@ import {
   type AssetSource,
   type BatchCreateRequest,
   type GenerationDTO,
+  type GenerationParams,
   type GenerationSubmitRequest,
   type JobDTO,
   type PromptEnhanceRequest,
@@ -45,6 +46,7 @@ import {
   type ProjectType,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
+import type { RegionDTO, RegionEditParams, RegionShape } from "./regions";
 
 export {
   WorkflowConfirmStepRequestSchema,
@@ -67,6 +69,40 @@ export const VersionDTOSchema = z.object({
   createdAt: z.string(),
 });
 export type VersionDTO = z.infer<typeof VersionDTOSchema>;
+
+// TODO(p7-domain): remove this compatibility branch when @arch/domain ships region_edit.
+// The transform keeps the bridge's public type stable while allowing the UI mock to exercise
+// the Phase 7 payload on a checkout that still has the Phase 6 generation enum.
+const RegionGenerationDTOSchema = z
+  .object({
+    id: z.string(),
+    projectId: z.string(),
+    providerId: z.string(),
+    modelId: z.string(),
+    purpose: z.literal("region_edit"),
+    status: z.enum(["queued", "running", "completed", "failed", "interrupted", "cancelled"]),
+    prompt: z.unknown(),
+    referenceAssetIds: z.array(z.string()),
+    params: z.unknown(),
+    parentAssetId: z.string().nullable(),
+    outputAssetIds: z.array(z.string()),
+    error: z.unknown().nullable(),
+    cameraId: z.string().nullable(),
+    batchId: z.string().nullable(),
+    jobId: z.string().nullable(),
+    createdAt: z.string(),
+    startedAt: z.string().nullable(),
+    finishedAt: z.string().nullable(),
+    durationMs: z.number().int().nonnegative().nullable(),
+  })
+  .passthrough();
+const GenerationResponseSchema = z
+  .union([GenerationDTOSchema, RegionGenerationDTOSchema])
+  .transform((value) => value as z.infer<typeof GenerationDTOSchema>);
+const ProjectDNAResponseSchema = ProjectDNASchema.passthrough();
+const ProjectBundleResponseSchema = ProjectBundleDTOSchema.extend({
+  dna: ProjectDNAResponseSchema,
+});
 
 export const AssetRemoveResultSchema = z.object({
   assetId: z.string(),
@@ -92,6 +128,48 @@ export const AssetPreviewRequestSchema = z.object({
   assetId: z.string().min(1),
   maxEdge: z.number().int().min(256).max(4096),
 });
+
+const RegionShapeSchema: z.ZodType<RegionShape> = z.union([
+  z.object({ type: z.literal("rect"), x: z.number(), y: z.number(), w: z.number(), h: z.number() }),
+  z.object({
+    type: z.literal("polygon"),
+    points: z.array(z.tuple([z.number(), z.number()])).min(3),
+  }),
+  z.object({
+    type: z.literal("brush"),
+    strokes: z.array(
+      z.object({ points: z.array(z.tuple([z.number(), z.number()])).min(1), radius: z.number() }),
+    ),
+  }),
+]);
+export const RegionDTOSchema: z.ZodType<RegionDTO> = z.object({
+  id: z.string().regex(/^RGN_[0-9A-Z]{26}$/),
+  projectId: z.string(),
+  assetId: z.string(),
+  label: z.string(),
+  kind: z.enum(["object", "zone", "material"]),
+  objectId: z.string().nullable(),
+  shape: RegionShapeSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export const RegionSaveRequestSchema = z.object({
+  projectId: z.string(),
+  assetId: z.string(),
+  region: z.object({
+    id: z.string().optional(),
+    label: z.string(),
+    kind: z.enum(["object", "zone", "material"]),
+    objectId: z.string().nullable(),
+    shape: RegionShapeSchema,
+  }),
+});
+export type RegionSaveRequest = z.infer<typeof RegionSaveRequestSchema>;
+export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
+export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
+  purpose: "region_edit";
+  params: GenerationParams & { region: RegionEditParams };
+};
 export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
 
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
@@ -128,7 +206,7 @@ export type Requests = {
   provider_clear_api_key: { providerId: string };
   provider_test: { providerId: string };
   prompt_enhance: PromptEnhanceRequest;
-  generation_submit: GenerationSubmitRequest;
+  generation_submit: GenerationSubmitRequest | RegionGenerationSubmitRequest;
   generation_list: { projectId: string };
   generation_get: { projectId: string; generationId: string };
   batch_create: BatchCreateRequest;
@@ -149,6 +227,9 @@ export type Requests = {
   qc_list: { projectId: string; assetId?: string };
   qc_settings_get: { projectId: string };
   qc_settings_set: { projectId: string; settings: QcSettings };
+  region_list: { projectId: string; assetId: string };
+  region_save: RegionSaveRequest;
+  region_delete: { projectId: string; regionId: string };
 };
 
 /** Response schemas per command. */
@@ -156,11 +237,11 @@ export const responses = {
   app_info: AppInfoSchema,
   project_create: ProjectDTOSchema,
   project_list: z.array(ProjectSummaryDTOSchema),
-  project_get: ProjectBundleDTOSchema,
+  project_get: ProjectBundleResponseSchema,
   project_update_metadata: ProjectDTOSchema,
   project_set_archived: ProjectDTOSchema,
   project_approve_master: ProjectDTOSchema,
-  dna_get: ProjectDNASchema,
+  dna_get: ProjectDNAResponseSchema,
   dna_update: ProjectDTOSchema,
   asset_import: AssetDTOSchema,
   asset_list: z.array(AssetDTOSchema),
@@ -173,9 +254,9 @@ export const responses = {
   provider_clear_api_key: ProviderDescriptorDTOSchema,
   provider_test: ProviderTestResultSchema,
   prompt_enhance: PromptEnhanceResultSchema,
-  generation_submit: GenerationDTOSchema,
-  generation_list: z.array(GenerationDTOSchema),
-  generation_get: GenerationDTOSchema,
+  generation_submit: GenerationResponseSchema,
+  generation_list: z.array(GenerationResponseSchema),
+  generation_get: GenerationResponseSchema,
   batch_create: BatchDTOSchema,
   batch_list: z.array(BatchDTOSchema),
   job_list: z.array(JobDTOSchema),
@@ -194,6 +275,9 @@ export const responses = {
   qc_list: z.array(QcReportDTOSchema),
   qc_settings_get: QcSettingsSchema,
   qc_settings_set: QcSettingsSchema,
+  region_list: z.array(RegionDTOSchema),
+  region_save: RegionDTOSchema,
+  region_delete: RegionDeleteResultSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

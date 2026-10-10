@@ -30,6 +30,7 @@ export type ModuleId =
   | "generate"
   | "enhance"
   | "qc"
+  | "regions"
   | "export";
 
 export type WorkspaceModule = {
@@ -108,6 +109,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
   {
     id: "qc",
     label: "QC",
+    icon: ScanSearch,
+    group: "post",
+    availableIn: null,
+  },
+  {
+    id: "regions",
+    label: "Region edit",
     icon: ScanSearch,
     group: "post",
     availableIn: null,
