@@ -728,3 +728,38 @@ Domain pure functions:
 Migration `0006_regions.sql` creates `regions(id, project_id, asset_id, label, kind, object_id, shape_json, created_at, updated_at)`:
 - index on `(project_id, asset_id)`
 - cascade on project and asset delete
+
+
+## 17. Sketch / massing source (ADR-026)
+
+### 17.1 Role
+
+- `AssetRole` gains `"structure_sketch"`, in Zod and in the Rust `AssetRole` enum (snake_case).
+- `REFERENCE_ROLE_ORDER` becomes `master_architecture`, `structure_sketch`, then the existing order.
+- `DEFAULT_REFERENCE_ROLES` excludes `structure_sketch`, as it already excludes `regular_image`.
+- The role is valid for import (`asset_import` role) and for `asset_set_role`.
+- Labels:
+
+  | | Full | Short |
+  |---|---|---|
+  | vi | "Phác thảo / khối" | "Phác thảo" |
+  | en | "Sketch / massing" | "Sketch" |
+
+### 17.2 Compiler (next patch version)
+
+- `ROLE_INSTRUCTIONS.structure_sketch`: "is the STRUCTURE source (sketch, massing model or 3D view): keep its building geometry, camera viewpoint, proportions, floor count, openings and roof form exactly; render it as a finished photorealistic building with the materials, lighting and context described below; do not add or remove building parts."
+- Preservation line, when a structure sketch is present: "Follow the geometry and viewpoint of Image N (structure sketch) exactly; replace sketch lines, flat colours and model textures with real materials."
+
+### 17.3 UI form
+
+`GenerateForm` gains `source: "dna" | "sketch"`.
+- Draft field: `source`.
+- Default: `"dna"`.
+
+When `source` is `"sketch"`:
+- `purpose` is `"hero"`.
+- `pinnedIds = [sketchId]`. `sketchId` is the chosen ready `structure_sketch` asset; by default, the newest one.
+- The aspect ratio anchors on the sketch.
+- Generation is disabled, with a reason, when:
+  - there is no sketch asset, or
+  - the model has no image-to-image.

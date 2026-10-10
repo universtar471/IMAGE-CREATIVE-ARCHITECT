@@ -398,3 +398,30 @@ Status: accepted (Phase 7; planned by the lead overnight on the user's instructi
 **Gating**
 - The same as `variation`: needs an approved master.
 - The UI lives in Hậu kỳ › Chỉnh vùng.
+
+## ADR-026 — Sketch / massing to render: a structure source role
+
+Status: accepted (2026-10-10; user asked for an "from sketch / massing" mode after comparing with a competitor)
+
+**Problem**
+- The first image of a project came only from DNA text. Its geometry was whatever the model drew, so the master could disagree with the DNA (for example 1 floor instead of 2).
+- Architects usually already have a SketchUp view, a massing model or a hand sketch.
+
+**Decision**
+- **New asset role `structure_sketch`** ("Phác thảo / khối"):
+  - a sketch, massing screenshot or 3D-model view whose geometry and viewpoint must be kept
+  - ranked right after `master_architecture` in `REFERENCE_ROLE_ORDER`
+  - not part of the default reference selection, so it is only sent when chosen
+- **Generate › Nguồn ảnh: "Từ mô tả DNA" | "Từ phác thảo / khối"**, a source toggle for Hero only.
+  - In sketch mode, exactly one `structure_sketch` asset is pinned as image 1.
+  - The aspect ratio follows the sketch.
+  - The mode needs a model with image-to-image.
+  - An inline "Nhập phác thảo" imports a file straight into this role.
+- **Prompt (compiler):**
+  - The `structure_sketch` instruction keeps its geometry, viewpoint, proportions, floor count, openings and roof form exactly. The model renders it photorealistically with the DNA materials, lighting and context, without adding or removing building parts.
+  - The preservation section says to follow Image N (structure) for geometry and viewpoint.
+  - When a master is also referenced, the master stays the authority for design, and the sketch drives the viewpoint and geometry of this shot.
+- A hero rendered from a sketch can become the master as usual.
+- No backend purpose change.
+  - The backend accepts the new role everywhere roles are parsed.
+  - Provider prompt text gets a role label.
