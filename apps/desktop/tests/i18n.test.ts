@@ -55,6 +55,14 @@ describe("dictionaries", () => {
     }
   });
 
+  it("keeps sketch-mode Vietnamese labels accented", () => {
+    expect(vi.labels.assetRole.structure_sketch).toBe("Phác thảo / khối");
+    expect(vi.labels.assetRoleShort.structure_sketch).toBe("Phác thảo");
+    for (const key of ["source", "sourceSketch", "importSketch", "sketchPinned"] as const) {
+      expect(vi.generate[key], `vi generate.${key}`).toMatch(/[À-ỹ]/);
+    }
+  });
+
   it("keep every {placeholder} of English in Vietnamese", () => {
     for (const l of enLeaves) {
       const want = placeholders(l.value);

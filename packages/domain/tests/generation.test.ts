@@ -55,6 +55,7 @@ const params = (over: Partial<GenerationParams> = {}): GenerationParams => ({
 });
 
 const assets: ReferenceCandidate[] = [
+  { id: "A_sketch", role: "structure_sketch", status: "ready" },
   { id: "A_mood", role: "mood_reference", status: "ready" },
   { id: "B_regular", role: "regular_image", status: "ready" },
   { id: "C_arch", role: "architecture_reference", status: "ready" },
@@ -85,6 +86,11 @@ describe("default reference selection", () => {
 
   it("never auto-selects regular images (generated outputs)", () => {
     const only = [{ id: "X", role: "regular_image", status: "ready" }] as const;
+    expect(defaultReferenceIds(only, model())).toEqual([]);
+  });
+
+  it("never auto-selects structure sketches", () => {
+    const only = [{ id: "X", role: "structure_sketch", status: "ready" }] as const;
     expect(defaultReferenceIds(only, model())).toEqual([]);
   });
 

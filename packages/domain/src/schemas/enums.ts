@@ -43,6 +43,7 @@ export const PHASE1_STATUSES: readonly ProjectStatus[] = [
 
 export const AssetRoleSchema = z.enum([
   "master_architecture",
+  "structure_sketch",
   "architecture_reference",
   "material_reference",
   "context_reference",

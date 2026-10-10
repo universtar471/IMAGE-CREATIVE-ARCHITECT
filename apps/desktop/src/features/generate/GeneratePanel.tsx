@@ -3,6 +3,7 @@ import {
   Anchor,
   Clapperboard,
   ImageOff,
+  ImagePlus,
   KeyRound,
   LayoutGrid,
   Minus,
@@ -38,6 +39,8 @@ import { blockedReason } from "../workflow/blockedReason";
 import { BatchDialog } from "../camera/BatchDialog";
 import type { BatchMode } from "../camera/batch";
 import { isMasterApproved } from "../camera/labels";
+import { useAssetImport } from "../assets/useAssetImport";
+import { ConfirmDialog } from "../../components/common/Dialog";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -434,10 +437,92 @@ function OutputSection({
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const p = form.params;
   const counts = Array.from({ length: model.maxOutputs }, (_, i) => i + 1);
+  const { busy, duplicate, pickAndImport } = useAssetImport();
   const t = useT();
 
   return (
     <SectionPanel title={t("generate.output")}>
+      {form.purpose === "hero" && (
+        <FieldGroup label={t("generate.source")}>
+          <div className="segmented" role="group" aria-label={t("generate.source")}>
+            {(["dna", "sketch"] as const).map((source) => (
+              <button
+                key={source}
+                type="button"
+                aria-pressed={form.source === source}
+                disabled={disabled}
+                onClick={() =>
+                  setDraft({
+                    source,
+                    purpose: "hero",
+                    referenceAssetIds: null,
+                    params: null,
+                  })
+                }
+              >
+                {t(source === "dna" ? "generate.sourceDna" : "generate.sourceSketch")}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+      )}
+      {form.source === "sketch" && (
+        <FieldGroup label={t("generate.sketchPicker")} hint={t("generate.sketchHowTo")}>
+          {form.structureSketches.length > 0 && (
+            <ul className="ref-list" aria-label={t("generate.sketchPicker")}>
+              {form.structureSketches.map((asset) => (
+                <li
+                  key={asset.id}
+                  className={`ref-row ${asset.id === form.sketch?.id ? "is-checked" : ""}`}
+                >
+                  <label>
+                    <input
+                      type="radio"
+                      name="structure-sketch"
+                      checked={asset.id === form.sketch?.id}
+                      disabled={disabled}
+                      onChange={() => setDraft({ referenceAssetIds: [asset.id], params: null })}
+                    />
+                    <span className="ref-thumb">
+                      {fileUrl(asset.thumbnailPath) ? (
+                        <img
+                          src={fileUrl(asset.thumbnailPath)!}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <ImageOff size={14} />
+                      )}
+                    </span>
+                    <span className="ref-meta">
+                      <span className="ref-name">{asset.originalName ?? asset.id}</span>
+                      <RoleBadge role={asset.role} short />
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={disabled || !!busy}
+            onClick={() => void pickAndImport("structure_sketch")}
+          >
+            <ImagePlus size={13} /> {t("generate.importSketch")}
+          </button>
+          {duplicate && (
+            <ConfirmDialog
+              title={t("assets.duplicateTitle")}
+              message={duplicate.message}
+              confirmLabel={t("assets.importAnyway")}
+              onConfirm={() => duplicate.resolve(true)}
+              onCancel={() => duplicate.resolve(false)}
+            />
+          )}
+        </FieldGroup>
+      )}
       <FieldGroup
         label={t("generate.purpose")}
         hint={
@@ -457,7 +542,7 @@ function OutputSection({
               type="button"
               aria-pressed={form.purpose === purpose}
               disabled={disabled}
-              onClick={() => setDraft({ purpose })}
+              onClick={() => setDraft({ purpose, source: "dna" })}
             >
               {t(`labels.purpose.${purpose}`)}
             </button>
@@ -578,7 +663,11 @@ function ReferenceSection({
               );
             })}
           </ul>
-          {pinned.length > 0 && <span className="field-hint">{t("generate.masterPinned")}</span>}
+          {pinned.length > 0 && (
+            <span className="field-hint">
+              {t(form.source === "sketch" ? "generate.sketchPinned" : "generate.masterPinned")}
+            </span>
+          )}
           <span className="field-hint">
             {t("generate.refsOrder", { cap, model: model.label })}{" "}
             <button className="link-btn" onClick={onReset} disabled={disabled}>

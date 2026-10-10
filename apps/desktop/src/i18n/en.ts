@@ -111,6 +111,7 @@ export const en = {
     },
     assetRole: {
       master_architecture: "Master architecture",
+      structure_sketch: "Sketch / massing",
       architecture_reference: "Architecture reference",
       material_reference: "Material reference",
       context_reference: "Context reference",
@@ -123,6 +124,7 @@ export const en = {
     /** Compact role names for badges in tight spaces. */
     assetRoleShort: {
       master_architecture: "Master architecture",
+      structure_sketch: "Sketch",
       architecture_reference: "Architecture",
       material_reference: "Material",
       context_reference: "Context",
@@ -753,6 +755,17 @@ export const en = {
     capOutputs: "up to {count} output(s) per run",
     capOffline: "offline placeholder images",
     output: "Output",
+    source: "Image source",
+    sourceDna: "From DNA description",
+    sourceSketch: "From sketch / massing",
+    sketchPicker: "Structure sketch",
+    importSketch: "Import sketch",
+    sketchHowTo:
+      "Upload a SketchUp screenshot, massing view or hand sketch; AI keeps the shape and renders materials and light from the DNA. Good results can be used as the Master.",
+    sketchPinned: "The sketch is always image 1; AI keeps the building shape and viewpoint.",
+    reasonNoSketch: "No structure sketch yet — click Import sketch",
+    reasonSketchNeedsRefs:
+      "Sketch mode needs a model that accepts image-to-image references — {model} does not.",
     purpose: "Purpose",
     heroHint: "Hero: the main presentation image, anchored on the master.",
     variationHint: "Variation: an alternative take for exploration.",

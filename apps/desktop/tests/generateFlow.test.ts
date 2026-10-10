@@ -345,6 +345,69 @@ describe("Generate form derivation", () => {
     expect(generateDisabledReason(f, ctx)).toMatch(/reference images/);
   });
 
+  it("sketch mode pins the newest sketch, forces hero, and anchors its aspect ratio", () => {
+    const oldSketch = asset("P", "AST_sketch_old", {
+      role: "structure_sketch",
+      widthPx: 900,
+      heightPx: 1600,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const newestSketch = asset("P", "AST_sketch_new", {
+      role: "structure_sketch",
+      widthPx: 1920,
+      heightPx: 1080,
+      createdAt: "2026-02-01T00:00:00Z",
+    });
+    const f = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, source: "sketch", purpose: "variation" },
+      providers(true),
+      [...assets, oldSketch, newestSketch],
+      "AST_master",
+    );
+    expect(f.purpose).toBe("hero");
+    expect(f.sketch?.id).toBe("AST_sketch_new");
+    expect(f.referenceIds[0]).toBe("AST_sketch_new");
+    expect(f.pinnedIds).toEqual(["AST_sketch_new"]);
+    expect(f.params.aspectRatio).toBe("16:9");
+
+    const chosen = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, source: "sketch", referenceAssetIds: [oldSketch.id] },
+      providers(true),
+      [...assets, oldSketch, newestSketch],
+      "AST_master",
+    );
+    expect(chosen.sketch?.id).toBe(oldSketch.id);
+    expect(chosen.referenceIds[0]).toBe(oldSketch.id);
+    expect(chosen.params.aspectRatio).toBe("9:16");
+  });
+
+  it("explains sketch-mode blockers", () => {
+    const missing = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, source: "sketch" },
+      providers(true),
+      assets,
+      null,
+    );
+    expect(generateDisabledReason(missing, ctx)).toBe(
+      "No structure sketch yet — click Import sketch",
+    );
+
+    const textOnly = providers(true).map((provider) => ({
+      ...provider,
+      models: provider.models.map((candidate) => ({ ...candidate, imageToImage: false })),
+    }));
+    const sketch = asset("P", "AST_sketch", { role: "structure_sketch" });
+    const unsupported = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, source: "sketch" },
+      textOnly,
+      [sketch],
+      null,
+    );
+    expect(generateDisabledReason(unsupported, { ...ctx, assets: [sketch] })).toMatch(
+      /image-to-image/,
+    );
+  });
+
   it("legacy model without image sizes sends imageSize null", () => {
     const f = resolveGenerateForm(
       { ...EMPTY_GENERATE_DRAFT, providerId: "gemini", modelId: "gemini-2.5-flash-image" },
