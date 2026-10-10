@@ -8,6 +8,7 @@ import {
   MoodDNASchema,
   WeatherDNASchema,
 } from "./future";
+import { SceneSchema } from "../regions/schemas";
 
 export const LockStateSchema = z.object({
   building: z.boolean().default(false),
@@ -41,6 +42,7 @@ export const ProjectDNASchema = z.object({
   weather: WeatherDNASchema.optional(),
   mood: MoodDNASchema.optional(),
   colorGrade: ColorGradeDNASchema.optional(),
+  scene: SceneSchema.optional(),
   locks: LockStateSchema.default(defaultLockState),
 });
 

@@ -121,6 +121,22 @@ export const BatchCreateRequestSchema = z
           });
         }
       }
+      if (value.purpose === "region_edit") {
+        if (!item.params.region) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "params", "region"],
+            message: "params.region is required when purpose is region_edit.",
+          });
+        }
+        if (item.referenceAssetIds.length !== 1) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["items", index, "referenceAssetIds"],
+            message: "Region edit generation requires exactly one reference asset.",
+          });
+        }
+      }
     });
   });
 export type BatchCreateRequest = z.infer<typeof BatchCreateRequestSchema>;

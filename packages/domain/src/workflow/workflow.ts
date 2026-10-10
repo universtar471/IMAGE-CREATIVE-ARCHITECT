@@ -237,9 +237,20 @@ export function isGenerationAllowed(
   facts: WorkflowFacts,
 ): GenerationAllowed {
   const first = firstUnconfirmed(persisted);
-  if (purpose !== "variation" && purpose !== "enhance" && purpose !== "repair" && first)
+  if (
+    purpose !== "variation" &&
+    purpose !== "enhance" &&
+    purpose !== "repair" &&
+    purpose !== "region_edit" &&
+    first
+  )
     return { ok: false, blockedBy: first };
-  if (purpose === "variation" || purpose === "enhance" || purpose === "repair") {
+  if (
+    purpose === "variation" ||
+    purpose === "enhance" ||
+    purpose === "repair" ||
+    purpose === "region_edit"
+  ) {
     return facts.masterApproved ? { ok: true } : { ok: false, blockedBy: "generate.master" };
   }
   if ((purpose === "anchor" || purpose === "production") && !facts.masterApproved) {
