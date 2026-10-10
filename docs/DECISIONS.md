@@ -464,3 +464,45 @@ Status: accepted (2026-10-10, user request "ok nội thất"; taxonomy proposed 
   - When an interior project without `dna.interior` opens, the UI proposes a section by mapping the old free text to catalog ids where it matches exactly (case- and diacritics-insensitive). The user confirms before anything is saved.
   - The old fields are never deleted.
 - **Deferred:** budget tier, advanced room constraints, and per-industry presets.
+
+
+## ADR-028 — Anchors keep the master's surroundings: site topology, camera × context rules, view-aware prompts
+
+Status: accepted (2026-10-10, user "làm cả 3"; audit by Codex read-only consult of all 55 pack × preset prompts)
+
+**Problem**
+- Anchors of a mid-block townhouse became corner houses: the left and right corner presets ask to show a side that is a party wall.
+- The aerial anchor invented a street junction and redrew the neighbours.
+- Every prompt of the townhouse pack said "street-level exterior view", even for the aerial view.
+- The master reference protected only the building, never its surroundings.
+- Style names were too vague: Mediterranean adds arches, Indochine adds colonial detail.
+
+**Decision**
+- **Site topology** is explicit, additive and optional:
+
+  ```
+  context.siteTopology = { left, right: "attached" | "open" | "unknown", cornerLot, cornerSide? }
+  ```
+
+  When it is absent, a pure helper infers it. A side is `attached` when its adjacent-building text says attached, party wall, liền kề, liền vách or sát vách; otherwise it is `unknown`. Explicit values always win.
+- **Camera × context plan** (pure helper):
+  - A camera that would reveal an attached side is rendered as an oblique street view with that side hidden.
+  - An aerial over attached or high-density context keeps the same block.
+  - Revealing an `unknown` side is allowed but flagged in the UI, so the user decides: attached, or corner lot.
+  - A corner lot allows the side street only on the confirmed side.
+- **Compiler pc-1.5.0**
+  - The subject framing follows the camera's `viewType`.
+  - For exterior projects, the master instruction preserves the visible surroundings as well as the architecture.
+  - Conditional aerial and party-wall instructions.
+  - Contextual negatives.
+  - Expanded style phrases for known style names.
+- **Packs**
+  - Townhouse and urban-villa corner presets become oblique street views, and `street_level` is the recommended anchor.
+  - Aerial compositions drop "plot".
+  - Interior wide lenses are at least 20 mm.
+  - The townhouse packs declare `siteTopology` attached on both sides.
+  - Interior and exterior style and material phrases become precise.
+- **UI**
+  - Bối cảnh gets a "Vị trí lô đất" control.
+  - The camera and anchor steps show each camera's plan, with one-click resolution when a side is unknown.
+- **Existing projects.** The rules work on the stored DNA through inference; there is no migration. Stored camera compositions that contradict an attached side are overridden at compile time.

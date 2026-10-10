@@ -966,3 +966,164 @@ The section order stays stable and the snapshots are updated deliberately.
 - The DNA JSON schema is regenerated from Zod, which adds the `interior` property. `validate_dna` accepts it.
 - The `roomsForUse` rule is mirrored in Rust `validate_additive_fields`. The error is at `interior.roomId`.
 - There is no migration and no new command.
+
+
+## 19. Master-consistent anchors (ADR-028)
+
+### 19.1 Schema (`packages/domain/src/schemas/context.ts`)
+
+```ts
+SideTopology = "attached" | "open" | "unknown"
+SiteTopology = { left: SideTopology /*default "unknown"*/, right: SideTopology /*default "unknown"*/,
+                 cornerLot: boolean /*default false*/, cornerSide?: "left" | "right" }
+ContextDNA.siteTopology?: SiteTopology   // optional, additive; context schemaVersion stays 1
+```
+
+Refinement: when `cornerLot === true`, `cornerSide` is required, and that side must not be `attached`.
+- The error path is `context.siteTopology.cornerSide`.
+- Rust mirrors the rule in `validate_additive_fields`.
+- The pack `ContextPartialSchema` accepts `siteTopology`.
+
+### 19.2 Helpers
+
+These are pure, exported from `@arch/domain`, and live in `packages/domain/src/prompt/topology.ts`.
+
+**`resolveSiteTopology(context)`** returns `{ left, right, cornerLot, cornerSide?, source: { left, right } }`, where each `source` value is `"explicit" | "inferred" | "default"`.
+- An explicit side value other than `"unknown"` wins.
+- Otherwise a side is `attached` when, after diacritic folding, any `context.<side>.adjacentBuildings` entry or its `notes` matches `/attached|party wall|lien ke|lien vach|sat vach/i`.
+- Otherwise the side is `unknown`.
+
+**`revealedSide(camera)`** returns `"left" | "right" | null`.
+- For `exterior_corner` or `exterior_side`: `azimuthDeg > 0` gives `left`, `< 0` gives `right`, `0` gives `null`.
+- When the azimuth is missing, fall back to a `presetId` that contains `left` or `right`.
+- Every other view type gives `null`.
+
+**`cameraSitePlan(camera, context, projectType)`** returns `{ mode, side?, reason }`, where `mode` is `"normal" | "oblique_street" | "unknown_side" | "corner_side" | "aerial_block"`.
+
+| Condition | Mode |
+|---|---|
+| Interior project, or no camera | `normal` |
+| Revealed side is `attached` | `oblique_street` |
+| Revealed side is the confirmed `cornerSide` | `corner_side` |
+| Revealed side is `unknown` | `unknown_side` |
+| Revealed side is `open` | `normal` |
+| `aerial`, and either side is `attached` or `density === "high"` | `aerial_block` |
+
+### 19.3 Compiler `pc-1.5.0`
+
+**Subject framing.** With a camera, the framing follows its `viewType`. Without a camera, the pack framing is kept unchanged.
+
+| viewType | Framing |
+|---|---|
+| `exterior_front` | `exterior front view` |
+| `exterior_corner` | `exterior three-quarter view` |
+| `exterior_side` | `exterior side view` |
+| `exterior_rear` | `exterior rear view` |
+| `aerial` | `aerial architectural view` |
+| `street_level` | `street-level view` |
+| `detail` | `architectural detail view` |
+| `interior_wide` | `wide interior view` |
+| `interior_detail` | `interior detail view` |
+| `custom` | `architectural view` (interior: `interior view`) |
+
+**Master role, exterior projects.** This text replaces the current one:
+
+```
+Image N is the approved master and the source of truth for both the building and its visible site. Preserve the building's massing, floor count, roof, facade, openings, materials, and all visible surroundings: neighbouring buildings and their positions, street and sidewalk width and layout, curbs, poles, overhead wires, vegetation, vehicles, background, lighting direction, time of day, weather, and shadow character. Change only the camera viewpoint and the portions naturally revealed by that viewpoint. Do not redesign, remove, merge, relocate, or replace visible site elements.
+```
+
+**Master role, interior projects.** Keep the current text and append: `Keep the same room, window positions, view outside and lighting character.`
+
+**Plan modes.** These apply only when a master is attached. Each mode adds lines to the preservation section; some also change the camera section and the negatives.
+
+- **`oblique_street`**
+  - The camera section ignores the stored composition and side wording. It uses the viewpoint `<front-left|front-right> oblique street view from eye level` and the composition `front facade dominant, seen at an angle along the street; the <side> side wall stays hidden behind the attached neighbour`.
+  - Preservation adds:
+
+    ```
+    The building is attached to neighbouring buildings on <both sides|the <side> side>. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.
+    ```
+
+  - Negatives add `corner plot, street intersection, exposed side wall, side alley, side yard, detached building, side windows on party walls`.
+- **`aerial_block`**
+  - Preservation adds:
+
+    ```
+    Keep the same continuous mid-block street and neighbourhood shown in Image N. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image N; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.
+    ```
+
+  - In the camera composition, `plot` is replaced by `same street block and surrounding rooftops`.
+  - Negatives add `new street intersection, corner lot, detached neighbours, merged neighbour buildings, vacant plot`.
+- **`corner_side`.** Preservation adds `This is a corner plot: a side street runs along the <side> side; reveal that side facade consistently with Image N.`
+- **`unknown_side`.** Preservation adds `Do not invent a corner plot, side street or new neighbour arrangement; reveal the <side> side only as a plain continuation consistent with Image N.`
+
+Contextual negatives are deduped and placed after the pack and DNA negatives.
+
+**Style phrases** (`packages/domain/src/prompt/stylePhrases.ts`)
+- `architecturalStyle` is matched against the table case- and diacritics-insensitively.
+- A style that does not match is used as written.
+
+| Style | Phrase |
+|---|---|
+| Modern tropical | Contemporary tropical residential architecture: clean rectilinear massing, deep sun-shading overhangs, operable screens, restrained tropical planting |
+| Tropical minimalist | Tropical minimalist architecture: simple geometric volumes, minimal trim, shaded glazing, warm natural timber accents; no resort-style ornament |
+| Bali style | Balinese tropical material palette with carved timber accents and lush planting, keeping the reference massing and openings |
+| Indochine | Indochine-inspired detailing: restrained dark timber screens, patterned cement tiles, fine brass accents; no added arches or colonial facade elements |
+| Neo-classical, Neo classic, Tân cổ điển | Contemporary neoclassical facade with balanced symmetry, shallow pilasters and restrained mouldings |
+| Minimalist | Minimalist architecture: undecorated planes, crisp junctions, few materials, no applied ornament |
+| Contemporary farmhouse | Contemporary farmhouse: simple pitched roof, board-and-batten accents, muted natural finishes |
+| Modern | Modern architecture: clean lines, flat planes, large glazing, restrained material palette |
+| Contemporary | Contemporary architecture: refined proportions, restrained contrast, high-quality facade finishes |
+| Industrial modern | Industrial modern: exposed steel frame, standing-seam metal cladding, large factory-style glazing |
+| Japandi | Japandi: calm minimal forms, natural timber, soft neutral tones, fine craftsmanship |
+| Scandinavian | Scandinavian: pale timber, white walls, simple functional forms, soft daylight |
+| Mediterranean | Mediterranean: warm lime plaster, natural stone, terracotta roof tiles; do not add arches unless present in the reference |
+
+**Interior catalog `prompt` strings** are revised the same way.
+- **Styles:**
+  - scandinavian: `Scandinavian interior: pale oak, warm white walls, simple functional furniture, soft natural daylight, restrained black accents`
+  - wabi_sabi: `Wabi-Sabi interior: muted earth tones, hand-trowelled plaster with subtle irregularity, natural stone, aged timber; refined and maintained, not damaged`
+  - indochine: `Indochine interior: dark stained timber screens, patterned cement tiles, woven cane, restrained brass details; no generic Asian ornament`
+  - mediterranean: `Mediterranean interior: warm lime plaster, natural stone, timber beams, handcrafted ceramics; do not add arches unless present in the room geometry`
+  - The other 11 styles are reviewed for vague words.
+- **Materials:** make them specific, for example:
+  - wall `paint`: `smooth matte warm-white painted walls`
+  - countertop `marble`: `honed white marble countertop with fine, sparse gray veining`
+  - metal `stainless_steel`: `brushed stainless-steel hardware, low reflectivity`
+  - Review every material id the same way.
+
+### 19.4 Packs
+
+- **townhouse/default, townhouse/narrow_lot, urban_villa/default**
+  - `front_left_corner` and `front_right_corner` keep their ids and labels, with azimuth ±25.
+  - Their composition becomes `oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours`.
+  - `street_level` gets `anchorRecommended: true`.
+  - narrow_lot `street_level` drops "steep" and becomes a moderate oblique.
+  - The two townhouse packs add `defaults.context.siteTopology { left: "attached", right: "attached" }`. Urban villa does not: it is partially attached, so it is inferred or unknown.
+  - Any aerial composition says `same street block and surrounding rooftops`.
+- **custom, prefab_modular, single_storey_house**
+  - The aerial composition is `roof, site and immediate surroundings consistent with the master`.
+  - `front` gets `anchorRecommended: true` where present.
+  - Rear presets add `only where the context describes it`.
+- **villa packs.** Only the rear composition wording changes, the same way.
+- **interior packs**
+  - `entrance_wide` uses 20 mm and `opposite_corner` uses 22 mm.
+  - The `tv_wall` composition becomes "feature wall fully visible", with no sofa in the foreground.
+- Bump the `packVersion` minor version of every changed pack.
+
+### 19.5 UI
+
+- **Bối cảnh step:** a "Vị trí lô đất" card.
+  - Trái and Phải each offer Liền kề / Trống / Chưa rõ.
+  - Lô góc is a checkbox with a side select.
+  - Inferred values show "(tự nhận từ mô tả)" until the user sets them explicitly.
+- **Camera step and anchor batch dialog:** each camera gets a chip from `cameraSitePlan`.
+
+| Mode | Chip |
+|---|---|
+| `oblique_street` | "Nhìn chéo dọc phố — không lộ hông (liền kề)" |
+| `aerial_block` | "Giữ nguyên dãy phố" |
+| `corner_side` | "Lô góc — hiện mặt hông <bên>" |
+| `unknown_side` | Warning "Góc này lộ hông <bên> chưa xác định", with buttons [Liền kề] and [Lô góc]. Each button writes `siteTopology` and autosaves. |
+
+The batch dialog lists unresolved `unknown_side` cameras above the spend confirmation. The list is not blocking.
