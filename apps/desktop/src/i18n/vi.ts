@@ -277,6 +277,7 @@ export const vi: Dict = {
       "Một số thay đổi DNA thiết kế không hợp lệ hoặc chưa lưu được. Vẫn đóng và bỏ các thay đổi này?",
     closeUnsavedTitle: "Thay đổi chưa lưu",
     fixHighlighted: "Sửa các trường được đánh dấu — giá trị không hợp lệ sẽ không được lưu.",
+    jobAlreadyEnded: "Job này đã kết thúc trước khi kịp hủy — đã cập nhật trạng thái mới nhất.",
     dnaNotSaved: "DNA thiết kế còn thay đổi chưa lưu hoặc không hợp lệ. Sửa xong rồi hãy tạo ảnh.",
     referenceTwice: "Một ảnh tham chiếu bị chọn hai lần.",
     referenceGone:
@@ -920,6 +921,11 @@ export const vi: Dict = {
     tooLong: "Prompt bổ sung dài quá {max} ký tự.",
   },
 
+  masterCheck: {
+    floors: "{n} tầng",
+    text: "DNA đang ghi: {facts}. Nếu ảnh Master khác (số tầng, vật liệu), sửa DNA cho khớp trước khi tạo Anchor — ảnh Master được ưu tiên, nhưng chữ lệch vẫn làm AI vẽ sai.",
+    edit: "Sửa DNA › Kiến trúc",
+  },
   result: {
     retryIn: "thử lại sau {time}",
     retryingNow: "đang thử lại",

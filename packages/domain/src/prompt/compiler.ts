@@ -14,7 +14,7 @@ import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 
-export const COMPILER_VERSION = "pc-1.2.0";
+export const COMPILER_VERSION = "pc-1.2.1";
 
 export type PromptReference = {
   assetId: string;
@@ -63,7 +63,7 @@ export const REFERENCE_ROLE_ORDER: readonly AssetRole[] = [
 
 const ROLE_INSTRUCTIONS: Record<AssetRole, string> = {
   master_architecture:
-    "is the MASTER architecture image: treat it as the authoritative design. Match its building massing, proportions, floor count, roof form, facade composition and window layout exactly.",
+    "is the MASTER architecture image: treat it as the authoritative design. Match its building massing, proportions, floor count, roof form, facade composition, window layout and visible materials exactly. Where the text description differs from this image, follow this image.",
   architecture_reference:
     "is an architecture reference: borrow architectural language and detailing only; do not copy its massing over the master design.",
   material_reference:
@@ -404,9 +404,17 @@ function preservationSection(
     );
   }
   const b = dna.building;
-  if (b.floors !== undefined)
-    lines.push(`Keep exactly ${b.floors} ${b.floors === 1 ? "floor" : "floors"}.`);
-  if (b.materials.length) lines.push("Do not substitute the specified materials.");
+  // With a master, the image is the authority: a DNA floor count or material list that
+  // disagrees with it must not override it (the model tends to follow hard text rules).
+  if (masterIndex >= 0) {
+    const master = `Image ${masterIndex + 1} (master)`;
+    if (b.floors !== undefined) lines.push(`Keep the floor count shown in ${master}.`);
+    if (b.materials.length) lines.push(`Keep the facade materials visible in ${master}.`);
+  } else {
+    if (b.floors !== undefined)
+      lines.push(`Keep exactly ${b.floors} ${b.floors === 1 ? "floor" : "floors"}.`);
+    if (b.materials.length) lines.push("Do not substitute the specified materials.");
+  }
   if (dna.locks.building)
     lines.push("Building DNA is LOCKED: no changes to the building design are permitted.");
   if (dna.locks.context)

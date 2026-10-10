@@ -281,6 +281,7 @@ export const en = {
       "Some Design DNA changes are invalid or could not be saved. Close anyway and discard them?",
     closeUnsavedTitle: "Unsaved changes",
     fixHighlighted: "Fix the highlighted fields — invalid values are not saved.",
+    jobAlreadyEnded: "This job finished before it could be cancelled — showing its latest state.",
     dnaNotSaved: "Design DNA has unsaved or invalid changes. Fix them before generating.",
     referenceTwice: "A reference is listed twice.",
     referenceGone: "A selected reference image no longer exists. Review the references.",
@@ -915,6 +916,11 @@ export const en = {
     tooLong: "The extra prompt is longer than {max} characters.",
   },
 
+  masterCheck: {
+    floors: "{n} floor(s)",
+    text: "The DNA says: {facts}. If the master image differs (floors, materials), update the DNA to match before generating anchors — the master takes priority, but conflicting text still pulls the model off.",
+    edit: "Edit DNA › Building",
+  },
   result: {
     retryIn: "retry in {time}",
     retryingNow: "retrying now",

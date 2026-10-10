@@ -9,6 +9,7 @@ import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { t as tr, useT } from "../../i18n";
 import { OutputThumbs } from "./OutputThumbs";
 import { GenerationStatusBadge } from "./GenerationStatusBadge";
+import { MasterDnaCheck } from "./MasterDnaCheck";
 import { formatDuration, isActiveGeneration } from "./labels";
 import { isMasterApproved } from "../camera/labels";
 
@@ -250,6 +251,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               <RefreshCw size={13} /> {t("result.again")}
             </button>
           </div>
+          {(awaitingApproval || (!isMaster && !project.activeMasterAssetId)) && <MasterDnaCheck />}
         </>
       ) : (
         <>
