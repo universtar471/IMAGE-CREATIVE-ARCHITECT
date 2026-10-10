@@ -123,6 +123,23 @@ describe("prompt compiler", () => {
     expect(bundle.preservationInstructions).toMatch(/LOCKED/);
   });
 
+  it("with a master, floor count and materials follow the master image, not the DNA text", () => {
+    const i = input("villa");
+    i.dna.building.floors = 2;
+    i.dna.building.materials = [{ zone: "walls", description: "white render" }];
+    i.references = [{ assetId: "M", role: "master_architecture" }];
+    const bundle = compilePrompt(i);
+    expect(bundle.preservationInstructions).not.toMatch(/Keep exactly 2 floors/);
+    expect(bundle.preservationInstructions).not.toMatch(/Do not substitute/);
+    expect(bundle.preservationInstructions).toMatch(
+      /Keep the floor count shown in Image 1 \(master\)/,
+    );
+    expect(bundle.preservationInstructions).toMatch(
+      /Keep the facade materials visible in Image 1 \(master\)/,
+    );
+    expect(bundle.referenceInstructions).toMatch(/differs from this image, follow this image/);
+  });
+
   it("de-duplicates negative constraints case-insensitively", () => {
     const i = input("villa");
     i.dna.context.negativeConstraints = ["Low Resolution", "snow"];

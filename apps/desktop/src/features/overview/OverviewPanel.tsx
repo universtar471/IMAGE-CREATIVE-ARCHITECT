@@ -15,6 +15,7 @@ import { NumberField, SelectField, TextField } from "../../components/panels/fie
 import { call } from "../../lib/bridge";
 import { knowledge } from "../../lib/knowledge";
 import { formatDateTime } from "../../lib/format";
+import { MasterDnaCheck } from "../generate/MasterDnaCheck";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { packLabel } from "../../i18n/knowledge";
@@ -122,6 +123,7 @@ export function OverviewPanel() {
                 <ShieldCheck size={14} /> {t("overview.approve")}
               </button>
             )}
+            <MasterDnaCheck />
           </>
         ) : (
           <>

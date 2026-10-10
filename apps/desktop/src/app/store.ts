@@ -787,6 +787,17 @@ export const useStudio = create<State>((set, get) => {
       try {
         get().applyJobEvent(await call("job_cancel", { jobId }));
       } catch (err) {
+        // The job ended before the cancel arrived (or the UI missed its events): show the
+        // real state instead of an error about a job the user still sees as running.
+        if (toBridgeError(err).code === "INVALID_STATE") {
+          await Promise.all([
+            get().refreshJobs(),
+            get().refreshGenerations(),
+            get().refreshBatches(),
+          ]);
+          get().notify("info", t("store.jobAlreadyEnded"));
+          return;
+        }
         get().notifyError(err);
       }
     },

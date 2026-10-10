@@ -282,6 +282,7 @@ export const en = {
       "Some Design DNA changes are invalid or could not be saved. Close anyway and discard them?",
     closeUnsavedTitle: "Unsaved changes",
     fixHighlighted: "Fix the highlighted fields — invalid values are not saved.",
+    jobAlreadyEnded: "This job finished before it could be cancelled — showing its latest state.",
     dnaNotSaved: "Design DNA has unsaved or invalid changes. Fix them before generating.",
     referenceTwice: "A reference is listed twice.",
     referenceGone: "A selected reference image no longer exists. Review the references.",
@@ -357,6 +358,11 @@ export const en = {
     needsReview: "An earlier step changed — review and confirm again.",
     generateLabel: "Image workflow",
     generationBlocked: "Finish workflow step '{step}' before generating.",
+    blockedNoMaster:
+      "No Master image yet — pick the Hero purpose, generate, then press 'Use as master' under Latest result.",
+    blockedMasterPending:
+      "The Master image is not approved — press 'Approve master' under Latest result or in Overview.",
+    goApproveMaster: "Open Overview to approve the Master",
     overviewTitle: "Guided workflow",
     open: "Open",
     reviewValues: "Review the saved values for this step.",
@@ -755,7 +761,14 @@ export const en = {
     purpose: "Purpose",
     heroHint: "Hero: the main presentation image, anchored on the master.",
     variationHint: "Variation: an alternative take for exploration.",
-    variationNoMaster: "Variation: no master yet — set one in References for a hero image.",
+    masterPinned:
+      "Variations always send the master as image 1 to keep the same building; it cannot be unticked.",
+    reasonVariationNeedsRefs:
+      "Variations need a model that accepts reference images to keep the master — {model} does not. Pick another model.",
+    variationNoMaster:
+      "Variation: needs an approved master — generate a hero, press 'Use as master', then approve it.",
+    heroNoMaster:
+      "Hero: the main presentation image. No master yet — the first good hero becomes the master.",
     aspectRatio: "Aspect ratio",
     imageSize: "Image size",
     imagesPerRun: "Images per run",
@@ -963,6 +976,11 @@ export const en = {
     tooLong: "The extra prompt is longer than {max} characters.",
   },
 
+  masterCheck: {
+    floors: "{n} floor(s)",
+    text: "The DNA says: {facts}. If the master image differs (floors, materials), update the DNA to match before generating anchors — the master takes priority, but conflicting text still pulls the model off.",
+    edit: "Edit DNA › Building",
+  },
   result: {
     retryIn: "retry in {time}",
     retryingNow: "retrying now",
@@ -974,6 +992,8 @@ export const en = {
     current: "Current generation",
     lastAttempt: "Last attempt:",
     nowMaster: "Generated image is now the master architecture image.",
+    nowMasterApproved: "Generated image is now the approved master architecture image.",
+    masterApproved: "Master approved — anchors, variations and post-production are unlocked.",
     last: "Last result",
     outputsRemoved: "The outputs of this generation were removed.",
     useAsMaster: "Use as master",

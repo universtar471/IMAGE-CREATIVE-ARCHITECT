@@ -28,6 +28,11 @@ export type GenerateForm = {
   referenceIds: string[];
   /** Every asset that could be a reference, in the same order; missing files included (disabled). */
   candidates: AssetDTO[];
+  /**
+   * References the user cannot untick. A variation always carries the master as image 1:
+   * without it the model only sees text and draws a different building.
+   */
+  pinnedIds: string[];
 };
 
 const FALLBACK_PARAMS: GenerationParams = {
@@ -53,11 +58,19 @@ export function resolveGenerateForm(
     ? (provider.models.find((m) => m.id === draft.modelId) ?? provider.models[0] ?? null)
     : null;
   const ready = assets.filter((a) => a.status === "ready");
-  const referenceIds = draft.referenceAssetIds
+  // Variations need an approved master (ADR-022), so a project without one starts on Hero:
+  // the first good hero image becomes the master.
+  const purpose = draft.purpose ?? "hero";
+  const chosen = draft.referenceAssetIds
     ? orderReferenceIds(draft.referenceAssetIds, ready)
     : model
       ? defaultReferenceIds(assets, model)
       : [];
+  const master = ready.find((a) => a.id === masterAssetId) ?? null;
+  const pinnedIds = purpose === "variation" && master && model?.imageToImage ? [master.id] : [];
+  const referenceIds = pinnedIds.length
+    ? withPinned(chosen, pinnedIds, ready, model!.maxReferenceImages)
+    : chosen;
   // Default aspect follows the master, else the first selected reference.
   const anchor =
     assets.find((a) => a.id === masterAssetId) ??
@@ -71,11 +84,25 @@ export function resolveGenerateForm(
   return {
     provider,
     model,
-    purpose: draft.purpose ?? (masterAssetId ? "hero" : "variation"),
+    purpose,
     params,
     referenceIds,
     candidates: orderReferences(assets),
+    pinnedIds,
   };
+}
+
+/** `chosen` plus `pinned`, in reference order, dropping unpinned ones past the model cap. */
+function withPinned(
+  chosen: readonly string[],
+  pinned: readonly string[],
+  ready: readonly AssetDTO[],
+  cap: number,
+): string[] {
+  const ordered = orderReferenceIds([...pinned, ...chosen], ready);
+  const room = Math.max(0, cap - pinned.length);
+  const rest = ordered.filter((id) => !pinned.includes(id)).slice(0, room);
+  return ordered.filter((id) => pinned.includes(id) || rest.includes(id));
 }
 
 export type GenerateContext = {
@@ -94,6 +121,8 @@ export function generateDisabledReason(form: GenerateForm, ctx: GenerateContext)
   if (!form.provider.configured)
     return t("generate.reasonNeedsKey", { provider: form.provider.label });
   if (ctx.dnaInvalid) return t("generate.reasonDnaInvalid");
+  if (form.purpose === "variation" && !form.model.imageToImage)
+    return t("generate.reasonVariationNeedsRefs", { model: form.model.label });
   const issues = validateGenerationRequest(
     // The prompt is compiled at submit time from persisted DNA; it is never empty.
     { prompt: { positivePrompt: "-" }, referenceAssetIds: form.referenceIds, params: form.params },

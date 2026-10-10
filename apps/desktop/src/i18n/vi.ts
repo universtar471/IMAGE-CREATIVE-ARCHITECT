@@ -278,6 +278,7 @@ export const vi: Dict = {
       "Một số thay đổi DNA thiết kế không hợp lệ hoặc chưa lưu được. Vẫn đóng và bỏ các thay đổi này?",
     closeUnsavedTitle: "Thay đổi chưa lưu",
     fixHighlighted: "Sửa các trường được đánh dấu — giá trị không hợp lệ sẽ không được lưu.",
+    jobAlreadyEnded: "Job này đã kết thúc trước khi kịp hủy — đã cập nhật trạng thái mới nhất.",
     dnaNotSaved: "DNA thiết kế còn thay đổi chưa lưu hoặc không hợp lệ. Sửa xong rồi hãy tạo ảnh.",
     referenceTwice: "Một ảnh tham chiếu bị chọn hai lần.",
     referenceGone:
@@ -357,6 +358,11 @@ export const vi: Dict = {
     needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
     generateLabel: "Quy trình tạo ảnh",
     generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    blockedNoMaster:
+      "Chưa có ảnh Master — chọn mục đích Hero, tạo ảnh rồi bấm 'Dùng làm Master' dưới Kết quả gần nhất.",
+    blockedMasterPending:
+      "Ảnh Master chưa được duyệt — bấm 'Duyệt Master' dưới Kết quả gần nhất hoặc ở Tổng quan.",
+    goApproveMaster: "Mở Tổng quan để duyệt Master",
     overviewTitle: "Quy trình theo bước",
     open: "Mở",
     reviewValues: "Kiểm tra các giá trị đã lưu của bước này.",
@@ -759,7 +765,14 @@ export const vi: Dict = {
     purpose: "Mục đích",
     heroHint: "Hero: ảnh trình bày chính, bám theo ảnh Master.",
     variationHint: "Biến thể: một phương án khác để khám phá.",
-    variationNoMaster: "Biến thể: chưa có Master — đặt Master trong Tham chiếu để tạo ảnh Hero.",
+    masterPinned:
+      "Biến thể luôn gửi kèm ảnh Master làm ảnh 1 để giữ đúng công trình; không bỏ chọn được.",
+    reasonVariationNeedsRefs:
+      "Biến thể cần model nhận ảnh tham chiếu để giữ ảnh Master — {model} không nhận ảnh. Chọn model khác.",
+    variationNoMaster:
+      "Biến thể: cần ảnh Master đã duyệt — tạo ảnh Hero, bấm 'Dùng làm Master' rồi duyệt.",
+    heroNoMaster:
+      "Hero: ảnh trình bày chính. Chưa có Master — ảnh Hero ưng ý đầu tiên sẽ làm Master.",
     aspectRatio: "Tỉ lệ khung",
     imageSize: "Kích thước ảnh",
     imagesPerRun: "Số ảnh mỗi lần",
@@ -968,6 +981,11 @@ export const vi: Dict = {
     tooLong: "Prompt bổ sung dài quá {max} ký tự.",
   },
 
+  masterCheck: {
+    floors: "{n} tầng",
+    text: "DNA đang ghi: {facts}. Nếu ảnh Master khác (số tầng, vật liệu), sửa DNA cho khớp trước khi tạo Anchor — ảnh Master được ưu tiên, nhưng chữ lệch vẫn làm AI vẽ sai.",
+    edit: "Sửa DNA › Kiến trúc",
+  },
   result: {
     retryIn: "thử lại sau {time}",
     retryingNow: "đang thử lại",
@@ -979,6 +997,8 @@ export const vi: Dict = {
     current: "Đang tạo ảnh",
     lastAttempt: "Lần thử gần nhất:",
     nowMaster: "Ảnh vừa tạo giờ là ảnh kiến trúc Master.",
+    nowMasterApproved: "Ảnh vừa tạo đã thành ảnh kiến trúc Master và được duyệt.",
+    masterApproved: "Đã duyệt Master — Anchor, biến thể và Hậu kỳ đã mở.",
     last: "Kết quả gần nhất",
     outputsRemoved: "Các ảnh đầu ra của lần tạo này đã bị gỡ.",
     useAsMaster: "Dùng làm Master",

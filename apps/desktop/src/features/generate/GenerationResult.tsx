@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Ban, Images, Loader2, RefreshCw, RotateCcw, Star } from "lucide-react";
+import { Ban, Images, Loader2, RefreshCw, RotateCcw, ShieldCheck, Star } from "lucide-react";
 import type { GenerationDTO, JobDTO } from "@arch/domain";
 import { attempt, selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
@@ -9,7 +9,9 @@ import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { t as tr, useT } from "../../i18n";
 import { OutputThumbs } from "./OutputThumbs";
 import { GenerationStatusBadge } from "./GenerationStatusBadge";
+import { MasterDnaCheck } from "./MasterDnaCheck";
 import { formatDuration, isActiveGeneration } from "./labels";
+import { isMasterApproved } from "../camera/labels";
 
 /** Current time, re-rendered every `intervalMs`. The clock lives in state, updated by a timer. */
 export function useNow(intervalMs = 500): number {
@@ -131,6 +133,8 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const selectAsset = useStudio((s) => s.selectAsset);
   const setModule = useStudio((s) => s.setModule);
   const adoptAssets = useStudio((s) => s.adoptAssets);
+  const adoptProject = useStudio((s) => s.adoptProject);
+  const refreshWorkflow = useStudio((s) => s.refreshWorkflow);
   const notify = useStudio((s) => s.notify);
   const submit = useStudio((s) => s.submitGeneration);
   const retry = useStudio((s) => s.retryGeneration);
@@ -144,27 +148,48 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const currentAsset = assets.find((a) => a.id === current) ?? null;
   const isMaster = current !== null && project.activeMasterAssetId === current;
   const replacesMaster = !!project.activeMasterAssetId && !isMaster;
+  const awaitingApproval = isMaster && !isMasterApproved(project.status);
 
+  const approveMaster = async (): Promise<boolean> => {
+    const p = await attempt(() =>
+      call("project_approve_master", { projectId: project.id, approved: true }),
+    );
+    if (!p) return false;
+    adoptProject(p);
+    void refreshWorkflow();
+    return true;
+  };
+
+  // "Use as master" sets the master and approves it in one step: the user already picked this
+  // image deliberately, and a separate approval in Overview was easy to miss.
   const promoteToMaster = async () => {
     setConfirmMaster(false);
     if (!current) return;
     const projectId = project.id;
     const list = await attempt(() => call("asset_set_master", { projectId, assetId: current }));
-    if (list) {
-      await adoptAssets(projectId, list);
-      notify("success", t("result.nowMaster"));
-    }
+    if (!list) return;
+    await adoptAssets(projectId, list);
+    notify(
+      "success",
+      (await approveMaster()) ? t("result.nowMasterApproved") : t("result.nowMaster"),
+    );
   };
 
-  // Generate again: same settings, prompt recompiled from the current DNA.
+  // Generate again: same settings, prompt recompiled from the current DNA. A variation always
+  // carries the current master as image 1, even if the original run was sent without it.
   const again = () => {
     reuse(g);
+    const masterId = project.activeMasterAssetId;
+    const refs =
+      g.purpose === "variation" && masterId && !g.referenceAssetIds.includes(masterId)
+        ? [masterId, ...g.referenceAssetIds]
+        : g.referenceAssetIds;
     void submit({
       projectId: g.projectId,
       providerId: g.providerId,
       modelId: g.modelId,
       purpose: g.purpose,
-      referenceAssetIds: g.referenceAssetIds,
+      referenceAssetIds: refs,
       params: g.params,
       cameraId: g.cameraId,
     });
@@ -186,13 +211,27 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
             {currentAsset?.originalName ?? ""}
           </span>
           <div className="btn-row">
-            <button
-              className="btn btn-sm btn-primary"
-              disabled={!currentAsset || isMaster || readOnly}
-              onClick={() => (replacesMaster ? setConfirmMaster(true) : void promoteToMaster())}
-            >
-              <Star size={13} /> {isMaster ? t("common.master") : t("result.useAsMaster")}
-            </button>
+            {awaitingApproval ? (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={readOnly}
+                onClick={() =>
+                  void approveMaster().then(
+                    (ok) => ok && notify("success", t("result.masterApproved")),
+                  )
+                }
+              >
+                <ShieldCheck size={13} /> {t("overview.approve")}
+              </button>
+            ) : (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={!currentAsset || isMaster || readOnly}
+                onClick={() => (replacesMaster ? setConfirmMaster(true) : void promoteToMaster())}
+              >
+                <Star size={13} /> {isMaster ? t("common.master") : t("result.useAsMaster")}
+              </button>
+            )}
             <button
               className="btn btn-sm"
               disabled={!currentAsset}
@@ -212,6 +251,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               <RefreshCw size={13} /> {t("result.again")}
             </button>
           </div>
+          {(awaitingApproval || (!isMaster && !project.activeMasterAssetId)) && <MasterDnaCheck />}
         </>
       ) : (
         <>
