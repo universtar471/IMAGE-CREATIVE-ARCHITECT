@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { createInitialDNA, ProjectDNASchema } from "@arch/domain";
+import {
+  createInitialDNA,
+  ProjectDNASchema,
+  proposeInteriorFromLegacy as domainPropose,
+} from "@arch/domain";
 import { compileFromBundle, createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
 import { NewProjectWizard } from "../src/features/projects/NewProjectWizard";
@@ -123,6 +127,21 @@ describe("interior project UI", () => {
     expect(prompt).toContain("Furnishing:");
   });
 
+  it("does not let hidden exterior errors block the interior wizard step", () => {
+    render(<NewProjectWizard onClose={() => undefined} onCreated={() => undefined} />);
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "Interior with hidden errors" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.change(screen.getByLabelText("Floors"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect((screen.getByRole("button", { name: /Next/ }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
   it("makes the mock backend reject an invalid interior room and surface id", async () => {
     const project = await openInterior();
     const invalid = structuredClone(db.dna[project.id]!);
@@ -190,6 +209,29 @@ describe("interior project UI", () => {
     });
   });
 
+  it("confirms style defaults when a palette or preset was explicitly changed", async () => {
+    await openInterior();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<BuildingDnaPanel />);
+    fireEvent.change(screen.getByLabelText("Palette"), { target: { value: "blue_coastal" } });
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
+    expect(confirm).toHaveBeenCalledWith("Apply the style's material set?");
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
+      styleId: "japandi",
+      paletteId: "blue_coastal",
+    });
+    confirm.mockReturnValue(false);
+    fireEvent.change(screen.getByLabelText("Material preset"), {
+      target: { value: "luxury_stone" },
+    });
+    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "tropical" } });
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior?.styleId).toBe(
+      "japandi",
+    );
+    confirm.mockRestore();
+  });
+
   it("renders interior variants for context, lighting and camera", async () => {
     await openInterior();
     render(<ContextDnaPanel />);
@@ -231,6 +273,15 @@ describe("interior project UI", () => {
     expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
       buildingUseId: "office",
     });
+  });
+
+  it("uses the domain legacy matcher for all Indochine spelling variants", () => {
+    expect(proposeInteriorFromLegacy).toBe(domainPropose);
+    for (const value of ["Đông Dương", "dong duong", "DONG DUONG"]) {
+      const dna = createInitialDNA({ projectType: "interior", pack: null });
+      dna.building.architecturalStyle = value;
+      expect(proposeInteriorFromLegacy(dna).proposal.styleId).toBe("indochine");
+    }
   });
 
   it("keeps the exterior architecture panel unchanged", async () => {

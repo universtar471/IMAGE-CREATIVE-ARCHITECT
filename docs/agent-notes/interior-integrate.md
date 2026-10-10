@@ -34,3 +34,23 @@ Khong con viec trong pham vi task.
 - PowerShell chay npm qua `npm.cmd` va npx qua `npx.cmd`.
 - `docs/agent-tasks/*` khong bi sua.
 
+## Review follow-up (2026-10-10)
+
+- Wizard step 1 now validates interior building use, room cascade, and style only; exterior
+  architecture errors remain unchanged for non-interior projects.
+- Style changes now use the existing confirmation before overwriting an explicitly changed
+  palette or material preset. `applyStyleDefaults` semantics are unchanged.
+- Catalog label corrections: floor/wall `microcement` changed from `Vi xi măng` to `Microcement`;
+  metal `bronze` changed from `Đồng cổ` to `Đồng giả cổ`; `brushed_brass` is `Đồng thau xước`.
+- Added the Indochine folding regression for `Đông Dương`, `dong duong`, and `DONG DUONG`, with
+  the desktop module asserted to re-export the domain matcher.
+- Replaced the same-compiler legacy check with `test-vectors/legacy-compiler-pc-1.3.0.json`,
+  generated from `main` for all 13 project types, including interior DNA without `interior`.
+
+## Review follow-up tests
+
+- `npm.cmd run verify`: 41 Vitest files, 495 TypeScript tests; Rust 267 passed, 6 ignored live-smoke tests.
+- `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`: PASS.
+- `cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings`: PASS.
+- `npx.cmd prettier --check .`: PASS.
+

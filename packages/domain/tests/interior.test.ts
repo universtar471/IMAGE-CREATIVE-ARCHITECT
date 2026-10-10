@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BUILDING_USES,
@@ -146,6 +147,29 @@ describe("Interior DNA helpers and schema", () => {
       "building.materials.0",
       "building.materials.1",
     ]);
+  });
+
+  it("folds Đ consistently when matching the Indochine legacy style", () => {
+    for (const value of ["Đông Dương", "dong duong", "DONG DUONG"]) {
+      const dna = createInitialDNA({ projectType: "interior", pack: null });
+      dna.building.architecturalStyle = value;
+      expect(proposeInteriorFromLegacy(dna).proposal.styleId).toBe("indochine");
+    }
+  });
+
+  it("uses architect-correct Vietnamese material labels", () => {
+    expect(INTERIOR_CATALOG.surfaces.floor.find(({ id }) => id === "microcement")?.vi).toBe(
+      "Microcement",
+    );
+    expect(INTERIOR_CATALOG.surfaces.wall.find(({ id }) => id === "microcement")?.vi).toBe(
+      "Microcement",
+    );
+    expect(INTERIOR_CATALOG.surfaces.metal.find(({ id }) => id === "brushed_brass")?.vi).toBe(
+      "Đồng thau xước",
+    );
+    expect(INTERIOR_CATALOG.surfaces.metal.find(({ id }) => id === "bronze")?.vi).toBe(
+      "Đồng giả cổ",
+    );
   });
 
   it("defaults arrays and reports room and per-slot refinements at their fields", () => {
@@ -297,18 +321,27 @@ describe("Interior prompt compiler pc-1.4.0", () => {
     expect(bundle.positivePrompt).not.toContain("legacy red");
   });
 
-  it("leaves the legacy path unchanged when interior DNA is absent or out of scope", () => {
-    const legacy = compilerInput();
-    delete legacy.dna.interior;
-    const parsedLegacy = { ...legacy, dna: ProjectDNASchema.parse(legacy.dna) };
-    expect(compilePrompt(legacy)).toEqual(compilePrompt(parsedLegacy));
-
-    const nonInterior = {
-      ...legacy,
-      project: { ...legacy.project, projectType: "villa" as const },
-    };
-    const without = compilePrompt(nonInterior);
-    nonInterior.dna.interior = defaultInteriorDNA();
-    expect(compilePrompt(nonInterior)).toEqual(without);
+  it("keeps every legacy project-type output equal to the pc-1.3.0 golden bundles", () => {
+    const golden = JSON.parse(
+      readFileSync(
+        new URL("../test-vectors/legacy-compiler-pc-1.3.0.json", import.meta.url),
+        "utf8",
+      ),
+    ) as Record<string, ReturnType<typeof compilePrompt>>;
+    for (const [projectType, expected] of Object.entries(golden)) {
+      const pack = registry.resolve(projectType as Parameters<typeof registry.resolve>[0]).pack;
+      const dna = createInitialDNA({
+        projectType: projectType as Parameters<typeof createInitialDNA>[0]["projectType"],
+        pack,
+        starter: { contextPresetId: pack?.contextPresets[0]?.id },
+      });
+      const actual = compilePrompt({
+        project: { id: `PRJ_${projectType}`, name: "Golden", projectType: projectType as never },
+        dna: ProjectDNASchema.parse(dna),
+        references: [],
+        pack,
+      });
+      expect({ ...actual, compilerVersion: "pc-1.3.0" }).toEqual(expected);
+    }
   });
 });

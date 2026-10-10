@@ -19,6 +19,7 @@ import {
   presetSurfaces,
   proposeInteriorFromLegacy,
   roomsForUse,
+  styleDefaults,
   type FurnitureId,
   type InteriorDNA,
   type InteriorStyleId,
@@ -45,15 +46,22 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
   const patch = <K extends keyof InteriorDNA>(key: K, value: InteriorDNA[K]) =>
     replace({ ...interior, [key]: value });
   const changeStyle = (styleId: InteriorStyleId) => {
+    const currentDefaults = styleDefaults(interior.styleId);
     const currentPreset = interior.materialPresetId
       ? presetSurfaces(interior.materialPresetId)
       : undefined;
+    const paletteEdited = interior.paletteId !== currentDefaults.paletteId;
+    const presetEdited = interior.materialPresetId !== currentDefaults.materialPresetId;
     const surfacesEdited =
       !currentPreset ||
       (Object.keys(interior.surfaces) as SurfaceSlot[]).some(
         (slot) => interior.surfaces[slot].join("|") !== currentPreset[slot].join("|"),
       );
-    if (surfacesEdited && !window.confirm(t("interior.applyStyleMaterials"))) return;
+    if (
+      (surfacesEdited || paletteEdited || presetEdited) &&
+      !window.confirm(t("interior.applyStyleMaterials"))
+    )
+      return;
     replace(
       applyStyleDefaults(
         {

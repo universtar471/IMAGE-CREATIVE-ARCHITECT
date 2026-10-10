@@ -97,8 +97,18 @@ export function NewProjectWizard({
     siteDepthM: numberError(d.siteDepthM),
   };
   const nameError = d.name.trim() ? undefined : t("wizard.nameRequired");
+  const interiorStepValid =
+    BUILDING_USES.some(({ id }) => id === d.buildingUseId) &&
+    roomsForUse(d.buildingUseId).includes(d.roomId) &&
+    INTERIOR_STYLES.some(({ id }) => id === d.interiorStyleId);
   const stepValid =
-    step === 0 ? !nameError : step === 1 ? Object.values(archErrors).every((e) => !e) : true;
+    step === 0
+      ? !nameError
+      : step === 1
+        ? isInterior
+          ? interiorStepValid
+          : Object.values(archErrors).every((e) => !e)
+        : true;
 
   const starter: WizardStarter = useMemo(
     () => ({

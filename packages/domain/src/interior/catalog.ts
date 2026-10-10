@@ -181,7 +181,7 @@ export const FLOOR_MATERIALS = [
   },
   {
     id: "microcement",
-    vi: "Vi xi măng",
+    vi: "Microcement",
     en: "Microcement",
     prompt: "seamless microcement flooring",
     swatch: "#A7A39A",
@@ -220,7 +220,7 @@ export const WALL_MATERIALS = [
   },
   {
     id: "microcement",
-    vi: "Vi xi măng",
+    vi: "Microcement",
     en: "Microcement",
     prompt: "microcement walls",
     swatch: "#A7A39A",
@@ -419,7 +419,13 @@ export const METAL_FINISHES = [
     prompt: "brushed brass metal",
     swatch: "#B08D57",
   },
-  { id: "bronze", vi: "Đồng cổ", en: "Bronze", prompt: "aged bronze metal", swatch: "#7B5A3A" },
+  {
+    id: "bronze",
+    vi: "Đồng giả cổ",
+    en: "Bronze",
+    prompt: "aged bronze metal",
+    swatch: "#7B5A3A",
+  },
   {
     id: "stainless_steel",
     vi: "Thép không gỉ",
