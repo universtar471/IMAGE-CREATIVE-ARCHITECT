@@ -352,6 +352,11 @@ export const en = {
     needsReview: "An earlier step changed — review and confirm again.",
     generateLabel: "Image workflow",
     generationBlocked: "Finish workflow step '{step}' before generating.",
+    blockedNoMaster:
+      "No Master image yet — pick the Hero purpose, generate, then press 'Use as master' under Latest result.",
+    blockedMasterPending:
+      "The Master image is not approved — press 'Approve master' under Latest result or in Overview.",
+    goApproveMaster: "Open Overview to approve the Master",
     overviewTitle: "Guided workflow",
     open: "Open",
     reviewValues: "Review the saved values for this step.",
@@ -750,7 +755,10 @@ export const en = {
     purpose: "Purpose",
     heroHint: "Hero: the main presentation image, anchored on the master.",
     variationHint: "Variation: an alternative take for exploration.",
-    variationNoMaster: "Variation: no master yet — set one in References for a hero image.",
+    variationNoMaster:
+      "Variation: needs an approved master — generate a hero, press 'Use as master', then approve it.",
+    heroNoMaster:
+      "Hero: the main presentation image. No master yet — the first good hero becomes the master.",
     aspectRatio: "Aspect ratio",
     imageSize: "Image size",
     imagesPerRun: "Images per run",
@@ -914,6 +922,8 @@ export const en = {
     current: "Current generation",
     lastAttempt: "Last attempt:",
     nowMaster: "Generated image is now the master architecture image.",
+    nowMasterApproved: "Generated image is now the approved master architecture image.",
+    masterApproved: "Master approved — anchors, variations and post-production are unlocked.",
     last: "Last result",
     outputsRemoved: "The outputs of this generation were removed.",
     useAsMaster: "Use as master",

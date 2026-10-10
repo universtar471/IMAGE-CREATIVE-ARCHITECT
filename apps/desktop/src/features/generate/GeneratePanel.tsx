@@ -34,6 +34,7 @@ import { GenerationResult } from "./GenerationResult";
 import { QualityField } from "./QualityField";
 import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
 import { isGenerationAllowed } from "../../lib/workflow";
+import { blockedReason } from "../workflow/blockedReason";
 import { BatchDialog } from "../camera/BatchDialog";
 import type { BatchMode } from "../camera/batch";
 import { isMasterApproved } from "../camera/labels";
@@ -95,7 +96,9 @@ export function GeneratePanel() {
     : { ok: true as const };
   const disabledReason =
     reason ??
-    (workflowGate.ok ? null : t("workflow.generationBlocked", { step: workflowGate.blockedBy }));
+    (workflowGate.ok
+      ? null
+      : blockedReason(t, workflowGate.blockedBy, !!project.activeMasterAssetId));
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
@@ -234,7 +237,7 @@ function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
       ? t("camera.reasonArchived")
       : gate.ok
         ? null
-        : t("workflow.generationBlocked", { step: gate.blockedBy });
+        : blockedReason(t, gate.blockedBy, !!ws.project.activeMasterAssetId);
   const anchorReason = reason(anchorGate);
   const renderReason = reason(renderGate);
   const anchorViewsCount = anchorViews(ws.draftDna).length;
@@ -439,7 +442,9 @@ function OutputSection({
         label={t("generate.purpose")}
         hint={
           form.purpose === "hero"
-            ? t("generate.heroHint")
+            ? hasMaster
+              ? t("generate.heroHint")
+              : t("generate.heroNoMaster")
             : hasMaster
               ? t("generate.variationHint")
               : t("generate.variationNoMaster")

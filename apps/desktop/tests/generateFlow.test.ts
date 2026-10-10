@@ -229,7 +229,8 @@ describe("Generate form derivation", () => {
     const configured = resolveGenerateForm(EMPTY_GENERATE_DRAFT, providers(true), assets, null);
     expect(configured.provider?.id).toBe("gemini");
     expect(configured.model?.id).toBe("gemini-nano-banana-2.1");
-    expect(configured.purpose).toBe("variation");
+    // Variations need an approved master, so a project without one starts on Hero.
+    expect(configured.purpose).toBe("hero");
     expect(configured.params).toMatchObject({ imageSize: "1K", seed: null });
   });
 

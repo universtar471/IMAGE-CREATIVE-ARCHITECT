@@ -71,7 +71,9 @@ export function resolveGenerateForm(
   return {
     provider,
     model,
-    purpose: draft.purpose ?? (masterAssetId ? "hero" : "variation"),
+    // Variations need an approved master (ADR-022), so a project without one starts on Hero:
+    // the first good hero image becomes the master.
+    purpose: draft.purpose ?? "hero",
     params,
     referenceIds,
     candidates: orderReferences(assets),

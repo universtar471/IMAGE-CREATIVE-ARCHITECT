@@ -352,6 +352,11 @@ export const vi: Dict = {
     needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
     generateLabel: "Quy trình tạo ảnh",
     generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    blockedNoMaster:
+      "Chưa có ảnh Master — chọn mục đích Hero, tạo ảnh rồi bấm 'Dùng làm Master' dưới Kết quả gần nhất.",
+    blockedMasterPending:
+      "Ảnh Master chưa được duyệt — bấm 'Duyệt Master' dưới Kết quả gần nhất hoặc ở Tổng quan.",
+    goApproveMaster: "Mở Tổng quan để duyệt Master",
     overviewTitle: "Quy trình theo bước",
     open: "Mở",
     reviewValues: "Kiểm tra các giá trị đã lưu của bước này.",
@@ -754,7 +759,10 @@ export const vi: Dict = {
     purpose: "Mục đích",
     heroHint: "Hero: ảnh trình bày chính, bám theo ảnh Master.",
     variationHint: "Biến thể: một phương án khác để khám phá.",
-    variationNoMaster: "Biến thể: chưa có Master — đặt Master trong Tham chiếu để tạo ảnh Hero.",
+    variationNoMaster:
+      "Biến thể: cần ảnh Master đã duyệt — tạo ảnh Hero, bấm 'Dùng làm Master' rồi duyệt.",
+    heroNoMaster:
+      "Hero: ảnh trình bày chính. Chưa có Master — ảnh Hero ưng ý đầu tiên sẽ làm Master.",
     aspectRatio: "Tỉ lệ khung",
     imageSize: "Kích thước ảnh",
     imagesPerRun: "Số ảnh mỗi lần",
@@ -919,6 +927,8 @@ export const vi: Dict = {
     current: "Đang tạo ảnh",
     lastAttempt: "Lần thử gần nhất:",
     nowMaster: "Ảnh vừa tạo giờ là ảnh kiến trúc Master.",
+    nowMasterApproved: "Ảnh vừa tạo đã thành ảnh kiến trúc Master và được duyệt.",
+    masterApproved: "Đã duyệt Master — Anchor, biến thể và Hậu kỳ đã mở.",
     last: "Kết quả gần nhất",
     outputsRemoved: "Các ảnh đầu ra của lần tạo này đã bị gỡ.",
     useAsMaster: "Dùng làm Master",
