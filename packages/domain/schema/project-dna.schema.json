@@ -839,6 +839,88 @@
       ],
       "additionalProperties": false
     },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^OBJ_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "wall",
+                  "roof",
+                  "window",
+                  "door",
+                  "floor",
+                  "landscape",
+                  "furniture",
+                  "sky",
+                  "other"
+                ]
+              },
+              "material": {
+                "type": "string",
+                "minLength": 1
+              },
+              "relations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "on",
+                        "next_to",
+                        "inside",
+                        "above",
+                        "below"
+                      ]
+                    },
+                    "targetId": {
+                      "type": "string",
+                      "pattern": "^OBJ_[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "targetId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "category",
+              "relations"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "objects"
+      ],
+      "additionalProperties": false
+    },
     "locks": {
       "default": {
         "building": false,

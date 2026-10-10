@@ -13,8 +13,9 @@ import type { KnowledgePack } from "../knowledge/pack";
 import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
+import { sceneObjectLines } from "../regions/scene";
 
-export const COMPILER_VERSION = "pc-1.2.0";
+export const COMPILER_VERSION = "pc-1.3.0";
 
 export type PromptReference = {
   assetId: string;
@@ -418,6 +419,7 @@ function preservationSection(
   if (dna.locks.weather)
     lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
   if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
+  lines.push(...sceneObjectLines(dna));
   return lines.join("\n");
 }
 
