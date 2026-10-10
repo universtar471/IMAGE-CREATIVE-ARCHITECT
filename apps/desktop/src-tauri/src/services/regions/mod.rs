@@ -75,8 +75,8 @@ fn validate_shape(shape: &RegionShape) -> AppResult<()> {
                 if s.points.is_empty() {
                     return Err(AppError::validation("Brush strokes require at least one point."));
                 }
-                if !s.radius.is_finite() || s.radius <= 0.0 {
-                    return Err(AppError::validation("Brush radius must be greater than zero."));
+                if !s.radius.is_finite() || s.radius <= 0.0 || s.radius > 1.0 {
+                    return Err(AppError::validation("Brush radius must be greater than zero and at most 1."));
                 }
                 for p in &s.points {
                     validate_number(p[0], "brush x")?;
@@ -105,7 +105,8 @@ fn dto(row: &rusqlite::Row<'_>) -> rusqlite::Result<RegionDto> {
 
 pub fn list(core: &AppCore, project_id: &str, asset_id: &str) -> AppResult<Vec<RegionDto>> {
     let conn = core.conn()?;
-    repositories::get_project(&conn, project_id)?;
+    let project = repositories::get_project(&conn, project_id)?;
+    ensure_not_archived(&project)?;
     if repositories::find_asset(&conn, asset_id)?.is_none_or(|a| a.project_id != project_id) {
         return Err(AppError::not_found("Asset", asset_id));
     }

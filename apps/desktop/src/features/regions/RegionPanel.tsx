@@ -120,7 +120,6 @@ export function RegionPanel() {
           id: newSceneObjectId(),
           name: "New object",
           category: "other",
-          material: "",
           relations: [],
         },
       ],
@@ -130,7 +129,16 @@ export function RegionPanel() {
   const updateObject = (id: string, patch: Partial<SceneObject>) =>
     updateScene({
       schemaVersion: 1,
-      objects: scene.objects.map((object) => (object.id === id ? { ...object, ...patch } : object)),
+      objects: scene.objects.map((object) => {
+        if (object.id !== id) return object;
+        const next = { ...object, ...patch };
+        if (typeof next.material === "string" && next.material.trim() === "") {
+          const withoutMaterial: SceneObject = { ...next };
+          delete withoutMaterial.material;
+          return withoutMaterial;
+        }
+        return next;
+      }),
     });
   const addRelation = (id: string) => {
     const target = scene.objects.find((object) => object.id !== id);
@@ -168,7 +176,7 @@ export function RegionPanel() {
         id: region.id,
         label: patch.label ?? region.label,
         kind: patch.kind ?? region.kind,
-        objectId: patch.objectId ?? region.objectId,
+        objectId: patch.objectId === undefined ? region.objectId : patch.objectId,
         shape: patch.shape ?? region.shape,
       },
     });

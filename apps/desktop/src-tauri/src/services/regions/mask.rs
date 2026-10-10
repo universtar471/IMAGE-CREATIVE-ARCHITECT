@@ -65,27 +65,26 @@ pub fn feather_mask(mask: &[u8], width: u32, height: u32, radius_px: u32) -> Vec
 }
 
 fn box_blur(input: &[u8], width: u32, height: u32, radius: u32) -> Vec<u8> {
-    let mut horizontal = vec![0; input.len()];
-    let size = radius * 2 + 1;
-    for y in 0..height {
-        for x in 0..width {
-            let mut sum = 0_u32;
-            for delta in -(radius as i64)..=radius as i64 {
-                let xx = (x as i64 + delta).clamp(0, width as i64 - 1) as u32;
-                sum += u32::from(input[(y * width + xx) as usize]);
-            }
-            horizontal[(y * width + x) as usize] = ((sum + size / 2) / size) as u8;
-        }
-    }
     let mut output = vec![0; input.len()];
     for y in 0..height {
         for x in 0..width {
             let mut sum = 0_u32;
+            let mut count = 0_u32;
             for delta in -(radius as i64)..=radius as i64 {
-                let yy = (y as i64 + delta).clamp(0, height as i64 - 1) as u32;
-                sum += u32::from(horizontal[(yy * width + x) as usize]);
+                let xx = x as i64 + delta;
+                if xx < 0 || xx >= width as i64 {
+                    continue;
+                }
+                for delta_y in -(radius as i64)..=radius as i64 {
+                    let yy = y as i64 + delta_y;
+                    if yy < 0 || yy >= height as i64 {
+                        continue;
+                    }
+                    sum += u32::from(input[(yy as u32 * width + xx as u32) as usize]);
+                    count += 1;
+                }
             }
-            output[(y * width + x) as usize] = ((sum + size / 2) / size) as u8;
+            output[(y * width + x) as usize] = ((sum * 2 + count) / (2 * count)) as u8;
         }
     }
     output
@@ -149,10 +148,9 @@ mod tests {
 
     #[test]
     fn matches_domain_mask_vectors() {
-        let vectors: Vec<Vector> = serde_json::from_str(include_str!(
-            "../../../../../../packages/domain/test-vectors/masks.json"
-        ))
-        .expect("domain mask vectors must be valid JSON");
+        let vectors: Vec<Vector> =
+            serde_json::from_str(include_str!("../../../../../../packages/domain/test-vectors/masks.json"))
+                .expect("domain mask vectors must be valid JSON");
         assert!(!vectors.is_empty());
         for vector in vectors {
             let actual = rasterize_mask(&vector.shapes, vector.width, vector.height);

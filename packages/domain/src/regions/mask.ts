@@ -45,7 +45,7 @@ export function rasterizeMask(
   return output;
 }
 
-/** Apply a clamped box blur three times. Radius is measured in source pixels. */
+/** Apply a 2D box blur three times. Out-of-image samples are excluded. */
 export function featherMask(
   mask: Uint8Array,
   width: number,
@@ -63,23 +63,22 @@ export function featherMask(
 }
 
 function boxBlur(input: Uint8Array, width: number, height: number, radius: number): Uint8Array {
-  const horizontal = new Uint8Array(input.length);
-  const size = radius * 2 + 1;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      let sum = 0;
-      for (let dx = -radius; dx <= radius; dx += 1)
-        sum += input[y * width + clamp(x + dx, 0, width - 1)]!;
-      horizontal[y * width + x] = Math.round(sum / size);
-    }
-  }
   const output = new Uint8Array(input.length);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       let sum = 0;
-      for (let dy = -radius; dy <= radius; dy += 1)
-        sum += horizontal[clamp(y + dy, 0, height - 1) * width + x]!;
-      output[y * width + x] = Math.round(sum / size);
+      let count = 0;
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= height) continue;
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= width) continue;
+          sum += input[yy * width + xx]!;
+          count += 1;
+        }
+      }
+      output[y * width + x] = Math.floor(sum / count + 0.5);
     }
   }
   return output;
@@ -114,9 +113,6 @@ function forEachPixel(
   fn: (x: number, y: number, index: number) => void,
 ): void {
   for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) fn(x, y, y * width + x);
-}
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 function assertSize(width: number, height: number): void {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0)

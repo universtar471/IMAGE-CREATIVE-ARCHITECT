@@ -23,7 +23,6 @@ import {
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
   RegionDTOSchema,
-  RegionSaveRequestSchema,
   WorkflowConfirmStepRequestSchema,
   WorkflowDTOSchema,
   WorkflowGetRequestSchema,
@@ -46,8 +45,8 @@ import {
   type PromptEnhanceRequest,
   type ProjectDNA,
   type ProjectType,
-  type RegionDTO,
   type RegionEditParams,
+  type RegionSaveRequest,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
@@ -104,7 +103,6 @@ export const AssetPreviewRequestSchema = z.object({
   maxEdge: z.number().int().min(256).max(4096),
 });
 
-export type RegionSaveRequest = z.infer<typeof RegionSaveRequestSchema>;
 export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
 export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
   purpose: "region_edit";

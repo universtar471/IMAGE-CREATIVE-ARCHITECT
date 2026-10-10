@@ -46,14 +46,41 @@ function shapeBounds(shape: RegionShape) {
   };
 }
 
-function pointInShape(point: [number, number], shape: RegionShape) {
-  const bounds = shapeBounds(shape);
-  return (
-    point[0] >= bounds.x &&
-    point[0] <= bounds.x + bounds.w &&
-    point[1] >= bounds.y &&
-    point[1] <= bounds.y + bounds.h
-  );
+function pointInShape(
+  [x, y]: [number, number],
+  shape: RegionShape,
+  width: number,
+  height: number,
+): boolean {
+  if (shape.type === "rect")
+    return x >= shape.x && x <= shape.x + shape.w && y >= shape.y && y <= shape.y + shape.h;
+  if (shape.type === "polygon") {
+    let inside = false;
+    for (let i = 0, j = shape.points.length - 1; i < shape.points.length; j = i++) {
+      const [xi, yi] = shape.points[i]!;
+      const [xj, yj] = shape.points[j]!;
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  const scale = Math.max(width, height);
+  const px = x * width;
+  const py = y * height;
+  return shape.strokes.some((stroke) => {
+    const radius = stroke.radius * scale;
+    const points = stroke.points.map(([sx, sy]) => [sx * width, sy * height] as const);
+    return points.some(([sx, sy], index) => {
+      const next = points[index + 1] ?? [sx, sy];
+      const [ex, ey] = next;
+      const dx = ex - sx;
+      const dy = ey - sy;
+      const t =
+        dx === 0 && dy === 0
+          ? 0
+          : Math.max(0, Math.min(1, ((px - sx) * dx + (py - sy) * dy) / (dx * dx + dy * dy)));
+      return Math.hypot(px - (sx + t * dx), py - (sy + t * dy)) <= radius;
+    });
+  });
 }
 
 export function RegionCanvas() {
@@ -177,6 +204,23 @@ export function RegionCanvas() {
       asset.heightPx ?? 1,
     );
   }, [asset, maskVisible, regions, selected]);
+  const maskPreviewRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = maskPreviewRef.current;
+    if (!canvas || !mask || !asset) return;
+    canvas.width = asset.widthPx ?? 1;
+    canvas.height = asset.heightPx ?? 1;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const pixels = new Uint8ClampedArray(mask.length * 4);
+    for (let i = 0; i < mask.length; i += 1) {
+      pixels[i * 4] = 248;
+      pixels[i * 4 + 1] = 113;
+      pixels[i * 4 + 2] = 113;
+      pixels[i * 4 + 3] = Math.round((mask[i]! / 255) * 92);
+    }
+    context.putImageData(new ImageData(pixels, canvas.width, canvas.height), 0, 0);
+  }, [asset, mask]);
 
   const overlay = (rect: ImageDisplayRect) => {
     const toPx = (point: [number, number]) =>
@@ -190,7 +234,9 @@ export function RegionCanvas() {
           event.stopPropagation();
           const point = normalisePoint(event.clientX, event.clientY, rect);
           if (tool === "select") {
-            const hit = regions.find((region) => pointInShape(point, region.shape));
+            const hit = regions.find((region) =>
+              pointInShape(point, region.shape, asset?.widthPx ?? 1, asset?.heightPx ?? 1),
+            );
             setSelected((current) => (hit ? new Set(current).add(hit.id) : new Set()));
           } else if (tool === "rect") setDraw({ kind: "rect", start: point, current: point });
           else if (tool === "polygon")
@@ -275,8 +321,9 @@ export function RegionCanvas() {
             }}
           />
         )}
-        {mask && (
-          <span
+        {mask && asset && (
+          <canvas
+            ref={maskPreviewRef}
             className="region-mask-preview"
             data-testid="mask-preview"
             data-mask-bytes={mask.length}

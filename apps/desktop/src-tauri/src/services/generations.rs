@@ -767,17 +767,20 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
     let images: Vec<_> = output.images.into_iter().take(prepared.snapshot.params.output_count as usize).collect();
     // Header inspection alone accepts a PNG with corrupt pixel data; decoding proves it opens.
     let region_composite = if prepared.purpose == GenerationPurpose::RegionEdit {
-        let source = prepared
+        let source_ref = prepared
             .references
             .first()
-            .and_then(|r| imaging::decode(&r.bytes, imaging::inspect(&r.bytes, "source image").ok()?.format).ok());
-        source.map(|source| {
-            let w = source.width();
-            let h = source.height();
-            let raw = crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, w, h);
-            let feather = crate::services::regions::mask::feather_mask(&raw, w, h, 8);
-            (source, feather, w, h)
-        })
+            .ok_or_else(|| Failure::new("invalid_request", "Region edit has no source image.", false))?;
+        let source_info = imaging::inspect(&source_ref.bytes, "source image")
+            .map_err(|_| Failure::new("invalid_request", "Region source image is unreadable.", false))?;
+        let source = imaging::decode(&source_ref.bytes, source_info.format).map_err(|_| {
+            Failure::new("invalid_request", "Region source image could not be decoded for compositing.", false)
+        })?;
+        let w = source.width();
+        let h = source.height();
+        let raw = crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, w, h);
+        let feather = crate::services::regions::mask::feather_mask(&raw, w, h, 8);
+        Some((source, feather, w, h))
     } else {
         None
     };
@@ -797,12 +800,11 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             let provider_long_edge = provider_info.width.max(provider_info.height);
             let mut bytes = img.bytes.clone();
             if prepared.purpose == GenerationPurpose::RegionEdit {
-                if let Some((source, mask, width, height)) = &region_composite {
-                    let composited =
-                        crate::services::regions::mask::composite(source, &provider_decoded, mask, *width, *height);
-                    bytes.clear();
-                    composited.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|_| unreadable())?;
-                }
+                let (source, mask, width, height) = region_composite.as_ref().expect("region composite is prepared");
+                let composited =
+                    crate::services::regions::mask::composite(source, &provider_decoded, mask, *width, *height);
+                bytes.clear();
+                composited.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|_| unreadable())?;
             } else if prepared.purpose == GenerationPurpose::Enhance {
                 let source_long_edge = prepared.references.first().and_then(|reference| {
                     imaging::inspect(&reference.bytes, "source image").ok().map(|info| info.width.max(info.height))

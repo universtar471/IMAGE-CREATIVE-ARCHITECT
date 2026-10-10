@@ -15,7 +15,7 @@ export const RectShapeSchema = z
     h: normalized,
   })
   .refine(
-    (shape) => shape.x + shape.w <= 1 && shape.y + shape.h <= 1,
+    (shape) => shape.w > 0 && shape.h > 0 && shape.x + shape.w <= 1 && shape.y + shape.h <= 1,
     "Rectangle must stay inside the image.",
   );
 
@@ -25,7 +25,7 @@ export const PolygonShapeSchema = z.object({
 });
 export const BrushStrokeSchema = z.object({
   points: z.array(point),
-  radius: normalized,
+  radius: z.number().finite().gt(0).max(1),
 });
 export const BrushShapeSchema = z.object({
   type: z.literal("brush"),
