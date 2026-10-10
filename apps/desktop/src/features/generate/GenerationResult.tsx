@@ -12,6 +12,11 @@ import { GenerationStatusBadge } from "./GenerationStatusBadge";
 import { MasterDnaCheck } from "./MasterDnaCheck";
 import { formatDuration, isActiveGeneration } from "./labels";
 import { isMasterApproved } from "../camera/labels";
+import { costHintText } from "@arch/domain";
+import { translateDomainMessage } from "../../i18n/domain";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+
+const EMPTY_PROVIDERS = [] as const;
 
 /** Current time, re-rendered every `intervalMs`. The clock lives in state, updated by a timer. */
 export function useNow(intervalMs = 500): number {
@@ -141,6 +146,8 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const reuse = useStudio((s) => s.reuseGeneration);
   const [confirmMaster, setConfirmMaster] = useState(false);
   const t = useT();
+  const providers = useStudio((s) => s.providers ?? EMPTY_PROVIDERS);
+  const spend = useSpendConfirm();
 
   // Only outputs that still exist (an output may have been removed in References).
   const outputs = g.outputAssetIds.filter((id) => assets.some((a) => a.id === id));
@@ -177,7 +184,27 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
 
   // Generate again: same settings, prompt recompiled from the current DNA. A variation always
   // carries the current master as image 1, even if the original run was sent without it.
-  const again = () => {
+  const again = async () => {
+    const provider = providers.find((item) => item.id === g.providerId);
+    const model = provider?.models.find((item) => item.id === g.modelId);
+    const unit = g.params.imageSize ? model?.priceHint?.[g.params.imageSize] : undefined;
+    const cost = model
+      ? translateDomainMessage(
+          costHintText(model, g.params.imageSize, g.params.outputCount) ?? "",
+          t,
+        )
+      : null;
+    if (
+      !(await spend.request({
+        providerId: g.providerId,
+        provider: provider?.label ?? g.providerId,
+        model: model?.label ?? g.modelId,
+        imageCount: g.params.outputCount,
+        costText: cost,
+        estimatedTotal: unit === undefined ? null : unit * g.params.outputCount,
+      }))
+    )
+      return;
     reuse(g);
     const masterId = project.activeMasterAssetId;
     const refs =
@@ -245,7 +272,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
             <button
               className="btn btn-sm"
               disabled={submitting || readOnly}
-              onClick={again}
+              onClick={() => void again()}
               title={t("result.againTitle")}
             >
               <RefreshCw size={13} /> {t("result.again")}
@@ -293,6 +320,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
           onCancel={() => setConfirmMaster(false)}
         />
       )}
+      {spend.dialog}
     </SectionPanel>
   );
 }

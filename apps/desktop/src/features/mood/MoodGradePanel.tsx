@@ -20,6 +20,7 @@ import {
   type MoodVariationPreset,
 } from "./variation";
 import { useT } from "../../i18n";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 
 const SLIDERS = [
   "exposure",
@@ -62,6 +63,7 @@ export function MoodGradePanel() {
   const notify = useStudio((s) => s.notify);
   const workflowView = useStudio((s) => s.workflowView);
   const t = useT();
+  const spend = useSpendConfirm();
   const grade = (ws.draftDna.colorGrade ?? neutralGrade()) as ColorGradeDNA;
   const mood = ws.draftDna.mood ?? { schemaVersion: 1, notes: "" };
   const locks = ws.draftDna.locks as unknown as Record<string, boolean>;
@@ -149,6 +151,19 @@ export function MoodGradePanel() {
         model,
         params,
       });
+      const imageCount = items.length * params.outputCount;
+      const unit = params.imageSize ? model.priceHint?.[params.imageSize] : undefined;
+      if (
+        !(await spend.request({
+          providerId: provider!.id,
+          provider: provider!.label,
+          model: model.label,
+          imageCount,
+          costText: costHint,
+          estimatedTotal: unit === undefined ? null : unit * imageCount,
+        }))
+      )
+        return;
       await createBatch({
         projectId: current.project.id,
         name: "Mood variations",
@@ -399,6 +414,7 @@ export function MoodGradePanel() {
           </div>
         </Dialog>
       )}
+      {spend.dialog}
     </div>
   );
 }

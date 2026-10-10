@@ -2380,3 +2380,45 @@ textarea {
   align-items: center;
   padding: 4px 0;
 }
+.next-step-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+}
+.next-step-bar > div {
+  display: grid;
+  gap: 2px;
+}
+.next-step-large {
+  padding: 16px;
+}
+.next-step-large strong {
+  font-size: 1.05rem;
+}
+.next-step-hint {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+.workflow-banner-stack {
+  flex-wrap: wrap;
+}
+.blocked-explainer {
+  flex-basis: 100%;
+  margin-left: 22px;
+}
+.blocked-explainer p {
+  margin: 6px 0;
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+}

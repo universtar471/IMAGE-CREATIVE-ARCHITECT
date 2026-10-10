@@ -14,6 +14,7 @@ import {
   validateEnhanceParams,
   type EnhanceParams,
 } from "./enhance";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 
 export function EnhanceBatchDialog({
   sources,
@@ -31,6 +32,7 @@ export function EnhanceBatchDialog({
   const loadProviders = useStudio((s) => s.loadProviders);
   const createBatch = useStudio((s) => s.createBatch);
   const t = useT();
+  const spend = useSpendConfirm();
   const [params, setParams] = useState<EnhanceParams>(initialParams ?? DEFAULT_ENHANCE_PARAMS);
   const [providerId, setProviderId] = useState("local_upscale");
   const [modelId, setModelId] = useState("lanczos3");
@@ -114,6 +116,20 @@ export function EnhanceBatchDialog({
         model,
         dna: ws.draftDna,
       });
+      if (
+        !(await spend.request({
+          providerId: provider.id,
+          provider: provider.label,
+          model: model.label,
+          imageCount: selectedSources.length,
+          costText:
+            cost.kind === "priced"
+              ? t("enhance.batchCost", { amount: cost.amount, tier: cost.tier })
+              : null,
+          estimatedTotal: cost.kind === "priced" ? cost.amount : null,
+        }))
+      )
+        return;
       await createBatch({
         projectId: ws.project.id,
         providerId: provider.id,
@@ -312,6 +328,7 @@ export function EnhanceBatchDialog({
           {t("enhance.showPrompt")}
         </button>
         {previewOpen && <p className="field-hint">{t("enhance.batchPromptHint")}</p>}
+        {spend.dialog}
       </div>
     </Dialog>
   );

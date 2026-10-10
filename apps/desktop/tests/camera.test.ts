@@ -13,7 +13,7 @@ import {
 } from "@arch/domain";
 import { createProject, type ProjectBundle } from "../src/app/services";
 import { EMPTY_GENERATE_DRAFT, useStudio } from "../src/app/store";
-import { costHint, planBatch } from "../src/features/camera/batch";
+import { anchorRerunRequest, costHint, planBatch } from "../src/features/camera/batch";
 import { groupContactSheet } from "../src/features/camera/contactGroups";
 import {
   cameraPlacement,
@@ -191,6 +191,67 @@ describe("batch dialog planning", () => {
     expect(plan.items[0]!.prompt.positivePrompt).toMatch(/Camera: exterior|Camera: custom/);
     expect(plan.request).toMatchObject({ purpose: "anchor", providerId: "local_preview" });
     expect(plan.costHint).toMatch(/4 images · offline/);
+  });
+
+  it("anchor camera untick keeps only the explicitly selected camera", async () => {
+    const b = await bundleWithCameras();
+    const selected = b.dna.cameras.find((camera) => camera.name === "Corner")!;
+    const plan = planBatch(
+      {
+        mode: "anchor",
+        providerId: "local_preview",
+        modelId: "placeholder-v1",
+        params,
+        cameraIds: [selected.id],
+        cameraSelectionExplicit: true,
+        extraReferenceIds: [],
+      },
+      b,
+      [],
+      providers(false),
+    );
+    expect(plan.issues).toEqual([]);
+    expect(plan.items).toHaveLength(1);
+    expect(plan.items[0]!.cameraId).toBe(selected.id);
+  });
+
+  it("re-runs one anchor with exactly the source provider, model and params", async () => {
+    const b = await bundleWithCameras();
+    const sourcePlan = planBatch(
+      {
+        mode: "anchor",
+        providerId: "local_preview",
+        modelId: "placeholder-v1",
+        params,
+        cameraIds: [],
+        extraReferenceIds: [],
+      },
+      b,
+      [],
+      providers(false),
+    );
+    const source = sourcePlan.request!;
+    const item = source.items[0]!;
+    const rerun = anchorRerunRequest(
+      {
+        projectId: source.projectId,
+        providerId: source.providerId,
+        modelId: source.modelId,
+        prompt: item.prompt,
+        referenceAssetIds: item.referenceAssetIds,
+        params: item.params,
+      },
+      item.cameraId!,
+      "Front",
+      "Re-run Front",
+    );
+    expect(rerun.items).toHaveLength(1);
+    expect(rerun).toMatchObject({
+      providerId: source.providerId,
+      modelId: source.modelId,
+      purpose: "anchor",
+      items: [{ cameraId: item.cameraId, params: item.params }],
+    });
   });
 
   it("production batch: master, then that camera's anchor, then extras, capped", async () => {

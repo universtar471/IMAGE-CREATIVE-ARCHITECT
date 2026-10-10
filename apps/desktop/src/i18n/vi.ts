@@ -353,6 +353,24 @@ export const vi: Dict = {
     needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
     generateLabel: "Quy trình tạo ảnh",
     generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    whyLocked: "Vì sao đang khóa?",
+    goToStep: "Đến bước này",
+    explain: {
+      "dna.building":
+        "Thông tin công trình là nguồn cho mọi prompt, nên các bước sau cần cấu trúc ổn định.",
+      "dna.context":
+        "Bối cảnh giữ môi trường xung quanh và hướng công trình nhất quán trong mọi ảnh.",
+      "dna.references": "Ảnh tham chiếu và Master tạo nền hình ảnh đáng tin cậy trước khi tạo ảnh.",
+      "dna.camera": "Góc máy cố định góc nhìn và bố cục để có thể so sánh Anchor và ảnh render.",
+      "dna.lighting":
+        "Ánh sáng được xác nhận trước khi tạo ảnh để không vô tình đổi không khí mong muốn.",
+      "generate.master":
+        "Master là nguồn kiến trúc đã duyệt cho Anchor và các ảnh render sản xuất.",
+      "generate.anchors":
+        "Anchor giữ góc nhìn cố định cho từng camera; render sản xuất dùng Anchor để công trình nhất quán.",
+      "generate.render": "Render sản xuất cần Master đã duyệt và các Anchor bắt buộc trước.",
+      "post.grade": "Hậu kỳ dùng Master đã duyệt để mọi chỉnh sửa luôn có nguồn đáng tin cậy.",
+    },
     blockedNoMaster:
       "Chưa có ảnh Master — chọn mục đích Hero, tạo ảnh rồi bấm 'Dùng làm Master' dưới Kết quả gần nhất.",
     blockedMasterPending:
@@ -424,6 +442,38 @@ export const vi: Dict = {
         },
       },
     },
+  },
+
+  nextStep: {
+    label: "Bước tiếp theo",
+    go: "Đi tới",
+    here: "Bạn đang ở đây: {title}",
+    masterCreate: "Tạo ảnh Hero rồi bấm Dùng làm Master",
+    masterApprove: "Duyệt ảnh Master",
+    steps: {
+      "dna.building": "Xác nhận bước Kiến trúc",
+      "dna.context": "Xác nhận bước Bối cảnh",
+      "dna.references": "Xác nhận bước Tham chiếu",
+      "dna.camera": "Xác nhận bước Góc máy",
+      "dna.lighting": "Xác nhận bước Ánh sáng",
+      "generate.master": "Tạo hoặc duyệt ảnh Master",
+      "generate.anchors": "Tạo / duyệt Anchor cho {count} góc máy",
+      "generate.render": "Render các góc máy",
+      "post.grade": "Hậu kỳ: chỉnh màu, nâng cấp và QC",
+    },
+  },
+
+  spend: {
+    title: "Xác nhận chi phí",
+    provider: "Nhà cung cấp",
+    model: "Mô hình",
+    images: "Số ảnh",
+    estimate: "Tổng ước tính",
+    unknown: "Chưa có ước tính giá",
+    create: "Tạo ảnh",
+    remember: "Không hỏi lại khi dưới {threshold}đ",
+    threshold: "Ngưỡng chi phí",
+    reset: "Đặt lại ngưỡng",
   },
 
   tray: {
@@ -1233,6 +1283,7 @@ export const vi: Dict = {
     anchorApproved: "Đã duyệt Anchor cho góc máy này.",
     openInCanvas: "Mở trong khung xem",
     approve: "Duyệt làm Anchor",
+    rerunAnchor: "Tạo lại góc này",
     compareTitle: "So sánh với Master",
     compare: "So sánh",
     back: "Quay lại bảng ảnh",

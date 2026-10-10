@@ -15,13 +15,14 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import type { AssetDTO, BatchDTO, ProjectDNA } from "@arch/domain";
+import { costHintText, type AssetDTO, type BatchDTO, type ProjectDNA } from "@arch/domain";
 import { isTerminalJob, selectReadOnly, useStudio } from "../../app/store";
 import { EmptyState } from "../../components/common/states";
 import { fileUrl } from "../../lib/files";
 import { formatRelativeTime } from "../../lib/format";
 import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
+import { translateDomainMessage } from "../../i18n/domain";
 import { knowledge } from "../../lib/knowledge";
 import { adoptMoodPresetSections, type MoodVariationPreset } from "../mood/variation";
 import { ActiveGenerationStatus } from "../generate/GenerationResult";
@@ -30,6 +31,7 @@ import { resolveEnhancePair, type EnhancePair } from "../enhance/enhance";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
 import { QcBadge } from "../qc/QcBadge";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import {
   groupContactSheet,
   groupMoodContactSheet,
@@ -37,6 +39,7 @@ import {
   type ContactEntry,
   type ContactGroup,
 } from "./contactGroups";
+import { anchorRerunRequest } from "./batch";
 
 export function adoptContactMood(dna: ProjectDNA, preset: MoodVariationPreset) {
   return adoptMoodPresetSections(dna, preset);
@@ -281,6 +284,39 @@ function CameraGroup({
   );
   const cam = group.camera;
   const t = useT();
+  const createBatch = useStudio((s) => s.createBatch);
+  const readOnly = useStudio(selectReadOnly);
+  const spend = useSpendConfirm();
+  const rerun = async () => {
+    if (!group.cameraId || readOnly || !group.entries.length) return;
+    const source = group.entries[0]!.generation;
+    const provider = useStudio.getState().providers?.find((item) => item.id === source.providerId);
+    const model = provider?.models.find((item) => item.id === source.modelId);
+    const count = source.params.outputCount;
+    const unit = source.params.imageSize ? model?.priceHint?.[source.params.imageSize] : undefined;
+    if (
+      !(await spend.request({
+        providerId: source.providerId,
+        provider: provider?.label ?? source.providerId,
+        model: model?.label ?? source.modelId,
+        imageCount: count,
+        costText: model
+          ? translateDomainMessage(costHintText(model, source.params.imageSize, count) ?? "", t)
+          : null,
+        estimatedTotal: unit === undefined ? null : unit * count,
+      }))
+    )
+      return;
+    const cameraName = cam?.name ?? group.cameraId;
+    await createBatch(
+      anchorRerunRequest(
+        source,
+        group.cameraId,
+        cameraName,
+        `${t("contact.rerunAnchor")} · ${cameraName}`,
+      ),
+    );
+  };
   return (
     <section className="contact-group" aria-label={cam?.name ?? t("contact.noCamera")}>
       <header>
@@ -291,6 +327,11 @@ function CameraGroup({
           <span className={`badge ${anchor ? "badge-success" : "badge-warning"}`}>
             <Anchor size={10} /> {anchor ? t("camera.anchored") : t("contact.pickOne")}
           </span>
+        )}
+        {cam?.isAnchorView && group.entries.length > 0 && (
+          <button className="btn btn-sm" disabled={readOnly} onClick={() => void rerun()}>
+            {t("contact.rerunAnchor")}
+          </button>
         )}
       </header>
       <div className="contact-cards">
@@ -307,6 +348,7 @@ function CameraGroup({
           />
         ))}
       </div>
+      {spend.dialog}
     </section>
   );
 }

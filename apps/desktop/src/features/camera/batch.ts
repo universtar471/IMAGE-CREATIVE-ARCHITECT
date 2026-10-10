@@ -14,6 +14,7 @@ import {
   type BatchCreateRequest,
   type BatchItem,
   type CameraAnchorDTO,
+  type GenerationDTO,
   type GenerationParams,
   type ProviderDescriptorDTO,
 } from "@arch/domain";
@@ -32,6 +33,8 @@ export type BatchChoices = {
   params: GenerationParams;
   /** Production only. */
   cameraIds: readonly string[];
+  /** Anchor dialog sets this so an empty list means the user deliberately unticked all. */
+  cameraSelectionExplicit?: boolean;
   /** Production only: references beyond master + anchor. */
   extraReferenceIds: readonly string[];
   name?: string;
@@ -46,6 +49,35 @@ export type BatchPlan = {
   providerCalls: number;
   costHint: string;
 };
+
+/** Re-run one camera with the immutable provider/model/params/prompt snapshot of its source. */
+export function anchorRerunRequest(
+  source: Pick<
+    GenerationDTO,
+    "projectId" | "providerId" | "modelId" | "prompt" | "referenceAssetIds" | "params"
+  >,
+  cameraId: string,
+  cameraName: string,
+  batchName: string,
+): BatchCreateRequest {
+  return {
+    projectId: source.projectId,
+    providerId: source.providerId,
+    modelId: source.modelId,
+    purpose: "anchor",
+    name: batchName,
+    priority: 0,
+    items: [
+      {
+        cameraId,
+        label: cameraName,
+        prompt: source.prompt,
+        referenceAssetIds: source.referenceAssetIds,
+        params: source.params,
+      },
+    ],
+  };
+}
 
 export function defaultBatchName(mode: BatchMode, now = new Date()): string {
   const stamp = now.toISOString().slice(0, 16).replace("T", " ");
@@ -131,7 +163,12 @@ export function planBatch(
   let items: BatchItem[];
   if (choices.mode === "anchor") {
     if (!anchorViews(bundle.dna).length) issues.push(t("batch.needsAnchorView"));
-    items = buildAnchorBatchItems(input);
+    if (choices.cameraSelectionExplicit && !choices.cameraIds.length)
+      issues.push(t("batch.needsCamera"));
+    const chosen = new Set(choices.cameraIds);
+    items = buildAnchorBatchItems(input).filter(
+      (item) => !choices.cameraSelectionExplicit || (item.cameraId && chosen.has(item.cameraId)),
+    );
   } else {
     if (!choices.cameraIds.length) issues.push(t("batch.needsCamera"));
     try {

@@ -14,6 +14,7 @@ import { call, toBridgeError } from "../../lib/bridge";
 import { QualityField } from "../generate/QualityField";
 import { planBatch, type BatchMode } from "./batch";
 import { useT } from "../../i18n";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
 
 /**
  * "Generate anchors" (one item per anchor view, master as reference) and "Render cameras"
@@ -30,6 +31,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
   const notify = useStudio((s) => s.notify);
   const notifyError = useStudio((s) => s.notifyError);
   const t = useT();
+  const spend = useSpendConfirm();
 
   const cameras = ws.draftDna.cameras;
   const master = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
@@ -52,7 +54,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const [name, setName] = useState<string | undefined>(undefined);
   const [cameraIds, setCameraIds] = useState<string[]>(() =>
-    mode === "anchor" ? [] : cameras.map((c) => c.id),
+    mode === "anchor" ? anchorViews(ws.draftDna).map((c) => c.id) : cameras.map((c) => c.id),
   );
   const [extraIds, setExtraIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -67,6 +69,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     modelId: model?.id ?? "",
     params,
     cameraIds,
+    cameraSelectionExplicit: mode === "anchor",
     extraReferenceIds: extraIds.filter((id) => !anchorAssetIds.has(id)),
     name,
   };
@@ -92,6 +95,19 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
         notify("error", fresh.issues[0] ?? t("batch.nothing"));
         return;
       }
+      const unit = params.imageSize ? model?.priceHint?.[params.imageSize] : undefined;
+      const imageCount = fresh.items.length * params.outputCount;
+      if (
+        !(await spend.request({
+          providerId: choices.providerId,
+          provider: provider?.label ?? choices.providerId,
+          model: model?.label ?? choices.modelId,
+          imageCount,
+          costText: fresh.costHint,
+          estimatedTotal: unit === undefined ? null : unit * imageCount,
+        }))
+      )
+        return;
       if (await createBatch(fresh.request)) onClose();
     } catch (err) {
       notifyError(toBridgeError(err));
@@ -228,7 +244,14 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
             <ul className="batch-cams">
               {views.map((c) => (
                 <li key={c.id}>
-                  <Anchor size={12} /> {c.name}
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={cameraIds.includes(c.id)}
+                      onChange={(e) => setCameraIds(toggle(cameraIds, c.id, e.target.checked))}
+                    />
+                    <Anchor size={12} /> {c.name}
+                  </label>
                   {ws.anchors.some((a) => a.cameraId === c.id) && (
                     <span className="badge badge-success">{t("batch.rerender")}</span>
                   )}
@@ -299,6 +322,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           </div>
         )}
       </div>
+      {spend.dialog}
     </Dialog>
   );
 }
