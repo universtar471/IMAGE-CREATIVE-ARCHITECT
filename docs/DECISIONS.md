@@ -529,3 +529,56 @@ Status: accepted (2026-10-11). Source: user feedback after the first real anchor
   - The colour grade is previewed live on the master image with a CSS or canvas approximation.
   - A top-down site diagram shows context and site topology.
   - AI sample photos per preset are deferred. They would need a paid one-off generation and user approval.
+
+
+## ADR-030 — AI DNA assist (from a brief, reference images or the master), tidy Space panel, preset photos
+
+Status: accepted (2026-10-11, user "đồng ý … làm thêm hình preview bằng comfyui")
+
+**Problem.**
+- The interior Space step is unreadable in the narrow right panel: the moodboard sits beside the fields, which leaves selects about 50 px wide.
+- Users cannot translate a vision ("Japandi ấm cho gia đình trẻ") or a reference photo into the many pick-lists.
+- The interior prompt had three faults:
+  - Two floor materials split the floor in half.
+  - The interior camera-preset fallback emitted the wrong camera text.
+  - Vietnamese free text leaked into the English prompt.
+- Exterior DNA drifts from the approved master (the old "DNA sync from master" backlog item).
+
+**Decision.**
+
+**AI assist** is one backend command with three modes.
+- **Modes:**
+  - `brief`: a free-text description.
+  - `images`: up to 3 reference assets.
+  - `master`: the approved master image.
+- **Scopes:** `interior`, `building`, `context`, `lighting`.
+- **Provider.** It calls an OpenAI-compatible chat model with vision through the HHTECH gateway, from Rust only. ADR-013 holds: the key never reaches the webview.
+  - The model is set by `HHTECH_ASSIST_MODEL`, default `gemini-3.8-flash`.
+  - It asks for JSON output.
+- **Catalogue.** The webview sends the allowed catalogue (ids + English labels) built by a domain helper, so the model can only pick known ids.
+- **Validation.** The domain validates the reply. Unknown ids are dropped; free text is clipped and English.
+- **Proposal, not a write.** The result is shown as a diff ("Hiện tại → AI đề xuất"), each field with a checkbox, confidence and a short reason. Nothing is written until the user applies it, through the normal DNA edit and autosave path.
+- **Cost.** It is shown in the spend confirmation (an estimate of a few tens of đồng) and goes into generation history as purpose `assist`, with no image output.
+- **Translate.** A fourth mode, `translate`, turns Vietnamese free-text DNA fields into English for the prompt. The UI offers it when a free-text field contains Vietnamese diacritics.
+
+**Space panel layout.**
+- The moodboard stacks above the fields when the panel is narrower than 560 px.
+- Fields are full width.
+- Collapsible groups: Không gian · Phong cách & bảng màu · Vật liệu bề mặt · Đồ nội thất · Ánh sáng.
+- Surface materials become chips. The first selected chip is the primary one.
+- The right panel can be resized by dragging, between 320 and 720 px, and the width is remembered.
+
+**Compiler pc-1.6.0.**
+- In a slot with several ids, the first is primary and the rest are rendered as `with <x> accents`. Example: `floor: natural oak flooring with terrazzo accents`.
+- The interior camera-preset fallback maps every `cameraPresetId` to its own prompt (fix the wrong mapping).
+- Free-text fields that still contain Vietnamese are passed through unchanged. The UI flags them for translation instead of the compiler guessing.
+
+**Preset photos.**
+- Real photos are generated once, locally, with ComfyUI (RealVisXL + ControlNet canny on one base scene per family, so presets compare fairly):
+  - lighting (exterior and interior)
+  - mood (exterior and interior)
+  - context presets
+  - the 15 interior styles
+- They are committed as small WebP files under `apps/desktop/public/previews/<kind>/<id>.webp`, listed in `apps/desktop/public/previews/manifest.json`.
+- Preset cards show the photo when the manifest has one, otherwise the existing SVG preview.
+- These images are our own generations, with no third-party assets.

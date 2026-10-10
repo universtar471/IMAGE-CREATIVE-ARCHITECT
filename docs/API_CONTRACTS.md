@@ -1127,3 +1127,102 @@ Contextual negatives are deduped and placed after the pack and DNA negatives.
 | `unknown_side` | Warning "Góc này lộ hông <bên> chưa xác định", with buttons [Liền kề] and [Lô góc]. Each button writes `siteTopology` and autosaves. |
 
 The batch dialog lists unresolved `unknown_side` cameras above the spend confirmation. The list is not blocking.
+
+
+## 20. AI DNA assist and preset photos (ADR-030)
+
+### 20.1 Domain (`packages/domain/src/assist/`)
+
+```ts
+AssistMode  = "brief" | "images" | "master" | "translate"
+AssistScope = "interior" | "building" | "context" | "lighting"
+AssistCatalog = { scope: AssistScope; fields: Array<{ path: string; kind: "id" | "ids" | "number" | "text";
+                  options?: Array<{ id: string; en: string }>; min?: number; max?: number }> }
+assistCatalog(scope, projectType): AssistCatalog
+assistSystemPrompt(mode, catalog): string
+AssistField = { path: string; value: unknown; confidence: number /*0..1*/; reason: string /*≤ 140 chars, English*/ }
+AssistSuggestion = { scope: AssistScope; fields: AssistField[]; dropped: Array<{ path: string; why: string }> }
+parseAssistReply(raw: string, catalog: AssistCatalog): AssistSuggestion
+applyAssistFields(dna: ProjectDNA, fields: AssistField[]): ProjectDNA
+```
+
+**`assistCatalog(scope, projectType)`.** Builds the field list for a scope.
+- interior: every `dna.interior` field, with the §18 catalogue ids.
+- building: `floors`, `architecturalStyle` (keys of `stylePhrases` plus free text), `roof.type`, `massing.composition`, `materials`, `specialFeatures`.
+- context: `density`, `siteTopology`, `front.roadType`, `front.spaceType`, `front.elements`, `vegetation`.
+- lighting: `timeOfDay`, `sunDirection`, `intensity`, `ambientLight`.
+
+**`assistSystemPrompt(mode, catalog)`.** States the role and lists the allowed ids, then:
+> Answer with JSON `{fields:[{path,value,confidence,reason}]}` only. Pick only listed ids. Free text in English. Omit fields you cannot infer.
+
+For `translate`, it asks for English translations of the given free-text paths and nothing else.
+
+**`parseAssistReply(raw, catalog)`.** Tolerates fenced JSON. It drops a field, with the reason recorded in `dropped`, when:
+- the path is unknown
+- an id is not in the catalogue
+- a number is out of range
+- the room is invalid for the building use (§18)
+
+It clips text.
+
+**`applyAssistFields(dna, fields)`.** Pure. It sets the paths, then re-validates with `ProjectDNASchema`.
+
+**`containsVietnamese(text)`.** Detects Vietnamese diacritics, for the translate prompt.
+
+### 20.2 Backend command `dna_assist`
+
+```
+request:  { projectId, mode, scope, brief?: string (≤ 1000 chars), referenceAssetIds?: string[] (≤ 3),
+            catalog: AssistCatalog, systemPrompt: string, translate?: Array<{ path, text }> }
+response: { raw: string, modelId: string, usage?: { inputTokens, outputTokens }, generationId }
+```
+
+- **Mode `master`** uses the project's approved master. It fails with `INVALID_STATE` when there is none.
+- **Images.** Images are read from managed files, downscaled to a 1024 px long edge as JPEG, and sent as `image_url` data URLs. The webview never sends pixels or paths.
+- **Call.** `POST {HHTECH_BASE_URL}/chat/completions` with:
+  - `model = HHTECH_ASSIST_MODEL` (default `gemini-3.8-flash`)
+  - `response_format: {type: "json_object"}`
+  - `temperature 0.2`
+  - a 60 s timeout
+- **Errors.** No key or base URL gives `PROVIDER_NOT_CONFIGURED`. A 401/402 or a credit message gives `PROVIDER_QUOTA` with a user hint. The key is redacted from every message.
+- **Logging.** A `generations` row is recorded with `purpose = "assist"`, the provider and model, `status`, and the duration, with no outputs. Logs never contain the key, the image bytes or the full brief.
+- **Mock backend.** It returns a deterministic reply per mode and scope for tests. Tests never make live calls.
+
+### 20.3 UI
+
+**"AI gợi ý" button.** It appears in:
+- the Space step (interior)
+- Kiến trúc (building)
+- Bối cảnh
+- Ánh sáng
+
+Its popover offers:
+- **Từ mô tả:** a textarea with an example placeholder.
+- **Từ ảnh tham chiếu:** pick 1–3 reference assets, with thumbnails.
+- **Từ ảnh Master:** enabled when a master is approved.
+
+It shows the spend confirmation, using the existing threshold logic, then runs.
+
+**Result: a diff sheet.** Each field shows the current value and the proposed value, as labels in the UI language.
+- Each field has a checkbox (default on), a confidence badge and the reason.
+- "Áp dụng N mục" applies the checked fields through the DNA edit path.
+- Dropped fields are listed collapsed.
+- On a locked or confirmed step, applying first asks to reopen that step (ADR-029: reopen does not cascade).
+
+**Translate chip.** A free-text field containing Vietnamese shows "Dịch sang tiếng Anh cho prompt". It runs mode `translate` for that field and shows the same diff.
+
+**MasterDnaCheck** gains "Đồng bộ DNA từ Master": mode `master`, scope `building`, then the diff sheet.
+
+### 20.4 Preset photos
+
+```
+apps/desktop/public/previews/manifest.json
+  { "version": 1, "items": { "<kind>/<id>": { "src": "previews/<kind>/<id>.webp", "w": 640, "h": 438 } } }
+kinds: lighting, lighting_interior, mood, mood_interior, context, style
+```
+
+`previewPhoto(kind, id)` resolves an entry from the manifest:
+- **Lighting and mood:** for interior projects, look up the `_interior` kind first.
+- **Missing entry:** fall back to the SVG preview.
+
+Images load lazily, with alt text from the preset label.
