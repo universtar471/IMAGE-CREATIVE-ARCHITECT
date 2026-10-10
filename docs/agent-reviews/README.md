@@ -35,3 +35,4 @@ Phase 2 findings above: fixed in wt/p3-domain (UI #1), wt/p3-backend (backend ro
 | WF (4B) | wt/wf-integrate | Round 3: ĐẠT (verify green at 059757d) | Merged |
 | P5 enhance | wt/p5-integrate | Round 3: ĐẠT (verify green at c91fa7b) | Merged |
 | P6 QC | wt/p6-integrate | Round 3: ĐẠT after ADR wording fix (verify green at b4af901) | Merged |
+| P7 regions | wt/p7-integrate | Round 1: PHẢI SỬA (zero-size shapes; TS/Rust feather differ; region_list archived; composite skipped on decode failure; mask preview, hit-test, unlink object, empty material, unaccented vi strings) | Pending |
