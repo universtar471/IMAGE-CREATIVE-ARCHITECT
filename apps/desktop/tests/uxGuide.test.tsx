@@ -1,11 +1,17 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceData } from "../src/app/store";
 import { useStudio } from "../src/app/store";
 import { SpendConfirmHarness } from "./uxGuideHarness";
 import { nextStep } from "../src/lib/nextStep";
-import { nextStepBarMode } from "../src/features/workflow/NextStepBar";
+import {
+  nextStepBarMode,
+  nextStepTitleKey,
+  NextStepTitle,
+} from "../src/features/workflow/NextStepBar";
 import { BlockedExplainer } from "../src/features/workflow/BlockedExplainer";
+import { StepFrame } from "../src/features/workflow/StepFrame";
+import { CameraPanel } from "../src/features/camera/CameraPanel";
 import { deriveWorkflow, WORKFLOW_STEPS } from "../src/lib/workflow";
 import { en } from "../src/i18n/en";
 import { vi as viDict } from "../src/i18n/vi";
@@ -17,6 +23,8 @@ const paidSubmitSources = import.meta.glob<string>(
     "../src/features/camera/ContactSheet.tsx",
     "../src/features/jobs/JobsTab.tsx",
     "../src/features/regions/RegionPanel.tsx",
+    "../src/features/workflow/StepFrame.tsx",
+    "../src/components/panels/PropertyPanel.tsx",
   ],
   { eager: true, query: "?raw", import: "default" },
 );
@@ -87,10 +95,73 @@ describe("next-step guidance", () => {
   });
 
   it("hides Export, shows a hint on target, and a bar elsewhere", () => {
-    expect(nextStepBarMode("export", "generate")).toBe("hidden");
-    expect(nextStepBarMode("generate", "generate")).toBe("hint");
-    expect(nextStepBarMode("camera", "generate")).toBe("bar");
-    expect(nextStepBarMode("regions", "generate")).toBe("bar");
+    expect(nextStepBarMode("export")).toBe("hidden");
+    expect(nextStepBarMode("generate")).toBe("bar");
+    expect(nextStepBarMode("camera")).toBe("bar");
+    expect(nextStepBarMode("regions")).toBe("bar");
+  });
+
+  it("renders a translated title for every dotted workflow step id", () => {
+    for (const step of WORKFLOW_STEPS) {
+      const { unmount } = render(<NextStepTitle stepId={step.id} />);
+      const title = screen.getByText(
+        en.nextStep.steps[nextStepTitleKey(step.id) as keyof typeof en.nextStep.steps],
+      );
+      expect(title.textContent).not.toContain("nextStep.");
+      unmount();
+    }
+  });
+
+  it("keeps compact next-step controls in header rows", () => {
+    const stepFrame = paidSubmitSources["../src/features/workflow/StepFrame.tsx"]!;
+    const propertyPanel = paidSubmitSources["../src/components/panels/PropertyPanel.tsx"]!;
+    expect(stepFrame.indexOf("<NextStepBar compact />")).toBeGreaterThan(
+      stepFrame.indexOf('<header className="workflow-step-header">'),
+    );
+    expect(propertyPanel.indexOf("<NextStepBar compact />")).toBeLessThan(
+      propertyPanel.indexOf('<div className="panel-body"'),
+    );
+    expect(stepFrame + propertyPanel).not.toMatch(/position:\s*absolute/);
+  });
+
+  it("reopens the confirmed camera step and opens the add flow", async () => {
+    const reopen = vi.fn(async () => {
+      useStudio.setState({
+        workflowView: deriveWorkflow(
+          confirmed.filter((row) => row.stepId !== "dna.camera") as never,
+          facts,
+        ),
+      });
+      return true;
+    });
+    const confirm = vi.fn().mockResolvedValue(true);
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    useStudio.setState({
+      workspace: workspace(),
+      workflowView: deriveWorkflow(confirmed as never, facts),
+      activeModule: "camera",
+      reopenWorkflowStep: reopen,
+      confirmWorkflowStep: confirm,
+    });
+    try {
+      render(
+        <StepFrame stepId="dna.camera">
+          <CameraPanel />
+        </StepFrame>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: /add camera/i }));
+      expect(window.confirm).toHaveBeenCalledTimes(1);
+      expect(reopen).toHaveBeenCalledExactlyOnceWith("dna.camera");
+      expect(confirm).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("combobox", { name: /add camera from preset/i }),
+        ),
+      );
+    } finally {
+      window.confirm = originalConfirm;
+    }
   });
 });
 

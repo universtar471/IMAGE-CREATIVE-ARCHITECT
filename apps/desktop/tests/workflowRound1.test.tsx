@@ -1,14 +1,14 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { blankCamera, newCameraId } from "@arch/domain";
+import { blankCamera, newCameraId, reopenStep, type WorkflowStepState } from "@arch/domain";
 import { createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
 import { CameraDirector } from "../src/features/camera/CameraDirector";
 import { CameraPanel } from "../src/features/camera/CameraPanel";
 import { GeneratePanel } from "../src/features/generate/GeneratePanel";
 import { OverviewPanel } from "../src/features/overview/OverviewPanel";
-import { StepFrame, laterStepsToReview } from "../src/features/workflow/StepFrame";
+import { StepFrame } from "../src/features/workflow/StepFrame";
 import { WorkspaceNav } from "../src/components/shell/WorkspaceNav";
 import { PropertyPanel } from "../src/components/panels/PropertyPanel";
 import { call, setTransport } from "../src/lib/bridge";
@@ -122,20 +122,15 @@ describe("round 1 workflow UI regressions", () => {
     expect(screen.getByTestId("render-cameras")).toBeTruthy();
   });
 
-  it("computes reopen impact from confirmed later steps before reopening", () => {
-    const workflow = deriveWorkflow(
-      [
-        { stepId: "dna.building", status: "confirmed", confirmedAt: "now" },
-        { stepId: "dna.context", status: "confirmed", confirmedAt: "now" },
-        { stepId: "dna.references", status: "confirmed", confirmedAt: "now" },
-        { stepId: "dna.camera", status: "confirmed", confirmedAt: "now" },
-      ],
-      { masterApproved: false, anchorCameraIds: [], approvedAnchorCameraIds: [], cameraIds: [] },
-    );
-    expect(laterStepsToReview(workflow, "dna.context").map((step) => step.id)).toEqual([
-      "dna.references",
-      "dna.camera",
-    ]);
+  it("preserves later confirmations when reopening an earlier DNA step", () => {
+    const persisted: WorkflowStepState[] = [
+      { stepId: "dna.building", status: "confirmed" as const, confirmedAt: "now" },
+      { stepId: "dna.context", status: "confirmed" as const, confirmedAt: "now" },
+      { stepId: "dna.references", status: "confirmed" as const, confirmedAt: "now" },
+      { stepId: "dna.camera", status: "confirmed" as const, confirmedAt: "now" },
+    ];
+    const reopened = reopenStep(persisted, "dna.context");
+    expect(reopened.slice(2).map((step) => step.status)).toEqual(["confirmed", "confirmed"]);
   });
 
   it("derives non-anchor cameras on project open and every workflow refresh", async () => {

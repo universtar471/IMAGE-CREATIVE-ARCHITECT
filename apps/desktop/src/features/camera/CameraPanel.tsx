@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Anchor, Copy, Plus, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import {
   blankCamera,
@@ -74,11 +74,18 @@ function CameraListSection() {
   const setCameras = useStudio((s) => s.setCameras);
   const readOnly = useStudio(selectReadOnly);
   const [confirmDelete, setConfirmDelete] = useState<CameraDNA | null>(null);
+  const presetPicker = useRef<HTMLSelectElement>(null);
   const cameras = ws.draftDna.cameras;
   const names = cameras.map((c) => c.name);
   const presets = knowledge.cameraPresets(ws.project.projectType, ws.project.subtype);
   const isInterior = ws.project.projectType === "interior";
   const t = useT();
+
+  useEffect(() => {
+    const focusPresetPicker = () => presetPicker.current?.focus();
+    window.addEventListener("camera:add-requested", focusPresetPicker);
+    return () => window.removeEventListener("camera:add-requested", focusPresetPicker);
+  }, []);
 
   const add = (camera: CameraDNA) => {
     setCameras([...cameras, camera]);
@@ -135,6 +142,7 @@ function CameraListSection() {
             </div>
           )}
           <select
+            ref={presetPicker}
             className="select"
             aria-label={t("camera.addFromPresetLabel")}
             value=""

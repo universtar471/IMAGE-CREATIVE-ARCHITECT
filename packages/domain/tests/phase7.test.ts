@@ -303,7 +303,7 @@ describe("phase 7 region prompts and scene pinning", () => {
     ).toEqual([
       'Preserve pinned scene object "South wall" (wall): keep it exactly in place and unchanged.',
     ]);
-    expect(COMPILER_VERSION).toBe("pc-1.5.0");
+    expect(COMPILER_VERSION).toBe("pc-1.5.1");
   });
 
   it("gates region edits like variations", () => {

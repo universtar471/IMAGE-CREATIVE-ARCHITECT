@@ -27,6 +27,9 @@ export function PropertyPanel() {
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
   const label =
     isInterior && mod.id === "design_dna" ? t("interior.space") : t(`modules.${mod.id}.label`);
+  const activeIsStep = ["design_dna", "context", "references", "camera", "lighting"].includes(
+    active,
+  );
   const panelBody = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,9 +44,9 @@ export function PropertyPanel() {
         {active === "references" && (
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
+        {active !== "overview" && !activeIsStep && <NextStepBar compact />}
       </div>
       <div className="panel-body" ref={panelBody}>
-        {active !== "overview" && <NextStepBar />}
         {readOnly && (
           <div className="readonly-banner">
             <Archive size={14} /> {t("workspace.readOnly")}

@@ -21,6 +21,8 @@ import {
 } from "./variation";
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { MoodPreview, MoodPresetCards } from "../previews/MoodPreview";
+import { GradePreview, GradePresetCards } from "../previews/GradePreview";
 
 const SLIDERS = [
   "exposure",
@@ -98,6 +100,9 @@ export function MoodGradePanel() {
     : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const sourceId =
     ws.assets.find((a) => a.id === selectedAssetId)?.id ?? ws.project.activeMasterAssetId ?? "";
+  const masterAsset = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
+  const selectedAsset = ws.assets.find((a) => a.id === selectedAssetId) ?? null;
+  const gradeSource = masterAsset ?? selectedAsset;
   const costHint =
     provider?.id === "hhtech" && model?.priceHint && params.imageSize
       ? `${chosen.length * params.outputCount} × ${model.priceHint[params.imageSize] ?? "?"}đ`
@@ -185,11 +190,17 @@ export function MoodGradePanel() {
           label={t("moodGrade.preset")}
           value={presetSelectValue(mood as unknown as Record<string, unknown>)}
           disabled={moodLocked}
-          options={moodPresets.map((p) => ({ value: p.id, label: p.label }))}
+          options={moodPresets.map((preset) => ({ value: preset.id, label: preset.label }))}
           onChange={(id) => {
-            const p = moodPresets.find((x) => x.id === id);
-            if (p) adopt(p);
+            const preset = moodPresets.find((item) => item.id === id);
+            if (preset) adopt(preset);
           }}
+        />
+        <MoodPreview mood={mood as Record<string, unknown>} />
+        <MoodPresetCards
+          presets={moodPresets}
+          disabled={moodLocked}
+          onChoose={(preset) => adopt(preset)}
         />
         <div className="field-row">
           <TextField
@@ -247,6 +258,15 @@ export function MoodGradePanel() {
         )}
       </SectionPanel>
       <SectionPanel title={t("moodGrade.grade")} aside={<LockToggle section="colorGrade" />}>
+        <GradePreview asset={gradeSource} grade={grade} />
+        <GradePresetCards
+          asset={gradeSource}
+          presets={Object.entries(GRADE_LOOKS).map(([id, preset]) => ({
+            id,
+            label: id.replaceAll("_", " "),
+            grade: preset,
+          }))}
+        />
         <SelectField
           label={t("moodGrade.look")}
           value={grade.look}
