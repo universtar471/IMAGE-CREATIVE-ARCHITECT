@@ -1411,6 +1411,19 @@ export const vi: Dict = {
     previewError: "Không thể tải bản xem trước hình ảnh.",
   },
 
+  previews: {
+    lightingTitle: "Bản xem trước ánh sáng",
+    moodTitle: "Bản xem trước không khí",
+    gradeTitle: "Bản xem trước màu sắc",
+    contextTitle: "Bản xem trước bối cảnh khu đất",
+    interiorTitle: "Bản xem trước ánh sáng nội thất",
+    palette: "Bảng màu không khí",
+    lot: "LÔ ĐẤT",
+    rear: "HẬU KHU",
+    frontRoad: "ĐƯỜNG PHÍA TRƯỚC",
+    daylight: "ÁNH SÁNG TỰ NHIÊN",
+  },
+
   batch: {
     defaultAnchors: "Anchor",
     defaultProduction: "Sản xuất",
