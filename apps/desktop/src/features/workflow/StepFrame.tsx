@@ -45,8 +45,13 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
       : t(`workflow.steps.${stepId}.name`);
   const guide = t(`workflow.steps.${stepId}.guide`);
 
-  const onReopen = () => {
-    if (window.confirm(t("workflow.reopenConfirm"))) void reopen(stepId);
+  const onReopen = async () => {
+    if (!window.confirm(t("workflow.reopenConfirm"))) return;
+    if (stepId === "dna.camera") setModule("camera");
+    const reopened = await reopen(stepId);
+    if (reopened && stepId === "dna.camera") {
+      window.dispatchEvent(new CustomEvent("camera:add-requested"));
+    }
   };
   const reconfirm = async () => {
     if (await reopen(stepId)) await confirm(stepId);

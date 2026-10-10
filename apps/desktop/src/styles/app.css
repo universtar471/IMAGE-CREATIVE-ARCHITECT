@@ -1525,20 +1525,11 @@ textarea {
   opacity: 1;
 }
 .grade-image-preview[data-mode="before"] .grade-image-after,
-.grade-image-preview[data-mode="before"] .grade-image-split,
-.grade-image-preview[data-mode="after"] .grade-image-before,
-.grade-image-preview[data-mode="after"] .grade-image-split,
-.grade-image-preview[data-mode="split"] .grade-image-before,
-.grade-image-preview[data-mode="split"] .grade-image-after {
+.grade-image-preview[data-mode="after"] .grade-image-before {
   display: none;
 }
-.grade-image-split {
-  position: absolute;
-  inset: 0;
-  display: none;
-}
-.grade-image-preview[data-mode="split"] .grade-image-split {
-  display: block;
+.grade-image-preview[data-mode="split"] .grade-image-before {
+  opacity: 1;
 }
 .grade-image-divider {
   position: absolute;

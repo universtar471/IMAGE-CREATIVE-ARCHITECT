@@ -2,12 +2,17 @@ import type { CSSProperties } from "react";
 import { currentLocale, translate } from "../../i18n";
 import { LightingPreview } from "./LightingPreview";
 
-const palettes: Record<string, string[]> = {
-  warm: ["#d69b68", "#f0d7b0", "#92644e"],
-  cool: ["#7294a8", "#d4e0df", "#3c566d"],
-  calm: ["#a7b9a7", "#e0dfc7", "#6a7965"],
-  cinematic: ["#da9a62", "#547785", "#243c4e"],
-  default: ["#c1a78d", "#e2d8c8", "#78887c"],
+const palettes: Record<string, { colors: string[]; tint: string; timeOfDay: string }> = {
+  calm: { colors: ["#a7b9a7", "#e0dfc7", "#6a7965"], tint: "#9eb78b44", timeOfDay: "morning" },
+  warm: { colors: ["#d69b68", "#f0d7b0", "#92644e"], tint: "#e7974b55", timeOfDay: "golden_hour" },
+  cinematic: {
+    colors: ["#da9a62", "#547785", "#243c4e"],
+    tint: "#637aaf66",
+    timeOfDay: "blue_hour",
+  },
+  fresh: { colors: ["#d7e5cb", "#f4f0d9", "#7a9c9a"], tint: "#d8e5b844", timeOfDay: "afternoon" },
+  cool: { colors: ["#7294a8", "#d4e0df", "#3c566d"], tint: "#508acb55", timeOfDay: "blue_hour" },
+  night: { colors: ["#425c80", "#9ca6bc", "#212c46"], tint: "#465a9b66", timeOfDay: "night" },
 };
 
 export function MoodPreview({
@@ -17,31 +22,42 @@ export function MoodPreview({
   mood?: Record<string, unknown>;
   compact?: boolean;
 }) {
-  const warmth = String(mood.warmth ?? mood.atmosphere ?? "").toLowerCase();
-  const colors = palettes[warmth] ?? palettes.default!;
-  const tint =
-    warmth.includes("cool") || warmth.includes("blue")
-      ? "#508acb55"
-      : warmth.includes("warm") || warmth.includes("gold")
-        ? "#e7974b55"
-        : "#9eb78b44";
+  const presetId = String(mood.presetId ?? "").toLowerCase();
+  const description = `${String(mood.warmth ?? "")} ${String(mood.atmosphere ?? "")}`.toLowerCase();
+  const themeKey = palettes[presetId]
+    ? presetId
+    : description.includes("cinematic") ||
+        description.includes("dusk") ||
+        description.includes("shadow")
+      ? "cinematic"
+      : description.includes("warm") || description.includes("cozy") || description.includes("gold")
+        ? "warm"
+        : description.includes("fresh") || description.includes("editorial")
+          ? "fresh"
+          : description.includes("cool") || description.includes("blue")
+            ? "cool"
+            : description.includes("night")
+              ? "night"
+              : "calm";
+  const theme = palettes[themeKey]!;
   return (
     <div
       className={`mood-preview${compact ? " mood-preview-compact" : ""}`}
       data-testid="mood-preview"
-      style={{ "--mood-tint": tint } as CSSProperties}
+      data-palette={themeKey}
+      style={{ "--mood-tint": theme.tint } as CSSProperties}
     >
       <LightingPreview
         compact={compact}
         lighting={{
           schemaVersion: 1,
-          timeOfDay: warmth.includes("night") ? "night" : "golden_hour",
+          timeOfDay: theme.timeOfDay,
           ambientLight: "balanced",
           artificialLighting: [],
         }}
       />
       <div className="mood-palette" aria-label={translate(currentLocale(), "previews.palette")}>
-        {colors.map((color) => (
+        {theme.colors.map((color) => (
           <span key={color} style={{ backgroundColor: color }} />
         ))}
       </div>
@@ -74,9 +90,14 @@ export function MoodPresetCards({
           disabled={disabled}
         >
           <span data-testid="mood-preset-thumbnail" className="preview-card-image">
-            <MoodPreview mood={(preset.values ?? {}) as Record<string, unknown>} compact />
+            <MoodPreview
+              mood={{ ...(preset.values ?? {}), presetId: preset.id } as Record<string, unknown>}
+              compact
+            />
             <span className="preview-card-large">
-              <MoodPreview mood={(preset.values ?? {}) as Record<string, unknown>} />
+              <MoodPreview
+                mood={{ ...(preset.values ?? {}), presetId: preset.id } as Record<string, unknown>}
+              />
             </span>
           </span>
           <span>{preset.label}</span>

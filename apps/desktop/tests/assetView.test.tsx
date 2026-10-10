@@ -73,6 +73,63 @@ describe("asset tray view preference", () => {
     expect(ASSET_LIST_COLUMNS).toEqual(["name", "role", "model", "size", "date", "status"]);
   });
 
+  it("keeps batch selection and enhance comparison available in list rows", () => {
+    const dna = { cameras: [] } as unknown as WorkspaceData["draftDna"];
+    const source = {
+      id: "SOURCE",
+      projectId: "P",
+      originalName: "source.png",
+      role: "regular_image",
+      status: "ready",
+      createdAt: "now",
+    };
+    const output = { ...source, id: "OUTPUT", originalName: "output.png" };
+    useStudio.setState({
+      trayTab: "assets",
+      trayCollapsed: false,
+      selectedAssetId: "OUTPUT",
+      workspace: {
+        project: {
+          id: "P",
+          name: "Project",
+          projectType: "villa",
+          subtype: null,
+          status: "draft",
+          activeMasterAssetId: null,
+          archivedAt: null,
+          createdAt: "now",
+          updatedAt: "now",
+        } as WorkspaceData["project"],
+        persistedDna: dna,
+        draftDna: dna,
+        assets: [source, output] as never,
+        generations: [
+          {
+            id: "GEN",
+            projectId: "P",
+            purpose: "enhance",
+            status: "completed",
+            outputAssetIds: ["OUTPUT"],
+            referenceAssetIds: ["SOURCE"],
+            providerId: "local",
+            modelId: "test",
+          },
+        ] as never,
+        anchors: [],
+        batches: [],
+        workflow: { steps: [] },
+      },
+    });
+    render(<BottomTray />);
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    const select = screen.getAllByRole("checkbox", { name: "Select" })[0]!;
+    fireEvent.click(select);
+    expect((select as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getAllByRole("checkbox", { name: "Select" })[1]!);
+    expect(screen.getByRole("button", { name: /batch enhance/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /compare with original/i })).toBeTruthy();
+  });
+
   it("falls back safely when browser storage throws", () => {
     const storage = {
       getItem: () => {

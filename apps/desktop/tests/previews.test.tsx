@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ContextDNA, LightingDNA, AssetDTO } from "@arch/domain";
 import { LightingPreview, LightingPresetCards } from "../src/features/previews/LightingPreview";
@@ -7,6 +7,8 @@ import { GradePresetCards, GradePreview } from "../src/features/previews/GradePr
 import { ContextPresetCards, ContextPreview } from "../src/features/previews/ContextPreview";
 import { translate } from "../src/i18n";
 import { neutralGrade } from "../src/lib/grade";
+import { knowledge } from "../src/lib/knowledge";
+import { ProjectTypeSchema } from "@arch/domain";
 
 afterEach(cleanup);
 
@@ -70,6 +72,7 @@ describe("local visual previews", () => {
       projectId: "P",
       status: "ready",
       role: "master_architecture",
+      absolutePath: "data:image/png;base64,ZmFrZQ==",
     } as AssetDTO;
     const { rerender } = render(<GradePreview asset={asset} grade={neutralGrade()} />);
     expect(screen.getByTestId("grade-preview-image").getAttribute("data-asset-id")).toBe("MASTER");
@@ -87,6 +90,60 @@ describe("local visual previews", () => {
     ).toHaveLength(2);
     rerender(<GradePreview asset={null} grade={neutralGrade()} />);
     expect(screen.getByTestId("grade-preview-fallback")).toBeTruthy();
+  });
+
+  it("keeps the before image visible and clips the graded image at the split value", () => {
+    const asset = {
+      id: "MASTER",
+      projectId: "P",
+      status: "ready",
+      role: "master_architecture",
+      absolutePath: "data:image/png;base64,ZmFrZQ==",
+    } as AssetDTO;
+    render(<GradePreview asset={asset} grade={neutralGrade()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Split" }));
+    const slider = screen.getByRole("slider", { name: "Split" });
+    fireEvent.change(slider, { target: { value: "35" } });
+    const preview = screen.getByTestId("grade-preview-image");
+    expect(preview.querySelector(".grade-image-before")).toBeTruthy();
+    expect(preview.querySelector(".grade-image-after")).toBeTruthy();
+    const before = preview.querySelector(".grade-image-before");
+    const graded = preview.querySelector(".grade-image-after");
+    expect(before?.getAttribute("src")).toBe(graded?.getAttribute("src"));
+    expect(graded?.getAttribute("style")).toContain("inset(0 65% 0 0)");
+  });
+
+  it("assigns every mood preset in every knowledge pack a distinct palette and tone", () => {
+    const projectTypes = ProjectTypeSchema.options;
+    for (const type of projectTypes) {
+      for (const pack of knowledge.listSubtypes(type)) {
+        const { container, unmount } = render(
+          <MoodPresetCards
+            presets={pack.moodPresets.map((preset) => ({
+              id: preset.id,
+              label: preset.label,
+              values: preset.values,
+            }))}
+          />,
+        );
+        const thumbnails = [...container.querySelectorAll("[data-testid='mood-preview']")].filter(
+          (node) => node.classList.contains("mood-preview-compact"),
+        );
+        expect(thumbnails).toHaveLength(pack.moodPresets.length);
+        const palettes = thumbnails.map((node) =>
+          [...node.querySelectorAll(".mood-palette span")]
+            .map((swatch) => (swatch as HTMLElement).style.backgroundColor)
+            .join("|"),
+        );
+        expect(new Set(palettes).size).toBe(pack.moodPresets.length);
+        expect(
+          new Set(
+            thumbnails.map((node) => (node as HTMLElement).style.getPropertyValue("--mood-tint")),
+          ).size,
+        ).toBe(pack.moodPresets.length);
+        unmount();
+      }
+    }
   });
 
   it("draws attached, corner and open site conditions and interior daylight", () => {

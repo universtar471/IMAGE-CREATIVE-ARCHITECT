@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceData } from "../src/app/store";
 import { useStudio } from "../src/app/store";
@@ -11,6 +11,7 @@ import {
 } from "../src/features/workflow/NextStepBar";
 import { BlockedExplainer } from "../src/features/workflow/BlockedExplainer";
 import { StepFrame } from "../src/features/workflow/StepFrame";
+import { CameraPanel } from "../src/features/camera/CameraPanel";
 import { deriveWorkflow, WORKFLOW_STEPS } from "../src/lib/workflow";
 import { en } from "../src/i18n/en";
 import { vi as viDict } from "../src/i18n/vi";
@@ -123,8 +124,16 @@ describe("next-step guidance", () => {
     expect(stepFrame + propertyPanel).not.toMatch(/position:\s*absolute/);
   });
 
-  it("reopens the confirmed camera step with one confirmation before adding a view", () => {
-    const reopen = vi.fn().mockResolvedValue(true);
+  it("reopens the confirmed camera step and opens the add flow", async () => {
+    const reopen = vi.fn(async () => {
+      useStudio.setState({
+        workflowView: deriveWorkflow(
+          confirmed.filter((row) => row.stepId !== "dna.camera") as never,
+          facts,
+        ),
+      });
+      return true;
+    });
     const confirm = vi.fn().mockResolvedValue(true);
     const originalConfirm = window.confirm;
     window.confirm = vi.fn(() => true);
@@ -138,13 +147,18 @@ describe("next-step guidance", () => {
     try {
       render(
         <StepFrame stepId="dna.camera">
-          <div>Camera settings</div>
+          <CameraPanel />
         </StepFrame>,
       );
       fireEvent.click(screen.getByRole("button", { name: /add camera/i }));
       expect(window.confirm).toHaveBeenCalledTimes(1);
       expect(reopen).toHaveBeenCalledExactlyOnceWith("dna.camera");
       expect(confirm).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("combobox", { name: /add camera from preset/i }),
+        ),
+      );
     } finally {
       window.confirm = originalConfirm;
     }

@@ -54,14 +54,15 @@ export function GradePreview({
       {src ? (
         <>
           <img src={src} alt="" className="grade-image-before" />
-          <img src={src} alt="" className="grade-image-after" style={{ filter }} />
-          <div
-            className="grade-image-split"
-            style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
-            aria-hidden="true"
-          >
-            <img src={src} alt="" style={{ filter }} />
-          </div>
+          <img
+            src={src}
+            alt=""
+            className="grade-image-after"
+            style={{
+              filter,
+              ...(mode === "split" ? { clipPath: `inset(0 ${100 - split}% 0 0)` } : {}),
+            }}
+          />
           {mode === "split" && (
             <span
               className="grade-image-divider"

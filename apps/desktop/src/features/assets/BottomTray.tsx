@@ -232,8 +232,36 @@ function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
                   >
                     <td>
                       <span className="asset-list-name">
+                        <input
+                          type="checkbox"
+                          aria-label={t("assets.batchSelect")}
+                          checked={batchIds.includes(asset.id)}
+                          disabled={asset.status !== "ready"}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) =>
+                            setBatchIds((current) =>
+                              event.target.checked
+                                ? [...current, asset.id]
+                                : current.filter((id) => id !== asset.id),
+                            )
+                          }
+                        />
                         <img src={fileUrl(asset.thumbnailPath) ?? undefined} alt="" />
                         {asset.originalName ?? asset.id}
+                        {resolveEnhancePair(asset.id, generations, assets) && (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            title={t("enhance.compareSource")}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectAsset(asset.id);
+                              setModule("enhance");
+                            }}
+                          >
+                            <Columns2 size={12} /> {t("enhance.compareSource")}
+                          </button>
+                        )}
                       </span>
                     </td>
                     <td>{t(`labels.assetRole.${asset.role}`)}</td>
