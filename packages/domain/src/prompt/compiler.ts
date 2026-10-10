@@ -14,8 +14,9 @@ import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
+import { interiorPromptLines } from "../interior/helpers";
 
-export const COMPILER_VERSION = "pc-1.3.0";
+export const COMPILER_VERSION = "pc-1.4.0";
 
 export type PromptReference = {
   assetId: string;
@@ -134,20 +135,43 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
+  const usesInteriorDna = isInterior && dna.interior !== undefined;
+  const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
 
-  // Positive section order is stable: subject, form, language, materials, context,
-  // lighting, weather, mood, camera, quality. Phase 4 deliberately keeps camera after mood.
+  // Positive section order is stable: subject, form, language, materials, furnishing,
+  // context, lighting, weather, mood, camera, quality. Furnishing is interior-only.
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior)],
-    ["form", formSection(dna, isInterior)],
-    ["language", languageSection(dna)],
-    ["materials", materialsSection(dna)],
+    [
+      "form",
+      usesInteriorDna
+        ? interiorLine(interiorLines, "Interior space:")
+        : formSection(dna, isInterior),
+    ],
+    [
+      "language",
+      usesInteriorDna ? interiorLine(interiorLines, "Interior style:") : languageSection(dna),
+    ],
+    [
+      "materials",
+      usesInteriorDna
+        ? interiorLine(interiorLines, "Materials and colors:")
+        : materialsSection(dna),
+    ],
+    ["furnishing", interiorLine(interiorLines, "Furnishing:")],
     ["context", contextSection(dna, isInterior)],
-    ["lighting", lightingSection(dna)],
+    [
+      "lighting",
+      joinWords([lightingSection(dna), interiorLine(interiorLines, "Interior lighting:")], " ") ||
+        null,
+    ],
     ["weather", weatherSection(dna)],
     ["mood", moodSection(dna)],
-    ["camera", camera ? cameraSectionText(camera) : null],
+    [
+      "camera",
+      camera ? cameraSectionText(camera) : (interiorLine(interiorLines, "Camera:") ?? null),
+    ],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -490,6 +514,10 @@ function joinWords(parts: Array<string | undefined | null | false>, sep = " "): 
     .filter((p): p is string => typeof p === "string" && p.trim() !== "")
     .map((p) => p.trim())
     .join(sep);
+}
+
+function interiorLine(lines: readonly string[], prefix: string): string | null {
+  return lines.find((line) => line.startsWith(prefix)) ?? null;
 }
 
 function humanize(s: string): string {
