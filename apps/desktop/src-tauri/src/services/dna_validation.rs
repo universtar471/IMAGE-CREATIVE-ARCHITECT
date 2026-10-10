@@ -87,6 +87,7 @@ fn additive_error(field_errors: &mut Map<String, Value>, path: &str, message: &s
 
 fn validate_additive_fields(dna: &Value, field_errors: &mut Map<String, Value>) {
     let Some(root) = dna.as_object() else { return };
+    validate_interior_room(root, field_errors);
     for section_name in ["lighting", "weather", "mood"] {
         let Some(section) = root.get(section_name) else { continue };
         let Some(section) = section.as_object() else {
@@ -144,6 +145,60 @@ fn validate_additive_fields(dna: &Value, field_errors: &mut Map<String, Value>) 
     }
 }
 
+fn validate_interior_room(root: &Map<String, Value>, field_errors: &mut Map<String, Value>) {
+    let Some(interior) = root.get("interior").and_then(Value::as_object) else {
+        return;
+    };
+    let (Some(building_use), Some(room)) =
+        (interior.get("buildingUseId").and_then(Value::as_str), interior.get("roomId").and_then(Value::as_str))
+    else {
+        return;
+    };
+    if room == "other" {
+        return;
+    }
+    const RESIDENTIAL: &[&str] = &[
+        "living_room",
+        "kitchen",
+        "dining_room",
+        "living_kitchen",
+        "master_bedroom",
+        "bedroom",
+        "kids_room",
+        "bathroom",
+        "walk_in_closet",
+        "home_office",
+        "prayer_room",
+    ];
+    const STUDIO: &[&str] = &["living_kitchen", "bedroom", "bathroom", "walk_in_closet", "home_office"];
+    const HOSPITALITY: &[&str] = &[
+        "master_bedroom",
+        "bedroom",
+        "bathroom",
+        "living_room",
+        "lobby",
+        "reception",
+        "cafe_dining",
+        "bar_counter",
+        "spa_treatment",
+    ];
+    let valid = match building_use {
+        "apartment" | "duplex_penthouse" | "single_storey_house" => RESIDENTIAL.contains(&room),
+        "townhouse" | "villa" => RESIDENTIAL.contains(&room) || room == "lobby",
+        "studio" => STUDIO.contains(&room),
+        "hotel_room_suite" | "resort" => HOSPITALITY.contains(&room),
+        "office" => ["lobby", "reception", "meeting_room", "open_office", "home_office"].contains(&room),
+        "cafe_restaurant" => ["cafe_dining", "bar_counter", "kitchen"].contains(&room),
+        "retail_showroom" => ["retail_floor", "reception"].contains(&room),
+        "spa" => ["spa_treatment", "reception", "lobby"].contains(&room),
+        "other" => true,
+        _ => true,
+    };
+    if !valid {
+        additive_error(field_errors, "interior.roomId", "Room is not valid for the selected building use.");
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -197,5 +252,50 @@ pub(crate) mod tests {
     #[test]
     fn rejects_missing_sections() {
         assert!(validate_dna(&json!({ "schemaVersion": 1 })).is_err());
+    }
+
+    #[test]
+    fn accepts_valid_interior_dna() {
+        let mut dna = minimal();
+        dna["interior"] = json!({
+            "schemaVersion": 1,
+            "buildingUseId": "office",
+            "roomId": "meeting_room",
+            "styleId": "modern",
+            "surfaces": {
+                "floor": ["polished_concrete"], "wall": ["paint"],
+                "ceiling": [], "cabinetry": [], "countertop": [],
+                "textile": [], "metal": ["matte_black"]
+            },
+            "artificialScenes": [], "furnitureIds": [], "furnishingDensity": "balanced"
+        });
+        validate_dna(&dna).unwrap();
+    }
+
+    #[test]
+    fn rejects_room_outside_the_building_use() {
+        let mut dna = minimal();
+        dna["interior"] = json!({
+            "schemaVersion": 1,
+            "buildingUseId": "office",
+            "roomId": "bedroom",
+            "styleId": "modern",
+            "surfaces": {
+                "floor": [], "wall": [], "ceiling": [], "cabinetry": [],
+                "countertop": [], "textile": [], "metal": []
+            },
+            "artificialScenes": [], "furnitureIds": [], "furnishingDensity": "balanced"
+        });
+        let err = validate_dna(&dna).unwrap_err();
+        let fields = &err.details.unwrap()["fieldErrors"];
+        assert!(fields.get("interior.roomId").is_some(), "{fields}");
+    }
+
+    #[test]
+    fn dna_without_interior_remains_valid_and_unchanged() {
+        let dna = minimal();
+        let before = dna.clone();
+        validate_dna(&dna).unwrap();
+        assert_eq!(dna, before);
     }
 }
