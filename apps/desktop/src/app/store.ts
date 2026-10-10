@@ -91,6 +91,7 @@ export type WorkspaceData = {
  * provider/model capabilities and the project's assets (see features/generate/form.ts).
  */
 export type GenerateDraft = {
+  source: "dna" | "sketch";
   providerId: string | null;
   modelId: string | null;
   purpose: GenerationPurpose | null;
@@ -101,6 +102,7 @@ export type GenerateDraft = {
 };
 
 export const EMPTY_GENERATE_DRAFT: GenerateDraft = {
+  source: "dna",
   providerId: null,
   modelId: null,
   purpose: null,
@@ -602,6 +604,7 @@ export const useStudio = create<State>((set, get) => {
     reuseGeneration: (g) => {
       set({
         generateDraft: {
+          source: "dna",
           providerId: g.providerId,
           modelId: g.modelId,
           // Anchor/production renders belong to a camera; Generate offers hero/variation.

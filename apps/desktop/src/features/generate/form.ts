@@ -20,6 +20,9 @@ import { t } from "../../i18n";
 import { translateDomainMessage } from "../../i18n/domain";
 
 export type GenerateForm = {
+  source: "dna" | "sketch";
+  sketch: AssetDTO | null;
+  structureSketches: AssetDTO[];
   provider: ProviderDescriptorDTO | null;
   model: ModelCapabilities | null;
   purpose: GenerationPurpose;
@@ -58,21 +61,40 @@ export function resolveGenerateForm(
     ? (provider.models.find((m) => m.id === draft.modelId) ?? provider.models[0] ?? null)
     : null;
   const ready = assets.filter((a) => a.status === "ready");
+  const source = draft.source ?? "dna";
   // Variations need an approved master (ADR-022), so a project without one starts on Hero:
   // the first good hero image becomes the master.
-  const purpose = draft.purpose ?? "hero";
+  const purpose = source === "sketch" ? "hero" : (draft.purpose ?? "hero");
+  const readySketches = ready
+    .filter((asset) => asset.role === "structure_sketch")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const requestedSketch = draft.referenceAssetIds
+    ?.map((id) => readySketches.find((asset) => asset.id === id))
+    .find((asset): asset is AssetDTO => asset !== undefined);
+  const sketch = source === "sketch" ? (requestedSketch ?? readySketches[0] ?? null) : null;
   const chosen = draft.referenceAssetIds
     ? orderReferenceIds(draft.referenceAssetIds, ready)
     : model
       ? defaultReferenceIds(assets, model)
       : [];
   const master = ready.find((a) => a.id === masterAssetId) ?? null;
-  const pinnedIds = purpose === "variation" && master && model?.imageToImage ? [master.id] : [];
-  const referenceIds = pinnedIds.length
-    ? withPinned(chosen, pinnedIds, ready, model!.maxReferenceImages)
-    : chosen;
-  // Default aspect follows the master, else the first selected reference.
+  const pinnedIds = sketch
+    ? [sketch.id]
+    : purpose === "variation" && master && model?.imageToImage
+      ? [master.id]
+      : [];
+  const sketchChosen = chosen.filter((id) => {
+    const asset = ready.find((candidate) => candidate.id === id);
+    return asset?.role !== "master_architecture" && asset?.role !== "structure_sketch";
+  });
+  const referenceIds = sketch
+    ? [sketch.id, ...sketchChosen.slice(0, Math.max(0, (model?.maxReferenceImages ?? 0) - 1))]
+    : pinnedIds.length
+      ? withPinned(chosen, pinnedIds, ready, model!.maxReferenceImages)
+      : chosen;
+  // Sketch mode follows the sketch; otherwise the master, then the first selected reference.
   const anchor =
+    sketch ??
     assets.find((a) => a.id === masterAssetId) ??
     assets.find((a) => a.id === referenceIds[0]) ??
     null;
@@ -82,12 +104,24 @@ export function resolveGenerateForm(
       ? adaptGenerationParams(draft.params, model, anchor)
       : defaultGenerationParams(model, anchor);
   return {
+    source,
+    sketch,
+    structureSketches: readySketches,
     provider,
     model,
     purpose,
     params,
     referenceIds,
-    candidates: orderReferences(assets),
+    candidates:
+      source === "sketch"
+        ? orderReferences(
+            assets.filter(
+              (asset) =>
+                asset.role !== "master_architecture" &&
+                (asset.role !== "structure_sketch" || asset.id === sketch?.id),
+            ),
+          )
+        : orderReferences(assets),
     pinnedIds,
   };
 }
@@ -118,6 +152,9 @@ export function generateDisabledReason(form: GenerateForm, ctx: GenerateContext)
   if (ctx.readOnly) return t("generate.reasonArchived");
   if (ctx.submitting) return t("generate.reasonSubmitting");
   if (!form.provider || !form.model) return t("generate.reasonNoProvider");
+  if (form.source === "sketch" && !form.sketch) return t("generate.reasonNoSketch");
+  if (form.source === "sketch" && !form.model.imageToImage)
+    return t("generate.reasonSketchNeedsRefs", { model: form.model.label });
   if (!form.provider.configured)
     return t("generate.reasonNeedsKey", { provider: form.provider.label });
   if (ctx.dnaInvalid) return t("generate.reasonDnaInvalid");

@@ -110,6 +110,7 @@ export const vi: Dict = {
     },
     assetRole: {
       master_architecture: "Kiến trúc Master",
+      structure_sketch: "Phác thảo / khối",
       architecture_reference: "Tham chiếu kiến trúc",
       material_reference: "Tham chiếu vật liệu",
       context_reference: "Tham chiếu bối cảnh",
@@ -121,6 +122,7 @@ export const vi: Dict = {
     },
     assetRoleShort: {
       master_architecture: "Kiến trúc Master",
+      structure_sketch: "Phác thảo",
       architecture_reference: "Kiến trúc",
       material_reference: "Vật liệu",
       context_reference: "Bối cảnh",
@@ -762,6 +764,17 @@ export const vi: Dict = {
     capOutputs: "tối đa {count} ảnh mỗi lần chạy",
     capOffline: "ảnh giữ chỗ ngoại tuyến",
     output: "Đầu ra",
+    source: "Nguồn ảnh",
+    sourceDna: "Từ mô tả DNA",
+    sourceSketch: "Từ phác thảo / khối",
+    sketchPicker: "Ảnh phác thảo / khối",
+    importSketch: "Nhập phác thảo",
+    sketchHowTo:
+      "Tải ảnh chụp SketchUp, góc khối hoặc phác thảo tay; AI giữ nguyên hình khối và góc nhìn, rồi dựng vật liệu và ánh sáng theo DNA. Kết quả tốt có thể dùng làm Master.",
+    sketchPinned: "Ảnh phác thảo luôn là ảnh 1; AI giữ nguyên hình khối và góc nhìn.",
+    reasonNoSketch: "Chưa có ảnh phác thảo — bấm Nhập phác thảo",
+    reasonSketchNeedsRefs:
+      "Chế độ phác thảo cần model nhận ảnh image-to-image — {model} không hỗ trợ.",
     purpose: "Mục đích",
     heroHint: "Hero: ảnh trình bày chính, bám theo ảnh Master.",
     variationHint: "Biến thể: một phương án khác để khám phá.",

@@ -22,6 +22,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 
 const ROLE_TONE: Record<AssetRole, string> = {
   master_architecture: "badge-accent",
+  structure_sketch: "badge-info",
   architecture_reference: "badge-info",
   material_reference: "badge-warning",
   context_reference: "badge-neutral",
