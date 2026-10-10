@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "urban_villa",
   "subtype": "default",
   "label": "Urban villa",
@@ -68,26 +68,26 @@
       "id": "front_left_corner",
       "label": "Front-left corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": 45,
+      "azimuthDeg": 25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 22,
       "lensMm": 24,
       "aspectRatio": "3:2",
-      "composition": "two-point perspective showing the front facade and the left side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": true
     },
     {
       "id": "front_right_corner",
       "label": "Front-right corner",
       "viewType": "exterior_corner",
-      "azimuthDeg": -45,
+      "azimuthDeg": -25,
       "elevationDeg": 0,
       "heightM": 1.6,
       "distanceM": 22,
       "lensMm": 24,
       "aspectRatio": "3:2",
-      "composition": "two-point perspective showing the front facade and the right side, building filling two thirds of the frame",
+      "composition": "oblique street view along the street, front facade dominant; side walls hidden by the attached neighbours",
       "anchorRecommended": false
     },
     {
@@ -101,7 +101,7 @@
       "lensMm": 24,
       "aspectRatio": "3:2",
       "composition": "view from the street past the front gate and boundary wall",
-      "anchorRecommended": false
+      "anchorRecommended": true
     },
     {
       "id": "aerial_three_quarter",
@@ -113,7 +113,7 @@
       "distanceM": 55,
       "lensMm": 35,
       "aspectRatio": "16:9",
-      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "composition": "same street block and surrounding rooftops",
       "anchorRecommended": true
     },
     {
@@ -126,7 +126,7 @@
       "distanceM": 16,
       "lensMm": 24,
       "aspectRatio": "3:2",
-      "composition": "rear facade seen from the garden, landscape in the foreground",
+      "composition": "rear facade seen from the garden, landscape in the foreground, only where the context describes it",
       "anchorRecommended": false
     },
     {

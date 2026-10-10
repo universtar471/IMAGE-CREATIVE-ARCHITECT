@@ -15,8 +15,10 @@ import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
+import { cameraSitePlan, viewTypeFraming } from "./topology";
+import { stylePhrase } from "./stylePhrases";
 
-export const COMPILER_VERSION = "pc-1.4.0";
+export const COMPILER_VERSION = "pc-1.5.0";
 
 export type PromptReference = {
   assetId: string;
@@ -142,7 +144,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   // Positive section order is stable: subject, form, language, materials, furnishing,
   // context, lighting, weather, mood, camera, quality. Furnishing is interior-only.
   const positiveSections: Array<[string, string | null]> = [
-    ["subject", subjectSection(input, typeLabel, isInterior)],
+    ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     [
       "form",
       usesInteriorDna
@@ -170,7 +172,9 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ["mood", moodSection(dna)],
     [
       "camera",
-      camera ? cameraSectionText(camera) : (interiorLine(interiorLines, "Camera:") ?? null),
+      camera
+        ? cameraSectionTextForPlan(camera, dna, project.projectType)
+        : (interiorLine(interiorLines, "Camera:") ?? null),
     ],
     [
       "quality",
@@ -179,7 +183,33 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   ];
   const included = positiveSections.filter((s): s is [string, string] => s[1] !== null);
 
-  const negatives = dedupe([...BASE_NEGATIVES, ...dna.context.negativeConstraints]);
+  const plan = cameraSitePlan(camera, dna.context, project.projectType);
+  const contextualNegatives =
+    plan.mode === "oblique_street"
+      ? [
+          "corner plot",
+          "street intersection",
+          "exposed side wall",
+          "side alley",
+          "side yard",
+          "detached building",
+          "side windows on party walls",
+        ]
+      : plan.mode === "aerial_block"
+        ? [
+            "new street intersection",
+            "corner lot",
+            "detached neighbours",
+            "merged neighbour buildings",
+            "vacant plot",
+          ]
+        : [];
+  const negatives = dedupe([
+    ...BASE_NEGATIVES,
+    ...(pack?.negativeConstraints ?? []),
+    ...dna.context.negativeConstraints,
+    ...contextualNegatives,
+  ]);
 
   const roleCounts: Record<string, number> = {};
   for (const r of references) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
@@ -190,7 +220,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),
-    preservationInstructions: preservationSection(dna, references, camera),
+    preservationInstructions: preservationSection(dna, references, camera, project.projectType),
     metadata: {
       projectId: project.id,
       projectType: project.projectType,
@@ -220,6 +250,7 @@ function subjectSection(
   { dna, project, pack }: PromptCompileInput,
   typeLabel: string,
   isInterior: boolean,
+  camera: CameraDNA | undefined,
 ): string {
   const b = dna.building;
   const noun = pack?.promptVocabulary.subjectNoun ?? b.buildingType ?? typeLabel;
@@ -227,8 +258,9 @@ function subjectSection(
   const what = descriptor
     ? `${article(descriptor)} ${descriptor} ${noun}`
     : `${article(noun)} ${noun}`;
-  const framing =
-    pack?.promptVocabulary.framing ?? (isInterior ? "interior view" : "exterior view");
+  const framing = camera
+    ? viewTypeFraming(camera.viewType, isInterior)
+    : (pack?.promptVocabulary.framing ?? (isInterior ? "interior view" : "exterior view"));
   return `Architectural visualization (${framing}) of ${what}, project type: ${typeLabel.toLowerCase()}${
     project.subtype && project.subtype !== "default" ? ` / ${humanize(project.subtype)}` : ""
   }.`;
@@ -280,6 +312,8 @@ function languageSection(dna: ProjectDNA): string | null {
   if (b.specialFeatures.length) parts.push(`signature features: ${b.specialFeatures.join(", ")}`);
   const notes = b.notes.trim();
   if (notes) parts.push(`design notes: ${notes}`);
+  const phrase = stylePhrase(b.architecturalStyle);
+  if (phrase) parts.push(phrase);
   return parts.length ? `Architectural language: ${parts.join("; ")}.` : null;
 }
 
@@ -413,13 +447,22 @@ function preservationSection(
   dna: ProjectDNA,
   references: readonly PromptReference[],
   camera: CameraDNA | undefined,
+  projectType: ProjectType,
 ): string {
   const lines: string[] = [];
   const masterIndex = references.findIndex((r) => r.role === "master_architecture");
   if (masterIndex >= 0) {
-    lines.push(
-      `Preserve the architecture of Image ${masterIndex + 1} (master): do not change building massing, floor count, roof form, opening positions or facade proportions.`,
-    );
+    if (projectType !== "interior") {
+      lines.push(
+        `Image ${masterIndex + 1} is the approved master and the source of truth for both the building and its visible site. Preserve the building's massing, floor count, roof, facade, openings, materials, and all visible surroundings: neighbouring buildings and their positions, street and sidewalk width and layout, curbs, poles, overhead wires, vegetation, vehicles, background, lighting direction, time of day, weather, and shadow character. Change only the camera viewpoint and the portions naturally revealed by that viewpoint. Do not redesign, remove, merge, relocate, or replace visible site elements.`,
+      );
+      lines.push(`Preserve the architecture of Image ${masterIndex + 1} (master).`);
+    } else {
+      lines.push(
+        `Preserve the architecture of Image ${masterIndex + 1} (master): do not change building massing, floor count, roof form, opening positions or facade proportions.`,
+      );
+      lines.push("Keep the same room, window positions, view outside and lighting character.");
+    }
   } else {
     lines.push(
       "No master architecture image is set; keep the building consistent with the structured DNA.",
@@ -460,8 +503,49 @@ function preservationSection(
   if (dna.locks.weather)
     lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
   if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
+  if (camera && masterIndex >= 0) {
+    const plan = cameraSitePlan(camera, dna.context, projectType);
+    if (plan.mode === "oblique_street") {
+      const sideText = plan.side ? `the ${plan.side} side` : "both sides";
+      const hidden = plan.side === "left" ? "front-left" : "front-right";
+      lines.push(
+        `The building is attached to neighbouring buildings on ${sideText}. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.`,
+      );
+      lines.push(
+        `Camera viewpoint: ${hidden} oblique street view from eye level. Composition: front facade dominant, seen at an angle along the street; the ${plan.side ?? "side"} side wall stays hidden behind the attached neighbour.`,
+      );
+    } else if (plan.mode === "aerial_block") {
+      lines.push(
+        "Keep the same continuous mid-block street and neighbourhood shown in Image N. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image N; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.",
+      );
+    } else if (plan.mode === "corner_side" && plan.side) {
+      lines.push(
+        `This is a corner plot: a side street runs along the ${plan.side} side; reveal that side facade consistently with Image N.`,
+      );
+    } else if (plan.mode === "unknown_side" && plan.side) {
+      lines.push(
+        `Do not invent a corner plot, side street or new neighbour arrangement; reveal the ${plan.side} side only as a plain continuation consistent with Image N.`,
+      );
+    }
+  }
   lines.push(...sceneObjectLines(dna));
   return lines.join("\n");
+}
+
+function cameraSectionTextForPlan(
+  camera: CameraDNA,
+  dna: ProjectDNA,
+  projectType: ProjectType,
+): string {
+  const plan = cameraSitePlan(camera, dna.context, projectType);
+  if (plan.mode === "oblique_street") {
+    const side = plan.side ?? "side";
+    return `Camera: ${side === "left" ? "front-left" : "front-right"} oblique street view from eye level; composition: front facade dominant, seen at an angle along the street; the ${side} side wall stays hidden behind the attached neighbour.`;
+  }
+  if (plan.mode === "aerial_block") {
+    return `Camera: aerial architectural view; composition: same street block and surrounding rooftops.`;
+  }
+  return cameraSectionText(camera);
 }
 
 // ---------------------------------------------------------------- helpers

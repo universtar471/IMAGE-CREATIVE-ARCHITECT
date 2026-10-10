@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.2.0",
+  "packVersion": "1.3.0",
   "projectType": "custom",
   "subtype": "default",
   "label": "Generic",
@@ -22,7 +22,7 @@
       "lensMm": 28,
       "aspectRatio": "3:2",
       "composition": "centered one-point perspective on the front facade, verticals kept straight",
-      "anchorRecommended": false
+      "anchorRecommended": true
     },
     {
       "id": "front_left_corner",
@@ -60,7 +60,7 @@
       "distanceM": 60,
       "lensMm": 35,
       "aspectRatio": "16:9",
-      "composition": "drone view over the front-left corner showing roof, plot and surroundings",
+      "composition": "roof, site and immediate surroundings consistent with the master",
       "anchorRecommended": true
     },
     {
