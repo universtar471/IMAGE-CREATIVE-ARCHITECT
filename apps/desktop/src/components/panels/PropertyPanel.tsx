@@ -24,7 +24,9 @@ export function PropertyPanel() {
   const readOnly = useStudio(selectReadOnly);
   const mod = moduleById(active);
   const t = useT();
-  const label = t(`modules.${mod.id}.label`);
+  const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
+  const label =
+    isInterior && mod.id === "design_dna" ? t("interior.space") : t(`modules.${mod.id}.label`);
   const panelBody = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

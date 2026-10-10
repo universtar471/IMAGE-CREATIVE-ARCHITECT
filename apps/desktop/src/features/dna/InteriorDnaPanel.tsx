@@ -1,0 +1,329 @@
+import { useState } from "react";
+import { selectReadOnly, useStudio } from "../../app/store";
+import { ConfirmDialog } from "../../components/common/Dialog";
+import { SectionPanel } from "../../components/panels/SectionPanel";
+import { FieldGroup, NumberField, SelectField } from "../../components/panels/fields";
+import { useLocale, useT } from "../../i18n";
+import {
+  BUILDING_USES,
+  FURNITURE,
+  INTERIOR_STYLES,
+  MATERIAL_PRESETS,
+  PALETTES,
+  PALETTE_SWATCHES,
+  ROOMS,
+  SURFACE_CATALOG,
+  applyStyleDefaults,
+  catalogLabel,
+  furnitureForRoom,
+  presetSurfaces,
+  proposeInteriorFromLegacy,
+  roomsForUse,
+  type CatalogOption,
+  type FurnitureId,
+  type InteriorDNA,
+  type InteriorStyleId,
+  type ProjectDNAWithInterior,
+  type SurfaceSlot,
+} from "../../lib/interior";
+
+export function InteriorDnaPanel() {
+  const ws = useStudio((state) => state.workspace!);
+  const interior = (ws.draftDna as ProjectDNAWithInterior).interior;
+  return interior ? <InteriorEditor interior={interior} /> : <LegacyInteriorCallout />;
+}
+
+function InteriorEditor({ interior }: { interior: InteriorDNA }) {
+  const editDna = useStudio((state) => state.editDna);
+  const readOnly = useStudio(selectReadOnly);
+  const locked = useStudio((state) => !!state.workspace?.draftDna.locks.building);
+  const disabled = readOnly || locked;
+  const t = useT();
+  const locale = useLocale((state) => state.locale);
+
+  const replace = (next: InteriorDNA) => editDna("interior", next);
+  const patch = <K extends keyof InteriorDNA>(key: K, value: InteriorDNA[K]) =>
+    replace({ ...interior, [key]: value });
+  const changeStyle = (styleId: InteriorStyleId) => {
+    const currentPreset = interior.materialPresetId
+      ? presetSurfaces(interior.materialPresetId)
+      : undefined;
+    const surfacesEdited =
+      !currentPreset ||
+      (Object.keys(interior.surfaces) as SurfaceSlot[]).some(
+        (slot) => interior.surfaces[slot].join("|") !== currentPreset[slot].join("|"),
+      );
+    if (surfacesEdited && !window.confirm(t("interior.applyStyleMaterials"))) return;
+    replace(
+      applyStyleDefaults(
+        {
+          ...interior,
+          surfaces: {
+            floor: [],
+            wall: [],
+            ceiling: [],
+            cabinetry: [],
+            countertop: [],
+            textile: [],
+            metal: [],
+          },
+        },
+        styleId,
+      ),
+    );
+  };
+  const changeUse = (buildingUseId: InteriorDNA["buildingUseId"]) => {
+    const validRooms = roomsForUse(buildingUseId);
+    const roomId = validRooms.includes(interior.roomId)
+      ? interior.roomId
+      : validRooms.includes("other")
+        ? "other"
+        : validRooms[0]!;
+    replace({ ...interior, buildingUseId, roomId });
+  };
+
+  return (
+    <div className="interior-layout">
+      <div className="interior-fields">
+        <SectionPanel title={t("interior.space")}>
+          <SelectField
+            label={t("interior.buildingUse")}
+            allowEmpty={false}
+            disabled={disabled}
+            value={interior.buildingUseId}
+            options={BUILDING_USES.map((item) => ({ value: item.id, label: item[locale] }))}
+            onChange={(value) => value && changeUse(value)}
+          />
+          <SelectField
+            label={t("interior.room")}
+            allowEmpty={false}
+            disabled={disabled}
+            value={interior.roomId}
+            options={roomsForUse(interior.buildingUseId).map((id) => ({
+              value: id,
+              label: catalogLabel(ROOMS, id, locale),
+            }))}
+            onChange={(value) => value && patch("roomId", value)}
+          />
+          <SelectField
+            label={t("interior.style")}
+            allowEmpty={false}
+            disabled={disabled}
+            value={interior.styleId}
+            options={INTERIOR_STYLES.map((item) => ({ value: item.id, label: item[locale] }))}
+            onChange={(value) => value && changeStyle(value)}
+          />
+          <SelectField
+            label={t("interior.palette")}
+            disabled={disabled}
+            value={interior.paletteId}
+            options={PALETTES.map((item) => ({ value: item.id, label: item[locale] }))}
+            onChange={(value) => patch("paletteId", value)}
+          />
+          <SelectField
+            label={t("interior.materialPreset")}
+            disabled={disabled}
+            value={interior.materialPresetId}
+            options={MATERIAL_PRESETS.map((item) => ({ value: item.id, label: item[locale] }))}
+            onChange={(value) => {
+              if (!value) return patch("materialPresetId", undefined);
+              replace({ ...interior, materialPresetId: value, surfaces: presetSurfaces(value) });
+            }}
+          />
+        </SectionPanel>
+
+        <SectionPanel title={t("interior.surfaces")}>
+          {(Object.keys(SURFACE_CATALOG) as SurfaceSlot[]).map((slot) => (
+            <CatalogMultiSelect
+              key={slot}
+              label={t(`interior.surface.${slot}`)}
+              options={SURFACE_CATALOG[slot]}
+              value={interior.surfaces[slot]}
+              locale={locale}
+              disabled={disabled}
+              onChange={(ids) =>
+                replace({ ...interior, surfaces: { ...interior.surfaces, [slot]: ids } })
+              }
+            />
+          ))}
+        </SectionPanel>
+
+        <SectionPanel title={t("interior.furniture")}>
+          <CatalogMultiSelect
+            label={t("interior.furniture")}
+            hint={t("interior.furnitureHint")}
+            options={suggestedFurniture(interior.roomId)}
+            value={interior.furnitureIds}
+            locale={locale}
+            disabled={disabled}
+            onChange={(ids) => patch("furnitureIds", ids as FurnitureId[])}
+          />
+          <SelectField
+            label={t("interior.furnishingDensity")}
+            allowEmpty={false}
+            disabled={disabled}
+            value={interior.furnishingDensity}
+            options={(["minimal", "balanced", "layered"] as const).map((value) => ({
+              value,
+              label: t(`interior.density.${value}`),
+            }))}
+            onChange={(value) => value && patch("furnishingDensity", value)}
+          />
+          <div className="field-row">
+            <NumberField
+              label={t("interior.area")}
+              suffix="m²"
+              disabled={disabled}
+              value={interior.areaM2}
+              onChange={(value) => patch("areaM2", value)}
+            />
+            <NumberField
+              label={t("interior.ceilingHeight")}
+              suffix="m"
+              disabled={disabled}
+              value={interior.ceilingHeightM}
+              onChange={(value) => patch("ceilingHeightM", value)}
+            />
+          </div>
+        </SectionPanel>
+      </div>
+      <Moodboard interior={interior} />
+    </div>
+  );
+}
+
+function CatalogMultiSelect<T extends string>({
+  label,
+  hint,
+  options,
+  value,
+  locale,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  options: readonly CatalogOption<T>[];
+  value: readonly T[];
+  locale: "vi" | "en";
+  disabled: boolean;
+  onChange: (value: T[]) => void;
+}) {
+  return (
+    <FieldGroup label={label} hint={hint}>
+      <div className="catalog-checks">
+        {options.map((item) => (
+          <label className="check-row" key={item.id}>
+            <input
+              type="checkbox"
+              checked={value.includes(item.id)}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange(
+                  event.target.checked ? [...value, item.id] : value.filter((id) => id !== item.id),
+                )
+              }
+            />
+            {item[locale]}
+          </label>
+        ))}
+      </div>
+    </FieldGroup>
+  );
+}
+
+function suggestedFurniture(roomId: InteriorDNA["roomId"]) {
+  const suggested = new Set(furnitureForRoom(roomId));
+  return [...FURNITURE].sort(
+    (left, right) => Number(suggested.has(right.id)) - Number(suggested.has(left.id)),
+  );
+}
+
+export function Moodboard({ interior, mini = false }: { interior: InteriorDNA; mini?: boolean }) {
+  const locale = useLocale((state) => state.locale);
+  const t = useT();
+  const materials = (Object.keys(SURFACE_CATALOG) as SurfaceSlot[]).flatMap((slot) =>
+    interior.surfaces[slot].map((id) => ({
+      slot,
+      item: (SURFACE_CATALOG[slot] as readonly CatalogOption<string>[]).find(
+        (candidate) => candidate.id === id,
+      ),
+    })),
+  );
+  return (
+    <aside
+      className={`interior-moodboard ${mini ? "is-mini" : ""}`}
+      data-testid="interior-moodboard"
+    >
+      {!mini && <h3>{t("interior.moodboard")}</h3>}
+      <strong>{catalogLabel(INTERIOR_STYLES, interior.styleId, locale)}</strong>
+      <div className="moodboard-palette" aria-label={t("interior.paletteSwatches")}>
+        {(interior.paletteId ? PALETTE_SWATCHES[interior.paletteId] : []).map((color) => (
+          <span
+            key={color}
+            className="moodboard-swatch"
+            style={{ background: color }}
+            title={color}
+          />
+        ))}
+      </div>
+      <div className="moodboard-materials">
+        {materials.map(
+          ({ slot, item }, index) =>
+            item && (
+              <span className="moodboard-material" key={`${slot}-${item.id}-${index}`}>
+                <i style={{ background: item.swatch }} />
+                {!mini && <small>{item[locale]}</small>}
+              </span>
+            ),
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function LegacyInteriorCallout() {
+  const dna = useStudio((state) => state.workspace!.draftDna);
+  const editDna = useStudio((state) => state.editDna);
+  const readOnly = useStudio(selectReadOnly);
+  const [confirming, setConfirming] = useState(false);
+  const { proposal, matched } = proposeInteriorFromLegacy(dna);
+  const t = useT();
+  return (
+    <>
+      <div className="callout callout-warning interior-legacy" role="status">
+        <strong>{t("interior.legacyTitle")}</strong>
+        <span>{t("interior.legacyMessage")}</span>
+        <button className="btn btn-sm" disabled={readOnly} onClick={() => setConfirming(true)}>
+          {t("interior.convert")}
+        </button>
+      </div>
+      {confirming && (
+        <ConfirmDialog
+          title={t("interior.convertTitle")}
+          confirmLabel={t("interior.convert")}
+          message={
+            <>
+              <p>{t("interior.convertMessage")}</p>
+              <strong>{t("interior.matchedFields")}</strong>
+              {matched.length ? (
+                <ul>
+                  {matched.map((field) => (
+                    <li key={field}>{field}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="field-hint">{t("interior.noMatchedFields")}</p>
+              )}
+            </>
+          }
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            editDna("interior", proposal);
+            setConfirming(false);
+          }}
+        />
+      )}
+    </>
+  );
+}

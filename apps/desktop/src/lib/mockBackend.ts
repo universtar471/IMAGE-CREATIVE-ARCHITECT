@@ -1089,6 +1089,10 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       db.dna[id] = ProjectDNASchema.parse(req.dna);
       const inputScene = (req.dna as ProjectDNA & { scene?: SceneDNA }).scene;
       if (inputScene) (db.dna[id] as ProjectDNA & { scene?: SceneDNA }).scene = inputScene;
+      // TODO(interior-domain): preserve the additive stand-in until ProjectDNASchema owns it.
+      const inputInterior = (req.dna as ProjectDNA & { interior?: unknown }).interior;
+      if (inputInterior)
+        (db.dna[id] as ProjectDNA & { interior?: unknown }).interior = inputInterior;
       refreshStatus(id);
       save();
       return publicProject(db.projects[id]!);
