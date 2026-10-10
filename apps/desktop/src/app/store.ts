@@ -507,11 +507,12 @@ export const useStudio = create<State>((set, get) => {
         try {
           // Scene objects are additive in Phase 7; preserve them on older domain builds that
           // do not yet include the optional `scene` field in ProjectDNA's inferred type.
-          const submittedWithScene = (submitted as ProjectDNA & { scene?: unknown }).scene;
-          const dnaToSave =
-            submittedWithScene === undefined
-              ? v.dna
-              : ({ ...v.dna, scene: submittedWithScene } as ProjectDNA);
+          const additive = submitted as ProjectDNA & { scene?: unknown };
+          const dnaToSave = {
+            ...v.dna,
+            ...(additive.scene === undefined ? {} : { scene: additive.scene }),
+            ...(additive.interior === undefined ? {} : { interior: additive.interior }),
+          } as ProjectDNA;
           const project = await call("dna_update", { projectId: ws.project.id, dna: dnaToSave });
           const current = get().workspace;
           if (!current || current.project.id !== project.id) return true;

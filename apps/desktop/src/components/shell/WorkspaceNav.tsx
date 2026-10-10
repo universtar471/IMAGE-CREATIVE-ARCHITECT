@@ -11,12 +11,14 @@ export function WorkspaceNav() {
   const setModule = useStudio((s) => s.setModule);
   const t = useT();
   const workflow = useStudio((s) => s.workflowView);
+  const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
   return (
     <nav className="nav" aria-label={t("modules.navLabel")}>
       {WORKSPACE_MODULES.map((m, i) => {
         const prev = WORKSPACE_MODULES[i - 1];
         const Icon = m.icon;
-        const label = t(`modules.${m.id}.label`);
+        const label =
+          isInterior && m.id === "design_dna" ? t("interior.space") : t(`modules.${m.id}.label`);
         return (
           <Fragment key={m.id}>
             {prev && prev.group !== m.group && <div className="nav-group-sep" role="separator" />}

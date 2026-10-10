@@ -5,6 +5,8 @@
 import {
   compilePrompt,
   createInitialDNA,
+  type InteriorDNA,
+  type ProjectDNA,
   type ProjectDTO,
   type ProjectType,
   type PromptBundle,
@@ -18,17 +20,19 @@ export type NewProjectInput = {
   projectType: ProjectType;
   subtype: string | null;
   starter: WizardStarter;
+  interior?: InteriorDNA;
 };
 
 /** Resolve pack defaults + wizard input into DNA, then create project + DNA atomically. */
 export async function createProject(input: NewProjectInput): Promise<ProjectDTO> {
   const { pack } = knowledge.resolve(input.projectType, input.subtype);
-  const dna = createInitialDNA({
+  const base = createInitialDNA({
     projectType: input.projectType,
     subtype: input.subtype,
     pack,
     starter: input.starter,
   });
+  const dna: ProjectDNA = input.interior ? { ...base, interior: input.interior } : base;
   return call("project_create", {
     name: input.name,
     projectType: input.projectType,

@@ -1,0 +1,353 @@
+{
+  "interior": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (interior view) of an interior space, project type: interior.\n\nSurroundings and views: residential apartment. Distant background: city skyline through windows.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, exterior facade, fisheye distortion, cluttered surfaces",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_interior",
+      "projectType": "interior",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "interior/default@1.2.0",
+      "sections": ["subject", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "townhouse": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (street-level exterior view) of a townhouse, project type: townhouse.\n\nBuilding form: 4 floors; footprint 5 m x 20 m; massing: narrow vertical facade with stacked balconies; roof: flat roof with roof terrace.\n\nSite context: dense Vietnamese urban street, tropical monsoon climate, high density. In front: narrow residential alley; road: 3 m concrete alley; motorbikes parked, potted plants. On the left side: adjacent: attached neighbouring townhouse. On the right side: adjacent: attached neighbouring townhouse.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, detached side walls with windows, wide front lawn, extra floors",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.\nKeep exactly 4 floors.",
+    "metadata": {
+      "projectId": "PRJ_townhouse",
+      "projectType": "townhouse",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "townhouse/default@1.2.0",
+      "sections": ["subject", "form", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "single_storey_house": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a single-storey house, project type: single-storey house.\n\nBuilding form: 1 floor; roof: pitched roof, deep overhang.\n\nSite context: Vietnamese suburban or rural plot, tropical climate, low density. In front: front garden; vegetation: lawn, frangipani trees. At the rear: back garden.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, second floor, urban high-rise background",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.\nKeep exactly 1 floor.",
+    "metadata": {
+      "projectId": "PRJ_single_storey_house",
+      "projectType": "single_storey_house",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "single_storey_house/default@1.2.0",
+      "sections": ["subject", "form", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "villa": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a villa, project type: villa.\n\nBuilding form: 2 floors; massing: horizontal interlocking volumes.\n\nSite context: low-density villa compound, tropical climate, low density. In front: front garden; road: private driveway; vegetation: manicured lawn, palms. At the rear: garden with swimming pool.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, attached neighbouring buildings, dense urban street",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.\nKeep exactly 2 floors.",
+    "metadata": {
+      "projectId": "PRJ_villa",
+      "projectType": "villa",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "villa/default@1.2.0",
+      "sections": ["subject", "form", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "urban_villa": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of an urban villa, project type: urban villa.\n\nBuilding form: 3 floors; footprint 10 m x 20 m.\n\nSite context: new urban residential area, tropical monsoon climate, medium density. In front: small front yard with gate; road: residential street; vegetation: street trees. On the left side: adjacent: neighbouring villa. On the right side: adjacent: neighbouring villa.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, rural landscape, very large garden",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.\nKeep exactly 3 floors.",
+    "metadata": {
+      "projectId": "PRJ_urban_villa",
+      "projectType": "urban_villa",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "urban_villa/default@1.2.0",
+      "sections": ["subject", "form", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "prefab_modular": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a prefab modular house, project type: prefab / modular.\n\nBuilding form: 1 floor; massing: stacked or linked rectangular modules.\n\nMaterials and colors: structure: light steel frame.\n\nSite context: open site, low density. In front: gravel yard; vegetation: grass, small trees.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, curved organic walls, heavy masonry",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.\nKeep exactly 1 floor.\nDo not substitute the specified materials.",
+    "metadata": {
+      "projectId": "PRJ_prefab_modular",
+      "projectType": "prefab_modular",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "prefab_modular/default@1.2.0",
+      "sections": ["subject", "form", "materials", "context", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "cafe": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Cafe, project type: cafe.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_cafe",
+      "projectType": "cafe",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "restaurant": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Restaurant, project type: restaurant.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_restaurant",
+      "projectType": "restaurant",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "hotel": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Hotel, project type: hotel.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_hotel",
+      "projectType": "hotel",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "office": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of an Office, project type: office.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_office",
+      "projectType": "office",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "commercial": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Commercial, project type: commercial.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_commercial",
+      "projectType": "commercial",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "resort": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Resort, project type: resort.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_resort",
+      "projectType": "resort",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  },
+  "custom": {
+    "compilerVersion": "pc-1.3.0",
+    "positivePrompt": "Architectural visualization (exterior view) of a Custom, project type: custom.\n\nPhotorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
+    "negativePrompt": "distorted perspective, warped or bent vertical lines, inconsistent floor count, melted or impossible geometry, floating structural elements, illegible text or watermarks, low resolution, oversaturated colors, cars blocking the facade, people in the foreground",
+    "referenceInstructions": "No reference images attached. Derive the design from the structured description only.",
+    "preservationInstructions": "No master architecture image is set; keep the building consistent with the structured DNA.",
+    "metadata": {
+      "projectId": "PRJ_custom",
+      "projectType": "custom",
+      "subtype": null,
+      "dnaSchemaVersion": 1,
+      "knowledgePack": "custom/default@1.2.0",
+      "sections": ["subject", "quality"],
+      "referenceCount": 0,
+      "referenceRoles": {},
+      "cameraId": null,
+      "anchorImage": null,
+      "locks": {
+        "building": false,
+        "context": false,
+        "camera": false,
+        "lighting": false,
+        "weather": false,
+        "mood": false
+      }
+    }
+  }
+}

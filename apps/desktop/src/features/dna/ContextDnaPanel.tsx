@@ -1,11 +1,15 @@
-import { CONTEXT_DIRECTIONS, DensitySchema } from "@arch/domain";
+import { CONTEXT_DIRECTIONS, DensitySchema, type ProjectDNA } from "@arch/domain";
 import { SectionPanel } from "../../components/panels/SectionPanel";
+import { SelectField } from "../../components/panels/fields";
 import { DnaSelect, DnaTags, DnaText, DnaTextArea } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 import { useT } from "../../i18n";
+import { selectReadOnly, useStudio } from "../../app/store";
 
 export function ContextDnaPanel() {
   const t = useT();
+  const projectType = useStudio((state) => state.workspace!.project.projectType);
+  if (projectType === "interior") return <InteriorContextPanel />;
   const densityOptions = DensitySchema.options.map((d) => ({
     value: d,
     label: t(`labels.density.${d}`),
@@ -75,6 +79,58 @@ export function ContextDnaPanel() {
           label={t("context.mustNotAppear")}
           hint={t("context.negativeHint")}
           placeholder={t("context.negativePlaceholder")}
+        />
+      </SectionPanel>
+    </>
+  );
+}
+
+function InteriorContextPanel() {
+  const t = useT();
+  const editDna = useStudio((state) => state.editDna);
+  const dna = useStudio((state) => state.workspace!.draftDna as ProjectDNA);
+  const readOnly = useStudio(selectReadOnly);
+  const locked = useStudio((state) => !!state.workspace?.draftDna.locks.context);
+  const interior = dna.interior;
+  if (!interior) return <span className="field-hint">{t("interior.legacyContextHint")}</span>;
+  const disabled = readOnly || locked;
+  return (
+    <>
+      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <SectionPanel title={t("interior.window")}>
+        <DnaText path="building.openings.windowType" label={t("interior.windowType")} />
+        <div className="field-row">
+          <DnaText path="building.openings.frame" label={t("interior.windowFrame")} />
+          <DnaText path="building.openings.glazing" label={t("interior.glazing")} />
+        </div>
+      </SectionPanel>
+      <SectionPanel title={t("interior.view")}>
+        <DnaText path="context.front.spaceType" label={t("interior.viewType")} />
+        <DnaTags path="context.front.elements" label={t("interior.viewElements")} />
+        <DnaTextArea path="context.front.notes" label={t("context.notes")} />
+      </SectionPanel>
+      <SectionPanel title={t("interior.daylight")}>
+        <SelectField
+          label={t("interior.daylightDirection")}
+          value={interior.daylightDirection}
+          disabled={disabled}
+          options={(["front", "left", "right", "rear", "diffuse", "none"] as const).map(
+            (value) => ({
+              value,
+              label: t(`interior.daylightDirections.${value}`),
+            }),
+          )}
+          onChange={(value) => editDna("interior.daylightDirection", value)}
+        />
+        <SelectField
+          label={t("interior.daylightAmount")}
+          value={interior.daylightAmount}
+          disabled={disabled}
+          options={(["low", "medium", "high"] as const).map((value) => ({
+            value,
+            label: t(`interior.daylightAmounts.${value}`),
+          }))}
+          onChange={(value) => editDna("interior.daylightAmount", value)}
         />
       </SectionPanel>
     </>

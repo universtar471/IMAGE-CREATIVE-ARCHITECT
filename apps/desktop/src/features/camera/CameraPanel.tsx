@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { Anchor, Copy, Plus, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import {
   blankCamera,
+  CAMERA_PRESETS,
   cameraFromPreset,
   cameraReadiness,
   CameraViewTypeSchema,
   duplicateCamera,
+  uniqueCameraName,
   type CameraDNA,
+  type ProjectDNA,
   type PromptBundle,
 } from "@arch/domain";
 import { compilePromptPreview } from "../../app/services";
@@ -21,6 +24,21 @@ import { CAMERA_ASPECT_RATIOS } from "./labels";
 import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
+
+const INTERIOR_CAMERA_NAME_KEYS = {
+  wide_entrance: "wideEntrance",
+  corner: "corner",
+  one_point: "onePoint",
+  detail: "detail",
+} as const;
+
+const INTERIOR_CAMERA_PRESETS = CAMERA_PRESETS.map((preset) => ({
+  ...preset,
+  nameKey: INTERIOR_CAMERA_NAME_KEYS[preset.id],
+  viewType: preset.id === "detail" ? ("interior_detail" as const) : ("interior_wide" as const),
+  lensMm: preset.id === "detail" ? 35 : 20,
+  composition: preset.prompt,
+}));
 
 /** Right panel of the Camera module: camera list, field editor and prompt preview. */
 export function CameraPanel() {
@@ -58,6 +76,7 @@ function CameraListSection() {
   const cameras = ws.draftDna.cameras;
   const names = cameras.map((c) => c.name);
   const presets = knowledge.cameraPresets(ws.project.projectType, ws.project.subtype);
+  const isInterior = ws.project.projectType === "interior";
   const t = useT();
 
   const add = (camera: CameraDNA) => {
@@ -87,6 +106,33 @@ function CameraListSection() {
     >
       {!readOnly && (
         <div className="camera-add">
+          {isInterior && (
+            <div className="interior-camera-presets" data-testid="interior-camera-presets">
+              {INTERIOR_CAMERA_PRESETS.map((preset) => (
+                <button
+                  className="btn btn-sm"
+                  key={preset.id}
+                  onClick={() => {
+                    const camera = {
+                      ...blankCamera(names),
+                      name: uniqueCameraName(t(`interior.camera.${preset.nameKey}`), names),
+                      presetId: preset.id,
+                      viewType: preset.viewType,
+                      heightM: 1.35,
+                      distanceM: preset.id === "detail" ? 1.5 : 5,
+                      lensMm: preset.lensMm,
+                      aspectRatio: preset.id === "detail" ? "4:5" : "4:3",
+                      composition: preset.composition,
+                    } as CameraDNA;
+                    add(camera);
+                    editInteriorCameraPreset(preset.id);
+                  }}
+                >
+                  {t(`interior.camera.${preset.nameKey}`)}
+                </button>
+              ))}
+            </div>
+          )}
           <select
             className="select"
             aria-label={t("camera.addFromPresetLabel")}
@@ -195,6 +241,12 @@ function CameraListSection() {
       )}
     </SectionPanel>
   );
+}
+
+function editInteriorCameraPreset(id: (typeof INTERIOR_CAMERA_PRESETS)[number]["id"]) {
+  const state = useStudio.getState();
+  const dna = state.workspace?.draftDna as ProjectDNA | undefined;
+  if (dna?.interior) state.editDna("interior.cameraPresetId", id);
 }
 
 function RowAction({

@@ -626,6 +626,105 @@ textarea {
   border-color: var(--c-primary);
   background: #0e2142;
 }
+.interior-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: var(--s-3);
+}
+.interior-fields {
+  min-width: 0;
+}
+.catalog-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 4px 8px;
+}
+.interior-moodboard {
+  align-self: start;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface-2);
+}
+.interior-moodboard.is-mini {
+  position: static;
+  margin-top: 8px;
+}
+.interior-moodboard h3 {
+  margin: 0;
+  font-size: 12px;
+}
+.moodboard-palette,
+.moodboard-materials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.moodboard-swatch,
+.moodboard-material i {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  border-radius: 5px;
+  border: 1px solid rgb(255 255 255 / 20%);
+}
+.moodboard-material {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+.moodboard-material i {
+  width: 16px;
+  height: 16px;
+}
+.interior-legacy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.interior-legacy strong {
+  color: var(--c-text);
+}
+.interior-summary-line {
+  margin: 0;
+}
+.interior-camera-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.interior-scene-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.interior-scene-chips .chip {
+  border: 1px solid var(--c-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-2);
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.interior-scene-chips .chip[aria-pressed="true"] {
+  background: var(--c-primary);
+  color: white;
+}
+@media (max-width: 900px) {
+  .interior-layout {
+    grid-template-columns: 1fr;
+  }
+  .interior-moodboard {
+    position: static;
+  }
+}
 .summary-table {
   width: 100%;
   border-collapse: collapse;

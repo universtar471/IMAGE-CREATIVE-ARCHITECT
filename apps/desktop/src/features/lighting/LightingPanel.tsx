@@ -3,6 +3,7 @@ import {
   newLightingId,
   type LightingDNA,
   type LightingPreset,
+  type ProjectDNA,
   type WeatherDNA,
   type WeatherPreset,
 } from "@arch/domain";
@@ -69,6 +70,7 @@ export function LightingPanel() {
     setSection("weather", { ...weather, [field]: value });
   const presets = knowledge.lightingPresets(ws.project.projectType, ws.project.subtype);
   const weatherPresets = knowledge.weatherPresets(ws.project.projectType, ws.project.subtype);
+  if (ws.project.projectType === "interior") return <InteriorLightingPanel />;
   const applyPreset = (preset: LightingPreset | WeatherPreset, kind: "lighting" | "weather") => {
     if (kind === "lighting" && !lightLocked)
       setSection(kind, {
@@ -301,6 +303,71 @@ export function LightingPanel() {
           disabled={weatherLocked}
           onChange={(v) => setWeather("notes", v)}
         />
+      </SectionPanel>
+    </div>
+  );
+}
+
+function InteriorLightingPanel() {
+  const ws = useStudio((state) => state.workspace!);
+  const editDna = useStudio((state) => state.editDna);
+  const readOnly = useStudio(selectReadOnly);
+  const t = useT();
+  const interior = (ws.draftDna as ProjectDNA).interior;
+  if (!interior) return <span className="field-hint">{t("interior.legacyLightingHint")}</span>;
+  const disabled = readOnly || !!ws.draftDna.locks.lighting;
+  const patch = (field: string, value: unknown) => editDna(`interior.${field}`, value);
+  const scenes = ["ambient", "task", "accent", "cove", "pendant", "downlight"] as const;
+  const times = ["morning", "midday", "afternoon", "golden_hour", "evening", "night"] as const;
+  const temperatures = [2700, 3000, 3500, 4000] as const;
+  return (
+    <div data-testid="interior-lighting-panel">
+      <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
+        <SelectField
+          label={t("lighting.timeOfDay")}
+          value={interior.timeOfDay}
+          disabled={disabled}
+          options={times.map((value) => ({ value, label: t(`interior.time.${value}`) }))}
+          onChange={(value) => patch("timeOfDay", value)}
+        />
+        <FieldGroup label={t("interior.artificialScenes")}>
+          <div className="interior-scene-chips">
+            {scenes.map((scene) => (
+              <button
+                type="button"
+                className="chip"
+                key={scene}
+                aria-pressed={interior.artificialScenes.includes(scene)}
+                disabled={disabled}
+                onClick={() =>
+                  patch(
+                    "artificialScenes",
+                    interior.artificialScenes.includes(scene)
+                      ? interior.artificialScenes.filter((value) => value !== scene)
+                      : [...interior.artificialScenes, scene],
+                  )
+                }
+              >
+                {t(`interior.scene.${scene}`)}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+        <FieldGroup label={t("interior.colorTemperature")}>
+          <div className="segmented" role="group" aria-label={t("interior.colorTemperature")}>
+            {temperatures.map((temperature) => (
+              <button
+                type="button"
+                key={temperature}
+                aria-pressed={interior.colorTemperatureK === temperature}
+                disabled={disabled}
+                onClick={() => patch("colorTemperatureK", temperature)}
+              >
+                {temperature} K
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
       </SectionPanel>
     </div>
   );

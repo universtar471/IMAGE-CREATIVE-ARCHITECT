@@ -921,6 +921,373 @@
       ],
       "additionalProperties": false
     },
+    "interior": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "buildingUseId": {
+          "type": "string",
+          "enum": [
+            "apartment",
+            "studio",
+            "duplex_penthouse",
+            "townhouse",
+            "single_storey_house",
+            "villa",
+            "hotel_room_suite",
+            "office",
+            "cafe_restaurant",
+            "retail_showroom",
+            "spa",
+            "resort",
+            "other"
+          ]
+        },
+        "roomId": {
+          "type": "string",
+          "enum": [
+            "living_room",
+            "kitchen",
+            "dining_room",
+            "living_kitchen",
+            "master_bedroom",
+            "bedroom",
+            "kids_room",
+            "bathroom",
+            "walk_in_closet",
+            "home_office",
+            "prayer_room",
+            "lobby",
+            "reception",
+            "meeting_room",
+            "open_office",
+            "cafe_dining",
+            "bar_counter",
+            "retail_floor",
+            "spa_treatment",
+            "other"
+          ]
+        },
+        "styleId": {
+          "type": "string",
+          "enum": [
+            "modern",
+            "minimalist",
+            "japandi",
+            "wabi_sabi",
+            "scandinavian",
+            "indochine",
+            "contemporary",
+            "luxury",
+            "industrial",
+            "tropical",
+            "modern_classic",
+            "neo_classic",
+            "mediterranean",
+            "organic_modern",
+            "mid_century_modern"
+          ]
+        },
+        "paletteId": {
+          "type": "string",
+          "enum": [
+            "warm_neutral",
+            "cool_neutral",
+            "earth",
+            "monochrome",
+            "green_natural",
+            "blue_coastal"
+          ]
+        },
+        "materialPresetId": {
+          "type": "string",
+          "enum": [
+            "modern_clean",
+            "minimal_light",
+            "japandi_natural",
+            "wabi_earth",
+            "scandi_light",
+            "indochine_heritage",
+            "luxury_stone",
+            "industrial_raw",
+            "tropical_craft",
+            "classic_detail",
+            "mediterranean_warm",
+            "organic_soft",
+            "midcentury_wood"
+          ]
+        },
+        "surfaces": {
+          "default": {
+            "floor": [],
+            "wall": [],
+            "ceiling": [],
+            "cabinetry": [],
+            "countertop": [],
+            "textile": [],
+            "metal": []
+          },
+          "type": "object",
+          "properties": {
+            "floor": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "oak",
+                  "walnut",
+                  "terrazzo",
+                  "porcelain_tile",
+                  "cement_tile",
+                  "microcement",
+                  "natural_stone",
+                  "polished_concrete"
+                ]
+              }
+            },
+            "wall": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "paint",
+                  "limewash",
+                  "plaster",
+                  "microcement",
+                  "exposed_brick",
+                  "wood_panel",
+                  "wallpaper",
+                  "stone_cladding"
+                ]
+              }
+            },
+            "ceiling": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "painted_gypsum",
+                  "wood_slats",
+                  "exposed_concrete",
+                  "cove_ceiling",
+                  "exposed_beams"
+                ]
+              }
+            },
+            "cabinetry": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "oak_veneer",
+                  "walnut_veneer",
+                  "painted_mdf",
+                  "solid_teak",
+                  "rattan_cane",
+                  "lacquer"
+                ]
+              }
+            },
+            "countertop": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "marble",
+                  "quartz",
+                  "granite",
+                  "travertine",
+                  "terrazzo",
+                  "solid_wood"
+                ]
+              }
+            },
+            "textile": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "linen",
+                  "cotton",
+                  "wool",
+                  "velvet",
+                  "leather",
+                  "boucle"
+                ]
+              }
+            },
+            "metal": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "matte_black",
+                  "brushed_brass",
+                  "bronze",
+                  "stainless_steel",
+                  "chrome"
+                ]
+              }
+            }
+          },
+          "required": [
+            "floor",
+            "wall",
+            "ceiling",
+            "cabinetry",
+            "countertop",
+            "textile",
+            "metal"
+          ],
+          "additionalProperties": false
+        },
+        "daylightDirection": {
+          "type": "string",
+          "enum": [
+            "front",
+            "left",
+            "right",
+            "rear",
+            "diffuse",
+            "none"
+          ]
+        },
+        "daylightAmount": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "timeOfDay": {
+          "type": "string",
+          "enum": [
+            "morning",
+            "midday",
+            "afternoon",
+            "golden_hour",
+            "evening",
+            "night"
+          ]
+        },
+        "artificialScenes": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ambient",
+              "task",
+              "accent",
+              "cove",
+              "pendant",
+              "downlight"
+            ]
+          }
+        },
+        "colorTemperatureK": {
+          "anyOf": [
+            {
+              "type": "number",
+              "const": 2700
+            },
+            {
+              "type": "number",
+              "const": 3000
+            },
+            {
+              "type": "number",
+              "const": 3500
+            },
+            {
+              "type": "number",
+              "const": 4000
+            }
+          ]
+        },
+        "furnitureIds": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "sofa",
+              "armchair",
+              "coffee_table",
+              "media_console",
+              "rug",
+              "dining_table",
+              "dining_chairs",
+              "island",
+              "bar_stools",
+              "bed",
+              "bedside_tables",
+              "wardrobe",
+              "dressing_table",
+              "desk",
+              "bookshelf",
+              "vanity",
+              "bathtub",
+              "walk_in_shower",
+              "altar_cabinet",
+              "reception_desk",
+              "lounge_seating",
+              "display_shelving",
+              "treatment_bed",
+              "meeting_table"
+            ]
+          }
+        },
+        "furnishingDensity": {
+          "default": "balanced",
+          "type": "string",
+          "enum": [
+            "minimal",
+            "balanced",
+            "layered"
+          ]
+        },
+        "cameraPresetId": {
+          "type": "string",
+          "enum": [
+            "wide_entrance",
+            "corner",
+            "one_point",
+            "detail"
+          ]
+        },
+        "areaM2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ceilingHeightM": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "buildingUseId",
+        "roomId",
+        "styleId",
+        "surfaces",
+        "artificialScenes",
+        "furnitureIds",
+        "furnishingDensity"
+      ],
+      "additionalProperties": false
+    },
     "locks": {
       "default": {
         "building": false,

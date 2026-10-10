@@ -31,6 +31,7 @@ export function laterStepsToReview(
 
 export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: ReactNode }) {
   const t = useT();
+  const isInterior = useStudio((state) => state.workspace?.project.projectType === "interior");
   const setModule = useStudio((state) => state.setModule);
   const workflow = useStudio((state) => state.workflowView);
   const confirm = useStudio((state) => state.confirmWorkflowStep);
@@ -42,7 +43,10 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const locked = step.status === "locked";
   const readOnly = locked || step.status === "confirmed" || step.status === "needs_review";
   const statusLabel = t(`workflow.status.${step.status}`);
-  const name = t(`workflow.steps.${stepId}.name`);
+  const name =
+    isInterior && stepId === "dna.building"
+      ? t("interior.space")
+      : t(`workflow.steps.${stepId}.name`);
   const guide = t(`workflow.steps.${stepId}.guide`);
 
   const onReopen = () => {
