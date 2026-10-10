@@ -15,6 +15,8 @@ import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { QcPanel } from "../../features/qc/QcPanel";
+import { RegionPanel } from "../../features/regions/RegionPanel";
+import { NextStepBar } from "../../features/workflow/NextStepBar";
 
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
@@ -39,6 +41,7 @@ export function PropertyPanel() {
         )}
       </div>
       <div className="panel-body" ref={panelBody}>
+        {active !== "overview" && <NextStepBar />}
         {readOnly && (
           <div className="readonly-banner">
             <Archive size={14} /> {t("workspace.readOnly")}
@@ -78,6 +81,7 @@ export function PropertyPanel() {
         )}
         {active === "enhance" && <EnhancePanel />}
         {active === "qc" && <QcPanel />}
+        {active === "regions" && <RegionPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

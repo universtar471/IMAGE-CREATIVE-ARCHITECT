@@ -13,8 +13,9 @@ import type { KnowledgePack } from "../knowledge/pack";
 import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
+import { sceneObjectLines } from "../regions/scene";
 
-export const COMPILER_VERSION = "pc-1.2.1";
+export const COMPILER_VERSION = "pc-1.3.0";
 
 export type PromptReference = {
   assetId: string;
@@ -51,6 +52,7 @@ export type PromptSectionOverrides = {
 /** Order in which reference roles are described (and the role ranking for sorting). */
 export const REFERENCE_ROLE_ORDER: readonly AssetRole[] = [
   "master_architecture",
+  "structure_sketch",
   "architecture_reference",
   "material_reference",
   "context_reference",
@@ -64,6 +66,8 @@ export const REFERENCE_ROLE_ORDER: readonly AssetRole[] = [
 const ROLE_INSTRUCTIONS: Record<AssetRole, string> = {
   master_architecture:
     "is the MASTER architecture image: treat it as the authoritative design. Match its building massing, proportions, floor count, roof form, facade composition, window layout and visible materials exactly. Where the text description differs from this image, follow this image.",
+  structure_sketch:
+    "is the STRUCTURE source (sketch, massing model or 3D view): keep its building geometry, camera viewpoint, proportions, floor count, openings and roof form exactly; render it as a finished photorealistic building with the materials, lighting and context described below; do not add or remove building parts.",
   architecture_reference:
     "is an architecture reference: borrow architectural language and detailing only; do not copy its massing over the master design.",
   material_reference:
@@ -397,6 +401,12 @@ function preservationSection(
       "No master architecture image is set; keep the building consistent with the structured DNA.",
     );
   }
+  const structureIndex = references.findIndex((r) => r.role === "structure_sketch");
+  if (structureIndex >= 0) {
+    lines.push(
+      `Follow the geometry and viewpoint of Image ${structureIndex + 1} (structure sketch) exactly; replace sketch lines, flat colours and model textures with real materials.`,
+    );
+  }
   const anchorIndex = references.findIndex(isAnchorRef);
   if (anchorIndex >= 0) {
     lines.push(
@@ -426,6 +436,7 @@ function preservationSection(
   if (dna.locks.weather)
     lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
   if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
+  lines.push(...sceneObjectLines(dna));
   return lines.join("\n");
 }
 

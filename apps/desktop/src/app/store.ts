@@ -91,6 +91,7 @@ export type WorkspaceData = {
  * provider/model capabilities and the project's assets (see features/generate/form.ts).
  */
 export type GenerateDraft = {
+  source: "dna" | "sketch";
   providerId: string | null;
   modelId: string | null;
   purpose: GenerationPurpose | null;
@@ -101,6 +102,7 @@ export type GenerateDraft = {
 };
 
 export const EMPTY_GENERATE_DRAFT: GenerateDraft = {
+  source: "dna",
   providerId: null,
   modelId: null,
   purpose: null,
@@ -503,7 +505,14 @@ export const useStudio = create<State>((set, get) => {
       set({ save: { status: "saving", fieldErrors: {} } });
       savePromise = (async () => {
         try {
-          const project = await call("dna_update", { projectId: ws.project.id, dna: v.dna });
+          // Scene objects are additive in Phase 7; preserve them on older domain builds that
+          // do not yet include the optional `scene` field in ProjectDNA's inferred type.
+          const submittedWithScene = (submitted as ProjectDNA & { scene?: unknown }).scene;
+          const dnaToSave =
+            submittedWithScene === undefined
+              ? v.dna
+              : ({ ...v.dna, scene: submittedWithScene } as ProjectDNA);
+          const project = await call("dna_update", { projectId: ws.project.id, dna: dnaToSave });
           const current = get().workspace;
           if (!current || current.project.id !== project.id) return true;
           const stillDirty = current.draftDna !== submitted;
@@ -595,6 +604,7 @@ export const useStudio = create<State>((set, get) => {
     reuseGeneration: (g) => {
       set({
         generateDraft: {
+          source: "dna",
           providerId: g.providerId,
           modelId: g.modelId,
           // Anchor/production renders belong to a camera; Generate offers hero/variation.

@@ -20,6 +20,7 @@ import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { packLabel } from "../../i18n/knowledge";
 import type { DnaStepId, DerivedWorkflowStep } from "../../lib/workflow";
+import { NextStepBar } from "../workflow/NextStepBar";
 
 export function OverviewPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -47,6 +48,7 @@ export function OverviewPanel() {
 
   return (
     <>
+      <NextStepBar large />
       <SectionPanel title={t("overview.project")}>
         <ProjectNameField
           key={project.id + project.updatedAt}

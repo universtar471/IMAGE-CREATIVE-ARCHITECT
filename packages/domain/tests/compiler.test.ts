@@ -109,6 +109,40 @@ describe("prompt compiler", () => {
     expect(bundle.preservationInstructions).toMatch(/No master architecture image/);
   });
 
+  it("orders and instructs a structure sketch immediately after the master", () => {
+    const bundle = compilePrompt(
+      input("villa", {
+        references: [
+          { assetId: "R", role: "architecture_reference" },
+          { assetId: "S", role: "structure_sketch" },
+          { assetId: "M", role: "master_architecture" },
+        ],
+      }),
+    );
+    const lines = bundle.referenceInstructions.split("\n");
+    expect(lines[1]).toBe(
+      "Image 2 is the STRUCTURE source (sketch, massing model or 3D view): keep its building geometry, camera viewpoint, proportions, floor count, openings and roof form exactly; render it as a finished photorealistic building with the materials, lighting and context described below; do not add or remove building parts.",
+    );
+    expect(lines[0]).toMatch(/^Image 1 is the MASTER/);
+    expect(lines[2]).toMatch(/^Image 3 is an architecture reference/);
+    expect(bundle.preservationInstructions).toContain(
+      "Follow the geometry and viewpoint of Image 2 (structure sketch) exactly; replace sketch lines, flat colours and model textures with real materials.",
+    );
+    expect(bundle.preservationInstructions).toContain(
+      "Preserve the architecture of Image 1 (master)",
+    );
+  });
+
+  it("preserves a structure sketch when no master is present", () => {
+    const bundle = compilePrompt(
+      input("villa", { references: [{ assetId: "S", role: "structure_sketch" }] }),
+    );
+    expect(bundle.preservationInstructions).toContain("No master architecture image is set");
+    expect(bundle.preservationInstructions).toContain(
+      "Follow the geometry and viewpoint of Image 1 (structure sketch) exactly",
+    );
+  });
+
   it("includes DNA values and locks", () => {
     const i = input("villa");
     i.dna.building.floors = 2;

@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useStudio } from "../../app/store";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS, type DnaStepId, type DerivedWorkflowStep } from "../../lib/workflow";
+import { BlockedExplainer } from "./BlockedExplainer";
 
 const DNA_IDS: readonly DnaStepId[] = [
   "dna.building",
@@ -77,7 +78,10 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
       </div>
 
       {locked && step.blockedBy && (
-        <div className="callout callout-warning workflow-banner" role="status">
+        <div
+          className="callout callout-warning workflow-banner workflow-banner-stack"
+          role="status"
+        >
           <LockKeyhole size={14} />
           <span>{t("workflow.locked", { step: t(`workflow.steps.${step.blockedBy}.name`) })}</span>
           <button
@@ -86,6 +90,7 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
           >
             {t("workflow.goThere")}
           </button>
+          <BlockedExplainer stepId={step.blockedBy} />
         </div>
       )}
       {step.status === "needs_review" && (
@@ -127,12 +132,16 @@ export function PostStepFrame({ children }: { children: ReactNode }) {
       data-step-status={step?.status ?? "locked"}
     >
       {locked && (
-        <div className="callout callout-warning workflow-banner" role="status">
+        <div
+          className="callout callout-warning workflow-banner workflow-banner-stack"
+          role="status"
+        >
           <LockKeyhole size={14} />
           <span>{t("workflow.locked", { step: t("workflow.steps.generate.master.name") })}</span>
           <button className="link-btn" onClick={() => setModule("generate")}>
             {t("workflow.goThere")}
           </button>
+          <BlockedExplainer stepId="generate.master" />
         </div>
       )}
       <fieldset disabled={locked} className="workflow-fields">

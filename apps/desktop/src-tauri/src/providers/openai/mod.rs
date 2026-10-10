@@ -291,7 +291,7 @@ impl OpenAiProvider {
             Ok(if request.references.is_empty() {
                 client.post(format!("{base}/images/generations")).json(&fields.json_body(response_format))
             } else {
-                let form = fields.edit_form(response_format, &request.references)?;
+                let form = fields.edit_form(response_format, &request.references, request.mask.as_ref())?;
                 client.post(format!("{base}/images/edits")).multipart(form)
             })
         };

@@ -41,7 +41,24 @@ import {
   type ProjectStatus,
   type ProviderDescriptorDTO,
 } from "@arch/domain";
-import type { CommandName, EventSink, Requests, Transport, VersionDTO } from "./bridge";
+import type {
+  CommandName,
+  EventSink,
+  RegionGenerationSubmitRequest,
+  Requests,
+  Transport,
+  VersionDTO,
+} from "./bridge";
+import {
+  buildRegionEditPrompt,
+  maskCoveragePct,
+  newRegionId,
+  rasterizeMask,
+  type RegionDTO,
+  type RegionEditParams,
+  type RegionShape,
+  type SceneDNA,
+} from "./regions";
 import { neutralGrade } from "./grade";
 import {
   DNA_STEP_IDS,
@@ -60,10 +77,15 @@ import {
   type QcVision,
 } from "./qc";
 
+type MockAsset = AssetDTO & {
+  operationJson?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+};
+
 type Db = {
   projects: Record<string, ProjectDTO & { masterApprovedAt: string | null }>;
   dna: Record<string, ProjectDNA>;
-  assets: Record<string, AssetDTO>;
+  assets: Record<string, MockAsset>;
   versions: VersionDTO[];
   /** Phase 2 (optional so Phase 1 snapshots and test fixtures still load). */
   generations?: GenerationDTO[];
@@ -76,10 +98,12 @@ type Db = {
   workflow?: Record<string, WorkflowStepState[]>;
   qcReports?: QcReportDTO[];
   qcSettings?: Record<string, QcSettings>;
+  regions?: RegionDTO[];
 };
 
 /** A job plus what the mock needs to run and retry it (never sent to the UI). */
-type MockJob = JobDTO & { seq: number; request: GenerationSubmitRequest };
+type RegionOrGenerationRequest = GenerationSubmitRequest | RegionGenerationSubmitRequest;
+type MockJob = JobDTO & { seq: number; request: RegionOrGenerationRequest };
 type MockBatch = Omit<BatchDTO, "counts">;
 
 export type MockOptions = {
@@ -101,6 +125,7 @@ const PURPOSE_TITLES: Record<string, string> = {
   production: "Production",
   enhance: "Enhance",
   repair: "Repair",
+  region_edit: "Region edit",
 };
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
@@ -240,7 +265,7 @@ const HHTECH_MODELS: ModelCapabilities[] = (
 export const MOCK_CHAT_PROVIDERS: readonly string[] = ["hhtech"];
 
 /** Mirrors `ProviderRegistry::builtin()` in src-tauri/src/providers. */
-export const MOCK_PROVIDERS: readonly MockProvider[] = [
+const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
   {
     id: "gemini",
     label: "Google Gemini",
@@ -310,6 +335,18 @@ export const MOCK_PROVIDERS: readonly MockProvider[] = [
   },
 ];
 
+/** §16.3: only official OpenAI and HHTECH GPT models receive native masks. */
+const MOCK_PROVIDER_REGISTRY: readonly MockProvider[] = MOCK_PROVIDERS_BASE.map((provider) => ({
+  ...provider,
+  models: provider.models.map((model) => ({
+    ...model,
+    supportsMask:
+      (provider.id === "openai" || provider.id === "hhtech") && !model.id.startsWith("gemini-"),
+  })) as ModelCapabilities[],
+}));
+/** Legacy fixture comparison keeps this export provider-neutral; runtime descriptors carry §16.3. */
+export const MOCK_PROVIDERS: readonly MockProvider[] = MOCK_PROVIDER_REGISTRY;
+
 const STORAGE_KEY = "arch-studio-mock-db-v1";
 const browserFiles = new Map<string, File>();
 
@@ -374,6 +411,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   db.workflow ??= {};
   db.qcReports ??= [];
   db.qcSettings ??= {};
+  db.regions ??= [];
   // Migration stand-in: projects that already had an approved master are grandfathered in.
   const workflowMigrationTime = new Date().toISOString();
   for (const [projectId, project] of Object.entries(db.projects)) {
@@ -445,6 +483,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     Object.values(db.assets)
       .filter((a) => a.projectId === id)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const projectRegions = (projectId: string, assetId?: string) =>
+    db.regions!.filter(
+      (region) => region.projectId === projectId && (!assetId || region.assetId === assetId),
+    );
+  const projectScene = (projectId: string): SceneDNA => {
+    const dna = db.dna[projectId] as ProjectDNA & { scene?: SceneDNA };
+    return dna.scene ?? { schemaVersion: 1, objects: [] };
+  };
   const applyMaster = (projectId: string, assetId: string | null) => {
     const p = getProject(projectId);
     if (assetId && db.assets[assetId]?.projectId !== projectId) {
@@ -462,7 +508,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   };
 
   const getProvider = (id: string): MockProvider =>
-    MOCK_PROVIDERS.find((p) => p.id === id) ?? fail("NOT_FOUND", `Unknown provider '${id}'.`);
+    MOCK_PROVIDER_REGISTRY.find((p) => p.id === id) ??
+    fail("NOT_FOUND", `Unknown provider '${id}'.`);
 
   const describeProvider = (p: MockProvider): ProviderDescriptorDTO => {
     const hasKey = !!providerKeys[p.id];
@@ -480,7 +527,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   });
 
   /** ADR-015: outputs are ai_generated regular images, versioned under the parent's latest. */
-  const createOutputs = (gen: GenerationDTO, req: GenerationSubmitRequest): string[] => {
+  const createOutputs = (gen: GenerationDTO, req: RegionOrGenerationRequest): string[] => {
     const parent = gen.parentAssetId ? db.assets[gen.parentAssetId] : undefined;
     const parentVersion = parent
       ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
@@ -488,6 +535,20 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const enhance = (
       req.params as GenerationParams & { enhance?: { targetLongEdge: number | null } }
     ).enhance;
+    const region = (req.params as GenerationParams & { region?: RegionEditParams }).region;
+    const regionMetadata = (() => {
+      if (!region || !parent) return null;
+      const shapes = projectRegions(req.projectId, parent.id)
+        .filter((item) => region.regionIds.includes(item.id))
+        .map((item) => item.shape);
+      const mask = rasterizeMask(shapes, parent.widthPx ?? 1, parent.heightPx ?? 1);
+      const provider = getProvider(req.providerId);
+      const model = provider.models.find((item) => item.id === req.modelId);
+      const nativeMask = Boolean(
+        (model as (ModelCapabilities & { supportsMask?: boolean }) | undefined)?.supportsMask,
+      );
+      return { shapes, nativeMask, maskCoveragePct: maskCoveragePct(mask) };
+    })();
     const [w, h] = enhance
       ? enhanceOutputSize(enhance.targetLongEdge, parent)
       : outputSize(req.params.aspectRatio, parent);
@@ -522,7 +583,23 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         heightPx: h,
         sha256: null,
         parentAssetId: gen.parentAssetId,
-        operation: enhance ? "enhance" : "generate",
+        operation: region ? "region_edit" : enhance ? "enhance" : "generate",
+        ...(region && regionMetadata
+          ? {
+              operationJson: {
+                params: req.params,
+                regionShapes: regionMetadata.shapes,
+                nativeMask: regionMetadata.nativeMask,
+                maskCoveragePct: regionMetadata.maskCoveragePct,
+                providerId: req.providerId,
+                model: req.modelId,
+              },
+              meta: {
+                nativeMask: regionMetadata.nativeMask,
+                maskCoveragePct: regionMetadata.maskCoveragePct,
+              },
+            }
+          : {}),
         createdAt: t,
         updatedAt: t,
       };
@@ -531,8 +608,10 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         projectId: req.projectId,
         assetId: id,
         parentVersionId: parentVersion?.id ?? null,
-        label: `${purpose} ${i + 1}/${req.params.outputCount}`,
-        operation: enhance ? "enhance" : "generate",
+        label: region
+          ? `Region edit Â· ${region.regionIds.length} region(s)`
+          : `${purpose} ${i + 1}/${req.params.outputCount}`,
+        operation: region ? "region_edit" : enhance ? "enhance" : "generate",
         generationId: gen.id,
         createdAt: t,
       });
@@ -556,7 +635,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const generationOf = (j: JobDTO) => generations.find((g) => g.id === j.generationId)!;
 
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
-  const validateRequest = (req: GenerationSubmitRequest) => {
+  const validateRequest = (req: RegionOrGenerationRequest) => {
     writable(req.projectId);
     const facts = workflowFacts(req.projectId);
     const purpose = req.purpose as string;
@@ -567,7 +646,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           : { ok: false as const, blockedBy: "generate.master" as const }
         : purpose === "repair"
           ? isGenerationAllowed("variation", workflowRows(req.projectId), facts)
-          : isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
+          : isGenerationAllowed(
+              req.purpose === "region_edit" ? "variation" : req.purpose,
+              workflowRows(req.projectId),
+              facts,
+            );
     if (!gate.ok) {
       fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
     }
@@ -616,12 +699,50 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge > 8192)
         fail("VALIDATION_ERROR", "Enhancement target cannot exceed 8192px.");
     }
+    if (req.purpose === "region_edit") {
+      const region =
+        (req.params as GenerationParams & { region?: RegionEditParams }).region ??
+        fail("VALIDATION_ERROR", "Region edit requires at least one region.");
+      if (region.regionIds.length < 1)
+        fail("VALIDATION_ERROR", "Region edit requires at least one region.");
+      if (req.referenceAssetIds.length !== 1)
+        fail("VALIDATION_ERROR", "Region edit requires exactly one source reference.");
+      if (region.mode === "material_replace" && !region.material?.trim())
+        fail("VALIDATION_ERROR", "Material replacement requires a material.");
+      if (region.mode === "edit" && !region.instruction.trim())
+        fail("VALIDATION_ERROR", "Region edit requires an instruction.");
+      const selected = projectRegions(req.projectId, req.referenceAssetIds[0]);
+      if (region.regionIds.some((id) => !selected.some((item) => item.id === id)))
+        fail("VALIDATION_ERROR", "Every selected region must belong to the source asset.");
+      const source =
+        assets.find((item) => item.id === req.referenceAssetIds[0]) ??
+        fail("NOT_FOUND", "Region source asset was not found.");
+      const shapes = selected
+        .filter((item) => region.regionIds.includes(item.id))
+        .map((item) => item.shape);
+      const nativeMask = Boolean(
+        (model as ModelCapabilities & { supportsMask?: boolean }).supportsMask,
+      );
+      const mask = rasterizeMask(shapes, source.widthPx ?? 1, source.heightPx ?? 1);
+      const coveragePct = maskCoveragePct(mask);
+      const prompt = buildRegionEditPrompt({
+        dna: { ...db.dna[req.projectId]!, scene: projectScene(req.projectId) },
+        regions: selected,
+        params: region,
+        nativeMask,
+        maskCoveragePct: coveragePct,
+      });
+      req.prompt.positivePrompt ||= prompt.positivePrompt;
+      req.prompt.preservationInstructions ||= prompt.preservationInstructions;
+      // Keep the rasterisation in the mock path so callers can inspect the same mask dimensions.
+      void mask;
+    }
     const validationRequest =
       req.purpose === "enhance" && enhance?.mode === "conservative"
         ? { ...req, prompt: { ...req.prompt, positivePrompt: "local upscale" } }
         : purpose === "repair"
           ? ({ ...req, purpose: "variation" } as GenerationSubmitRequest)
-          : req;
+          : (req as GenerationSubmitRequest);
     const issues = validateGenerationRequest(validationRequest, model);
     if (issues.length) fail("VALIDATION_ERROR", issues[0]!.message, { issues });
     // §9 / Rust: a model that lists no ratios or sizes only accepts null (the provider decides).
@@ -643,7 +764,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
 
   /** Insert a queued generation + its job (no validation here). */
   const enqueue = (
-    req: GenerationSubmitRequest,
+    req: RegionOrGenerationRequest,
     extra: { batchId: string | null; label: string; priority: number },
   ): MockJob => {
     const t = now();
@@ -658,7 +779,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       status: "queued",
       prompt: req.prompt,
       referenceAssetIds: [...req.referenceAssetIds],
-      params: req.params,
+      params: req.params as GenerationParams,
       parentAssetId: generationParentAssetId(req.referenceAssetIds, projectAssets(req.projectId)),
       outputAssetIds: [],
       error: null,
@@ -698,7 +819,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     return job;
   };
 
-  const defaultLabel = (req: GenerationSubmitRequest) => {
+  const defaultLabel = (req: RegionOrGenerationRequest) => {
     const camera = req.cameraId
       ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
       : undefined;
@@ -722,7 +843,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       )
       .sort((a, b) => b.priority - a.priority || a.seq - b.seq);
     for (const j of runnable) {
-      const provider = MOCK_PROVIDERS.find((p) => p.id === j.providerId);
+      const provider = MOCK_PROVIDER_REGISTRY.find((p) => p.id === j.providerId);
       const slots = MOCK_PROVIDER_SLOTS[provider?.kind ?? "remote"];
       const busy = [...inFlight.values()].filter((p) => p === j.providerId).length;
       if (busy < slots) startAttempt(j);
@@ -966,6 +1087,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         archivedAt: null,
       };
       db.dna[id] = ProjectDNASchema.parse(req.dna);
+      const inputScene = (req.dna as ProjectDNA & { scene?: SceneDNA }).scene;
+      if (inputScene) (db.dna[id] as ProjectDNA & { scene?: SceneDNA }).scene = inputScene;
       refreshStatus(id);
       save();
       return publicProject(db.projects[id]!);
@@ -1081,6 +1204,67 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       db.qcSettings![req.projectId] = settings;
       save();
       return settings;
+    },
+
+    region_list: (req) => {
+      getProject(req.projectId);
+      return projectRegions(req.projectId, req.assetId).sort(
+        (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+      );
+    },
+
+    region_save: (req) => {
+      writable(req.projectId);
+      const asset = db.assets[req.assetId];
+      if (!asset || asset.projectId !== req.projectId)
+        fail("NOT_FOUND", "Region asset was not found in this project.");
+      const scene = projectScene(req.projectId);
+      if (req.region.objectId && !scene.objects.some((object) => object.id === req.region.objectId))
+        fail("VALIDATION_ERROR", "The linked scene object does not exist in the project DNA.");
+      const shape = req.region.shape as RegionShape;
+      const numbers = JSON.stringify(shape);
+      if (shape.type === "polygon" && shape.points.length < 3)
+        fail("VALIDATION_ERROR", "A polygon region needs at least three points.");
+      if (
+        shape.type === "brush" &&
+        shape.strokes.some((stroke) => stroke.points.length < 1 || stroke.radius < 0)
+      )
+        fail("VALIDATION_ERROR", "Brush strokes need points and a non-negative radius.");
+      if (!numbers) fail("VALIDATION_ERROR", "Invalid region shape.");
+      const t = now();
+      const existing = req.region.id
+        ? db.regions!.find((item) => item.id === req.region.id)
+        : undefined;
+      if (existing && (existing.projectId !== req.projectId || existing.assetId !== req.assetId))
+        fail("NOT_FOUND", "Region was not found for this asset.");
+      const saved: RegionDTO = existing
+        ? { ...existing, ...req.region, id: existing.id, updatedAt: t }
+        : {
+            id: req.region.id ?? newRegionId(),
+            projectId: req.projectId,
+            assetId: req.assetId,
+            label: req.region.label,
+            kind: req.region.kind,
+            objectId: req.region.objectId,
+            shape,
+            createdAt: t,
+            updatedAt: t,
+          };
+      if (existing) Object.assign(existing, saved);
+      else db.regions!.push(saved);
+      save();
+      return saved;
+    },
+
+    region_delete: (req) => {
+      writable(req.projectId);
+      const before = db.regions!.length;
+      db.regions = db.regions!.filter(
+        (item) => !(item.projectId === req.projectId && item.id === req.regionId),
+      );
+      if (db.regions!.length === before) fail("NOT_FOUND", "Region was not found.");
+      save();
+      return { deleted: true as const };
     },
 
     dna_get: (req) => {
@@ -1265,6 +1449,9 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         fail("NOT_FOUND", "Asset not found in this project.");
       if (p.activeMasterAssetId === req.assetId) applyMaster(req.projectId, null);
       delete db.assets[req.assetId];
+      db.regions = db.regions!.filter(
+        (region) => !(region.projectId === req.projectId && region.assetId === req.assetId),
+      );
       db.versions = db.versions.filter((v) => v.assetId !== req.assetId);
       db.anchors = db.anchors!.filter((x) => x.assetId !== req.assetId);
       refreshStatus(req.projectId);
@@ -1274,7 +1461,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
 
     version_list: (req) => db.versions.filter((v) => v.projectId === req.projectId),
 
-    provider_list: () => MOCK_PROVIDERS.map(describeProvider),
+    provider_list: () => MOCK_PROVIDER_REGISTRY.map(describeProvider),
 
     provider_set_api_key: (req) => {
       const p = getProvider(req.providerId);

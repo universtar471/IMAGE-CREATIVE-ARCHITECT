@@ -14,3 +14,8 @@ export function blockedReason(t: TFunction, blockedBy: WorkflowStepId, hasMaster
     step: t(`workflow.steps.${blockedBy}.name` as never),
   });
 }
+
+/** Translation key used by blocked generation UIs for the expandable prerequisite explanation. */
+export function blockedExplainerKey(blockedBy: WorkflowStepId) {
+  return `workflow.explain.${blockedBy}` as const;
+}

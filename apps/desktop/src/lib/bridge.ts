@@ -22,6 +22,7 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  RegionDTOSchema,
   WorkflowConfirmStepRequestSchema,
   WorkflowDTOSchema,
   WorkflowGetRequestSchema,
@@ -38,11 +39,14 @@ import {
   type AssetSource,
   type BatchCreateRequest,
   type GenerationDTO,
+  type GenerationParams,
   type GenerationSubmitRequest,
   type JobDTO,
   type PromptEnhanceRequest,
   type ProjectDNA,
   type ProjectType,
+  type RegionEditParams,
+  type RegionSaveRequest,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
@@ -68,6 +72,12 @@ export const VersionDTOSchema = z.object({
 });
 export type VersionDTO = z.infer<typeof VersionDTOSchema>;
 
+const GenerationResponseSchema = GenerationDTOSchema;
+const ProjectDNAResponseSchema = ProjectDNASchema.passthrough();
+const ProjectBundleResponseSchema = ProjectBundleDTOSchema.extend({
+  dna: ProjectDNAResponseSchema,
+});
+
 export const AssetRemoveResultSchema = z.object({
   assetId: z.string(),
   fileCleanupWarning: z.string().nullable(),
@@ -92,6 +102,12 @@ export const AssetPreviewRequestSchema = z.object({
   assetId: z.string().min(1),
   maxEdge: z.number().int().min(256).max(4096),
 });
+
+export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
+export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
+  purpose: "region_edit";
+  params: GenerationParams & { region: RegionEditParams };
+};
 export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
 
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
@@ -128,7 +144,7 @@ export type Requests = {
   provider_clear_api_key: { providerId: string };
   provider_test: { providerId: string };
   prompt_enhance: PromptEnhanceRequest;
-  generation_submit: GenerationSubmitRequest;
+  generation_submit: GenerationSubmitRequest | RegionGenerationSubmitRequest;
   generation_list: { projectId: string };
   generation_get: { projectId: string; generationId: string };
   batch_create: BatchCreateRequest;
@@ -149,6 +165,9 @@ export type Requests = {
   qc_list: { projectId: string; assetId?: string };
   qc_settings_get: { projectId: string };
   qc_settings_set: { projectId: string; settings: QcSettings };
+  region_list: { projectId: string; assetId: string };
+  region_save: RegionSaveRequest;
+  region_delete: { projectId: string; regionId: string };
 };
 
 /** Response schemas per command. */
@@ -156,11 +175,11 @@ export const responses = {
   app_info: AppInfoSchema,
   project_create: ProjectDTOSchema,
   project_list: z.array(ProjectSummaryDTOSchema),
-  project_get: ProjectBundleDTOSchema,
+  project_get: ProjectBundleResponseSchema,
   project_update_metadata: ProjectDTOSchema,
   project_set_archived: ProjectDTOSchema,
   project_approve_master: ProjectDTOSchema,
-  dna_get: ProjectDNASchema,
+  dna_get: ProjectDNAResponseSchema,
   dna_update: ProjectDTOSchema,
   asset_import: AssetDTOSchema,
   asset_list: z.array(AssetDTOSchema),
@@ -173,9 +192,9 @@ export const responses = {
   provider_clear_api_key: ProviderDescriptorDTOSchema,
   provider_test: ProviderTestResultSchema,
   prompt_enhance: PromptEnhanceResultSchema,
-  generation_submit: GenerationDTOSchema,
-  generation_list: z.array(GenerationDTOSchema),
-  generation_get: GenerationDTOSchema,
+  generation_submit: GenerationResponseSchema,
+  generation_list: z.array(GenerationResponseSchema),
+  generation_get: GenerationResponseSchema,
   batch_create: BatchDTOSchema,
   batch_list: z.array(BatchDTOSchema),
   job_list: z.array(JobDTOSchema),
@@ -194,6 +213,9 @@ export const responses = {
   qc_list: z.array(QcReportDTOSchema),
   qc_settings_get: QcSettingsSchema,
   qc_settings_set: QcSettingsSchema,
+  region_list: z.array(RegionDTOSchema),
+  region_save: RegionDTOSchema,
+  region_delete: RegionDeleteResultSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

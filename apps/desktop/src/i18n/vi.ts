@@ -110,6 +110,7 @@ export const vi: Dict = {
     },
     assetRole: {
       master_architecture: "Kiến trúc Master",
+      structure_sketch: "Phác thảo / khối",
       architecture_reference: "Tham chiếu kiến trúc",
       material_reference: "Tham chiếu vật liệu",
       context_reference: "Tham chiếu bối cảnh",
@@ -121,6 +122,7 @@ export const vi: Dict = {
     },
     assetRoleShort: {
       master_architecture: "Kiến trúc Master",
+      structure_sketch: "Phác thảo",
       architecture_reference: "Kiến trúc",
       material_reference: "Vật liệu",
       context_reference: "Bối cảnh",
@@ -162,6 +164,7 @@ export const vi: Dict = {
       custom: "Tùy chỉnh",
     },
     purpose: {
+      region_edit: "Chỉnh vùng",
       hero: "Hero",
       variation: "Biến thể",
       anchor: "Anchor",
@@ -335,6 +338,10 @@ export const vi: Dict = {
     },
     enhance: { label: "Nâng cấp", description: "Upscale lên 2K/4K, giữ nguyên kiến trúc." },
     qc: { label: "QC", description: "Điểm QC bằng thị giác máy, lớp phủ và yêu cầu sửa." },
+    regions: {
+      label: "Chỉnh vùng",
+      description: "Vẽ vùng, liên kết đối tượng scene và chỉnh sửa có chọn lọc.",
+    },
     export: {
       label: "Xuất",
       description: "Mẫu xuất cho thuyết trình, mạng xã hội và bảng ảnh.",
@@ -353,6 +360,24 @@ export const vi: Dict = {
     needsReview: "Bước trước đã thay đổi — kiểm tra lại rồi xác nhận.",
     generateLabel: "Quy trình tạo ảnh",
     generationBlocked: "Hoàn thành bước '{step}' trước khi tạo ảnh.",
+    whyLocked: "Vì sao đang khóa?",
+    goToStep: "Đến bước này",
+    explain: {
+      "dna.building":
+        "Thông tin công trình là nguồn cho mọi prompt, nên các bước sau cần cấu trúc ổn định.",
+      "dna.context":
+        "Bối cảnh giữ môi trường xung quanh và hướng công trình nhất quán trong mọi ảnh.",
+      "dna.references": "Ảnh tham chiếu và Master tạo nền hình ảnh đáng tin cậy trước khi tạo ảnh.",
+      "dna.camera": "Góc máy cố định góc nhìn và bố cục để có thể so sánh Anchor và ảnh render.",
+      "dna.lighting":
+        "Ánh sáng được xác nhận trước khi tạo ảnh để không vô tình đổi không khí mong muốn.",
+      "generate.master":
+        "Master là nguồn kiến trúc đã duyệt cho Anchor và các ảnh render sản xuất.",
+      "generate.anchors":
+        "Anchor giữ góc nhìn cố định cho từng camera; render sản xuất dùng Anchor để công trình nhất quán.",
+      "generate.render": "Render sản xuất cần Master đã duyệt và các Anchor bắt buộc trước.",
+      "post.grade": "Hậu kỳ dùng Master đã duyệt để mọi chỉnh sửa luôn có nguồn đáng tin cậy.",
+    },
     blockedNoMaster:
       "Chưa có ảnh Master — chọn mục đích Hero, tạo ảnh rồi bấm 'Dùng làm Master' dưới Kết quả gần nhất.",
     blockedMasterPending:
@@ -424,6 +449,38 @@ export const vi: Dict = {
         },
       },
     },
+  },
+
+  nextStep: {
+    label: "Bước tiếp theo",
+    go: "Đi tới",
+    here: "Bạn đang ở đây: {title}",
+    masterCreate: "Tạo ảnh Hero rồi bấm Dùng làm Master",
+    masterApprove: "Duyệt ảnh Master",
+    steps: {
+      "dna.building": "Xác nhận bước Kiến trúc",
+      "dna.context": "Xác nhận bước Bối cảnh",
+      "dna.references": "Xác nhận bước Tham chiếu",
+      "dna.camera": "Xác nhận bước Góc máy",
+      "dna.lighting": "Xác nhận bước Ánh sáng",
+      "generate.master": "Tạo hoặc duyệt ảnh Master",
+      "generate.anchors": "Tạo / duyệt Anchor cho {count} góc máy",
+      "generate.render": "Render các góc máy",
+      "post.grade": "Hậu kỳ: chỉnh màu, nâng cấp và QC",
+    },
+  },
+
+  spend: {
+    title: "Xác nhận chi phí",
+    provider: "Nhà cung cấp",
+    model: "Mô hình",
+    images: "Số ảnh",
+    estimate: "Tổng ước tính",
+    unknown: "Chưa có ước tính giá",
+    create: "Tạo ảnh",
+    remember: "Không hỏi lại khi dưới {threshold}đ",
+    threshold: "Ngưỡng chi phí",
+    reset: "Đặt lại ngưỡng",
   },
 
   tray: {
@@ -757,6 +814,17 @@ export const vi: Dict = {
     capOutputs: "tối đa {count} ảnh mỗi lần chạy",
     capOffline: "ảnh giữ chỗ ngoại tuyến",
     output: "Đầu ra",
+    source: "Nguồn ảnh",
+    sourceDna: "Từ mô tả DNA",
+    sourceSketch: "Từ phác thảo / khối",
+    sketchPicker: "Ảnh phác thảo / khối",
+    importSketch: "Nhập phác thảo",
+    sketchHowTo:
+      "Tải ảnh chụp SketchUp, góc khối hoặc phác thảo tay; AI giữ nguyên hình khối và góc nhìn, rồi dựng vật liệu và ánh sáng theo DNA. Kết quả tốt có thể dùng làm Master.",
+    sketchPinned: "Ảnh phác thảo luôn là ảnh 1; AI giữ nguyên hình khối và góc nhìn.",
+    reasonNoSketch: "Chưa có ảnh phác thảo — bấm Nhập phác thảo",
+    reasonSketchNeedsRefs:
+      "Chế độ phác thảo cần model nhận ảnh image-to-image — {model} không hỗ trợ.",
     purpose: "Mục đích",
     heroHint: "Hero: ảnh trình bày chính, bám theo ảnh Master.",
     variationHint: "Biến thể: một phương án khác để khám phá.",
@@ -902,6 +970,61 @@ export const vi: Dict = {
     noReport: "Chưa có báo cáo QC.",
   },
 
+  regions: {
+    howToUse:
+      "Vẽ vùng, đặt nhãn hoặc liên kết đối tượng, chọn cách chỉnh sửa rồi chạy. Bên ngoài mask được giữ nguyên; chỉnh sửa AI dùng tín dụng.",
+    needsMaster: "Hãy duyệt ảnh Master trước khi chỉnh vùng.",
+    noSource: "Chọn ảnh sẵn sàng để vẽ vùng.",
+    tool: "Công cụ",
+    select: "Chọn / di chuyển",
+    rectangle: "Hình chữ nhật",
+    polygon: "Đa giác",
+    brush: "Cọ",
+    autoSelect: "Tự chọn",
+    autoSelectLater: "Giai đoạn sau - cần mô hình phân vùng",
+    brushSize: "Cỡ cọ",
+    maskPreview: "Xem mask",
+    hideMask: "Ẩn mask",
+    showMask: "Hiện mask",
+    savePending: "Đang lưu vùng...",
+    regions: "Các vùng",
+    addRegion: "Thêm vùng",
+    label: "Nhãn",
+    kind: "Loại",
+    object: "Đối tượng",
+    zone: "Khu vực",
+    material: "Vật liệu",
+    linkedObject: "Đối tượng liên kết",
+    none: "Không có",
+    deleteRegion: "Xóa vùng",
+    objects: "Đối tượng scene",
+    addObject: "Thêm đối tượng",
+    objectName: "Tên",
+    category: "Nhóm",
+    objectMaterial: "Vật liệu",
+    relation: "Quan hệ",
+    relationTarget: "Đích",
+    pin: "Ghim để bảo toàn",
+    edit: "Chỉnh vùng",
+    mode: "Chế độ",
+    freeEdit: "Chỉnh sửa tự do",
+    materialReplace: "Đổi vật liệu",
+    instruction: "Lệnh chỉnh sửa",
+    instructionPlaceholder: "Mô tả thay đổi trong vùng đã chọn",
+    materialField: "Vật liệu",
+    materialPlaceholder: "VD: đá limestone",
+    provider: "Nhà cung cấp",
+    model: "Model",
+    nativeMask: "Mask gốc",
+    secondaryMask: "Mask qua ảnh phụ + ghép cục bộ",
+    promptPreview: "Xem trước prompt",
+    run: "Chạy chỉnh vùng",
+    cost: "Tạo ảnh AI dùng tín dụng.",
+    chooseRegion: "Chọn ít nhất một vùng.",
+    noPrompt: "Thêm lệnh chỉnh sửa hoặc vật liệu.",
+    result: "Kết quả chỉnh vùng",
+  },
+
   extra: {
     title: "Prompt bổ sung",
     label: "Mô tả thêm của bạn (nối sau prompt từ DNA)",
@@ -986,6 +1109,8 @@ export const vi: Dict = {
     generation: "lần tạo {id}…",
     derived: "{count} ảnh phái sinh",
     enhanceSummary: "Nâng cấp ×{count} · {target} · {mode} {strength}",
+    regionEdit: "Chỉnh vùng",
+    regionSummary: "Chỉnh vùng · {count} vùng · {suffix}",
   },
 
   providers: {
@@ -1233,6 +1358,7 @@ export const vi: Dict = {
     anchorApproved: "Đã duyệt Anchor cho góc máy này.",
     openInCanvas: "Mở trong khung xem",
     approve: "Duyệt làm Anchor",
+    rerunAnchor: "Tạo lại góc này",
     compareTitle: "So sánh với Master",
     compare: "So sánh",
     back: "Quay lại bảng ảnh",

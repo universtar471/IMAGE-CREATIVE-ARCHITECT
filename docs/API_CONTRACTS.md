@@ -671,7 +671,7 @@ Failures of automation are logged and stored nowhere else. They never fail the o
 RegionShape =
   | { type: "rect", x: number, y: number, w: number, h: number }                // normalised 0..1
   | { type: "polygon", points: [number, number][] }                             // >= 3 points
-  | { type: "brush", strokes: { points: [number, number][], radius: number }[] } // radius normalised to the long edge
+  | { type: "brush", strokes: { points: [number, number][], radius: number }[] } // points >= 1; radius normalised to the long edge
 RegionDTO = { id: "RGN_<ULID>", projectId, assetId, label: string, kind: "object" | "zone" | "material",
               objectId: string | null, shape: RegionShape, createdAt: string, updatedAt: string }
 SceneObject = { id: "OBJ_<ULID>", name: string,
@@ -687,7 +687,7 @@ Validation:
 
 Domain pure functions:
 - `rasterizeMask(shapes, width, height) -> Uint8Array`: 255 inside, 0 outside, union. Polygon uses even-odd fill. A pixel is inside when its centre is inside. Brush draws discs at every point and capsules between consecutive points.
-- `featherMask(mask, width, height, radiusPx) -> Uint8Array`: a box blur repeated 3 times.
+- `featherMask(mask, width, height, radiusPx) -> Uint8Array`: three passes of a 2D box blur over a `(2r+1)²` window, where `r = round(radiusPx)`. Samples outside the image are excluded and each pixel is averaged over the in-image sample count. Round half up to an integer after every pass.
 - `buildRegionEditPrompt({ dna, regions, params, nativeMask })`.
 - Scene helpers:
   - `newSceneObjectId()`
@@ -720,8 +720,8 @@ Domain pure functions:
   3. Otherwise: add the mask, as a white-on-black PNG, as a second image after the source. Tell the model about it in the prompt.
   4. Resize the provider output to the source size.
   5. Composite with the mask feathered by 8 px.
-  6. Write the new asset and version: `operation = "region_edit"`, `operation_json = { params, regionShapes, nativeMask, providerId, model }`.
-- Meta records `nativeMask` and `maskCoveragePct`.
+  6. Write the new asset and version: `operation = "region_edit"`, `operation_json = { params, regionShapes, nativeMask, maskCoveragePct, providerId, model }`.
+- Output metadata records `nativeMask` and `maskCoveragePct`; `maskCoveragePct` is the unfeathered union coverage at source size, rounded to 0.1 percent.
 
 ### 16.4 Storage
 
@@ -745,7 +745,7 @@ Migration `0006_regions.sql` creates `regions(id, project_id, asset_id, label, k
   | vi | "Phác thảo / khối" | "Phác thảo" |
   | en | "Sketch / massing" | "Sketch" |
 
-### 17.2 Compiler (next patch version)
+### 17.2 Compiler (`pc-1.3.0`)
 
 - `ROLE_INSTRUCTIONS.structure_sketch`: "is the STRUCTURE source (sketch, massing model or 3D view): keep its building geometry, camera viewpoint, proportions, floor count, openings and roof form exactly; render it as a finished photorealistic building with the materials, lighting and context described below; do not add or remove building parts."
 - Preservation line, when a structure sketch is present: "Follow the geometry and viewpoint of Image N (structure sketch) exactly; replace sketch lines, flat colours and model textures with real materials."

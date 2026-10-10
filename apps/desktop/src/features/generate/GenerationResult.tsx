@@ -12,6 +12,10 @@ import { GenerationStatusBadge } from "./GenerationStatusBadge";
 import { MasterDnaCheck } from "./MasterDnaCheck";
 import { formatDuration, isActiveGeneration } from "./labels";
 import { isMasterApproved } from "../camera/labels";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { spendRequestForGeneration } from "../../lib/spend";
+
+const EMPTY_PROVIDERS = [] as const;
 
 /** Current time, re-rendered every `intervalMs`. The clock lives in state, updated by a timer. */
 export function useNow(intervalMs = 500): number {
@@ -141,6 +145,8 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
   const reuse = useStudio((s) => s.reuseGeneration);
   const [confirmMaster, setConfirmMaster] = useState(false);
   const t = useT();
+  const providers = useStudio((s) => s.providers ?? EMPTY_PROVIDERS);
+  const spend = useSpendConfirm();
 
   // Only outputs that still exist (an output may have been removed in References).
   const outputs = g.outputAssetIds.filter((id) => assets.some((a) => a.id === id));
@@ -177,7 +183,8 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
 
   // Generate again: same settings, prompt recompiled from the current DNA. A variation always
   // carries the current master as image 1, even if the original run was sent without it.
-  const again = () => {
+  const again = async () => {
+    if (!(await spend.request(spendRequestForGeneration(g, providers, t)))) return;
     reuse(g);
     const masterId = project.activeMasterAssetId;
     const refs =
@@ -193,6 +200,10 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
       params: g.params,
       cameraId: g.cameraId,
     });
+  };
+  const retryPaid = async () => {
+    if (!(await spend.request(spendRequestForGeneration(g, providers, t)))) return;
+    await retry(g);
   };
   // A cancelled job can always run again; errors say whether a retry can help.
   const canRetry = g.status === "cancelled" || !!g.error?.retryable;
@@ -245,7 +256,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
             <button
               className="btn btn-sm"
               disabled={submitting || readOnly}
-              onClick={again}
+              onClick={() => void again()}
               title={t("result.againTitle")}
             >
               <RefreshCw size={13} /> {t("result.again")}
@@ -274,7 +285,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               <button
                 className="btn btn-sm btn-primary"
                 disabled={submitting || readOnly}
-                onClick={() => void retry(g)}
+                onClick={() => void retryPaid()}
               >
                 <RotateCcw size={13} /> {t("common.retry")}
               </button>
@@ -293,6 +304,7 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
           onCancel={() => setConfirmMaster(false)}
         />
       )}
+      {spend.dialog}
     </SectionPanel>
   );
 }

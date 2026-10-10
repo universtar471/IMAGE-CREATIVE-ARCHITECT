@@ -55,6 +55,25 @@ describe("dictionaries", () => {
     }
   });
 
+  it("keeps region-edit module labels accented", () => {
+    const keys = [
+      ["modules.regions.label", vi.modules.regions.label],
+      ["labels.purpose.region_edit", vi.labels.purpose.region_edit],
+      ["regions.edit", vi.regions.edit],
+      ["regions.run", vi.regions.run],
+      ["regions.result", vi.regions.result],
+    ] as const;
+    for (const [key, value] of keys) expect(value, `vi ${key}`).toMatch(/[À-ỹ]/);
+  });
+
+  it("keeps sketch-mode Vietnamese labels accented", () => {
+    expect(vi.labels.assetRole.structure_sketch).toBe("Phác thảo / khối");
+    expect(vi.labels.assetRoleShort.structure_sketch).toBe("Phác thảo");
+    for (const key of ["source", "sourceSketch", "importSketch", "sketchPinned"] as const) {
+      expect(vi.generate[key], `vi generate.${key}`).toMatch(/[À-ỹ]/);
+    }
+  });
+
   it("keep every {placeholder} of English in Vietnamese", () => {
     for (const l of enLeaves) {
       const want = placeholders(l.value);

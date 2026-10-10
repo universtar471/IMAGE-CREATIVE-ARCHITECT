@@ -24,6 +24,7 @@ pub fn compose_prompt(prompt: &PromptText) -> String {
 pub fn role_hint(role: &str) -> String {
     let hint = match role {
         "master_architecture" => "master architecture: preserve massing, openings and proportions",
+        "structure_sketch" => "structure sketch: keep geometry and viewpoint exactly, render with real materials",
         "architecture_reference" => "architecture reference: borrow architectural language and detailing only",
         "material_reference" => "material reference: use only for materials, textures and finishes",
         "context_reference" => "context reference: use only for the surrounding streets and setting",
@@ -32,6 +33,7 @@ pub fn role_hint(role: &str) -> String {
         "mood_reference" => "mood reference: use only for atmosphere and color grading",
         "camera_reference" => "camera reference: use only for viewpoint, lens and framing",
         "regular_image" => "general image: loose inspiration only",
+        "region_mask" => "region mask: edit only the white area and preserve everything in the black area",
         other => return format!("{}: loose inspiration only", other.replace('_', " ")),
     };
     hint.to_string()
@@ -85,6 +87,10 @@ mod tests {
             "material reference: use only for materials, textures and finishes"
         );
         assert_eq!(role_hint("future_role"), "future role: loose inspiration only");
+        assert_eq!(
+            role_hint("structure_sketch"),
+            "structure sketch: keep geometry and viewpoint exactly, render with real materials"
+        );
     }
 
     #[test]

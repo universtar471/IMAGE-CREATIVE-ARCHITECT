@@ -3,6 +3,7 @@ import {
   Anchor,
   Clapperboard,
   ImageOff,
+  ImagePlus,
   KeyRound,
   LayoutGrid,
   Minus,
@@ -38,6 +39,10 @@ import { blockedReason } from "../workflow/blockedReason";
 import { BatchDialog } from "../camera/BatchDialog";
 import type { BatchMode } from "../camera/batch";
 import { isMasterApproved } from "../camera/labels";
+import { useAssetImport } from "../assets/useAssetImport";
+import { ConfirmDialog } from "../../components/common/Dialog";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { BlockedExplainer } from "../workflow/BlockedExplainer";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -56,6 +61,7 @@ export function GeneratePanel() {
   const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
+  const spend = useSpendConfirm();
 
   if (!providers) {
     if (providersError) {
@@ -107,8 +113,21 @@ export function GeneratePanel() {
     : null;
   const cost = costText ? translateDomainMessage(costText, t) : null;
 
-  const generate = () => {
+  const generate = async () => {
     if (!form.provider || !form.model) return;
+    const unit = form.params.imageSize ? form.model.priceHint?.[form.params.imageSize] : undefined;
+    const estimatedTotal = unit === undefined ? null : unit * form.params.outputCount;
+    if (
+      !(await spend.request({
+        providerId: form.provider.id,
+        provider: form.provider.label,
+        model: form.model.label,
+        imageCount: form.params.outputCount,
+        costText: cost,
+        estimatedTotal,
+      }))
+    )
+      return;
     void submit({
       projectId: project.id,
       providerId: form.provider.id,
@@ -194,7 +213,7 @@ export function GeneratePanel() {
         <button
           className="btn btn-primary generate-btn"
           disabled={disabledReason !== null}
-          onClick={generate}
+          onClick={() => void generate()}
           data-testid="generate-button"
         >
           <Sparkles size={15} />
@@ -207,12 +226,14 @@ export function GeneratePanel() {
           </span>
         )}
         {disabledReason && (
-          <span className="field-hint" data-testid="generate-disabled-reason">
-            {disabledReason}
-          </span>
+          <div data-testid="generate-disabled-reason">
+            <span className="field-hint">{disabledReason}</span>
+            {!workflowGate.ok && <BlockedExplainer stepId={workflowGate.blockedBy} />}
+          </div>
         )}
       </div>
       {batchMode && <BatchDialog mode={batchMode} onClose={() => setBatchMode(null)} />}
+      {spend.dialog}
     </div>
   );
 }
@@ -240,6 +261,11 @@ function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
         : blockedReason(t, gate.blockedBy, !!ws.project.activeMasterAssetId);
   const anchorReason = reason(anchorGate);
   const renderReason = reason(renderGate);
+  const blockedBy = !anchorGate.ok
+    ? anchorGate.blockedBy
+    : !renderGate.ok
+      ? renderGate.blockedBy
+      : null;
   const anchorViewsCount = anchorViews(ws.draftDna).length;
   return (
     <SectionPanel title={t("camera.workflow")}>
@@ -269,9 +295,10 @@ function GenerationActions({ onOpen }: { onOpen: (mode: BatchMode) => void }) {
         </button>
       </div>
       {(anchorReason ?? renderReason) ? (
-        <span className="field-hint" data-testid="anchor-disabled-reason">
-          {anchorReason ?? renderReason}
-        </span>
+        <div data-testid="anchor-disabled-reason">
+          <span className="field-hint">{anchorReason ?? renderReason}</span>
+          {blockedBy && <BlockedExplainer stepId={blockedBy} />}
+        </div>
       ) : anchorViewsCount === 0 ? (
         <span className="field-hint">{t("workflow.steps.generate.anchors.guide")}</span>
       ) : (
@@ -434,10 +461,92 @@ function OutputSection({
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const p = form.params;
   const counts = Array.from({ length: model.maxOutputs }, (_, i) => i + 1);
+  const { busy, duplicate, pickAndImport } = useAssetImport();
   const t = useT();
 
   return (
     <SectionPanel title={t("generate.output")}>
+      {form.purpose === "hero" && (
+        <FieldGroup label={t("generate.source")}>
+          <div className="segmented" role="group" aria-label={t("generate.source")}>
+            {(["dna", "sketch"] as const).map((source) => (
+              <button
+                key={source}
+                type="button"
+                aria-pressed={form.source === source}
+                disabled={disabled}
+                onClick={() =>
+                  setDraft({
+                    source,
+                    purpose: "hero",
+                    referenceAssetIds: null,
+                    params: null,
+                  })
+                }
+              >
+                {t(source === "dna" ? "generate.sourceDna" : "generate.sourceSketch")}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+      )}
+      {form.source === "sketch" && (
+        <FieldGroup label={t("generate.sketchPicker")} hint={t("generate.sketchHowTo")}>
+          {form.structureSketches.length > 0 && (
+            <ul className="ref-list" aria-label={t("generate.sketchPicker")}>
+              {form.structureSketches.map((asset) => (
+                <li
+                  key={asset.id}
+                  className={`ref-row ${asset.id === form.sketch?.id ? "is-checked" : ""}`}
+                >
+                  <label>
+                    <input
+                      type="radio"
+                      name="structure-sketch"
+                      checked={asset.id === form.sketch?.id}
+                      disabled={disabled}
+                      onChange={() => setDraft({ referenceAssetIds: [asset.id], params: null })}
+                    />
+                    <span className="ref-thumb">
+                      {fileUrl(asset.thumbnailPath) ? (
+                        <img
+                          src={fileUrl(asset.thumbnailPath)!}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <ImageOff size={14} />
+                      )}
+                    </span>
+                    <span className="ref-meta">
+                      <span className="ref-name">{asset.originalName ?? asset.id}</span>
+                      <RoleBadge role={asset.role} short />
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={disabled || !!busy}
+            onClick={() => void pickAndImport("structure_sketch")}
+          >
+            <ImagePlus size={13} /> {t("generate.importSketch")}
+          </button>
+          {duplicate && (
+            <ConfirmDialog
+              title={t("assets.duplicateTitle")}
+              message={duplicate.message}
+              confirmLabel={t("assets.importAnyway")}
+              onConfirm={() => duplicate.resolve(true)}
+              onCancel={() => duplicate.resolve(false)}
+            />
+          )}
+        </FieldGroup>
+      )}
       <FieldGroup
         label={t("generate.purpose")}
         hint={
@@ -457,7 +566,7 @@ function OutputSection({
               type="button"
               aria-pressed={form.purpose === purpose}
               disabled={disabled}
-              onClick={() => setDraft({ purpose })}
+              onClick={() => setDraft({ purpose, source: "dna" })}
             >
               {t(`labels.purpose.${purpose}`)}
             </button>
@@ -578,7 +687,11 @@ function ReferenceSection({
               );
             })}
           </ul>
-          {pinned.length > 0 && <span className="field-hint">{t("generate.masterPinned")}</span>}
+          {pinned.length > 0 && (
+            <span className="field-hint">
+              {t(form.source === "sketch" ? "generate.sketchPinned" : "generate.masterPinned")}
+            </span>
+          )}
           <span className="field-hint">
             {t("generate.refsOrder", { cap, model: model.label })}{" "}
             <button className="link-btn" onClick={onReset} disabled={disabled}>

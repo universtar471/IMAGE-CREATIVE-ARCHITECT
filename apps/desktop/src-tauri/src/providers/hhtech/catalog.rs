@@ -107,6 +107,7 @@ impl Entry {
             quality_options,
             price_hint: Some(price_hint),
             vision: true,
+            supports_mask: matches!(self.family, Family::Gpt),
             ..gateway_model(self.id)
         }
     }
@@ -118,6 +119,7 @@ pub fn plain_capabilities(id: &str) -> ModelCapabilities {
     ModelCapabilities {
         quality_options: QUALITY_VALUES.iter().map(|q| q.to_string()).collect(),
         vision: true,
+        supports_mask: true,
         ..gateway_model(id)
     }
 }

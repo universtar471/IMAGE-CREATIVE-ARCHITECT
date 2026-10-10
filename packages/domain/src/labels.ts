@@ -33,6 +33,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 
 export const ASSET_ROLE_LABELS: Record<AssetRole, string> = {
   master_architecture: "Master architecture",
+  structure_sketch: "Sketch / massing",
   architecture_reference: "Architecture reference",
   material_reference: "Material reference",
   context_reference: "Context reference",

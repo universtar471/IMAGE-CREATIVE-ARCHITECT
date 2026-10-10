@@ -17,6 +17,7 @@ import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
 import { resolveEnhancePair } from "../enhance/enhance";
 import { QcCanvas } from "../qc/QcCanvas";
+import { RegionCanvas } from "../regions/RegionCanvas";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -36,6 +37,27 @@ export function findSubmittedEnhanceResult(
     generation?.outputAssetIds.map((id) => assets.find((asset) => asset.id === id)).find(Boolean) ??
     null
   );
+}
+
+export function findSubmittedRegionResult(
+  projectId: string,
+  selectedAssetId: string | null,
+  generations: readonly GenerationDTO[],
+  assets: readonly AssetDTO[],
+): { source: AssetDTO; result: AssetDTO } | null {
+  if (!selectedAssetId) return null;
+  const generation = generations.find(
+    (item) =>
+      item.projectId === projectId &&
+      item.status === "completed" &&
+      (item.purpose as string) === "region_edit" &&
+      item.referenceAssetIds.includes(selectedAssetId),
+  );
+  const result = generation?.outputAssetIds
+    .map((id) => assets.find((asset) => asset.id === id))
+    .find(Boolean);
+  const source = assets.find((asset) => asset.id === selectedAssetId);
+  return source && result ? { source, result } : null;
 }
 
 /** Permanent four-zone workspace: top bar / nav | center | properties / bottom tray. */
@@ -116,6 +138,10 @@ function CenterArea() {
     : null;
   const enhanceSourceForView = selectedEnhancePair?.source ?? enhanceSource;
   const enhanceResult = selectedEnhancePair?.result ?? submittedResult;
+  const regionPair =
+    active === "regions"
+      ? findSubmittedRegionResult(projectId, selectedId, generations, assets)
+      : null;
   const grade = (useStudio((s) => s.workspace!.draftDna.colorGrade) ?? {
     schemaVersion: 1,
     exposure: 0,
@@ -199,6 +225,12 @@ function CenterArea() {
           <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
         ) : active === "qc" ? (
           <QcCanvas />
+        ) : active === "regions" ? (
+          regionPair ? (
+            <CompareCanvas source={regionPair.source} result={regionPair.result} />
+          ) : (
+            <RegionCanvas />
+          )
         ) : (
           <WorkspaceCanvas
             mode={{ kind: "single", asset }}

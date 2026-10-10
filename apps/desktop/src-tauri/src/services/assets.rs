@@ -487,6 +487,20 @@ mod tests {
     }
 
     #[test]
+    fn imports_and_updates_structure_sketch_role() {
+        let (tmp, core) = core();
+        let p = test_create_villa(&core, "Sketch");
+        let src = write_png(tmp.path(), "sketch.png", 64, 40, [10, 20, 30]);
+        let asset = import_file(&core, &p.id, &src, "structure_sketch").unwrap();
+        assert_eq!(asset.role, AssetRole::StructureSketch);
+
+        let updated = update_role(&core, &p.id, &asset.id, "regular_image").unwrap();
+        assert_eq!(updated.iter().find(|item| item.id == asset.id).unwrap().role, AssetRole::RegularImage);
+        let updated = update_role(&core, &p.id, &asset.id, "structure_sketch").unwrap();
+        assert_eq!(updated.iter().find(|item| item.id == asset.id).unwrap().role, AssetRole::StructureSketch);
+    }
+
+    #[test]
     fn rejects_unsupported_and_corrupt_files() {
         let (tmp, core) = core();
         let p = test_create_villa(&core, "A");

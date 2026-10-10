@@ -25,7 +25,7 @@ export type ReferenceCandidate = {
  * The user can still tick regular images by hand.
  */
 export const DEFAULT_REFERENCE_ROLES: readonly AssetRole[] = REFERENCE_ROLE_ORDER.filter(
-  (r) => r !== "regular_image",
+  (r) => r !== "regular_image" && r !== "structure_sketch",
 );
 
 const roleRank = (role: AssetRole) => REFERENCE_ROLE_ORDER.indexOf(role);

@@ -111,6 +111,7 @@ export const en = {
     },
     assetRole: {
       master_architecture: "Master architecture",
+      structure_sketch: "Sketch / massing",
       architecture_reference: "Architecture reference",
       material_reference: "Material reference",
       context_reference: "Context reference",
@@ -123,6 +124,7 @@ export const en = {
     /** Compact role names for badges in tight spaces. */
     assetRoleShort: {
       master_architecture: "Master architecture",
+      structure_sketch: "Sketch",
       architecture_reference: "Architecture",
       material_reference: "Material",
       context_reference: "Context",
@@ -170,6 +172,7 @@ export const en = {
       production: "Production",
       repair: "Repair",
       enhance: "Enhance",
+      region_edit: "Region edit",
     },
     generationStatus: {
       queued: "Queued",
@@ -335,6 +338,10 @@ export const en = {
     },
     enhance: { label: "Enhance", description: "Upscale to 2K/4K with architecture preservation." },
     qc: { label: "QC", description: "Vision QC scores, overlays and repair requests." },
+    regions: {
+      label: "Region edit",
+      description: "Draw regions, link scene objects and edit selectively.",
+    },
     export: {
       label: "Export",
       description: "Presentation, social and contact-sheet export presets.",
@@ -353,6 +360,28 @@ export const en = {
     needsReview: "An earlier step changed — review and confirm again.",
     generateLabel: "Image workflow",
     generationBlocked: "Finish workflow step '{step}' before generating.",
+    whyLocked: "Why is this locked?",
+    goToStep: "Go to this step",
+    explain: {
+      "dna.building":
+        "The building definition is the source for every prompt, so later steps need a stable structure.",
+      "dna.context":
+        "The site context keeps surroundings and orientation consistent across every image.",
+      "dna.references":
+        "References and the Master give generation a reliable visual basis before images are created.",
+      "dna.camera":
+        "Camera definitions fix viewpoint and composition so anchors and renders can be compared.",
+      "dna.lighting":
+        "Lighting is confirmed before generation so the intended atmosphere is not changed accidentally.",
+      "generate.master":
+        "The Master is the approved architectural source for anchors and production renders.",
+      "generate.anchors":
+        "Anchors hold a fixed viewpoint for each camera; production renders use them to keep the building consistent.",
+      "generate.render":
+        "Production renders need the approved Master and any required camera Anchors first.",
+      "post.grade":
+        "Post-production works from an approved Master so edits always have a trusted source.",
+    },
     blockedNoMaster:
       "No Master image yet — pick the Hero purpose, generate, then press 'Use as master' under Latest result.",
     blockedMasterPending:
@@ -422,6 +451,38 @@ export const en = {
         grade: { name: "Mood / Grade", guide: "Apply a mood or color grade to approved imagery." },
       },
     },
+  },
+
+  nextStep: {
+    label: "Next step",
+    go: "Go to",
+    here: "You are here: {title}",
+    masterCreate: "Create a Hero image, then use it as Master",
+    masterApprove: "Approve the Master image",
+    steps: {
+      "dna.building": "Confirm Building",
+      "dna.context": "Confirm Context",
+      "dna.references": "Confirm References",
+      "dna.camera": "Confirm Camera",
+      "dna.lighting": "Confirm Lighting",
+      "generate.master": "Create or approve the Master image",
+      "generate.anchors": "Create / approve Anchors for {count} camera(s)",
+      "generate.render": "Render the camera views",
+      "post.grade": "Post-production: grade, enhance and QC",
+    },
+  },
+
+  spend: {
+    title: "Confirm cost",
+    provider: "Provider",
+    model: "Model",
+    images: "Images",
+    estimate: "Estimated total",
+    unknown: "No price estimate",
+    create: "Create images",
+    remember: "Do not ask again below {threshold}đ",
+    threshold: "Spend threshold",
+    reset: "Reset threshold",
   },
 
   tray: {
@@ -753,6 +814,17 @@ export const en = {
     capOutputs: "up to {count} output(s) per run",
     capOffline: "offline placeholder images",
     output: "Output",
+    source: "Image source",
+    sourceDna: "From DNA description",
+    sourceSketch: "From sketch / massing",
+    sketchPicker: "Structure sketch",
+    importSketch: "Import sketch",
+    sketchHowTo:
+      "Upload a SketchUp screenshot, massing view or hand sketch; AI keeps the shape and renders materials and light from the DNA. Good results can be used as the Master.",
+    sketchPinned: "The sketch is always image 1; AI keeps the building shape and viewpoint.",
+    reasonNoSketch: "No structure sketch yet — click Import sketch",
+    reasonSketchNeedsRefs:
+      "Sketch mode needs a model that accepts image-to-image references — {model} does not.",
     purpose: "Purpose",
     heroHint: "Hero: the main presentation image, anchored on the master.",
     variationHint: "Variation: an alternative take for exploration.",
@@ -897,6 +969,61 @@ export const en = {
     noReport: "No QC report yet.",
   },
 
+  regions: {
+    howToUse:
+      "Draw a region, label it or link a scene object, then choose an edit and run it. Everything outside the mask stays untouched; AI edits use credits.",
+    needsMaster: "Approve a Master image before editing a region.",
+    noSource: "Select a ready image to draw regions.",
+    tool: "Tool",
+    select: "Select / move",
+    rectangle: "Rectangle",
+    polygon: "Polygon",
+    brush: "Brush",
+    autoSelect: "Auto-select",
+    autoSelectLater: "Phase later - segmentation model required",
+    brushSize: "Brush size",
+    maskPreview: "Mask preview",
+    hideMask: "Hide mask",
+    showMask: "Show mask",
+    savePending: "Saving regions...",
+    regions: "Regions",
+    addRegion: "Add region",
+    label: "Label",
+    kind: "Kind",
+    object: "Object",
+    zone: "Zone",
+    material: "Material",
+    linkedObject: "Linked scene object",
+    none: "None",
+    deleteRegion: "Delete region",
+    objects: "Scene objects",
+    addObject: "Add object",
+    objectName: "Name",
+    category: "Category",
+    objectMaterial: "Material",
+    relation: "Relation",
+    relationTarget: "Target",
+    pin: "Pin for preservation",
+    edit: "Selective edit",
+    mode: "Mode",
+    freeEdit: "Free edit",
+    materialReplace: "Replace material",
+    instruction: "Instruction",
+    instructionPlaceholder: "Describe the change inside the selected regions",
+    materialField: "Material",
+    materialPlaceholder: "e.g. honed limestone",
+    provider: "Provider",
+    model: "Model",
+    nativeMask: "Native mask",
+    secondaryMask: "Mask via second image + local composite",
+    promptPreview: "Prompt preview",
+    run: "Run region edit",
+    cost: "AI generation uses credits.",
+    chooseRegion: "Select at least one region.",
+    noPrompt: "Add an instruction or material.",
+    result: "Region edit result",
+  },
+
   extra: {
     title: "Extra prompt",
     label: "Your words (added after the DNA prompt)",
@@ -981,6 +1108,8 @@ export const en = {
     generation: "generation {id}…",
     derived: "{count} derived",
     enhanceSummary: "Enhance ×{count} · {target} · {mode} {strength}",
+    regionEdit: "Region edit",
+    regionSummary: "Region edit · {count} region(s) · {suffix}",
   },
 
   providers: {
@@ -1228,6 +1357,7 @@ export const en = {
     anchorApproved: "Anchor approved for this camera.",
     openInCanvas: "Open in the canvas",
     approve: "Approve as anchor",
+    rerunAnchor: "Re-run this view",
     compareTitle: "Compare with the master",
     compare: "Compare",
     back: "Back to the sheet",

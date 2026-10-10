@@ -13,7 +13,7 @@ use reqwest::blocking::multipart::{Form, Part};
 use serde_json::{json, Value};
 
 use super::super::text::{sanitize, truncate};
-use super::super::{ProviderError, ProviderErrorKind, ProviderImage, ReferenceImage};
+use super::super::{MaskImage, ProviderError, ProviderErrorKind, ProviderImage, ReferenceImage};
 use super::Flavor;
 
 /// Every request asks for PNG (also the API default), so outputs are lossless.
@@ -67,7 +67,12 @@ impl Fields<'_> {
     /// Multipart body for `POST /images/edits`: the same fields as text parts, then one file part
     /// per reference, in request order (the prompt numbers them in that order). The file field
     /// is `image[]` (official docs), except that a gateway gets a single reference as `image`.
-    pub fn edit_form(&self, response_format: bool, references: &[ReferenceImage]) -> Result<Form, ProviderError> {
+    pub fn edit_form(
+        &self,
+        response_format: bool,
+        references: &[ReferenceImage],
+        mask: Option<&MaskImage>,
+    ) -> Result<Form, ProviderError> {
         let mut form = Form::new();
         for (name, value) in self.pairs(response_format) {
             form = form.text(name, value);
@@ -84,6 +89,12 @@ impl Fields<'_> {
                     )
                 })?;
             form = form.part(field, part);
+        }
+        if let Some(mask) = mask.filter(|m| m.native) {
+            let part = Part::bytes(mask.bytes.clone()).file_name("mask.png").mime_str("image/png").map_err(|_| {
+                ProviderError::new(ProviderErrorKind::InvalidRequest, "Mask image has an unusable file type.")
+            })?;
+            form = form.part("mask", part);
         }
         Ok(form)
     }

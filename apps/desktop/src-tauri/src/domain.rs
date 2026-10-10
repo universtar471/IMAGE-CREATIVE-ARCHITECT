@@ -71,6 +71,7 @@ string_enum!(ProjectStatus {
 
 string_enum!(AssetRole {
     MasterArchitecture => "master_architecture",
+    StructureSketch => "structure_sketch",
     ArchitectureReference => "architecture_reference",
     MaterialReference => "material_reference",
     ContextReference => "context_reference",
@@ -101,6 +102,7 @@ string_enum!(GenerationPurpose {
     Production => "production",
     Enhance => "enhance",
     Repair => "repair",
+    RegionEdit => "region_edit",
 });
 
 impl GenerationPurpose {
@@ -113,7 +115,22 @@ impl GenerationPurpose {
             Self::Production => "Production",
             Self::Enhance => "Enhance",
             Self::Repair => "Repair",
+            Self::RegionEdit => "Region edit",
         }
+    }
+}
+
+#[cfg(test)]
+mod asset_role_tests {
+    use super::AssetRole;
+
+    #[test]
+    fn structure_sketch_round_trips() {
+        let role = AssetRole::parse("structure_sketch").unwrap();
+        assert_eq!(role, AssetRole::StructureSketch);
+        assert_eq!(role.as_str(), "structure_sketch");
+        assert_eq!(serde_json::to_string(&role).unwrap(), "\"structure_sketch\"");
+        assert_eq!(serde_json::from_str::<AssetRole>("\"structure_sketch\"").unwrap(), role);
     }
 }
 

@@ -9,6 +9,8 @@ import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
 import { retryCountdown, useNow } from "../generate/GenerationResult";
 import { JOB_STATUS_TONE, formatDuration } from "../generate/labels";
+import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { spendRequestForGeneration } from "../../lib/spend";
 
 export type JobsScope = "project" | "all";
 
@@ -97,6 +99,7 @@ function JobRow({ job: j, projectName }: { job: JobDTO; projectName: string }) {
   const providers = useStudio((s) => s.providers);
   const cancelJob = useStudio((s) => s.cancelJob);
   const retryJob = useStudio((s) => s.retryJob);
+  const notifyError = useStudio((s) => s.notifyError);
   const now = useNow(1000);
   const t = useT();
   const provider = providers?.find((p) => p.id === j.providerId);
@@ -105,6 +108,20 @@ function JobRow({ job: j, projectName }: { job: JobDTO; projectName: string }) {
   const countdown = retryCountdown(j, now);
   const terminal = isTerminalJob(j);
   const canRetry = j.status === "failed" || j.status === "cancelled" || j.status === "interrupted";
+  const spend = useSpendConfirm();
+  const retryPaid = async () => {
+    try {
+      const generation = await call("generation_get", {
+        projectId: j.projectId,
+        generationId: j.generationId,
+      });
+      if (!(await spend.request(spendRequestForGeneration(generation, providers, t)))) return;
+      await retryJob(j.id);
+    } catch (error) {
+      notifyError(error);
+      await useStudio.getState().refreshJobs();
+    }
+  };
 
   return (
     <li className="job-row" data-testid="job-row" data-status={j.status}>
@@ -142,11 +159,12 @@ function JobRow({ job: j, projectName }: { job: JobDTO; projectName: string }) {
           </button>
         )}
         {canRetry && (
-          <button className="btn btn-sm" onClick={() => void retryJob(j.id)}>
+          <button className="btn btn-sm" onClick={() => void retryPaid()}>
             <RotateCcw size={13} /> {t("common.retry")}
           </button>
         )}
       </div>
+      {spend.dialog}
     </li>
   );
 }

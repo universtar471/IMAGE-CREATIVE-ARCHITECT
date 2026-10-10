@@ -245,6 +245,7 @@ mod tests {
                 "maxReferenceImages",
                 "priceHint",
                 "qualityOptions",
+                "supportsMask",
                 "supportsNegativePrompt",
                 "supportsSeed",
                 "textToImage",
