@@ -16,6 +16,7 @@ pub enum ErrorCode {
     InvalidState,
     DuplicateAsset,
     ProviderNotConfigured,
+    ProviderQuota,
     /// A provider call made directly by a command (not a queued job) failed; details carry
     /// `{ providerId, kind, retryable }`.
     ProviderError,

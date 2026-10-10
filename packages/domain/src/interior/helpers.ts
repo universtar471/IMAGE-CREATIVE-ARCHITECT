@@ -307,5 +307,6 @@ function addSurfacePrompt<T extends string>(
 ) {
   if (!ids.length) return;
   const prompts = ids.map((id) => options.find((option) => option.id === id)!.prompt);
-  target.push(`${label}: ${prompts.join(" and ")}`);
+  const accentPrompts = prompts.slice(1).map((prompt) => prompt.replace(/\s+flooring$/i, ""));
+  target.push(`${label}: ${prompts[0]}${accentPrompts.length ? ` with ${accentPrompts.join(", ")} accents` : ""}`);
 }
