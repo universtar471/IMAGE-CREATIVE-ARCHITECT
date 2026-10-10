@@ -763,3 +763,206 @@ When `source` is `"sketch"`:
 - Generation is disabled, with a reason, when:
   - there is no sketch asset, or
   - the model has no image-to-image.
+
+
+## 18. Interior DNA (ADR-027)
+
+### 18.1 Schema (`packages/domain/src/interior/schemas.ts`)
+
+```ts
+InteriorDNA = {
+  schemaVersion: 1,
+  buildingUseId: BuildingUseId,            // required
+  roomId: RoomId,                          // required, must be valid for buildingUseId
+  styleId: InteriorStyleId,                // required
+  paletteId?: PaletteId,
+  materialPresetId?: MaterialPresetId,
+  surfaces: {                              // each defaults to []
+    floor: FloorMaterialId[], wall: WallMaterialId[], ceiling: CeilingMaterialId[],
+    cabinetry: CabinetryMaterialId[], countertop: CountertopMaterialId[],
+    textile: TextileMaterialId[], metal: MetalFinishId[],
+  },
+  daylightDirection?: "front" | "left" | "right" | "rear" | "diffuse" | "none",
+  daylightAmount?: "low" | "medium" | "high",
+  timeOfDay?: "morning" | "midday" | "afternoon" | "golden_hour" | "evening" | "night",
+  artificialScenes: ("ambient" | "task" | "accent" | "cove" | "pendant" | "downlight")[], // default []
+  colorTemperatureK?: 2700 | 3000 | 3500 | 4000,
+  furnitureIds: FurnitureId[],             // default []
+  furnishingDensity: "minimal" | "balanced" | "layered",  // default "balanced"
+  cameraPresetId?: "wide_entrance" | "corner" | "one_point" | "detail",
+  areaM2?: number /* > 0 */, ceilingHeightM?: number /* > 0 */,
+}
+ProjectDNA.interior?: InteriorDNA   // optional, additive
+```
+
+Validation:
+- `roomId` must be in `roomsForUse(buildingUseId)`. If it is not, the error is at `interior.roomId`.
+- Surface ids must belong to their slot.
+
+### 18.2 Catalog ids (each option: `{ id, vi, en, prompt }`)
+
+**BuildingUseId**
+
+| id | vi | prompt |
+|---|---|---|
+| `apartment` | Căn hộ | apartment |
+| `studio` | Studio | studio apartment |
+| `duplex_penthouse` | Duplex / Penthouse | duplex penthouse |
+| `townhouse` | Nhà phố | townhouse |
+| `single_storey_house` | Nhà cấp 4 | single-storey house |
+| `villa` | Biệt thự | villa |
+| `hotel_room_suite` | Phòng / suite khách sạn | hotel suite |
+| `office` | Văn phòng | office |
+| `cafe_restaurant` | Café / nhà hàng | café restaurant |
+| `retail_showroom` | Cửa hàng / showroom | retail showroom |
+| `spa` | Spa | spa |
+| `resort` | Resort | resort |
+| `other` | Khác | interior |
+
+**RoomId**
+
+| id | vi | prompt |
+|---|---|---|
+| `living_room` | Phòng khách | living room |
+| `kitchen` | Bếp | kitchen |
+| `dining_room` | Phòng ăn | dining room |
+| `living_kitchen` | Khách + bếp | open-plan living and kitchen |
+| `master_bedroom` | Phòng ngủ master | master bedroom |
+| `bedroom` | Phòng ngủ | bedroom |
+| `kids_room` | Phòng trẻ em | children's bedroom |
+| `bathroom` | Phòng tắm / WC | bathroom |
+| `walk_in_closet` | Phòng thay đồ | walk-in closet |
+| `home_office` | Phòng làm việc | home office |
+| `prayer_room` | Phòng thờ | Vietnamese family altar room |
+| `lobby` | Sảnh | lobby |
+| `reception` | Lễ tân | reception area |
+| `meeting_room` | Phòng họp | meeting room |
+| `open_office` | Khu làm việc chung | open-plan office |
+| `cafe_dining` | Khu khách café / nhà hàng | café dining area |
+| `bar_counter` | Quầy bar | bar counter |
+| `retail_floor` | Khu bán hàng | retail floor |
+| `spa_treatment` | Phòng trị liệu | spa treatment room |
+| `other` | Khác | interior room |
+
+**`roomsForUse(use)`**
+
+| Building uses | Rooms |
+|---|---|
+| `apartment`, `duplex_penthouse`, `townhouse`, `single_storey_house`, `villa` | `living_room`, `kitchen`, `dining_room`, `living_kitchen`, `master_bedroom`, `bedroom`, `kids_room`, `bathroom`, `walk_in_closet`, `home_office`, `prayer_room` (townhouse and villa also get `lobby`) |
+| `studio` | `living_kitchen`, `bedroom`, `bathroom`, `walk_in_closet`, `home_office` |
+| `hotel_room_suite`, `resort` | `master_bedroom`, `bedroom`, `bathroom`, `living_room`, `lobby`, `reception`, `cafe_dining`, `bar_counter`, `spa_treatment` |
+| `office` | `lobby`, `reception`, `meeting_room`, `open_office`, `home_office` |
+| `cafe_restaurant` | `cafe_dining`, `bar_counter`, `kitchen` |
+| `retail_showroom` | `retail_floor`, `reception` |
+| `spa` | `spa_treatment`, `reception`, `lobby` |
+| `other` | every room |
+
+`other` is always valid for every building use.
+
+**InteriorStyleId**
+
+Each style has `prompt` cues, plus a default `paletteId` and `materialPresetId`:
+
+| id | vi | prompt | palette | preset |
+|---|---|---|---|---|
+| `modern` | Hiện đại | Modern, clean lines and flat planes | `cool_neutral` | `modern_clean` |
+| `minimalist` | Tối giản | Minimalist, few details and generous empty space | `warm_neutral` | `minimal_light` |
+| `japandi` | Japandi | Japandi, calm minimal forms and natural craftsmanship | `warm_neutral` | `japandi_natural` |
+| `wabi_sabi` | Wabi-sabi | Wabi-Sabi, imperfect natural raw surfaces | `earth` | `wabi_earth` |
+| `scandinavian` | Bắc Âu | Scandinavian, bright and friendly | `cool_neutral` | `scandi_light` |
+| `indochine` | Đông Dương | Indochine, nostalgic tropical with Asian detailing | `earth` | `indochine_heritage` |
+| `contemporary` | Đương đại | Contemporary, refined proportions and restrained contrast | `cool_neutral` | `modern_clean` |
+| `luxury` | Sang trọng | Luxury, high-end finishes and precise detailing | `warm_neutral` | `luxury_stone` |
+| `industrial` | Công nghiệp | Industrial, exposed structure and raw finishes | `monochrome` | `industrial_raw` |
+| `tropical` | Nhiệt đới | Tropical, airy with local natural materials | `green_natural` | `tropical_craft` |
+| `modern_classic` | Tân cổ điển hiện đại | Modern Classic, restrained mouldings and symmetry | `warm_neutral` | `classic_detail` |
+| `neo_classic` | Tân cổ điển | Neo Classic, symmetry and pronounced mouldings | `warm_neutral` | `classic_detail` |
+| `mediterranean` | Địa Trung Hải | Mediterranean, arches, warm plaster and handcraft | `blue_coastal` | `mediterranean_warm` |
+| `organic_modern` | Hữu cơ hiện đại | Organic Modern, soft forms and natural materials | `warm_neutral` | `organic_soft` |
+| `mid_century_modern` | Mid-century Modern | Mid-century Modern, low forms and iconic wood furniture | `earth` | `midcentury_wood` |
+
+**PaletteId**
+
+Each palette has `prompt` and 3–5 `swatches` (hex colours):
+
+| id | vi | prompt |
+|---|---|---|
+| `warm_neutral` | Be ấm | warm beige, ivory and natural wood |
+| `cool_neutral` | Xám lạnh | soft gray, white and pale wood |
+| `earth` | Màu đất | terracotta, earthy brown and olive |
+| `monochrome` | Đen trắng | black, white and charcoal |
+| `green_natural` | Xanh rêu tự nhiên | sage green, natural wood and cream |
+| `blue_coastal` | Xanh biển – cát | muted blue and sand white |
+
+**MaterialPresetId → surfaces**
+
+Each preset has ids for every slot below. Every preset must list a valid id for each of the 7 slots.
+- `modern_clean`
+- `minimal_light`
+- `japandi_natural`
+- `wabi_earth`
+- `scandi_light`
+- `indochine_heritage`
+- `luxury_stone`
+- `industrial_raw`
+- `tropical_craft`
+- `classic_detail`
+- `mediterranean_warm`
+- `organic_soft`
+- `midcentury_wood`
+
+**Surface slots and ids**
+
+Each id has a `vi` label, an `en` label and a `prompt` phrase. Each also has a `swatch` hex used by the moodboard preview.
+- **floor:** `oak`, `walnut`, `terrazzo`, `porcelain_tile`, `cement_tile`, `microcement`, `natural_stone`, `polished_concrete`
+- **wall:** `paint`, `limewash`, `plaster`, `microcement`, `exposed_brick`, `wood_panel`, `wallpaper`, `stone_cladding`
+- **ceiling:** `painted_gypsum`, `wood_slats`, `exposed_concrete`, `cove_ceiling`, `exposed_beams`
+- **cabinetry:** `oak_veneer`, `walnut_veneer`, `painted_mdf`, `solid_teak`, `rattan_cane`, `lacquer`
+- **countertop:** `marble`, `quartz`, `granite`, `travertine`, `terrazzo`, `solid_wood`
+- **textile:** `linen`, `cotton`, `wool`, `velvet`, `leather`, `boucle`
+- **metal:** `matte_black`, `brushed_brass`, `bronze`, `stainless_steel`, `chrome`
+
+**FurnitureId**
+
+The relevant set is suggested per room by `furnitureForRoom(roomId)`:
+- `sofa`, `armchair`, `coffee_table`, `media_console`, `rug`
+- `dining_table`, `dining_chairs`, `island`, `bar_stools`
+- `bed`, `bedside_tables`, `wardrobe`, `dressing_table`
+- `desk`, `bookshelf`
+- `vanity`, `bathtub`, `walk_in_shower`
+- `altar_cabinet`
+- `reception_desk`, `lounge_seating`, `display_shelving`, `treatment_bed`, `meeting_table`
+
+### 18.3 Helpers (pure, exported from `@arch/domain`)
+
+- `INTERIOR_CATALOG`: all of the lists above.
+- `roomsForUse(id)`
+- `furnitureForRoom(id)`
+- `styleDefaults(styleId)` returns `{ paletteId, materialPresetId }`.
+- `applyStyleDefaults(interior, styleId)` sets `paletteId` and `materialPresetId`, and fills only the empty surface slots.
+- `presetSurfaces(presetId)`
+- `defaultInteriorDNA(use?, room?, style?)` defaults to `apartment` / `living_room` / `japandi` with the style defaults applied.
+- `proposeInteriorFromLegacy(dna)` returns `{ proposal: InteriorDNA, matched: string[] }`. It maps `building.buildingType`, `architecturalStyle` and `materials` text to ids by exact case- and diacritics-insensitive match on `vi`, `en` or `id`. It never mutates.
+- `interiorPromptLines(dna)` returns the compiler lines.
+
+### 18.4 Compiler (`pc-1.4.0`)
+
+For `projectType === "interior"` with `dna.interior`:
+- The `form` section becomes `Interior space: <use.prompt> <room.prompt>.`
+- The `language` section becomes `Interior style: <style.prompt>.`
+- The `materials` section becomes `Materials and colors: <palette.prompt>; floor: …; walls: …; ceiling: …; cabinetry: …; countertop: …; textiles: …; metal: ….`
+  - Empty slots are omitted.
+  - Several ids in one slot are joined with " and ".
+- A new `furnishing` section goes after materials: `Furnishing: <furniture prompts joined ", ">; <density prompt>.`
+- The `lighting` section, when any of these fields is set, appends: `Interior lighting: <timeOfDay>, <daylight amount/direction>, <scenes>, warm|neutral <K> K.`
+  - 2700 and 3000 K are warm, 3500 K is neutral-warm and 4000 K is neutral.
+- The `camera` section, when there is no camera DNA, uses the `cameraPresetId` prompt.
+- Without `dna.interior`, the compiler output is byte-identical to `pc-1.3.0`, apart from the version string.
+
+The section order stays stable and the snapshots are updated deliberately.
+
+### 18.5 Backend
+
+- The DNA JSON schema is regenerated from Zod, which adds the `interior` property. `validate_dna` accepts it.
+- The `roomsForUse` rule is mirrored in Rust `validate_additive_fields`. The error is at `interior.roomId`.
+- There is no migration and no new command.

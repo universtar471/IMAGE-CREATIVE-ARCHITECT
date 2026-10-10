@@ -425,3 +425,42 @@ Status: accepted (2026-10-10; user asked for an "from sketch / massing" mode aft
 - No backend purpose change.
   - The backend accepts the new role everywhere roles are parsed.
   - Provider prompt text gets a role label.
+
+
+## ADR-027 — Interior DNA: exact pick-lists in an additive `dna.interior` section
+
+Status: accepted (2026-10-10, user request "ok nội thất"; taxonomy proposed by Codex in a read-only consult)
+
+**Problem**
+- Interior projects reused the building fields (roof, massing, facade) and free-text style and materials.
+- The user (a Vietnamese architect) wants exact choices for:
+  - building use
+  - room
+  - style
+  - palette
+  - materials per surface
+  - interior lighting
+  - furnishing
+  - camera
+
+**Decision**
+- **Additive optional section** `dna.interior` with `schemaVersion: 1`.
+  - The DNA aggregate version does not change.
+  - Existing projects parse unchanged.
+  - The section is only used when `project.projectType === "interior"`.
+  - Every pick-list value is a stable id from one catalog in `packages/domain/src/interior/catalog.ts`. Each option carries `{ id, vi, en, prompt }`, where `prompt` is the English phrase for the compiler.
+- **Cascades** are pure domain helpers.
+  - The building use filters the valid rooms. `other` is always valid, and `prayer_room` (phòng thờ) is explicit for residential uses.
+  - The style supplies a default palette and a material preset. Choosing a style fills in only the values the user has not set. The user can override any surface.
+- **Compiler.** For interior projects with `dna.interior` set, the compiler emits interior lines (space, style, materials per surface, furnishing, interior lighting, camera preset) instead of the building massing and roof lines. It keeps the master-priority rules. The version bumps to `pc-1.4.0`.
+- **UI**
+  - For interior projects, guided step 1 is labelled "Không gian" (en "Space") and shows the interior pick-lists instead of the building massing fields.
+  - "Bối cảnh" focuses on windows, view and daylight.
+  - "Ánh sáng" adds interior scenes and colour temperature.
+  - "Góc máy" offers the interior camera presets.
+  - A moodboard preview shows palette chips and material swatches.
+  - The new-project wizard asks for the building use, room and style for interior projects.
+- **Migration.** There is none on disk.
+  - When an interior project without `dna.interior` opens, the UI proposes a section by mapping the old free text to catalog ids where it matches exactly (case- and diacritics-insensitive). The user confirms before anything is saved.
+  - The old fields are never deleted.
+- **Deferred:** budget tier, advanced room constraints, and per-industry presets.
