@@ -3040,3 +3040,65 @@ textarea {
   gap: 8px;
   margin: 12px 0 6px;
 }
+
+/* ADR-030: AI DNA assist popover and proposal diff. */
+.assist-trigger {
+  margin-bottom: 8px;
+}
+.assist-popover {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  gap: 12px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-lg);
+}
+.assist-title,
+.assist-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.assist-title strong {
+  flex: 1;
+}
+.assist-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.assist-modes [aria-pressed="true"] {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+.assist-reference-list,
+.assist-diff-list {
+  display: grid;
+  gap: 8px;
+}
+.assist-diff-row {
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+}
+.assist-diff-content {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.assist-values {
+  color: var(--c-text-2);
+}
+.assist-diff-content small {
+  color: var(--c-text-3);
+}
+.assist-translate-chip {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+}

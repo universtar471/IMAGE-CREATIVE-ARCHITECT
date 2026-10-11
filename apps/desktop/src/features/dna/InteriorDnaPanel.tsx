@@ -260,6 +260,16 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
         </SectionPanel>
 
         <SectionPanel title={t("lighting.section")} defaultOpen={false}>
+          <AssistControl
+            scope="lighting"
+            stepId="dna.lighting"
+            projectType="interior"
+            projectId={useStudio.getState().workspace!.project.id}
+            dna={useStudio.getState().workspace!.draftDna as ProjectDNA}
+            assets={useStudio.getState().workspace!.assets}
+            hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
+            onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+          />
           <SelectField
             label={t("interior.daylightDirection")}
             disabled={disabled}

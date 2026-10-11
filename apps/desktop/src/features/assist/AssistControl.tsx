@@ -3,15 +3,41 @@ import type { AssetDTO, ProjectDNA } from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { useT } from "../../i18n";
-import { BridgeError, call } from "../../lib/bridge";
+import { BridgeError } from "../../lib/bridge";
 import {
   assistCatalog,
   assistSystemPrompt,
   parseAssistReply,
+  runDnaAssist,
+  shouldOfferTranslation,
   type AssistField,
   type AssistMode,
   type AssistScope,
 } from "../../lib/assist";
+import { getIn } from "../../lib/path";
+
+export function TranslateChip({
+  text,
+  onClick,
+  disabled = false,
+}: {
+  text: string | undefined;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const t = useT();
+  if (!text || !shouldOfferTranslation(text)) return null;
+  return (
+    <button
+      type="button"
+      className="chip assist-translate-chip"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {t("assist.translate")}
+    </button>
+  );
+}
 
 export function AssistControl({
   scope,
@@ -57,7 +83,7 @@ export function AssistControl({
     setBusy(true);
     setError(null);
     try {
-      const result = await call("dna_assist", {
+      const result = await runDnaAssist({
         projectId,
         mode,
         scope,
@@ -84,6 +110,46 @@ export function AssistControl({
     } finally {
       setBusy(false);
     }
+  };
+
+  const translate = async (path: string, text: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await runDnaAssist({
+        projectId,
+        mode: "translate",
+        scope,
+        translate: [{ path, text }],
+        catalog,
+        systemPrompt: assistSystemPrompt("translate", catalog),
+      });
+      const parsed = parseAssistReply(result.raw, catalog);
+      setProposal(parsed);
+      setChecked(parsed.fields.map((field) => field.path));
+    } catch (err) {
+      const message = err instanceof Error ? err.message.toLowerCase() : "";
+      const code = err instanceof BridgeError ? err.code : null;
+      setError(
+        code === "PROVIDER_NOT_CONFIGURED"
+          ? "notConfigured"
+          : /credit|quota/.test(message)
+            ? "quota"
+            : code === "VALIDATION_ERROR" || err instanceof SyntaxError
+              ? "invalid"
+              : "other",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const displayValue = (path: string, value: unknown) => {
+    if (Array.isArray(value)) return value.join(", ");
+    const definition = catalog.fields.find((field) => field.path === path);
+    if (definition?.options)
+      return definition.options.find((option) => option.id === value)?.en ?? String(value ?? "—");
+    return String(value ?? "—");
   };
 
   const continueToCall = async () => {
@@ -137,12 +203,13 @@ export function AssistControl({
           </div>
           {!proposal ? (
             <>
-              <div className="assist-modes">
+              <div className="assist-modes" role="tablist">
                 {(["brief", "images", "master"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
                     className="btn btn-sm"
+                    aria-selected={mode === value}
                     aria-pressed={mode === value}
                     disabled={value === "master" && !hasMaster}
                     onClick={() => setMode(value)}
@@ -219,9 +286,10 @@ export function AssistControl({
             <>
               <div className="assist-diff-list">
                 {proposal.fields.map((field) => (
-                  <label key={field.path} className="assist-diff-row">
+                  <div key={field.path} className="assist-diff-row">
                     <input
                       type="checkbox"
+                      aria-label={field.path}
                       checked={checked.includes(field.path)}
                       onChange={(event) =>
                         setChecked(
@@ -231,13 +299,26 @@ export function AssistControl({
                         )
                       }
                     />
-                    <span>
+                    <span className="assist-diff-content">
                       <code>{field.path}</code>
-                      <span className="assist-values">{String(field.value)}</span>
+                      <span className="assist-values">
+                        {displayValue(field.path, getIn(dna, field.path))} →{" "}
+                        {displayValue(field.path, field.value)}
+                      </span>
                       <small>{field.reason}</small>
                     </span>
                     <span className="badge">{Math.round(field.confidence * 100)}%</span>
-                  </label>
+                    {catalog.fields.find((definition) => definition.path === field.path)?.kind ===
+                      "text" && (
+                      <TranslateChip
+                        text={String(getIn(dna, field.path) ?? "")}
+                        disabled={busy}
+                        onClick={() =>
+                          void translate(field.path, String(getIn(dna, field.path) ?? ""))
+                        }
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
               {proposal.dropped.length > 0 && (
