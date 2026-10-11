@@ -276,6 +276,23 @@ describe("Interior prompt compiler pc-1.6.0", () => {
     `);
   });
 
+  it("renders the first material in each slot as primary and later materials as ordered accents", () => {
+    const input = compilerInput();
+    input.dna.interior!.surfaces = {
+      floor: ["oak", "terrazzo"],
+      wall: ["paint", "limewash"],
+      ceiling: [],
+      cabinetry: [],
+      countertop: [],
+      textile: [],
+      metal: [],
+    };
+
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "floor: natural oak flooring with terrazzo accents; walls: smooth matte warm-white painted walls with soft limewash walls accents",
+    );
+  });
+
   it("omits empty material slots and lets camera DNA override the preset fallback", () => {
     const input = compilerInput();
     const prompt = compilePrompt(input).positivePrompt;
@@ -309,6 +326,19 @@ describe("Interior prompt compiler pc-1.6.0", () => {
       input.dna.interior!.cameraPresetId = id as keyof typeof expected;
       expect(compilePrompt(input).positivePrompt).toContain(`Camera: ${phrase}`);
     }
+  });
+
+  it("falls back to the wide framing for missing and unknown camera presets", () => {
+    const input = compilerInput();
+    input.dna.interior!.cameraPresetId = undefined;
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "Camera: wide view from the entrance showing the whole room",
+    );
+
+    input.dna.interior!.cameraPresetId = "not_a_preset" as never;
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "Camera: wide view from the entrance showing the whole room",
+    );
   });
 
   it("does not fall back to legacy materials when the interior selection is empty", () => {

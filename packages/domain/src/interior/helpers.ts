@@ -188,8 +188,8 @@ export function interiorPromptLines(dna: InteriorDNA): string[] {
 
   const lighting = interiorLightingParts(dna);
   if (lighting.length) lines.push(`Interior lighting: ${lighting.join(", ")}.`);
-  const camera = CAMERA_PRESETS.find(({ id }) => id === dna.cameraPresetId);
-  if (camera) lines.push(`Camera: ${camera.prompt}.`);
+  const camera = CAMERA_PRESETS.find(({ id }) => id === dna.cameraPresetId) ?? CAMERA_PRESETS[0]!;
+  lines.push(`Camera: ${camera.prompt}.`);
   return lines;
 }
 
@@ -307,6 +307,9 @@ function addSurfacePrompt<T extends string>(
 ) {
   if (!ids.length) return;
   const prompts = ids.map((id) => options.find((option) => option.id === id)!.prompt);
-  const accentPrompts = prompts.slice(1).map((prompt) => prompt.replace(/\s+flooring$/i, ""));
-  target.push(`${label}: ${prompts[0]}${accentPrompts.length ? ` with ${accentPrompts.join(", ")} accents` : ""}`);
+  const [primary, ...accents] = prompts;
+  const accentPrompts = accents.map((prompt) => prompt.replace(/\s+flooring$/i, ""));
+  target.push(
+    `${label}: ${primary}${accentPrompts.length ? ` with ${accentPrompts.join(", ")} accents` : ""}`,
+  );
 }
