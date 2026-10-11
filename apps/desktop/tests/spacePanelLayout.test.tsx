@@ -1,0 +1,101 @@
+import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createProject } from "../src/app/services";
+import { useStudio } from "../src/app/store";
+import { InteriorDnaPanel } from "../src/features/dna/InteriorDnaPanel";
+import { createMockTransport } from "../src/lib/mockBackend";
+import { defaultInteriorDNA } from "../src/lib/interior";
+import { setTransport } from "../src/lib/bridge";
+
+type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
+
+let db: Db;
+let observers: Array<{ callback: ResizeObserverCallback }>;
+
+beforeEach(() => {
+  db = { projects: {}, dna: {}, assets: {}, versions: [] };
+  observers = [];
+  setTransport(createMockTransport(db));
+  useStudio.setState({ route: { name: "hub" }, workspace: null, workflowView: null });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      callback: ResizeObserverCallback;
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        observers.push(this);
+      }
+
+      observe() {}
+
+      disconnect() {}
+    },
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  setTransport(null);
+});
+
+async function renderInterior() {
+  const project = await createProject({
+    name: "Space layout test",
+    projectType: "interior",
+    subtype: "default",
+    starter: {},
+    interior: defaultInteriorDNA(),
+  });
+  await useStudio.getState().openProject(project.id);
+  const interior = defaultInteriorDNA();
+  interior.surfaces.floor = ["walnut", "oak"];
+  interior.furnitureIds = ["rug", "sofa"];
+  useStudio.getState().editDna("interior", interior);
+  render(<InteriorDnaPanel />);
+}
+
+describe("Space panel layout", () => {
+  it("switches between stacked and split structure at the 560px boundary", async () => {
+    await renderInterior();
+    const layout = screen.getByTestId("interior-layout");
+
+    act(() => {
+      observers.forEach(({ callback }) =>
+        callback([{ contentRect: { width: 340 } }] as never, {} as never),
+      );
+    });
+    expect(layout.getAttribute("data-layout")).toBe("stacked");
+    expect(layout.firstElementChild?.classList.contains("interior-moodboard")).toBe(true);
+    expect(layout.lastElementChild?.classList.contains("interior-fields")).toBe(true);
+
+    act(() => {
+      observers.forEach(({ callback }) =>
+        callback([{ contentRect: { width: 640 } }] as never, {} as never),
+      );
+    });
+    expect(layout.getAttribute("data-layout")).toBe("split");
+  });
+
+  it("keeps selected material and furniture chips ordered and marks the primary chip", async () => {
+    await renderInterior();
+
+    const floor = within(screen.getByRole("group", { name: "Floor" }));
+    const selectedFloor = floor.getAllByRole("button", { pressed: true });
+    expect(selectedFloor.map((button) => button.textContent)).toEqual([
+      expect.stringContaining("Walnut"),
+      expect.stringContaining("Oak"),
+    ]);
+    expect(selectedFloor[0]?.textContent).toContain("primary");
+    expect(selectedFloor[1]?.textContent).not.toContain("primary");
+
+    const furniture = within(screen.getByRole("group", { name: "Furniture" }));
+    const selectedFurniture = furniture.getAllByRole("button", { pressed: true });
+    expect(selectedFurniture.map((button) => button.textContent)).toEqual([
+      expect.stringContaining("Rug"),
+      expect.stringContaining("Sofa"),
+    ]);
+    expect(selectedFurniture[0]?.textContent).toContain("primary");
+  });
+});
