@@ -25,7 +25,7 @@ import {
   type InteriorStyleId,
 } from "../../lib/interior";
 import { AssistControl } from "../assist/AssistControl";
-import { presetPhoto } from "../../lib/previewPhotos";
+import { PhotoThumbnail } from "../previews/PhotoThumbnail";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -176,7 +176,6 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
           />
           <div className="interior-style-cards">
             {INTERIOR_STYLES.map((style) => {
-              const photo = presetPhoto("style", style.id);
               return (
                 <button
                   key={style.id}
@@ -186,17 +185,9 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
                   onClick={() => !disabled && changeStyle(style.id)}
                   disabled={disabled}
                 >
-                  {photo ? (
-                    <img
-                      src={photo.src}
-                      width={photo.w}
-                      height={photo.h}
-                      loading="lazy"
-                      alt={style[locale]}
-                    />
-                  ) : (
+                  <PhotoThumbnail kind="style" presetId={style.id} label={style[locale]}>
                     <span className="interior-style-fallback">{style[locale]}</span>
-                  )}
+                  </PhotoThumbnail>
                   <span>{style[locale]}</span>
                 </button>
               );

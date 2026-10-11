@@ -23,6 +23,7 @@ export function PhotoThumbnail({
       height={photo.h}
       loading="lazy"
       alt={label}
+      style={{ objectFit: "contain" }}
       onError={() => setFailedSrc(photo.src)}
     />
   ) : (
