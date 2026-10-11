@@ -99,7 +99,16 @@ export function LightingPanel() {
   return (
     <div data-testid="lighting-panel">
       <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
-        <AssistControl scope="lighting" stepId="dna.lighting" projectType={ws.project.projectType} projectId={ws.project.id} dna={ws.draftDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
+        <AssistControl
+          scope="lighting"
+          stepId="dna.lighting"
+          projectType={ws.project.projectType}
+          projectId={ws.project.id}
+          dna={ws.draftDna}
+          assets={ws.assets}
+          hasMaster={!!ws.project.activeMasterAssetId}
+          onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+        />
         <LightingPreview lighting={lighting} />
         <LightingPresetCards
           presets={presets}
@@ -323,7 +332,16 @@ function InteriorLightingPanel() {
   return (
     <div data-testid="interior-lighting-panel">
       <SectionPanel title={t("lighting.section")} aside={<LockToggle section="lighting" />}>
-        <AssistControl scope="lighting" stepId="dna.lighting" projectType="interior" projectId={ws.project.id} dna={ws.draftDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
+        <AssistControl
+          scope="lighting"
+          stepId="dna.lighting"
+          projectType="interior"
+          projectId={ws.project.id}
+          dna={ws.draftDna}
+          assets={ws.assets}
+          hasMaster={!!ws.project.activeMasterAssetId}
+          onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+        />
         <SelectField
           label={t("lighting.timeOfDay")}
           value={interior.timeOfDay}

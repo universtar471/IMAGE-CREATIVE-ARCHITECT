@@ -56,7 +56,18 @@ export function ContextDnaPanel() {
       )}
       <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
       <SectionPanel title={t("context.setting")} aside={<LockToggle section="context" />}>
-        <AssistControl scope="context" stepId="dna.context" projectType={projectType} projectId={useStudio.getState().workspace!.project.id} dna={useStudio.getState().workspace!.draftDna} assets={useStudio.getState().workspace!.assets} hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))} />
+        <AssistControl
+          scope="context"
+          stepId="dna.context"
+          projectType={projectType}
+          projectId={useStudio.getState().workspace!.project.id}
+          dna={useStudio.getState().workspace!.draftDna}
+          assets={useStudio.getState().workspace!.assets}
+          hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
+          onApply={(fields) =>
+            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
+          }
+        />
         <DnaText
           path="context.macroContext"
           label={t("context.macro")}

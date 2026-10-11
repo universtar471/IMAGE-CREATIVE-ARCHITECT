@@ -118,7 +118,16 @@ export type Requests = {
     scope: "interior" | "building" | "context" | "lighting";
     brief?: string;
     referenceAssetIds?: string[];
-    catalog: { scope: string; fields: Array<{ path: string; kind: string; options?: Array<{ id: string; en: string }>; min?: number; max?: number }> };
+    catalog: {
+      scope: string;
+      fields: Array<{
+        path: string;
+        kind: string;
+        options?: Array<{ id: string; en: string }>;
+        min?: number;
+        max?: number;
+      }>;
+    };
     systemPrompt: string;
     translate?: Array<{ path: string; text: string }>;
   };
@@ -182,7 +191,12 @@ export type Requests = {
 
 /** Response schemas per command. */
 export const responses = {
-  dna_assist: z.object({ raw: z.string(), modelId: z.string(), usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(), generationId: z.string() }),
+  dna_assist: z.object({
+    raw: z.string(),
+    modelId: z.string(),
+    usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(),
+    generationId: z.string(),
+  }),
   app_info: AppInfoSchema,
   project_create: ProjectDTOSchema,
   project_list: z.array(ProjectSummaryDTOSchema),
