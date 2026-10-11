@@ -1,9 +1,16 @@
 //! The sole adapter between the grade service and LightCraft.
 
-use image::{DynamicImage, RgbaImage};
-use lightcraft_develop::{controls, DevelopSettings, WbMode};
+use std::fs;
+use std::path::Path;
 
-use super::grade::ColorGrade;
+use image::{DynamicImage, RgbaImage};
+use lightcraft_color::{REC2020, SRGB};
+use lightcraft_develop::{controls, DevelopSettings, WbMode, Wheel};
+use lightcraft_geom::Point;
+use lightcraft_pipeline::{render as render_lightcraft, RenderRequest, SourceInfo};
+use lightcraft_raster::Rgb32f;
+
+use super::grade::{ColorGrade, ToneCurve};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CubeLut {
@@ -43,8 +50,8 @@ impl CubeLut {
                     size = Some(numbers[0] as usize);
                 }
                 "DOMAIN_MIN" | "DOMAIN_MAX" => {
-                    if numbers.len() != 3 {
-                        return Err(format!("{key} requires three values"));
+                    if numbers.len() != 3 || numbers.iter().any(|value| !value.is_finite()) {
+                        return Err(format!("{key} requires three finite values"));
                     }
                     let target = if key == "DOMAIN_MIN" { &mut domain_min } else { &mut domain_max };
                     target.copy_from_slice(&[numbers[0], numbers[1], numbers[2]]);
@@ -96,7 +103,7 @@ impl CubeLut {
             }
         }
         let amount = strength.clamp(0.0, 1.0);
-        if mapped.iter().zip(rgb).all(|(mapped, input)| (*mapped - input).abs() < 1e-6) {
+        if amount == 0.0 || mapped.iter().zip(rgb).all(|(mapped, input)| (*mapped - input).abs() < 1e-6) {
             return rgb;
         }
         [0, 1, 2].map(|channel| {
@@ -118,8 +125,11 @@ pub fn settings(grade: &ColorGrade) -> DevelopSettings {
         ("color.tint", grade.tint),
         ("color.vibrance", grade.vibrance),
         ("color.saturation", grade.saturation),
+        ("effects.texture", grade.texture.unwrap_or(0.0)),
         ("effects.clarity", grade.clarity),
         ("effects.dehaze", grade.dehaze),
+        ("vignette.amount", -grade.vignette.unwrap_or(0.0)),
+        ("grain.amount", grade.grain.unwrap_or(0.0)),
     ] {
         let _ = controls::set(&mut settings, id, value as f64);
     }
@@ -127,11 +137,59 @@ pub fn settings(grade: &ColorGrade) -> DevelopSettings {
         settings.wb.mode = WbMode::Custom;
         settings.wb.temp = 6500.0 + grade.temperature as f64 * 20.0;
     }
+    if let Some(split_tone) = &grade.split_tone {
+        settings.grading.shadows =
+            Wheel { hue: split_tone.shadows_hue as f64, sat: split_tone.shadows_sat as f64, lum: 0.0 };
+        settings.grading.highlights =
+            Wheel { hue: split_tone.highlights_hue as f64, sat: split_tone.highlights_sat as f64, lum: 0.0 };
+        settings.grading.balance = split_tone.balance as f64;
+    }
+    if let Some(curve) = &grade.tone_curve {
+        settings.curve.master = match curve {
+            ToneCurve::None => Vec::new(),
+            ToneCurve::SoftS => {
+                vec![Point::new(0.0, 0.0), Point::new(0.25, 0.20), Point::new(0.75, 0.80), Point::new(1.0, 1.0)]
+            }
+            ToneCurve::StrongS => {
+                vec![Point::new(0.0, 0.0), Point::new(0.25, 0.12), Point::new(0.75, 0.88), Point::new(1.0, 1.0)]
+            }
+            ToneCurve::Faded => {
+                vec![Point::new(0.0, 0.08), Point::new(0.25, 0.28), Point::new(0.75, 0.78), Point::new(1.0, 0.94)]
+            }
+            ToneCurve::Matte => vec![Point::new(0.0, 0.08), Point::new(0.5, 0.50), Point::new(1.0, 0.92)],
+        };
+    }
     settings
 }
 
-pub fn render(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
-    let _lightcraft_settings = settings(grade);
+fn uses_v2(grade: &ColorGrade) -> bool {
+    grade.texture.is_some()
+        || grade.vignette.is_some()
+        || grade.grain.is_some()
+        || grade.split_tone.is_some()
+        || grade.tone_curve.is_some()
+        || grade.lut.is_some()
+}
+
+fn srgb_to_linear(value: f32) -> f32 {
+    if value <= 0.04045 {
+        value / 12.92
+    } else {
+        ((value + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+fn to_linear_rec2020(image: &DynamicImage) -> Rgb32f {
+    let rgb = image.to_rgb8();
+    let matrix = SRGB.to_space(&REC2020);
+    Rgb32f::from_fn(rgb.width() as usize, rgb.height() as usize, |x, y| {
+        let pixel = rgb.get_pixel(x as u32, y as u32).0;
+        let linear = pixel.map(|value| srgb_to_linear(value as f32 / 255.0));
+        matrix.apply_f32(linear)
+    })
+}
+
+fn render_v1(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
     let mut output = image.to_rgba8();
     for pixel in output.pixels_mut() {
         let alpha = pixel[3];
@@ -141,6 +199,50 @@ pub fn render(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
         pixel[1] = (rgb[1] * 255.0).round() as u8;
         pixel[2] = (rgb[2] * 255.0).round() as u8;
         pixel[3] = alpha;
+    }
+    output
+}
+
+fn render_with_lightcraft(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
+    let source = to_linear_rec2020(image);
+    let info = SourceInfo { relative_wb: true, ..SourceInfo::default() };
+    let rendered = render_lightcraft(
+        &source,
+        &info,
+        &settings(grade),
+        &RenderRequest::fit(image.width() as usize, image.height() as usize),
+    );
+    let bytes: Vec<u8> = rendered.image.data.iter().flat_map(|pixel| pixel.iter().copied()).collect();
+    let mut output = RgbaImage::from_raw(rendered.image.width as u32, rendered.image.height as u32, bytes)
+        .expect("LightCraft returned a malformed RGBA buffer");
+    for (output_pixel, source_pixel) in output.pixels_mut().zip(image.to_rgba8().pixels()) {
+        output_pixel[3] = source_pixel[3];
+    }
+    output
+}
+
+fn lut_from_grade(grade: &ColorGrade) -> Option<CubeLut> {
+    let path = Path::new(&grade.lut.as_ref()?.lut_id);
+    fs::read_to_string(path).ok().and_then(|text| CubeLut::parse(&text).ok())
+}
+
+pub fn render(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
+    let lut = lut_from_grade(grade);
+    render_with_lut(image, grade, lut.as_ref())
+}
+
+pub fn render_with_lut(image: &DynamicImage, grade: &ColorGrade, lut: Option<&CubeLut>) -> RgbaImage {
+    let mut output = if uses_v2(grade) { render_with_lightcraft(image, grade) } else { render_v1(image, grade) };
+    if let Some(lut) = lut {
+        let strength = grade.lut.as_ref().map_or(1.0, |value| value.strength / 100.0);
+        for pixel in output.pixels_mut() {
+            let alpha = pixel[3];
+            let rgb = lut.apply([pixel[0] as f32 / 255.0, pixel[1] as f32 / 255.0, pixel[2] as f32 / 255.0], strength);
+            pixel[0] = (rgb[0] * 255.0).round() as u8;
+            pixel[1] = (rgb[1] * 255.0).round() as u8;
+            pixel[2] = (rgb[2] * 255.0).round() as u8;
+            pixel[3] = alpha;
+        }
     }
     output
 }
@@ -168,10 +270,25 @@ mod tests {
         text
     }
 
+    fn neutral() -> ColorGrade {
+        serde_json::from_value(serde_json::json!({ "schemaVersion": 1 })).unwrap()
+    }
+
     #[test]
     fn identity_lut_is_noop() {
         let lut = CubeLut::parse(&identity(2)).unwrap();
         assert_eq!(lut.apply([0.2, 0.4, 0.8], 1.0), [0.2, 0.4, 0.8]);
+    }
+
+    #[test]
+    fn parses_comments_and_domain() {
+        let text = format!(
+            "LUT_3D_SIZE 2\nTITLE identity # comment\nDOMAIN_MIN 0.1 0.2 0.3\nDOMAIN_MAX 1 1 1\n{}",
+            identity(2).lines().skip(1).collect::<Vec<_>>().join("\n")
+        );
+        let lut = CubeLut::parse(&text).unwrap();
+        assert_eq!(lut.domain_min, [0.1, 0.2, 0.3]);
+        assert_eq!(lut.domain_max, [1.0, 1.0, 1.0]);
     }
 
     #[test]
@@ -181,30 +298,57 @@ mod tests {
     }
 
     #[test]
+    fn maps_v2_controls_to_lightcraft() {
+        let grade: ColorGrade = serde_json::from_value(serde_json::json!({
+            "schemaVersion": 1,
+            "texture": 25,
+            "vignette": 40,
+            "grain": 15,
+            "splitTone": {
+                "shadowsHue": 210,
+                "shadowsSat": 30,
+                "highlightsHue": 35,
+                "highlightsSat": 20,
+                "balance": -10
+            },
+            "toneCurve": "soft_s"
+        }))
+        .unwrap();
+        let mapped = settings(&grade);
+        assert_eq!(mapped.effects.texture, 25.0);
+        assert_eq!(mapped.vignette.amount, -40.0);
+        assert_eq!(mapped.grain.amount, 15.0);
+        assert_eq!(mapped.grading.shadows.hue, 210.0);
+        assert_eq!(mapped.grading.highlights.sat, 20.0);
+        assert_eq!(mapped.grading.balance, -10.0);
+        assert_eq!(mapped.curve.master.len(), 4);
+    }
+    #[test]
+    fn v1_render_keeps_old_pixel_math() {
+        let image = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(1, 1, Rgba([80, 120, 160, 255])));
+        let grade = ColorGrade { exposure: 20.0, contrast: -10.0, temperature: 15.0, saturation: 12.0, ..neutral() };
+        assert_eq!(render(&image, &grade), super::render_v1(&image, &grade));
+    }
+
+    #[test]
     fn neutral_grade_is_near_identity() {
         let image = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(2, 2, Rgba([80, 120, 160, 255])));
-        let grade = ColorGrade {
-            schema_version: 1,
-            exposure: 0.0,
-            contrast: 0.0,
-            highlights: 0.0,
-            shadows: 0.0,
-            whites: 0.0,
-            blacks: 0.0,
-            temperature: 0.0,
-            tint: 0.0,
-            vibrance: 0.0,
-            saturation: 0.0,
-            clarity: 0.0,
-            dehaze: 0.0,
-            look: None,
-        };
-        let output = render(&image, &grade);
-        let error: u32 = output
+        let output = render(&image, &neutral());
+        let error: f32 = output
             .pixels()
             .zip(image.to_rgba8().pixels())
-            .map(|(a, b)| a.0.iter().zip(b.0).map(|(x, y)| (*x as i32 - y as i32).unsigned_abs()).sum::<u32>())
-            .sum();
-        assert!(error <= 16);
+            .map(|(a, b)| {
+                a.0[..3].iter().zip(&b.0[..3]).map(|(x, y)| (*x as f32 - *y as f32).abs() / 255.0).sum::<f32>()
+            })
+            .sum::<f32>()
+            / 12.0;
+        assert!(error <= 1.0 / 255.0, "mean absolute error was {error}");
+    }
+
+    #[test]
+    fn lut_strength_blends() {
+        let lut = CubeLut::parse("LUT_3D_SIZE 2\n1 1 1\n1 1 1\n1 1 1\n1 1 1\n1 1 1\n1 1 1\n1 1 1\n1 1 1\n").unwrap();
+        assert_eq!(lut.apply([0.2, 0.4, 0.8], 0.0), [0.2, 0.4, 0.8]);
+        assert_eq!(lut.apply([0.2, 0.4, 0.8], 1.0), [1.0, 1.0, 1.0]);
     }
 }

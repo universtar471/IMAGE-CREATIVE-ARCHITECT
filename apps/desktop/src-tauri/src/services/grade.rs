@@ -30,6 +30,33 @@ where
     Ok(Some(String::deserialize(deserializer)?))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SplitTone {
+    pub shadows_hue: f32,
+    pub shadows_sat: f32,
+    pub highlights_hue: f32,
+    pub highlights_sat: f32,
+    pub balance: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToneCurve {
+    None,
+    SoftS,
+    StrongS,
+    Faded,
+    Matte,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GradeLut {
+    pub lut_id: String,
+    pub strength: f32,
+}
+
 /// Mirrors `ColorGradeDNA`. Defaults are useful for callers that submit the parsed
 /// Zod shape as well as for tests that only exercise one slider.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,6 +87,18 @@ pub struct ColorGrade {
     pub clarity: f32,
     #[serde(default = "zero")]
     pub dehaze: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vignette: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grain: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub split_tone: Option<SplitTone>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone_curve: Option<ToneCurve>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lut: Option<GradeLut>,
     #[serde(default, deserialize_with = "deserialize_non_null_string", skip_serializing_if = "Option::is_none")]
     pub look: Option<String>,
 }
@@ -107,6 +146,28 @@ pub fn validate_grade(grade: &ColorGrade) -> AppResult<()> {
         ("dehaze", grade.dehaze),
     ] {
         in_range(name, value, -100.0, 100.0)?;
+    }
+    if let Some(value) = grade.texture {
+        in_range("texture", value, -100.0, 100.0)?;
+    }
+    if let Some(value) = grade.vignette {
+        in_range("vignette", value, -100.0, 100.0)?;
+    }
+    if let Some(value) = grade.grain {
+        in_range("grain", value, 0.0, 100.0)?;
+    }
+    if let Some(split_tone) = &grade.split_tone {
+        in_range("splitTone.shadowsHue", split_tone.shadows_hue, 0.0, 360.0)?;
+        in_range("splitTone.shadowsSat", split_tone.shadows_sat, 0.0, 100.0)?;
+        in_range("splitTone.highlightsHue", split_tone.highlights_hue, 0.0, 360.0)?;
+        in_range("splitTone.highlightsSat", split_tone.highlights_sat, 0.0, 100.0)?;
+        in_range("splitTone.balance", split_tone.balance, -100.0, 100.0)?;
+    }
+    if let Some(lut) = &grade.lut {
+        if lut.lut_id.trim().is_empty() {
+            return Err(AppError::validation("lut.lutId must not be empty."));
+        }
+        in_range("lut.strength", lut.strength, 0.0, 100.0)?;
     }
     Ok(())
 }
@@ -360,6 +421,27 @@ mod tests {
     }
 
     #[test]
+    fn rejects_v2_values_outside_ranges() {
+        let mut grade = neutral();
+        grade.texture = Some(101.0);
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.texture = None;
+        grade.grain = Some(-1.0);
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.grain = None;
+        grade.split_tone = Some(SplitTone {
+            shadows_hue: 361.0,
+            shadows_sat: 0.0,
+            highlights_hue: 0.0,
+            highlights_sat: 0.0,
+            balance: 0.0,
+        });
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.split_tone = None;
+        grade.lut = Some(GradeLut { lut_id: "test".into(), strength: 101.0 });
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+    }
+    #[test]
     fn rejects_grade_apply_request_without_schema_version() {
         let parsed = serde_json::from_value::<GradeApplyRequest>(json!({
             "projectId": "PRJ_X",
@@ -467,6 +549,12 @@ mod tests {
                 saturation: 8.0,
                 clarity: 12.0,
                 dehaze: 5.0,
+                texture: None,
+                vignette: None,
+                grain: None,
+                split_tone: None,
+                tone_curve: None,
+                lut: None,
                 look: None,
             },
         );
