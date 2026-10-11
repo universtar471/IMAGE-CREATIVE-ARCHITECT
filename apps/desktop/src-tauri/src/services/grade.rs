@@ -304,7 +304,8 @@ pub fn apply(core: &AppCore, request: GradeApplyRequest) -> AppResult<AssetDto> 
     let source_image = imaging::decode(&source_bytes, source_info.format)
         .map_err(|e| AppError::new(ErrorCode::InvalidState, format!("The source image cannot be decoded: {e}")))?;
 
-    let graded = apply_grade(&source_image, &request.grade);
+    let lut = request.grade.lut.as_ref().map(|item| super::luts::load(core, &item.lut_id)).transpose()?;
+    let graded = super::grade_engine::render_with_lut(&source_image, &request.grade, lut.as_ref());
     let mut output_bytes = Vec::new();
     DynamicImage::ImageRgba8(graded)
         .write_to(&mut Cursor::new(&mut output_bytes), ImageFormat::Png)

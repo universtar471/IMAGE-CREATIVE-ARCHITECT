@@ -14,11 +14,88 @@ use crate::dto::{
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, qc, queue, regions,
-    workflow, AppCore,
+    anchors, assets, batches, dna, generations, grade, luts, projects, prompt_enhance, provider_settings, qc, queue,
+    regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LutPathRequest {
+    path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LutSourceRequest {
+    source_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LutFavoriteRequest {
+    lut_id: String,
+    favorite: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LutPreviewRequest {
+    lut_id: String,
+    asset_id: String,
+    size: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GradePreviewRequest {
+    project_id: String,
+    asset_id: String,
+    grade: grade::ColorGrade,
+    size: Option<u32>,
+}
+
+#[tauri::command]
+pub async fn lut_source_add(core: Core<'_>, request: LutPathRequest) -> AppResult<luts::ScanResult> {
+    blocking(&core, move |core| luts::add(core, &request.path)).await
+}
+
+#[tauri::command]
+pub async fn lut_source_remove(core: Core<'_>, request: LutSourceRequest) -> AppResult<()> {
+    blocking(&core, move |core| luts::remove(core, &request.source_id)).await
+}
+
+#[tauri::command]
+pub async fn lut_source_rescan(core: Core<'_>, request: LutSourceRequest) -> AppResult<luts::ScanResult> {
+    blocking(&core, move |core| luts::rescan(core, &request.source_id)).await
+}
+
+#[tauri::command]
+pub async fn lut_list(core: Core<'_>, request: luts::ListRequest) -> AppResult<luts::ListResult> {
+    blocking(&core, move |core| luts::list(core, request)).await
+}
+
+#[tauri::command]
+pub async fn lut_set_favorite(core: Core<'_>, request: LutFavoriteRequest) -> AppResult<()> {
+    blocking(&core, move |core| luts::set_favorite(core, &request.lut_id, request.favorite)).await
+}
+
+#[tauri::command]
+pub async fn lut_preview(core: Core<'_>, request: LutPreviewRequest) -> AppResult<tauri::ipc::Response> {
+    let bytes =
+        blocking(&core, move |core| luts::preview(core, &request.lut_id, &request.asset_id, request.size)).await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+pub async fn grade_preview(core: Core<'_>, request: GradePreviewRequest) -> AppResult<tauri::ipc::Response> {
+    let bytes = blocking(&core, move |core| {
+        luts::grade_preview(core, &request.project_id, &request.asset_id, &request.grade, request.size)
+    })
+    .await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -1,8 +1,5 @@
 //! The sole adapter between the grade service and LightCraft.
 
-use std::fs;
-use std::path::Path;
-
 use image::{DynamicImage, RgbaImage};
 use lightcraft_color::{REC2020, SRGB};
 use lightcraft_develop::{controls, DevelopSettings, WbMode, Wheel};
@@ -21,6 +18,10 @@ pub struct CubeLut {
 }
 
 impl CubeLut {
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
     pub fn parse(text: &str) -> Result<Self, String> {
         let mut size = None;
         let mut domain_min = [0.0; 3];
@@ -221,14 +222,8 @@ fn render_with_lightcraft(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage
     output
 }
 
-fn lut_from_grade(grade: &ColorGrade) -> Option<CubeLut> {
-    let path = Path::new(&grade.lut.as_ref()?.lut_id);
-    fs::read_to_string(path).ok().and_then(|text| CubeLut::parse(&text).ok())
-}
-
 pub fn render(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
-    let lut = lut_from_grade(grade);
-    render_with_lut(image, grade, lut.as_ref())
+    render_with_lut(image, grade, None)
 }
 
 pub fn render_with_lut(image: &DynamicImage, grade: &ColorGrade, lut: Option<&CubeLut>) -> RgbaImage {

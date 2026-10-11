@@ -17,6 +17,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (4, include_str!("../migrations/0004_workflow.sql")),
     (5, include_str!("../migrations/0005_qc.sql")),
     (6, include_str!("../migrations/0006_regions.sql")),
+    (7, include_str!("../migrations/0007_luts.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -106,6 +107,8 @@ mod tests {
                 "generation_outputs",
                 "generations",
                 "jobs",
+                "lut_sources",
+                "luts",
                 "project_dna",
                 "projects",
                 "qc_reports",
@@ -384,7 +387,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 6);
+            assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
             let violations: i64 =
                 conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r.get(0)).unwrap();
             assert_eq!(violations, 0);
