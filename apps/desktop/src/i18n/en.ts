@@ -107,6 +107,7 @@ export const en = {
       DUPLICATE_ASSET: "Duplicate image",
       PROVIDER_NOT_CONFIGURED: "Provider not set up",
       PROVIDER_ERROR: "Provider error",
+      PROVIDER_QUOTA: "Provider quota exceeded",
     },
     kind: {
       auth: "Authentication failed",
@@ -218,6 +219,7 @@ export const en = {
       repair: "Repair",
       enhance: "Enhance",
       region_edit: "Region edit",
+      assist: "Assist",
     },
     generationStatus: {
       queued: "Queued",

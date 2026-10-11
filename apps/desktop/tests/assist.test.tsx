@@ -4,7 +4,7 @@ import { createInitialDNA } from "@arch/domain";
 import { AssistControl } from "../src/features/assist/AssistControl";
 import { applyAssistFields, containsVietnamese, parseAssistReply } from "../src/lib/assist";
 import { defaultInteriorDNA } from "../src/lib/interior";
-import { call, setTransport } from "../src/lib/bridge";
+import { setTransport } from "../src/lib/bridge";
 import { useStudio } from "../src/app/store";
 
 beforeEach(() => {

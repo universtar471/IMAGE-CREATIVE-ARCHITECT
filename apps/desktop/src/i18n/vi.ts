@@ -107,6 +107,7 @@ export const vi: Dict = {
       DUPLICATE_ASSET: "Ảnh bị trùng",
       PROVIDER_NOT_CONFIGURED: "Nhà cung cấp chưa được thiết lập",
       PROVIDER_ERROR: "Lỗi từ nhà cung cấp",
+      PROVIDER_QUOTA: "Nhà cung cấp đã hết hạn mức",
     },
     kind: {
       auth: "Lỗi xác thực — kiểm tra API key",
@@ -216,6 +217,7 @@ export const vi: Dict = {
       production: "Sản xuất",
       repair: "Sửa theo QC",
       enhance: "Nâng cấp",
+      assist: "Trợ lý AI",
     },
     generationStatus: {
       queued: "Trong hàng đợi",
