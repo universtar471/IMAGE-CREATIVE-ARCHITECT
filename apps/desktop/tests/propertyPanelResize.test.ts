@@ -9,6 +9,12 @@ describe("property panel resize helpers", () => {
   });
   it("uses the default when storage is unavailable or invalid", () => {
     expect(readPanelWidth({ getItem: () => "bad" })).toBe(380);
-    expect(readPanelWidth({ getItem: () => { throw new Error("blocked"); } })).toBe(380);
+    expect(
+      readPanelWidth({
+        getItem: () => {
+          throw new Error("blocked");
+        },
+      }),
+    ).toBe(380);
   });
 });

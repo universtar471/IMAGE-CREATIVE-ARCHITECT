@@ -38,15 +38,23 @@ export function PropertyPanel() {
   useEffect(() => {
     const workspace = panelRef.current?.closest<HTMLElement>(".workspace");
     workspace?.style.setProperty("--panel-w", `${panelWidth}px`);
-    try { globalThis.localStorage?.setItem(PANEL_WIDTH_KEY, String(panelWidth)); } catch { /* session-only resize */ }
+    try {
+      globalThis.localStorage?.setItem(PANEL_WIDTH_KEY, String(panelWidth));
+    } catch {
+      /* session-only resize */
+    }
   }, [panelWidth]);
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = panelWidth;
-    const move = (moveEvent: PointerEvent) => setPanelWidth(clampPanelWidth(startWidth + startX - moveEvent.clientX));
-    const finish = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", finish); };
+    const move = (moveEvent: PointerEvent) =>
+      setPanelWidth(clampPanelWidth(startWidth + startX - moveEvent.clientX));
+    const finish = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+    };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
   };
@@ -57,10 +65,35 @@ export function PropertyPanel() {
 
   return (
     <aside className="panel" aria-label={t("workspace.properties")} ref={panelRef}>
-      <div className="panel-resize-handle" role="separator" aria-label={t("workspace.resizePanel")} aria-orientation="vertical" aria-valuemin={320} aria-valuemax={720} aria-valuenow={panelWidth} tabIndex={0} onPointerDown={startResize} onKeyDown={(event) => {
-        if (event.key === "ArrowLeft") { event.preventDefault(); setPanelWidth((width) => clampPanelWidth(width + 16)); }
-        if (event.key === "ArrowRight") { event.preventDefault(); setPanelWidth((width) => clampPanelWidth(width - 16)); }
-      }} />
+      <div
+        className="panel-resize-handle"
+        role="separator"
+        aria-label={t("workspace.resizePanel")}
+        aria-orientation="vertical"
+        aria-valuemin={320}
+        aria-valuemax={720}
+        aria-valuenow={panelWidth}
+        tabIndex={0}
+        onPointerDown={startResize}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            setPanelWidth((width) => clampPanelWidth(width + 16));
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            setPanelWidth((width) => clampPanelWidth(width - 16));
+          }
+          if (event.key === "Home") {
+            event.preventDefault();
+            setPanelWidth(320);
+          }
+          if (event.key === "End") {
+            event.preventDefault();
+            setPanelWidth(720);
+          }
+        }}
+      />
       <div className="panel-header">
         {label}
         <span className="spacer" />

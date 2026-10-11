@@ -927,11 +927,33 @@ textarea {
 
 .panel {
   grid-area: panel;
+  position: relative;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--c-border);
   background: var(--c-surface);
   min-height: 0;
+}
+.panel-resize-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.panel-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 4px;
+  background: transparent;
+}
+.panel-resize-handle:hover::after,
+.panel-resize-handle:focus-visible::after {
+  background: var(--c-primary);
+  opacity: 0.45;
 }
 .panel-header {
   display: flex;
