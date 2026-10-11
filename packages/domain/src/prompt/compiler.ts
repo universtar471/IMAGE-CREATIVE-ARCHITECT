@@ -18,7 +18,7 @@ import { interiorPromptLines } from "../interior/helpers";
 import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
 import { stylePhrase } from "./stylePhrases";
 
-export const COMPILER_VERSION = "pc-1.5.1";
+export const COMPILER_VERSION = "pc-1.6.0";
 
 export type PromptReference = {
   assetId: string;

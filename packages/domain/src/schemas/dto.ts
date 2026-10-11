@@ -73,6 +73,7 @@ export const AppErrorCodeSchema = z.enum([
   "INVALID_STATE",
   "DUPLICATE_ASSET",
   "PROVIDER_NOT_CONFIGURED",
+  "PROVIDER_QUOTA",
   /** A provider call made directly by a command failed; details `{ providerId, kind, retryable }`. */
   "PROVIDER_ERROR",
 ]);

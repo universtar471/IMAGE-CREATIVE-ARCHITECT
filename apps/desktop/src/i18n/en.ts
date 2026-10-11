@@ -42,6 +42,51 @@ export const en = {
     previewBanner: "Browser preview · in-memory mock backend",
   },
 
+  assist: {
+    field: {
+      interior_buildingUseId: "Building use",
+      interior_roomId: "Room",
+      interior_styleId: "Style",
+      interior_paletteId: "Palette",
+      interior_furnishingDensity: "Furnishing density",
+      interior_areaM2: "Area",
+      interior_ceilingHeightM: "Ceiling height",
+      building_floors: "Floors",
+      building_architecturalStyle: "Architectural style",
+      building_roof_type: "Roof type",
+      building_massing_composition: "Massing composition",
+      building_notes: "Building notes",
+      context_macroContext: "Macro context",
+      context_climateContext: "Climate context",
+      context_density: "Density",
+      lighting_timeOfDay: "Time of day",
+      lighting_sunDirection: "Sun direction",
+      lighting_intensity: "Intensity",
+      lighting_ambientLight: "Ambient light",
+    },
+    button: "AI assist",
+    title: "AI DNA assist",
+    estimate: "Estimated at a few tens of đồng",
+    mode: { brief: "From a brief", images: "From reference images", master: "From Master image" },
+    briefLabel: "Brief",
+    briefPlaceholder: "For example: warm Japandi for a young family",
+    noReferences: "No ready reference images.",
+    continue: "Continue",
+    apply: "Apply {count} items",
+    dropped: "Dropped fields ({count})",
+    reopenConfirm: "This step is confirmed. Reopen it to apply the AI proposal?",
+    notConfigured: "The AI provider is not configured.",
+    providerSettings: "Open provider settings",
+    translate: "Translate to English for prompt",
+    translateApplied: "Translated to English",
+    error: {
+      quota: "HHTECH credit is exhausted. Add credit to use AI assist.",
+      invalid: "The AI returned invalid data. Try again.",
+      other: "AI assist could not run right now.",
+    },
+    primary: "primary",
+  },
+
   format: {
     justNow: "just now",
     minutesAgo: "{count} min ago",
@@ -62,6 +107,7 @@ export const en = {
       DUPLICATE_ASSET: "Duplicate image",
       PROVIDER_NOT_CONFIGURED: "Provider not set up",
       PROVIDER_ERROR: "Provider error",
+      PROVIDER_QUOTA: "Provider quota exceeded",
     },
     kind: {
       auth: "Authentication failed",
@@ -173,6 +219,7 @@ export const en = {
       repair: "Repair",
       enhance: "Enhance",
       region_edit: "Region edit",
+      assist: "Assist",
     },
     generationStatus: {
       queued: "Queued",
@@ -522,6 +569,7 @@ export const en = {
     generateEmpty:
       "Nothing to show yet. Generate an image with the panel on the right, or import a master in the Assets tray.",
     properties: "Properties",
+    resizePanel: "Resize properties panel",
     selectedAsset: "Selected asset",
     readOnly: "Archived — read-only. Restore to edit.",
   },
@@ -1165,6 +1213,7 @@ export const en = {
   },
 
   masterCheck: {
+    sync: "Sync DNA from Master",
     floors: "{n} floor(s)",
     text: "The DNA says: {facts}. If the master image differs (floors, materials), update the DNA to match before generating anchors — the master takes priority, but conflicting text still pulls the model off.",
     edit: "Edit DNA › Building",

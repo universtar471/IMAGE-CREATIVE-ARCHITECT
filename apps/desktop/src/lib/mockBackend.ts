@@ -1059,6 +1059,20 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   if (jobs.some((j) => !isTerminal(j))) schedulePump();
 
   const handlers: { [C in CommandName]: (req: Requests[C]) => unknown | Promise<unknown> } = {
+    dna_assist: (req) => {
+      getProject(req.projectId);
+      const provider = getProvider("hhtech");
+      if (!describeProvider(provider).configured)
+        fail("PROVIDER_NOT_CONFIGURED", `${provider.label} needs an API key.`, {
+          providerId: provider.id,
+        });
+      return {
+        raw: JSON.stringify({ fields: [] }),
+        modelId: "mock-assist",
+        generationId: newId("GEN"),
+      };
+    },
+
     app_info: () => ({
       dataRoot: "browser (in-memory preview)",
       schemaVersion: 1,

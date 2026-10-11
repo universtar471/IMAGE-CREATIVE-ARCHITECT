@@ -48,6 +48,7 @@ pub const ENV_IMAGE_MODEL: &str = "HHTECH_IMAGE_MODEL";
 pub const ENV_IMAGE_SIZE: &str = "HHTECH_IMAGE_SIZE";
 pub const ENV_IMAGE_QUALITY: &str = "HHTECH_IMAGE_QUALITY";
 pub const ENV_CHAT_MODEL: &str = "HHTECH_CHAT_MODEL";
+pub const ENV_ASSIST_MODEL: &str = "HHTECH_ASSIST_MODEL";
 pub const ENV_VISION_MODEL: &str = "HHTECH_VISION_MODEL";
 pub const ENV_TIMEOUT_SECS: &str = "HHTECH_TIMEOUT_SECS";
 
@@ -57,9 +58,10 @@ pub const DEFAULT_QUALITY: &str = "medium";
 /// a busy gateway and larger sizes.
 pub const DEFAULT_TIMEOUT_SECS: u64 = 600;
 pub const DEFAULT_CHAT_MODEL: &str = "claude-sonnet-5";
+pub const DEFAULT_ASSIST_MODEL: &str = "gemini-3.8-flash";
 
 const SETUP_HINT: &str = "Check HHTECH_BASE_URL (usually ends in /v1) and the model names in HHTECH_IMAGE_MODEL / \
-                          HHTECH_CHAT_MODEL.";
+                          HHTECH_CHAT_MODEL / HHTECH_ASSIST_MODEL.";
 
 pub fn provider(env: &dyn EnvSource) -> OpenAiProvider {
     OpenAiProvider::from_config(config(env))
@@ -133,6 +135,14 @@ pub fn config(env: &dyn EnvSource) -> Config {
             DEFAULT_CHAT_MODEL.to_string()
         }
     };
+    let _assist_model = match var(ENV_ASSIST_MODEL) {
+        None => DEFAULT_ASSIST_MODEL.to_string(),
+        Some(id) if valid_id(&id) => id,
+        Some(_) => {
+            problems.push(format!("{ENV_ASSIST_MODEL} is not a valid model id."));
+            DEFAULT_ASSIST_MODEL.to_string()
+        }
+    };
     let vision_model = var(ENV_VISION_MODEL).filter(|id| valid_id(id)).or_else(|| Some(chat_model.clone()));
 
     let timeout_secs = match var(ENV_TIMEOUT_SECS) {
@@ -167,6 +177,16 @@ pub fn config(env: &dyn EnvSource) -> Config {
         vision_model,
         setup_hint: SETUP_HINT,
         generate_timeout: std::time::Duration::from_secs(timeout_secs),
+    }
+}
+
+/// Resolve the AI DNA assistance model without changing prompt enhancement.
+pub fn assist_model(env: &dyn EnvSource) -> Result<String, String> {
+    let value = env.var(ENV_ASSIST_MODEL).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+    match value {
+        None => Ok(DEFAULT_ASSIST_MODEL.to_string()),
+        Some(id) if valid_id(&id) => Ok(id),
+        Some(_) => Err(format!("{ENV_ASSIST_MODEL} is not a valid model id.")),
     }
 }
 

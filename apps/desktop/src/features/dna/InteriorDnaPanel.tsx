@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InteriorOption, InteriorSurfaces, ProjectDNA } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
@@ -24,6 +24,8 @@ import {
   type InteriorDNA,
   type InteriorStyleId,
 } from "../../lib/interior";
+import { AssistControl } from "../assist/AssistControl";
+import { PhotoThumbnail } from "../previews/PhotoThumbnail";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -41,6 +43,21 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
   const disabled = readOnly || locked;
   const t = useT();
   const locale = useLocale((state) => state.locale);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState<"stacked" | "split">("split");
+
+  useEffect(() => {
+    const element = layoutRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const update = (width: number) => setLayout(width < 560 ? "stacked" : "split");
+    const initialWidth = element.getBoundingClientRect().width;
+    if (initialWidth) update(initialWidth);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) update(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const replace = (next: InteriorDNA) => editDna("interior", next);
   const patch = <K extends keyof InteriorDNA>(key: K, value: InteriorDNA[K]) =>
@@ -91,9 +108,25 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
   };
 
   return (
-    <div className="interior-layout">
+    <div
+      ref={layoutRef}
+      className="interior-layout"
+      data-layout={layout}
+      data-testid="interior-layout"
+    >
+      <Moodboard interior={interior} />
       <div className="interior-fields">
         <SectionPanel title={t("interior.space")}>
+          <AssistControl
+            scope="interior"
+            stepId="dna.building"
+            projectType="interior"
+            projectId={useStudio.getState().workspace!.project.id}
+            dna={useStudio.getState().workspace!.draftDna as ProjectDNA}
+            assets={useStudio.getState().workspace!.assets}
+            hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
+            onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+          />
           <SelectField
             label={t("interior.buildingUse")}
             allowEmpty={false}
@@ -113,6 +146,9 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
             }))}
             onChange={(value) => value && patch("roomId", value)}
           />
+        </SectionPanel>
+
+        <SectionPanel title={`${t("interior.style")} & ${t("interior.palette")}`}>
           <SelectField
             label={t("interior.style")}
             allowEmpty={false}
@@ -138,11 +174,30 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
               replace({ ...interior, materialPresetId: value, surfaces: presetSurfaces(value) });
             }}
           />
+          <div className="interior-style-cards">
+            {INTERIOR_STYLES.map((style) => {
+              return (
+                <button
+                  key={style.id}
+                  type="button"
+                  className="interior-style-card"
+                  aria-pressed={interior.styleId === style.id}
+                  onClick={() => !disabled && changeStyle(style.id)}
+                  disabled={disabled}
+                >
+                  <PhotoThumbnail kind="style" presetId={style.id} label={style[locale]}>
+                    <span className="interior-style-fallback">{style[locale]}</span>
+                  </PhotoThumbnail>
+                  <span>{style[locale]}</span>
+                </button>
+              );
+            })}
+          </div>
         </SectionPanel>
 
-        <SectionPanel title={t("interior.surfaces")}>
+        <SectionPanel title={t("interior.surfaces")} defaultOpen={false}>
           {(Object.keys(INTERIOR_CATALOG.surfaces) as SurfaceSlot[]).map((slot) => (
-            <CatalogMultiSelect
+            <CatalogChips
               key={slot}
               label={t(`interior.surface.${slot}`)}
               options={INTERIOR_CATALOG.surfaces[slot]}
@@ -156,8 +211,8 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
           ))}
         </SectionPanel>
 
-        <SectionPanel title={t("interior.furniture")}>
-          <CatalogMultiSelect
+        <SectionPanel title={t("interior.furniture")} defaultOpen={false}>
+          <CatalogChips
             label={t("interior.furniture")}
             hint={t("interior.furnitureHint")}
             options={suggestedFurniture(interior.roomId)}
@@ -194,13 +249,93 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
             />
           </div>
         </SectionPanel>
+
+        <SectionPanel title={t("lighting.section")} defaultOpen={false}>
+          <AssistControl
+            scope="lighting"
+            stepId="dna.lighting"
+            projectType="interior"
+            projectId={useStudio.getState().workspace!.project.id}
+            dna={useStudio.getState().workspace!.draftDna as ProjectDNA}
+            assets={useStudio.getState().workspace!.assets}
+            hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
+            onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+          />
+          <SelectField
+            label={t("interior.daylightDirection")}
+            disabled={disabled}
+            value={interior.daylightDirection}
+            options={(["front", "left", "right", "rear", "diffuse", "none"] as const).map(
+              (value) => ({ value, label: t(`interior.daylightDirections.${value}`) }),
+            )}
+            onChange={(value) => patch("daylightDirection", value)}
+          />
+          <SelectField
+            label={t("interior.daylightAmount")}
+            disabled={disabled}
+            value={interior.daylightAmount}
+            options={(["low", "medium", "high"] as const).map((value) => ({
+              value,
+              label: t(`interior.daylightAmounts.${value}`),
+            }))}
+            onChange={(value) => patch("daylightAmount", value)}
+          />
+          <SelectField
+            label={t("lighting.timeOfDay")}
+            disabled={disabled}
+            value={interior.timeOfDay}
+            options={(
+              ["morning", "midday", "afternoon", "golden_hour", "evening", "night"] as const
+            ).map((value) => ({ value, label: t(`interior.time.${value}`) }))}
+            onChange={(value) => patch("timeOfDay", value)}
+          />
+          <FieldGroup label={t("interior.artificialScenes")}>
+            <div className="interior-scene-chips">
+              {(["ambient", "task", "accent", "cove", "pendant", "downlight"] as const).map(
+                (scene) => (
+                  <button
+                    type="button"
+                    className="chip"
+                    key={scene}
+                    aria-pressed={interior.artificialScenes.includes(scene)}
+                    disabled={disabled}
+                    onClick={() =>
+                      patch(
+                        "artificialScenes",
+                        interior.artificialScenes.includes(scene)
+                          ? interior.artificialScenes.filter((value) => value !== scene)
+                          : [...interior.artificialScenes, scene],
+                      )
+                    }
+                  >
+                    {t(`interior.scene.${scene}`)}
+                  </button>
+                ),
+              )}
+            </div>
+          </FieldGroup>
+          <FieldGroup label={t("interior.colorTemperature")}>
+            <div className="segmented" role="group" aria-label={t("interior.colorTemperature")}>
+              {([2700, 3000, 3500, 4000] as const).map((temperature) => (
+                <button
+                  type="button"
+                  key={temperature}
+                  aria-pressed={interior.colorTemperatureK === temperature}
+                  disabled={disabled}
+                  onClick={() => patch("colorTemperatureK", temperature)}
+                >
+                  {temperature} K
+                </button>
+              ))}
+            </div>
+          </FieldGroup>
+        </SectionPanel>
       </div>
-      <Moodboard interior={interior} />
     </div>
   );
 }
 
-function CatalogMultiSelect<T extends string>({
+function CatalogChips<T extends string>({
   label,
   hint,
   options,
@@ -217,23 +352,33 @@ function CatalogMultiSelect<T extends string>({
   disabled: boolean;
   onChange: (value: T[]) => void;
 }) {
+  const t = useT();
+  const selected = new Set(value);
+  const byId = new Map(options.map((item) => [item.id, item]));
+  const orderedOptions = [
+    ...value.map((id) => byId.get(id)).filter((item): item is InteriorOption<T> => !!item),
+    ...options.filter((item) => !selected.has(item.id)),
+  ];
   return (
     <FieldGroup label={label} hint={hint}>
-      <div className="catalog-checks">
-        {options.map((item) => (
-          <label className="check-row" key={item.id}>
-            <input
-              type="checkbox"
-              checked={value.includes(item.id)}
-              disabled={disabled}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked ? [...value, item.id] : value.filter((id) => id !== item.id),
-                )
-              }
-            />
-            {item[locale]}
-          </label>
+      <div className="catalog-chips" role="group" aria-label={label}>
+        {orderedOptions.map((item) => (
+          <button
+            className="catalog-chip"
+            type="button"
+            key={item.id}
+            aria-pressed={value.includes(item.id)}
+            disabled={disabled}
+            onClick={() =>
+              onChange(
+                value.includes(item.id)
+                  ? value.filter((id) => id !== item.id)
+                  : [...value, item.id],
+              )
+            }
+          >
+            {item[locale]} {value[0] === item.id && <small>{t("assist.primary")}</small>}
+          </button>
         ))}
       </div>
     </FieldGroup>

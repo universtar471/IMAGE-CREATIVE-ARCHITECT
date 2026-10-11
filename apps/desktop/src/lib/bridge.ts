@@ -112,6 +112,25 @@ export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
 
 /** Request payloads per command (see docs/API_CONTRACTS.md). */
 export type Requests = {
+  dna_assist: {
+    projectId: string;
+    mode: "brief" | "images" | "master" | "translate";
+    scope: "interior" | "building" | "context" | "lighting";
+    brief?: string;
+    referenceAssetIds?: string[];
+    catalog: {
+      scope: string;
+      fields: Array<{
+        path: string;
+        kind: string;
+        options?: Array<{ id: string; en: string }>;
+        min?: number;
+        max?: number;
+      }>;
+    };
+    systemPrompt: string;
+    translate?: Array<{ path: string; text: string }>;
+  };
   app_info: Record<string, never>;
   project_create: {
     name: string;
@@ -172,6 +191,12 @@ export type Requests = {
 
 /** Response schemas per command. */
 export const responses = {
+  dna_assist: z.object({
+    raw: z.string(),
+    modelId: z.string(),
+    usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(),
+    generationId: z.string(),
+  }),
   app_info: AppInfoSchema,
   project_create: ProjectDTOSchema,
   project_list: z.array(ProjectSummaryDTOSchema),

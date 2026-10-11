@@ -8,6 +8,7 @@ import { styleLabel } from "../../i18n/knowledge";
 import { DnaNumber, DnaTags, DnaText, DnaTextArea, useDnaLock } from "./DnaFields";
 import { LockToggle } from "./LockToggle";
 import { InteriorDnaPanel } from "./InteriorDnaPanel";
+import { AssistControl } from "../assist/AssistControl";
 
 export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -21,6 +22,18 @@ export function BuildingDnaPanel() {
     <>
       <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
       <SectionPanel title={t("dna.identity")} aside={<LockToggle section="building" />}>
+        <AssistControl
+          scope="building"
+          stepId="dna.building"
+          projectType={project.projectType}
+          projectId={useStudio.getState().workspace!.project.id}
+          dna={useStudio.getState().workspace!.draftDna}
+          assets={useStudio.getState().workspace!.assets}
+          hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
+          onApply={(fields) =>
+            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
+          }
+        />
         <DnaText path="building.buildingType" label={t("dna.buildingType")} />
         <DnaText
           path="building.architecturalStyle"

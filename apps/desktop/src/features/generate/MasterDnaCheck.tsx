@@ -1,5 +1,6 @@
 import { useStudio } from "../../app/store";
 import { useT } from "../../i18n";
+import { AssistControl } from "../assist/AssistControl";
 
 /**
  * Reminder next to master approval: the building facts the DNA text states. When they differ
@@ -10,19 +11,47 @@ export function MasterDnaCheck() {
   const building = useStudio((s) => s.workspace!.persistedDna.building);
   const setModule = useStudio((s) => s.setModule);
   const t = useT();
+  const ws = useStudio((s) => s.workspace!);
+  const editDna = useStudio((s) => s.editDna);
   const facts = [
     building.floors !== undefined ? t("masterCheck.floors", { n: building.floors }) : null,
     building.materials.length
       ? building.materials.map((m) => `${m.zone}: ${m.description}`).join(", ")
       : null,
   ].filter((x): x is string => !!x);
-  if (!facts.length) return null;
+  if (!facts.length)
+    return (
+      <AssistControl
+        initialMode="master"
+        buttonLabel={t("masterCheck.sync")}
+        scope="building"
+        stepId="dna.building"
+        projectType={ws.project.projectType}
+        projectId={ws.project.id}
+        dna={ws.persistedDna}
+        assets={ws.assets}
+        hasMaster={!!ws.project.activeMasterAssetId}
+        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+      />
+    );
   return (
     <span className="field-hint" role="note">
       {t("masterCheck.text", { facts: facts.join(" · ") })}{" "}
       <button className="link-btn" onClick={() => setModule("design_dna")}>
         {t("masterCheck.edit")}
       </button>
+      <AssistControl
+        initialMode="master"
+        buttonLabel={t("masterCheck.sync")}
+        scope="building"
+        stepId="dna.building"
+        projectType={ws.project.projectType}
+        projectId={ws.project.id}
+        dna={ws.persistedDna}
+        assets={ws.assets}
+        hasMaster={!!ws.project.activeMasterAssetId}
+        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+      />
     </span>
   );
 }
