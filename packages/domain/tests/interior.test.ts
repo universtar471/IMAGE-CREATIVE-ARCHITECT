@@ -209,7 +209,7 @@ describe("Interior DNA helpers and schema", () => {
   });
 });
 
-describe("Interior prompt compiler pc-1.5.1", () => {
+describe("Interior prompt compiler pc-1.6.0", () => {
   function compilerInput() {
     const pack = registry.resolve("interior").pack!;
     const dna = createInitialDNA({ projectType: "interior", pack });
@@ -243,7 +243,7 @@ describe("Interior prompt compiler pc-1.5.1", () => {
 
   it("compiles the full Japandi living-room example in stable section order", () => {
     const bundle = compilePrompt(compilerInput());
-    expect(COMPILER_VERSION).toBe("pc-1.5.1");
+    expect(COMPILER_VERSION).toBe("pc-1.6.0");
     expect(bundle.metadata.sections).toEqual([
       "subject",
       "form",
@@ -262,7 +262,7 @@ describe("Interior prompt compiler pc-1.5.1", () => {
 
       Interior style: Japandi interior: calm minimal forms, pale timber, soft neutral tones, fine craftsmanship.
 
-      Materials and colors: warm beige, ivory and natural wood; floor: natural oak flooring and terrazzo flooring; walls: soft limewash walls; cabinetry: oak veneer cabinetry; textiles: natural linen textiles; metal: matte black metal.
+      Materials and colors: warm beige, ivory and natural wood; floor: natural oak flooring with terrazzo accents; walls: soft limewash walls; cabinetry: oak veneer cabinetry; textiles: natural linen textiles; metal: matte black metal.
 
       Furnishing: sofa, armchair, coffee table; balanced furnishing density.
 
@@ -274,6 +274,23 @@ describe("Interior prompt compiler pc-1.5.1", () => {
 
       Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail."
     `);
+  });
+
+  it("renders the first material in each slot as primary and later materials as ordered accents", () => {
+    const input = compilerInput();
+    input.dna.interior!.surfaces = {
+      floor: ["oak", "terrazzo"],
+      wall: ["paint", "limewash"],
+      ceiling: [],
+      cabinetry: [],
+      countertop: [],
+      textile: [],
+      metal: [],
+    };
+
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "floor: natural oak flooring with terrazzo accents; walls: smooth matte warm-white painted walls with soft limewash walls accents",
+    );
   });
 
   it("omits empty material slots and lets camera DNA override the preset fallback", () => {
@@ -295,6 +312,33 @@ describe("Interior prompt compiler pc-1.5.1", () => {
     expect(
       compilePrompt({ ...input, cameraId: input.dna.cameras[0]!.id }).positivePrompt,
     ).toContain("Camera: wide interior view; lens: 24 mm wide-angle lens.");
+  });
+
+  it("maps each interior camera preset to its own fallback text", () => {
+    const input = compilerInput();
+    const expected = {
+      wide_entrance: "wide view from the entrance showing the whole room",
+      corner: "two-point perspective from a room corner",
+      one_point: "one-point perspective facing the main wall",
+      detail: "close-up material and furniture detail",
+    } as const;
+    for (const [id, phrase] of Object.entries(expected)) {
+      input.dna.interior!.cameraPresetId = id as keyof typeof expected;
+      expect(compilePrompt(input).positivePrompt).toContain(`Camera: ${phrase}`);
+    }
+  });
+
+  it("falls back to the wide framing for missing and unknown camera presets", () => {
+    const input = compilerInput();
+    input.dna.interior!.cameraPresetId = undefined;
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "Camera: wide view from the entrance showing the whole room",
+    );
+
+    input.dna.interior!.cameraPresetId = "not_a_preset" as never;
+    expect(compilePrompt(input).positivePrompt).toContain(
+      "Camera: wide view from the entrance showing the whole room",
+    );
   });
 
   it("does not fall back to legacy materials when the interior selection is empty", () => {

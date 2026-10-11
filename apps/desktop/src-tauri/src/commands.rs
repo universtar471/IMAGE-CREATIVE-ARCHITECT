@@ -14,8 +14,8 @@ use crate::dto::{
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, dna, generations, grade, projects, prompt_enhance, provider_settings, qc, queue, regions,
-    workflow, AppCore,
+    anchors, assets, batches, dna, dna_assist, generations, grade, projects, prompt_enhance, provider_settings, qc,
+    queue, regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -293,6 +293,11 @@ pub async fn prompt_enhance(
     request: prompt_enhance::EnhanceRequest,
 ) -> AppResult<prompt_enhance::EnhanceResult> {
     blocking(&core, move |c| prompt_enhance::enhance(c, request)).await
+}
+
+#[tauri::command]
+pub async fn dna_assist(core: Core<'_>, request: dna_assist::AssistRequest) -> AppResult<dna_assist::AssistResult> {
+    blocking(&core, move |c| dna_assist::run(c, request)).await
 }
 
 #[tauri::command]
