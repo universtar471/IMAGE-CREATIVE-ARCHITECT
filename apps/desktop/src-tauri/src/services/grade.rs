@@ -140,7 +140,7 @@ fn luminance(c: [f32; 3]) -> f32 {
     0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
+pub(crate) fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
     let k_exposure = 2.0_f32.powf(grade.exposure / 100.0);
     for channel in &mut c {
         *channel = linear_to_srgb(clamp01(srgb_to_linear(*channel) * k_exposure));
@@ -182,13 +182,7 @@ fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
 
 /// Grade one RGBA image, preserving the alpha byte exactly.
 pub fn apply_grade(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
-    let mut output = image.to_rgba8();
-    for pixel in output.pixels_mut() {
-        let [r, g, b, a] = pixel.0;
-        let rgb = grade_rgb([r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0], grade);
-        pixel.0 = [(rgb[0] * 255.0).round() as u8, (rgb[1] * 255.0).round() as u8, (rgb[2] * 255.0).round() as u8, a];
-    }
-    output
+    crate::services::grade_engine::render(image, grade)
 }
 
 fn source_asset(core: &AppCore, project_id: &str, asset_id: &str, require_writable: bool) -> AppResult<AssetRow> {
