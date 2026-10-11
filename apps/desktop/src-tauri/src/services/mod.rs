@@ -5,6 +5,7 @@ pub mod anchors;
 pub mod assets;
 pub mod batches;
 pub mod dna;
+pub mod dna_assist;
 pub mod dna_validation;
 pub mod generations;
 pub mod grade;

@@ -44,8 +44,8 @@ use serde_json::{json, Value};
 
 use super::text::sanitize;
 use super::{
-    ImageProvider, ModelCapabilities, ProviderError, ProviderErrorKind, ProviderInfo, ProviderKind, ProviderOutput,
-    ProviderRequest,
+    ChatRequest, ImageProvider, ModelCapabilities, ProviderError, ProviderErrorKind, ProviderInfo, ProviderKind,
+    ProviderOutput, ProviderRequest,
 };
 
 pub use models::{
@@ -428,22 +428,47 @@ impl OpenAiProvider {
     /// One chat completion (`POST {base}/chat/completions`) with a system and a user message;
     /// returns `choices[0].message.content`.
     pub fn chat_completion(&self, system: &str, user: &str, api_key: Option<&str>) -> Result<String, ProviderError> {
-        let vendor = self.cfg.vendor;
         let Some(model) = &self.cfg.chat_model else {
             return Err(ProviderError::new(
                 ProviderErrorKind::InvalidRequest,
                 format!("{} does not offer prompt enhancement.", self.cfg.label),
             ));
         };
+        let request = ChatRequest {
+            model: model.clone(),
+            system: system.into(),
+            user: user.into(),
+            images: Vec::new(),
+            json_object: false,
+            temperature: 1.0,
+        };
+        self.chat_completion_with_model(&request, api_key)
+    }
+
+    pub fn chat_completion_with_model(
+        &self,
+        chat: &ChatRequest,
+        api_key: Option<&str>,
+    ) -> Result<String, ProviderError> {
+        let vendor = self.cfg.vendor;
         let base = self.base_url()?;
         let api_key = self.require_key(api_key)?;
-        let body = json!({
-            "model": model,
-            "messages": [
-                { "role": "system", "content": system },
-                { "role": "user", "content": user },
-            ],
+        let mut content = vec![json!({"type":"text", "text": chat.user})];
+        for (mime, bytes) in &chat.images {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+            content.push(json!({"type":"image_url", "image_url":{"url": format!("data:{mime};base64,{encoded}")}}));
+        }
+        let user_content = if chat.images.is_empty() { json!(chat.user) } else { json!(content) };
+        let mut body = json!({
+            "model": chat.model,
+            "messages": [{"role":"system","content":chat.system},{"role":"user","content":user_content}],
         });
+        if chat.json_object || (chat.temperature - 1.0).abs() > f32::EPSILON {
+            body["temperature"] = json!(chat.temperature);
+        }
+        if chat.json_object {
+            body["response_format"] = json!({"type":"json_object"});
+        }
         let request = self.client(self.chat_timeout)?.post(format!("{base}/chat/completions")).json(&body);
         let value = self.send(request, self.chat_timeout, api_key)?;
         wire::parse_chat(&value, vendor, api_key)
@@ -649,6 +674,10 @@ impl ImageProvider for OpenAiProvider {
 
     fn chat(&self, system: &str, user: &str, api_key: Option<&str>) -> Result<String, ProviderError> {
         self.chat_completion(system, user, api_key)
+    }
+
+    fn chat_with_model(&self, request: &ChatRequest, api_key: Option<&str>) -> Result<String, ProviderError> {
+        self.chat_completion_with_model(request, api_key)
     }
 
     fn vision(

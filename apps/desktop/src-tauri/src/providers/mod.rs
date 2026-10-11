@@ -195,6 +195,16 @@ pub struct ProviderOutput {
     pub meta: Value,
 }
 
+#[derive(Debug, Clone)]
+pub struct ChatRequest {
+    pub model: String,
+    pub system: String,
+    pub user: String,
+    pub images: Vec<(String, Vec<u8>)>,
+    pub json_object: bool,
+    pub temperature: f32,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderErrorKind {
@@ -274,6 +284,11 @@ pub trait ImageProvider: Send + Sync {
     /// One chat completion (system + user message) returning the reply text.
     fn chat(&self, _system: &str, _user: &str, _api_key: Option<&str>) -> Result<String, ProviderError> {
         Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer prompt enhancement."))
+    }
+
+    /// Chat completion with an explicit model and optional vision content.
+    fn chat_with_model(&self, _request: &ChatRequest, _api_key: Option<&str>) -> Result<String, ProviderError> {
+        Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer AI DNA assistance."))
     }
 
     /// Vision chat completion. Providers that do not accept image content keep the default.
