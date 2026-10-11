@@ -19,14 +19,39 @@ export function MasterDnaCheck() {
       ? building.materials.map((m) => `${m.zone}: ${m.description}`).join(", ")
       : null,
   ].filter((x): x is string => !!x);
-  if (!facts.length) return <AssistControl buttonLabel={t("masterCheck.sync")} scope="building" stepId="dna.building" projectType={ws.project.projectType} projectId={ws.project.id} dna={ws.persistedDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />;
+  if (!facts.length)
+    return (
+      <AssistControl
+        initialMode="master"
+        buttonLabel={t("masterCheck.sync")}
+        scope="building"
+        stepId="dna.building"
+        projectType={ws.project.projectType}
+        projectId={ws.project.id}
+        dna={ws.persistedDna}
+        assets={ws.assets}
+        hasMaster={!!ws.project.activeMasterAssetId}
+        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+      />
+    );
   return (
     <span className="field-hint" role="note">
       {t("masterCheck.text", { facts: facts.join(" · ") })}{" "}
       <button className="link-btn" onClick={() => setModule("design_dna")}>
         {t("masterCheck.edit")}
       </button>
-      <AssistControl buttonLabel={t("masterCheck.sync")} scope="building" stepId="dna.building" projectType={ws.project.projectType} projectId={ws.project.id} dna={ws.persistedDna} assets={ws.assets} hasMaster={!!ws.project.activeMasterAssetId} onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))} />
+      <AssistControl
+        initialMode="master"
+        buttonLabel={t("masterCheck.sync")}
+        scope="building"
+        stepId="dna.building"
+        projectType={ws.project.projectType}
+        projectId={ws.project.id}
+        dna={ws.persistedDna}
+        assets={ws.assets}
+        hasMaster={!!ws.project.activeMasterAssetId}
+        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+      />
     </span>
   );
 }

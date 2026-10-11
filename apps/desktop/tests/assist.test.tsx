@@ -45,6 +45,43 @@ describe("assist domain stand-ins", () => {
 });
 
 describe("AI assist UI", () => {
+  it("starts Master synchronization directly and waits for checked diff approval", async () => {
+    const transport = vi.fn(async (_command: string, _args: unknown) => ({
+      raw: JSON.stringify({
+        fields: [{ path: "building.floors", value: 2, confidence: 0.9, reason: "Two levels" }],
+      }),
+      modelId: "test-model",
+      generationId: "generation-test",
+    }));
+    const apply = vi.fn();
+    setTransport(transport as never);
+    render(
+      <AssistControl
+        initialMode="master"
+        buttonLabel="Sync DNA from Master"
+        scope="building"
+        stepId="dna.building"
+        projectType="villa"
+        projectId="p1"
+        dna={createInitialDNA({ projectType: "villa", pack: null })}
+        assets={[]}
+        hasMaster
+        onApply={apply}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sync DNA from Master" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create images" }));
+    await screen.findByText("Two levels");
+    expect(screen.getByText("Floors")).toBeTruthy();
+    expect(transport.mock.calls[0]?.[1]).toMatchObject({
+      request: { mode: "master", scope: "building" },
+    });
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText("building.floors"));
+    expect(screen.getByRole("button", { name: "Apply 0 items" }).hasAttribute("disabled")).toBe(
+      true,
+    );
+  });
   it.each([
     ["brief", "From a brief"],
     ["images", "From reference images"],

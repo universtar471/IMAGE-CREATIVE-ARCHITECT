@@ -1,4 +1,245 @@
 {
   "version": 1,
-  "items": {}
+  "items": {
+    "context/alley": {
+      "src": "previews/context/alley.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/city_view": {
+      "src": "previews/context/city_view.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/garden": {
+      "src": "previews/context/garden.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/garden_pool": {
+      "src": "previews/context/garden_pool.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/garden_view": {
+      "src": "previews/context/garden_view.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/hill": {
+      "src": "previews/context/hill.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/lake": {
+      "src": "previews/context/lake.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/nature": {
+      "src": "previews/context/nature.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/new_urban_area": {
+      "src": "previews/context/new_urban_area.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/residential_street": {
+      "src": "previews/context/residential_street.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/resort": {
+      "src": "previews/context/resort.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/rural": {
+      "src": "previews/context/rural.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/street": {
+      "src": "previews/context/street.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/suburban": {
+      "src": "previews/context/suburban.webp",
+      "w": 640,
+      "h": 438
+    },
+    "context/urban_frontage": {
+      "src": "previews/context/urban_frontage.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/blue_hour": {
+      "src": "previews/lighting/blue_hour.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/daylight": {
+      "src": "previews/lighting/daylight.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/golden_hour": {
+      "src": "previews/lighting/golden_hour.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting_interior/blue_hour": {
+      "src": "previews/lighting_interior/blue_hour.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting_interior/night": {
+      "src": "previews/lighting_interior/night.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting_interior/warm_lamps": {
+      "src": "previews/lighting_interior/warm_lamps.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting_interior/window_day": {
+      "src": "previews/lighting_interior/window_day.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/monsoon_rain": {
+      "src": "previews/lighting/monsoon_rain.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/night": {
+      "src": "previews/lighting/night.webp",
+      "w": 640,
+      "h": 438
+    },
+    "lighting/night_street": {
+      "src": "previews/lighting/night_street.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood/calm": {
+      "src": "previews/mood/calm.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood/cinematic": {
+      "src": "previews/mood/cinematic.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood/fresh": {
+      "src": "previews/mood/fresh.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood_interior/cinematic": {
+      "src": "previews/mood_interior/cinematic.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood_interior/cozy": {
+      "src": "previews/mood_interior/cozy.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood_interior/minimal": {
+      "src": "previews/mood_interior/minimal.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood_interior/serene": {
+      "src": "previews/mood_interior/serene.webp",
+      "w": 640,
+      "h": 438
+    },
+    "mood/warm": {
+      "src": "previews/mood/warm.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/contemporary": {
+      "src": "previews/style/contemporary.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/indochine": {
+      "src": "previews/style/indochine.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/industrial": {
+      "src": "previews/style/industrial.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/japandi": {
+      "src": "previews/style/japandi.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/luxury": {
+      "src": "previews/style/luxury.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/mediterranean": {
+      "src": "previews/style/mediterranean.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/mid_century_modern": {
+      "src": "previews/style/mid_century_modern.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/minimalist": {
+      "src": "previews/style/minimalist.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/modern": {
+      "src": "previews/style/modern.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/modern_classic": {
+      "src": "previews/style/modern_classic.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/neo_classic": {
+      "src": "previews/style/neo_classic.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/organic_modern": {
+      "src": "previews/style/organic_modern.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/scandinavian": {
+      "src": "previews/style/scandinavian.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/tropical": {
+      "src": "previews/style/tropical.webp",
+      "w": 640,
+      "h": 438
+    },
+    "style/wabi_sabi": {
+      "src": "previews/style/wabi_sabi.webp",
+      "w": 640,
+      "h": 438
+    }
+  }
 }

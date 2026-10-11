@@ -49,6 +49,7 @@ export function AssistControl({
   hasMaster = false,
   onApply,
   buttonLabel,
+  initialMode,
 }: {
   scope: AssistScope;
   stepId: "dna.building" | "dna.context" | "dna.lighting";
@@ -59,6 +60,7 @@ export function AssistControl({
   hasMaster?: boolean;
   onApply: (fields: AssistField[]) => void;
   buttonLabel?: string;
+  initialMode?: AssistMode;
 }) {
   const t = useT();
   const spend = useSpendConfirm();
@@ -66,7 +68,7 @@ export function AssistControl({
   const reopenStep = useStudio((state) => state.reopenWorkflowStep);
   const workflow = useStudio((state) => state.workflowView);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<AssistMode | null>(null);
+  const [mode, setMode] = useState<AssistMode | null>(initialMode ?? null);
   const [brief, setBrief] = useState("");
   const [referenceAssetIds, setReferenceAssetIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -78,19 +80,19 @@ export function AssistControl({
     (asset) => asset.role.endsWith("_reference") && asset.status === "ready",
   );
 
-  const run = async () => {
-    if (!mode) return;
+  const run = async (selectedMode: AssistMode | null = mode) => {
+    if (!selectedMode) return;
     setBusy(true);
     setError(null);
     try {
       const result = await runDnaAssist({
         projectId,
-        mode,
+        mode: selectedMode,
         scope,
-        ...(mode === "brief" ? { brief: brief.slice(0, 1000) } : {}),
-        ...(mode === "images" ? { referenceAssetIds: referenceAssetIds.slice(0, 3) } : {}),
+        ...(selectedMode === "brief" ? { brief: brief.slice(0, 1000) } : {}),
+        ...(selectedMode === "images" ? { referenceAssetIds: referenceAssetIds.slice(0, 3) } : {}),
         catalog,
-        systemPrompt: assistSystemPrompt(mode, catalog),
+        systemPrompt: assistSystemPrompt(selectedMode, catalog),
       });
       const parsed = parseAssistReply(result.raw, catalog);
       setProposal(parsed);
@@ -152,8 +154,8 @@ export function AssistControl({
     return String(value ?? "—");
   };
 
-  const continueToCall = async () => {
-    if (!mode) return;
+  const continueToCall = async (selectedMode: AssistMode | null = mode) => {
+    if (!selectedMode) return;
     const confirmed = await spend.request({
       providerId: "hhtech",
       provider: "HHTECH",
@@ -162,7 +164,7 @@ export function AssistControl({
       costText: t("assist.estimate"),
       estimatedTotal: null,
     });
-    if (confirmed) await run();
+    if (confirmed) await run(selectedMode);
   };
 
   const apply = async () => {
@@ -181,10 +183,13 @@ export function AssistControl({
       <button
         type="button"
         className="btn btn-sm assist-trigger"
+        disabled={initialMode === "master" && !hasMaster}
         onClick={() => {
           setOpen(true);
+          setMode(initialMode ?? null);
           setProposal(null);
           setError(null);
+          if (initialMode) void continueToCall(initialMode);
         }}
       >
         {buttonLabel ?? t("assist.button")}
@@ -203,21 +208,23 @@ export function AssistControl({
           </div>
           {!proposal ? (
             <>
-              <div className="assist-modes" role="tablist">
-                {(["brief", "images", "master"] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className="btn btn-sm"
-                    aria-selected={mode === value}
-                    aria-pressed={mode === value}
-                    disabled={value === "master" && !hasMaster}
-                    onClick={() => setMode(value)}
-                  >
-                    {t(`assist.mode.${value}`)}
-                  </button>
-                ))}
-              </div>
+              {!initialMode && (
+                <div className="assist-modes" role="tablist">
+                  {(["brief", "images", "master"] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className="btn btn-sm"
+                      aria-selected={mode === value}
+                      aria-pressed={mode === value}
+                      disabled={value === "master" && !hasMaster}
+                      onClick={() => setMode(value)}
+                    >
+                      {t(`assist.mode.${value}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
               {mode === "brief" && (
                 <label className="field">
                   <span className="field-label">{t("assist.briefLabel")}</span>
@@ -257,7 +264,7 @@ export function AssistControl({
                   )}
                 </div>
               )}
-              {mode && (
+              {mode && !initialMode && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -300,7 +307,9 @@ export function AssistControl({
                       }
                     />
                     <span className="assist-diff-content">
-                      <code>{field.path}</code>
+                      <strong>
+                        {t(("assist.field." + field.path.replaceAll(".", "_")) as never)}
+                      </strong>
                       <span className="assist-values">
                         {displayValue(field.path, getIn(dna, field.path))} →{" "}
                         {displayValue(field.path, field.value)}

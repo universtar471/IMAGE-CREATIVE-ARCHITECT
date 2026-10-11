@@ -1,6 +1,8 @@
 import { useId } from "react";
 import type { LightingDNA, LightingPreset } from "@arch/domain";
 import { currentLocale, translate, type Locale } from "../../i18n";
+import { PhotoThumbnail } from "./PhotoThumbnail";
+import { useStudio } from "../../app/store";
 
 const sky: Record<string, [string, string, string]> = {
   dawn: ["#7c5d83", "#efaa88", "#f6d3a2"],
@@ -166,12 +168,16 @@ export function LightingPresetCards({
   lighting,
   onChoose,
   disabled = false,
+  interior,
 }: {
   presets: LightingPreset[];
   lighting: LightingDNA;
   onChoose?: (preset: LightingPreset) => void;
   disabled?: boolean;
+  interior?: boolean;
 }) {
+  const isInterior = useStudio((state) => state.workspace?.project.projectType === "interior");
+  const interiorPhoto = interior ?? isInterior;
   const t = (key: "lightingTitle") => translate(currentLocale(), `previews.${key}`);
   return (
     <div className="preview-card-grid" role="group" aria-label={t("lightingTitle")}>
@@ -187,9 +193,23 @@ export function LightingPresetCards({
             disabled={disabled}
           >
             <span data-testid="lighting-preset-thumbnail" className="preview-card-image">
-              <LightingPreview lighting={values} compact />
+              <PhotoThumbnail
+                kind="lighting"
+                presetId={preset.id}
+                label={preset.label}
+                interior={interiorPhoto}
+              >
+                <LightingPreview lighting={values} compact />
+              </PhotoThumbnail>
               <span className="preview-card-large">
-                <LightingPreview lighting={values} />
+                <PhotoThumbnail
+                  kind="lighting"
+                  presetId={preset.id}
+                  label={preset.label}
+                  interior={interiorPhoto}
+                >
+                  <LightingPreview lighting={values} />
+                </PhotoThumbnail>
               </span>
             </span>
             <span>{preset.label}</span>
