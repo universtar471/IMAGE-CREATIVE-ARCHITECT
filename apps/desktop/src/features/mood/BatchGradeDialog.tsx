@@ -1,6 +1,6 @@
 import { CheckSquare, Layers, RotateCcw, Search, Square, StopCircle } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
-import { GRADE_LOOK_CATALOG, GRADE_LOOKS, type AssetDTO } from "@arch/domain";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GRADE_LOOK_CATALOG, GRADE_LOOKS, type AssetDTO, type GradeLookId } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
 import { call } from "../../lib/bridge";
@@ -9,16 +9,31 @@ import { useLocale, useT } from "../../i18n";
 import { GradeCanvas } from "./GradeCanvas";
 import { GradeLookGallery } from "./GradeLookGallery";
 import {
-  batchSourceAssets, gradeAtIntensity, runBatchGrade, searchBatchAssets,
-  selectFilteredIds, type BatchItemResult, type BatchSourceFilter, type BatchProgress,
+  batchSourceAssets,
+  gradeAtIntensity,
+  runBatchGrade,
+  searchBatchAssets,
+  selectFilteredIds,
+  type BatchItemResult,
+  type BatchSourceFilter,
+  type BatchProgress,
 } from "./batchGrade";
 
 const PAGE_SIZE = 48;
 const initialProgress: BatchProgress = {
-  completed: 0, failed: 0, attempted: 0, total: 0, cancelled: false,
+  completed: 0,
+  failed: 0,
+  attempted: 0,
+  total: 0,
+  cancelled: false,
 };
 
-/** Main selection dialog: *real* project thumbnails, bulk selection, grading and per-asset versions. */
+const isLookId = (id: string): id is GradeLookId => Object.hasOwn(GRADE_LOOKS, id);
+
+/**
+ * Batch colour grade (V5.3, ADR-032): real project thumbnails, bulk selection and one
+ * sequential `grade_apply` per image. Never writes `draftDna.colorGrade`.
+ */
 export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
   const workspace = useStudio((s) => s.workspace!);
   const adoptAssets = useStudio((s) => s.adoptAssets);
@@ -32,36 +47,65 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [lookId, setLookId] = useState<keyof typeof GRADE_LOOKS>("daylight_clean");
+  const [lookId, setLookId] = useState<GradeLookId>("daylight_clean");
   const [intensity, setIntensity] = useState(100);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [hasRun, setHasRun] = useState(false);
   const [progress, setProgress] = useState<BatchProgress>(initialProgress);
   const [results, setResults] = useState<Record<string, BatchItemResult>>({});
+  // Refs, not state: read synchronously by the runner and by a second click in the same tick.
   const cancelRequested = useRef(false);
+  const running = useRef(false);
+  const closeWhenDone = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      // Unmounted mid-run (e.g. the panel went away): stop after the current image.
+      mounted.current = false;
+      cancelRequested.current = true;
+    };
+  }, []);
+
+  const projectId = workspace.project.id;
   const allAssets = workspace.assets;
   const sourceAssets = useMemo(() => batchSourceAssets(allAssets, source), [allAssets, source]);
   const filtered = useMemo(() => searchBatchAssets(sourceAssets, query), [sourceAssets, query]);
   const filteredIds = useMemo(() => filtered.map((a) => a.id), [filtered]);
   const shown = filtered.slice(0, page * PAGE_SIZE);
-  const selectedReady = allAssets.filter((a) => selected.has(a.id) && a.status === "ready" && a.mimeType?.startsWith("image/"));
+  const selectedReady = allAssets.filter(
+    (a) => selected.has(a.id) && a.status === "ready" && !!a.mimeType?.startsWith("image/"),
+  );
   const previewAsset: AssetDTO | null =
-    allAssets.find((a) => a.id === previewId && a.status === "ready") ?? selectedReady[0] ?? shown[0] ?? null;
+    allAssets.find((a) => a.id === previewId && a.status === "ready") ??
+    selectedReady[0] ??
+    shown[0] ??
+    null;
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
-  const scaledGrade = useMemo(() => gradeAtIntensity(GRADE_LOOKS[lookId], intensity), [lookId, intensity]);
+  const scaledGrade = useMemo(
+    () => gradeAtIntensity(GRADE_LOOKS[lookId], intensity),
+    [lookId, intensity],
+  );
   const label = `Batch color grade · ${lookId} · ${intensity}%`;
   const runningDisabled = busy || readOnly;
   const selectionDisabled = runningDisabled || hasRun;
   const errors = Object.values(results).filter((r) => r.status === "failed");
   const completed = Object.values(results).filter((r) => r.status === "completed");
   const remaining = selectedReady.filter((asset) => !results[asset.id]).map((asset) => asset.id);
-  const tr = (en: string, vi: string) => locale === "vi" ? vi : en;
+
+  const requestStop = () => {
+    cancelRequested.current = true;
+    setStopping(true);
+  };
 
   const closeSafely = () => {
-    if (busy) {
-      cancelRequested.current = true;
-      return; // Keep dialog mounted until native grade_apply finishes the current image.
+    if (running.current) {
+      // Keep the dialog mounted until native grade_apply finishes the current image.
+      closeWhenDone.current = true;
+      requestStop();
+      return;
     }
     onClose();
   };
@@ -72,110 +116,206 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
     setPreviewId(id);
   };
 
-  const submit = async (retryFailed = false, resume = false) => {
-    if (runningDisabled || (hasRun && !retryFailed && !resume)) return;
-    const candidates = retryFailed
-      ? errors.map((r) => r.assetId)
-      : resume ? remaining : selectedReady.map((a) => a.id);
+  const submit = async (mode: "new" | "retry" | "resume") => {
+    if (running.current || readOnly || (hasRun && mode === "new")) return;
+    const candidates =
+      mode === "retry"
+        ? errors.map((r) => r.assetId)
+        : mode === "resume"
+          ? remaining
+          : selectedReady.map((a) => a.id);
     if (!candidates.length) return;
+    running.current = true;
     cancelRequested.current = false;
+    closeWhenDone.current = false;
     setBusy(true);
+    setStopping(false);
     setProgress({ ...initialProgress, total: candidates.length });
-    setResults((previous) => (retryFailed || resume) ? { ...previous } : {});
+    if (mode === "new") setResults({});
     let succeeded = 0;
     let failed = 0;
+    let cancelled = false;
     try {
       const run = await runBatchGrade({
         assetIds: candidates,
         grade: scaledGrade,
         label,
-        apply: (assetId, grade, gradeLabel) => call("grade_apply", {
-          projectId: workspace.project.id,
-          assetId,
-          grade,
-          label: gradeLabel,
-        }),
+        apply: (assetId, grade, gradeLabel) =>
+          call("grade_apply", { projectId, assetId, grade, label: gradeLabel }),
         shouldCancel: () => cancelRequested.current,
         onItem: (result, p) => {
+          if (!mounted.current) return;
           setResults((current) => ({ ...current, [result.assetId]: result }));
           setProgress(p);
         },
       });
       succeeded = run.progress.completed;
       failed = run.progress.failed;
-      setProgress(run.progress);
-      setHasRun(true);
+      cancelled = run.progress.cancelled;
+      if (mounted.current) setProgress(run.progress);
     } catch (error) {
       notify("error", error instanceof Error ? error.message : String(error));
     } finally {
-      // Once, never per image: preserve performance on large batches.
-      try {
-        const assets = await call("asset_list", { projectId: workspace.project.id });
-        await adoptAssets(workspace.project.id, assets);
-      } catch (error) {
-        notify("warning", tr("Images saved, but library refresh failed.", "Ảnh đã lưu, nhưng không thể tải lại thư viện."));
+      // Once per run, never per image: keeps large batches fast.
+      if (succeeded > 0) {
+        try {
+          const assets = await call("asset_list", { projectId });
+          await adoptAssets(projectId, assets);
+        } catch {
+          notify("warning", t("moodGrade.batchDialog.refreshFailed"));
+        }
       }
-      setBusy(false);
-      notify(failed > 0 ? "warning" : "success", tr(
-        `Batch finished: ${succeeded} saved, ${failed} failed.`,
-        `Hoàn thành: ${succeeded} ảnh đã lưu, ${failed} lỗi.`,
-      ));
+      running.current = false;
+      notify(
+        failed > 0 || cancelled ? "warning" : "success",
+        t(cancelled ? "moodGrade.batchDialog.finishedStopped" : "moodGrade.batchDialog.finished", {
+          completed: succeeded,
+          failed,
+        }),
+      );
+      if (mounted.current) {
+        setHasRun(true);
+        setBusy(false);
+        setStopping(false);
+        if (closeWhenDone.current) onClose();
+      }
     }
   };
 
+  const resetRun = () => {
+    setHasRun(false);
+    setResults({});
+    setProgress(initialProgress);
+  };
+
   return (
-    <Dialog title={tr("Batch Color Grading V5.3", "Áp màu hàng loạt V5.3")} onClose={closeSafely} footer={
-      <>
-        <span className="batch-grade-footer-count">{selectedReady.length} {tr("selected", "ảnh đã chọn")}</span>
-        {busy ? (
-          <button type="button" className="btn btn-danger" onClick={() => { cancelRequested.current = true; }} disabled={cancelRequested.current}>
-            <StopCircle size={14} /> {tr("Stop after current image", "Dừng sau ảnh hiện tại")}
-          </button>
-        ) : (
-          <>
-            {remaining.length > 0 && hasRun && <button className="btn" onClick={() => void submit(false, true)} disabled={readOnly}>
-              {tr(`Resume (${remaining.length})`, `Tiếp tục (${remaining.length})`)}
-            </button>}
-            {errors.length > 0 && <button className="btn" onClick={() => void submit(true)} disabled={readOnly}>
-              <RotateCcw size={14} /> {tr(`Retry failed (${errors.length})`, `Thử lại lỗi (${errors.length})`)}
-            </button>}
-            {hasRun && <button className="btn" onClick={() => { setHasRun(false); setResults({}); setProgress(initialProgress); }}>
-              {tr("New batch", "Batch mới")}
-            </button>}
-            <button className="btn" onClick={onClose}>{t("common.close")}</button>
-            <button className="btn btn-primary" disabled={readOnly || selectedReady.length === 0 || hasRun} onClick={() => void submit()}>
-              <Layers size={14} /> {tr(`Grade ${selectedReady.length} images`, `Áp màu ${selectedReady.length} ảnh`)}
+    <Dialog
+      title={t("moodGrade.batchDialog.title")}
+      onClose={closeSafely}
+      footer={
+        <>
+          <span className="batch-grade-footer-count">
+            {t("moodGrade.batchDialog.selectedCount", { count: selectedReady.length })}
+          </span>
+          {busy ? (
+            <button
+              type="button"
+              className="btn btn-danger"
+              data-testid="batch-grade-stop"
+              onClick={requestStop}
+              disabled={stopping}
+            >
+              <StopCircle size={14} />{" "}
+              {t(stopping ? "moodGrade.batchDialog.stopping" : "moodGrade.batchDialog.stop")}
             </button>
-          </>
-        )}
-      </>
-    }>
-      <p className="field-hint">{tr(
-        "Choose images from this project, preview the look on a real image, then apply the same non-generative grade locally. Originals are never overwritten.",
-        "Chọn ảnh trong dự án, xem trước màu trên ảnh thật, rồi áp cùng một bộ màu cục bộ. Không ghi đè ảnh gốc.",
-      )}</p>
+          ) : (
+            <>
+              {remaining.length > 0 && hasRun && (
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="batch-grade-resume"
+                  onClick={() => void submit("resume")}
+                  disabled={readOnly}
+                >
+                  {t("moodGrade.batchDialog.resume", { count: remaining.length })}
+                </button>
+              )}
+              {errors.length > 0 && (
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="batch-grade-retry"
+                  onClick={() => void submit("retry")}
+                  disabled={readOnly}
+                >
+                  <RotateCcw size={14} />{" "}
+                  {t("moodGrade.batchDialog.retryFailed", { count: errors.length })}
+                </button>
+              )}
+              {hasRun && (
+                <button type="button" className="btn" onClick={resetRun}>
+                  {t("moodGrade.batchDialog.newBatch")}
+                </button>
+              )}
+              <button type="button" className="btn" onClick={onClose}>
+                {t("common.close")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="batch-grade-run"
+                disabled={readOnly || selectedReady.length === 0 || hasRun}
+                onClick={() => void submit("new")}
+              >
+                <Layers size={14} />{" "}
+                {t("moodGrade.batchDialog.run", { count: selectedReady.length })}
+              </button>
+            </>
+          )}
+        </>
+      }
+    >
+      <p className="field-hint">{t("moodGrade.batchDialog.intro")}</p>
       <div className="batch-grade-toolbar">
         <label>
-          <span>{tr("Image source", "Nguồn ảnh")}</span>
-          <select className="input" value={source} disabled={busy} onChange={(event) => { setSource(event.target.value as BatchSourceFilter); setPage(1); }}>
-            <option value="generated">{tr("Generated / graded", "Ảnh AI đã tạo / đã chỉnh màu")}</option>
-            <option value="ungraded">{tr("All originals (exclude grades)", "Ảnh gốc (loại bản đã chỉnh màu)")}</option>
-            <option value="all">{tr("All project images", "Tất cả ảnh dự án")}</option>
+          <span>{t("moodGrade.batchDialog.source")}</span>
+          <select
+            className="input"
+            value={source}
+            disabled={busy}
+            onChange={(event) => {
+              setSource(event.target.value as BatchSourceFilter);
+              setPage(1);
+            }}
+          >
+            <option value="generated">{t("moodGrade.batchDialog.sourceGenerated")}</option>
+            <option value="ungraded">{t("moodGrade.batchDialog.sourceUngraded")}</option>
+            <option value="all">{t("moodGrade.batchDialog.sourceAll")}</option>
           </select>
         </label>
         <label>
-          <span>{tr("Search", "Tìm ảnh")}</span>
-          <span className="batch-grade-search"><Search size={14} /><input className="input" type="search" value={query} disabled={busy} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder={tr("Filename or id...", "Tên ảnh hoặc mã...")} /></span>
+          <span>{t("moodGrade.batchDialog.search")}</span>
+          <span className="batch-grade-search">
+            <Search size={14} />
+            <input
+              className="input"
+              type="search"
+              value={query}
+              disabled={busy}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder={t("moodGrade.batchDialog.searchPlaceholder")}
+            />
+          </span>
         </label>
       </div>
       <div className="batch-grade-selection-bar">
-        <span>{filtered.length} {tr("matching images", "ảnh phù hợp")}</span>
-        <button className="btn btn-sm" disabled={selectionDisabled || filtered.length===0} onClick={() => { setSelected((prev) => selectFilteredIds(prev, filteredIds, !allFilteredSelected)); }}>
+        <span>{t("moodGrade.batchDialog.matching", { count: filtered.length })}</span>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={selectionDisabled || filtered.length === 0}
+          onClick={() =>
+            setSelected((prev) => selectFilteredIds(prev, filteredIds, !allFilteredSelected))
+          }
+        >
           {allFilteredSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-          {allFilteredSelected ? tr("Deselect filtered", "Bỏ chọn nhóm lọc") : tr("Select all filtered", "Chọn tất cả đang lọc")}
+          {t(
+            allFilteredSelected
+              ? "moodGrade.batchDialog.deselectFiltered"
+              : "moodGrade.batchDialog.selectFiltered",
+          )}
         </button>
-        <button className="btn btn-sm" disabled={selectionDisabled || selected.size===0} onClick={() => { setSelected(new Set()); }}>
-          {tr("Clear selection", "Bỏ chọn tất cả")}
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={selectionDisabled || selected.size === 0}
+          onClick={() => setSelected(new Set())}
+        >
+          {t("moodGrade.batchDialog.clearSelection")}
         </button>
       </div>
       <div className="batch-grade-grid" data-testid="batch-grade-gallery">
@@ -183,51 +323,144 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
           const checked = selected.has(asset.id);
           const thumb = fileUrl(asset.thumbnailPath);
           const status = results[asset.id];
+          const name = asset.originalName ?? asset.id;
           return (
-            <div className={`batch-grade-tile ${checked ? "batch-grade-tile-selected" : ""}`} key={asset.id}>
-              <button type="button" className="batch-grade-image" onClick={() => toggle(asset.id)} aria-pressed={checked} aria-label={`${checked ? "Deselect" : "Select"} ${asset.originalName ?? asset.id}`} disabled={selectionDisabled}>
-                {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" /> : <span>IMAGE</span>}
-                <span className="batch-grade-check">{checked ? <CheckSquare size={18} /> : <Square size={18} />}</span>
+            <div
+              className={`batch-grade-tile ${checked ? "batch-grade-tile-selected" : ""}`}
+              key={asset.id}
+            >
+              <button
+                type="button"
+                className="batch-grade-image"
+                data-testid={`batch-grade-tile-${asset.id}`}
+                onClick={() => toggle(asset.id)}
+                aria-pressed={checked}
+                aria-label={t("moodGrade.batchDialog.toggleImage", { name })}
+                disabled={selectionDisabled}
+              >
+                {thumb ? (
+                  <img src={thumb} alt="" loading="lazy" decoding="async" />
+                ) : (
+                  <span>{t("moodGrade.batchDialog.noThumbnail")}</span>
+                )}
+                <span className="batch-grade-check">
+                  {checked ? <CheckSquare size={18} /> : <Square size={18} />}
+                </span>
               </button>
-              <span className="batch-grade-filename" title={asset.originalName ?? asset.id}>{asset.originalName ?? asset.id}</span>
+              <span className="batch-grade-filename" title={name}>
+                {name}
+              </span>
               <div className="batch-grade-tile-actions">
-                <button className="btn btn-ghost btn-sm" onClick={() => setPreviewId(asset.id)} disabled={busy}>{tr("Preview", "Xem màu")}</button>
-                {status && <span className={`batch-grade-status batch-grade-${status.status}`} title={status.error ?? status.outputAssetId ?? ""}>{status.status === "completed" ? "✓" : "!"}</span>}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setPreviewId(asset.id)}
+                  disabled={busy}
+                >
+                  {t("moodGrade.batchDialog.previewImage")}
+                </button>
+                {status && (
+                  <span
+                    className={`batch-grade-status batch-grade-${status.status}`}
+                    title={status.error ?? status.outputAssetId ?? ""}
+                  >
+                    {status.status === "completed" ? "✓" : "!"}
+                  </span>
+                )}
               </div>
             </div>
           );
         })}
       </div>
-      {filtered.length === 0 && <p className="field-hint">{tr("No images match. Try All project images.", "Không có ảnh phù hợp. Hãy thử Tất cả ảnh dự án.")}</p>}
-      {shown.length < filtered.length && <button className="btn" disabled={busy} onClick={() => setPage((p) => p + 1)}>
-        {tr(`Show more (${shown.length}/${filtered.length})`, `Xem thêm (${shown.length}/${filtered.length})`)}
-      </button>}
+      {filtered.length === 0 && <p className="field-hint">{t("moodGrade.batchDialog.noMatch")}</p>}
+      {shown.length < filtered.length && (
+        <button type="button" className="btn" disabled={busy} onClick={() => setPage((p) => p + 1)}>
+          {t("moodGrade.batchDialog.showMore", { shown: shown.length, total: filtered.length })}
+        </button>
+      )}
       <div className="batch-grade-settings">
-        <label>{tr("Colour preset (30 looks)", "Preset màu (30 màu)")}
-          <select className="input" value={lookId} disabled={busy || hasRun} onChange={(event) => setLookId(event.target.value as keyof typeof GRADE_LOOKS)}>
-            {GRADE_LOOK_CATALOG.map((item) => <option key={item.id} value={item.id}>{locale === "vi" ? item.labelVi : item.labelEn}</option>)}
+        <label>
+          {t("moodGrade.batchDialog.look")}
+          <select
+            className="input"
+            value={lookId}
+            disabled={busy || hasRun}
+            onChange={(event) => {
+              if (isLookId(event.target.value)) setLookId(event.target.value);
+            }}
+          >
+            {GRADE_LOOK_CATALOG.map((item) => (
+              <option key={item.id} value={item.id}>
+                {locale === "vi" ? item.labelVi : item.labelEn}
+              </option>
+            ))}
           </select>
         </label>
-        <label>{tr("Intensity", "Cường độ")} — {intensity}%
-          <input className="input" type="range" min={0} max={100} step={5} value={intensity} disabled={busy || hasRun} onChange={(event) => setIntensity(Number(event.target.value))} />
+        <label>
+          {t("moodGrade.batchDialog.intensity", { value: intensity })}
+          <input
+            className="input"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={intensity}
+            disabled={busy || hasRun}
+            onChange={(event) => setIntensity(Number(event.target.value))}
+          />
         </label>
       </div>
-      <button className="btn btn-sm" disabled={busy} onClick={() => setGalleryOpen((s) => !s)}>
-        {galleryOpen ? tr("Hide real thumbnails", "Ẩn thư viện màu") : tr("View 30 real-colour thumbnails", "Xem 30 thumbnail màu thật")}
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy}
+        onClick={() => setGalleryOpen((s) => !s)}
+      >
+        {t(galleryOpen ? "moodGrade.batchDialog.hideGallery" : "moodGrade.batchDialog.showGallery")}
       </button>
-      {galleryOpen && <GradeLookGallery asset={previewAsset} value={lookId} disabled={busy || hasRun} onChange={(v) => { if (!hasRun) setLookId(v as keyof typeof GRADE_LOOKS); }} />}
+      {galleryOpen && (
+        <GradeLookGallery
+          asset={previewAsset}
+          value={lookId}
+          disabled={busy || hasRun}
+          onChange={(id) => {
+            if (!hasRun && isLookId(id)) setLookId(id);
+          }}
+        />
+      )}
       <div className="batch-grade-preview">
-        <strong>{tr("Actual preview · Before / After / Split", "Preview thực · Trước / Sau / Chia đôi")}</strong>
+        <strong>{t("moodGrade.batchDialog.previewTitle")}</strong>
         <GradeCanvas asset={previewAsset} grade={scaledGrade} />
-        <p className="field-hint">{tr("Preview and full-resolution save use the same colour parameters; selected images may look different due to their original lighting.", "Preview và ảnh xuất dùng chung thông số màu. Mỗi ảnh có thể khác nhau do ánh sáng nguồn.")}</p>
+        <p className="field-hint">{t("moodGrade.batchDialog.previewHint")}</p>
       </div>
-      {(busy || hasRun) && <div className="batch-grade-progress" role="status" aria-live="polite">
-        <strong>{progress.attempted} / {progress.total} {tr("processed", "đã xử lý")}</strong>
-        <progress max={Math.max(1, progress.total)} value={progress.attempted} />
-        <span>{tr("Saved", "Đã lưu")}: {progress.completed} · {tr("Failed", "Lỗi")}: {progress.failed}{progress.cancelled ? ` · ${tr("Stopped", "Đã dừng")}` : ""}</span>
-        {errors.slice(0, 5).map((item) => <span key={item.assetId} className="batch-grade-error">{item.assetId}: {item.error}</span>)}
-        {completed.length > 0 && <p className="field-hint">{tr(`${completed.length} new versions saved; originals retained.`, `${completed.length} phiên bản mới đã lưu; ảnh gốc được giữ nguyên.`)}</p>}
-      </div>}
+      {(busy || hasRun) && (
+        <div className="batch-grade-progress" role="status" aria-live="polite">
+          <strong>
+            {t("moodGrade.batchDialog.processed", {
+              done: progress.attempted,
+              total: progress.total,
+            })}
+          </strong>
+          <progress max={Math.max(1, progress.total)} value={progress.attempted} />
+          <span>
+            {t("moodGrade.batchDialog.summary", {
+              completed: progress.completed,
+              failed: progress.failed,
+            })}
+            {progress.cancelled ? ` · ${t("moodGrade.batchDialog.stopped")}` : ""}
+          </span>
+          {errors.slice(0, 5).map((item) => (
+            <span key={item.assetId} className="batch-grade-error">
+              {item.assetId}: {item.error}
+            </span>
+          ))}
+          {completed.length > 0 && (
+            <p className="field-hint">
+              {t("moodGrade.batchDialog.savedVersions", { count: completed.length })}
+            </p>
+          )}
+        </div>
+      )}
     </Dialog>
   );
 }

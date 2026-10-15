@@ -24,7 +24,7 @@ import {
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { MoodPreview, MoodPresetCards } from "../previews/MoodPreview";
-import { GradePreview, GradePresetCards } from "../previews/GradePreview";
+import { GradePreview } from "../previews/GradePreview";
 
 const SLIDERS = [
   "exposure",
@@ -130,7 +130,8 @@ export function MoodGradePanel() {
   const setGrade = (field: string, value: unknown) =>
     editDna("colorGrade", { ...grade, [field]: value, look: undefined });
   const chooseLook = (id: string | undefined) => {
-    if (id && id in GRADE_LOOKS) editDna("colorGrade", { ...GRADE_LOOKS[id as keyof typeof GRADE_LOOKS] });
+    if (id && Object.hasOwn(GRADE_LOOKS, id))
+      editDna("colorGrade", { ...GRADE_LOOKS[id as keyof typeof GRADE_LOOKS] });
   };
   const adopt = (preset: Preset) => {
     if (workflowView?.steps.find((step) => step.id === "dna.lighting")?.status === "confirmed") {
@@ -260,22 +261,9 @@ export function MoodGradePanel() {
         )}
       </SectionPanel>
       <SectionPanel title={t("moodGrade.grade")} aside={<LockToggle section="colorGrade" />}>
-<<<<<<< ours
         <GradePreview asset={gradeSource} grade={grade} />
-        <GradePresetCards
-          asset={gradeSource}
-          presets={Object.entries(GRADE_LOOKS).map(([id, preset]) => ({
-            id,
-            label: id.replaceAll("_", " "),
-            grade: preset,
-          }))}
-        />
-        <SelectField
-          label={t("moodGrade.look")}
-=======
         <GradeLookGallery
           asset={ws.assets.find((a) => a.id === sourceId) ?? null}
->>>>>>> theirs
           value={grade.look}
           disabled={gradeLocked}
           onChange={chooseLook}

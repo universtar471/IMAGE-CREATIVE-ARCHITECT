@@ -11,7 +11,13 @@ import { applyGradeToImageData } from "../../lib/grade";
 import { useLocale, useT } from "../../i18n";
 
 const CATEGORIES: readonly (GradeLookCategory | "all")[] = [
-  "all", "natural", "warm", "cool", "editorial", "cinematic", "special",
+  "all",
+  "natural",
+  "warm",
+  "cool",
+  "editorial",
+  "cinematic",
+  "special",
 ];
 
 /** A tile is graded from real pixels of the selected image, never from a decorative stock image. */
@@ -79,17 +85,22 @@ export function GradeLookGallery({
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const [category, setCategory] = useState<GradeLookCategory | "all">("all");
-  const [original, setOriginal] = useState<ImageData | null>(null);
-  const [error, setError] = useState(false);
+  // Keyed by asset so a response for a previous asset can never show for the current one.
+  const [loaded, setLoaded] = useState<{ key: string; image: ImageData | null; error: boolean }>({
+    key: "",
+    image: null,
+    error: false,
+  });
   const projectId = asset?.projectId;
   const assetId = asset?.id;
   const assetReady = asset?.status === "ready";
+  const assetKey = projectId && assetId && assetReady ? `${projectId}:${assetId}` : "";
+  const original = loaded.key === assetKey ? loaded.image : null;
+  const error = loaded.key === assetKey && loaded.error;
 
   useEffect(() => {
+    if (!projectId || !assetId || !assetKey) return;
     let cancelled = false;
-    setOriginal(null);
-    setError(false);
-    if (!projectId || !assetId || !assetReady) return;
     void (async () => {
       try {
         const blob = await assetPreview({ projectId, assetId, maxEdge: 384 });
@@ -104,21 +115,30 @@ export function GradeLookGallery({
           const ctx = canvas.getContext("2d");
           if (!ctx) throw new Error("Canvas unavailable");
           ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          if (!cancelled) setOriginal(ctx.getImageData(0, 0, canvas.width, canvas.height));
+          const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          if (!cancelled) setLoaded({ key: assetKey, image, error: false });
         } finally {
           bitmap.close();
         }
       } catch {
-        if (!cancelled) setError(true);
+        if (!cancelled) setLoaded({ key: assetKey, image: null, error: true });
       }
     })();
-    return () => { cancelled = true; };
-  }, [assetId, assetReady, projectId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [assetId, assetKey, projectId]);
 
-  const visible = GRADE_LOOK_CATALOG.filter((look) => category === "all" || look.category === category);
+  const visible = GRADE_LOOK_CATALOG.filter(
+    (look) => category === "all" || look.category === category,
+  );
   return (
     <div className="grade-look-gallery" data-testid="grade-look-gallery">
-      <div className="grade-look-categories" role="group" aria-label={t("moodGrade.gradeCategories")}>
+      <div
+        className="grade-look-categories"
+        role="group"
+        aria-label={t("moodGrade.gradeCategories")}
+      >
         {CATEGORIES.map((key) => (
           <button
             key={key}
@@ -132,8 +152,14 @@ export function GradeLookGallery({
         ))}
       </div>
       {!assetReady && <p className="field-hint">{t("moodGrade.galleryNeedsImage")}</p>}
-      {assetReady && !original && !error && <p className="field-hint">{t("moodGrade.galleryLoading")}</p>}
-      {error && <p className="field-hint" role="alert">{t("moodGrade.previewError")}</p>}
+      {assetReady && !original && !error && (
+        <p className="field-hint">{t("moodGrade.galleryLoading")}</p>
+      )}
+      {error && (
+        <p className="field-hint" role="alert">
+          {t("moodGrade.previewError")}
+        </p>
+      )}
       <div className="grade-look-grid">
         {visible.map((look) => (
           <GradeLookTile

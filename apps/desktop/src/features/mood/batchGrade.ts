@@ -15,18 +15,34 @@ export type BatchItemResult = {
 };
 
 export const GRADE_FIELDS = [
-  "exposure", "contrast", "highlights", "shadows", "whites", "blacks",
-  "temperature", "tint", "vibrance", "saturation", "clarity", "dehaze",
+  "exposure",
+  "contrast",
+  "highlights",
+  "shadows",
+  "whites",
+  "blacks",
+  "temperature",
+  "tint",
+  "vibrance",
+  "saturation",
+  "clarity",
+  "dehaze",
 ] as const;
 
 /** Only ready project assets; no pseudo-rooms inferred from filenames or geometry. */
-export function batchSourceAssets(assets: readonly AssetDTO[], source: BatchSourceFilter): AssetDTO[] {
+export function batchSourceAssets(
+  assets: readonly AssetDTO[],
+  source: BatchSourceFilter,
+): AssetDTO[] {
   return assets
-    .filter((a) =>
-      a.status === "ready" &&
-      !!a.mimeType?.startsWith("image/") &&
-      (source === "all" ||
-        (source === "ungraded" ? a.operation !== "color_grade" : (a.source === "ai_generated" || a.operation === "color_grade"))),
+    .filter(
+      (a) =>
+        a.status === "ready" &&
+        !!a.mimeType?.startsWith("image/") &&
+        (source === "all" ||
+          (source === "ungraded"
+            ? a.operation !== "color_grade"
+            : a.source === "ai_generated" || a.operation === "color_grade")),
     )
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
 }
@@ -35,8 +51,9 @@ export function searchBatchAssets(assets: readonly AssetDTO[], text: string): As
   const query = text.trim().toLocaleLowerCase();
   if (!query) return [...assets];
   return assets.filter((asset) =>
-    [asset.originalName, asset.id, asset.source, asset.operation]
-      .some((part) => part?.toLocaleLowerCase().includes(query)),
+    [asset.originalName, asset.id, asset.source, asset.operation].some((part) =>
+      part?.toLocaleLowerCase().includes(query),
+    ),
   );
 }
 
@@ -60,7 +77,7 @@ export function gradeAtIntensity(grade: ColorGradeDNA, intensity: number): Color
     throw new Error("Grade intensity must be between 0 and 100.");
   }
   const result: ColorGradeDNA = { ...grade };
-  for (const field of GRADE_FIELDS) result[field] = (grade[field] ?? 0) * intensity / 100;
+  for (const field of GRADE_FIELDS) result[field] = ((grade[field] ?? 0) * intensity) / 100;
   return result;
 }
 
@@ -86,31 +103,36 @@ export async function runBatchGrade(options: {
   onItem?: (result: BatchItemResult, progress: BatchProgress) => void;
 }): Promise<{ results: BatchItemResult[]; progress: BatchProgress }> {
   const uniqueIds = [...new Set(options.assetIds)];
-  const progress: BatchProgress = { completed: 0, failed: 0, attempted: 0, total: uniqueIds.length, cancelled: false };
+  const progress: BatchProgress = {
+    completed: 0,
+    failed: 0,
+    attempted: 0,
+    total: uniqueIds.length,
+    cancelled: false,
+  };
   const results: BatchItemResult[] = [];
   for (const id of uniqueIds) {
     if (options.shouldCancel?.()) {
       progress.cancelled = true;
       break;
     }
+    let result: BatchItemResult;
     try {
       const output = await options.apply(id, options.grade, options.label);
-      const result: BatchItemResult = { assetId: id, outputAssetId: output.id, status: "completed" };
-      results.push(result);
+      result = { assetId: id, outputAssetId: output.id, status: "completed" };
       progress.completed++;
-      progress.attempted++;
-      options.onItem?.(result, { ...progress });
     } catch (error) {
-      const result: BatchItemResult = {
+      result = {
         assetId: id,
         status: "failed",
         error: error instanceof Error ? error.message : String(error),
       };
-      results.push(result);
       progress.failed++;
-      progress.attempted++;
-      options.onItem?.(result, { ...progress });
     }
+    progress.attempted++;
+    results.push(result);
+    // Outside the try: a throwing progress callback must not turn a saved image into a failure.
+    options.onItem?.(result, { ...progress });
   }
   return { results, progress };
 }

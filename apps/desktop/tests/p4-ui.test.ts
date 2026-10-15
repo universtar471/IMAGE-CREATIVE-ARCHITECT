@@ -432,6 +432,28 @@ describe("GradeCanvas preview", () => {
     expect(regraded.data[0]).toBeGreaterThan(10);
   });
 
+  it("restores the left part of Split with the putImageData dirty rectangle", async () => {
+    const { putImageData } = installCanvasMocks();
+    const transport: Transport = (async (command) => {
+      if (command === "asset_preview") return new Blob(["preview"], { type: "image/png" });
+      throw new Error(`unexpected command ${command}`);
+    }) as Transport;
+    setTransport(transport);
+    render(
+      createElement(GradeCanvas, {
+        asset: asset("P", "SOURCE"),
+        grade: { ...neutralGrade(), temperature: 80 },
+      }),
+    );
+    await waitForDom(() => expect(putImageData).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Split" }));
+    // putImageData ignores clip paths, so the original must be drawn with a dirty rectangle
+    // covering exactly the left `cut` columns (2 px wide image, split at 50 % → 1 px).
+    await waitForDom(() => expect(putImageData.mock.lastCall?.length).toBe(7));
+    expect(putImageData.mock.lastCall?.slice(1)).toEqual([0, 0, 0, 0, 1, 1]);
+    expect((putImageData.mock.lastCall?.[0] as ImageData).data[0]).toBe(10);
+  });
+
   it("shows an inline error when the preview cannot load", async () => {
     installCanvasMocks();
     const transport: Transport = (async (command) => {
@@ -464,25 +486,33 @@ describe("V5.2 live grade thumbnail gallery", () => {
       }
     }
     vitest.stubGlobal("ImageData", TestImageData);
-    vitest.stubGlobal("createImageBitmap", vitest.fn(async () => ({ width: 2, height: 1, close: vitest.fn() })));
+    vitest.stubGlobal(
+      "createImageBitmap",
+      vitest.fn(async () => ({ width: 2, height: 1, close: vitest.fn() })),
+    );
     const putImageData = vitest.fn();
     HTMLCanvasElement.prototype.getContext = vitest.fn(() => ({
       drawImage: vitest.fn(),
-      getImageData: () => new TestImageData(new Uint8ClampedArray([100, 90, 80, 255, 30, 40, 50, 255]), 2, 1),
+      getImageData: () =>
+        new TestImageData(new Uint8ClampedArray([100, 90, 80, 255, 30, 40, 50, 255]), 2, 1),
       putImageData,
     })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
     const transport = vitest.fn(async (command: string) => {
       if (command === "asset_preview") return new Blob(["preview"], { type: "image/png" });
       throw new Error(`unexpected command: ${command}`);
-    }) as Transport;
-    setTransport(transport);
+    });
+    setTransport(transport as unknown as Transport);
     const onChange = vitest.fn();
-    render(createElement(GradeLookGallery, { asset: asset("P", "SOURCE"), value: "neutral", onChange }));
+    render(
+      createElement(GradeLookGallery, { asset: asset("P", "SOURCE"), value: "neutral", onChange }),
+    );
     await waitForDom(() => expect(putImageData.mock.calls.length).toBeGreaterThan(10));
     expect(transport.mock.calls.filter(([command]) => command === "asset_preview")).toHaveLength(1);
     fireEvent.click(screen.getByTestId("grade-look-warm_tropical"));
     expect(onChange).toHaveBeenCalledWith("warm_tropical");
-    expect(transport.mock.calls.filter(([command]) => command === "generation_submit")).toHaveLength(0);
+    expect(
+      transport.mock.calls.filter(([command]) => command === "generation_submit"),
+    ).toHaveLength(0);
   });
 });
 
