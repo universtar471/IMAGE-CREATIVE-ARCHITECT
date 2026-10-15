@@ -100,7 +100,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing · 🔧 needs fixing
 | Phase | Work | Key files | Acceptance |
 |---|---|---|---|
 | **P0** (in progress, `wt/srs-p0`) | EvidenceRef; extensions `spaceCatalog`, `site`, `architecturalDetails`; `resolveSiteAdjacency`; validator (`cv-1.0.0`, §12.4 codes, the adjacent-building, unverified-geometry and locked-lighting rules); PromptBundle hashes; desktop gate; Rust refusal of BLOCK snapshots | `packages/domain/src/{facts,site,validation}/`, `schemas/projectDna.ts`, `prompt/compiler.ts`, `features/generate/*`, `services/generations.rs` | AC-20, AC-21, AC-22 |
-| **P1a** Space Catalog | Import V3 (256 presets) through a converter; curate `labelEn` and `englishPrompt` (104 records); registry, resolver, mapping table to interior rooms; wizard (archetype → floor → group → space → variant, evidence badges); `SPACE SCOPE` section; fix the 5×6×3 m defaults | `packages/domain/src/spaceCatalog/`, `knowledge/space-catalog/catalog.json`, `features/space/SpaceSelector.tsx` | AC-01, AC-02 |
+| **P1a** Space Catalog | Import V3 through a converter with an archetype allowlist (5 archetypes, 152 presets); curate `labelEn` and `englishPrompt` (104 records); registry, resolver, mapping table to interior rooms; wizard (archetype → floor → group → space → variant, evidence badges); `SPACE SCOPE` section; fix the 5×6×3 m defaults | `packages/domain/src/spaceCatalog/`, `knowledge/space-catalog/catalog.json`, `features/space/SpaceSelector.tsx` | AC-01, AC-02 |
 | **P1b** Site & visibility | `resolveVisibility`; four-side site editor with evidence; `SITE & OCCLUSION` section replacing the party-wall text; `describeCamera` never promises occluded facades; Context Library V4 as a curated, evidence-subordinate suggestion layer; compiler `pc-1.7.0` | `packages/domain/src/site/`, `prompt/compiler.ts`, `camera/describe.ts`, `features/context/*` | AC-03, AC-04, SRS §5.4 tests |
 | P2 | Simple camera (intent selector), detail registry and planner, effects plus compatibility matrix, scene objects plus car library | `features/camera/VisualIntentSelector.tsx`, `domain/{detail,effects,sceneObjects}/` | AC-05 … AC-09 |
 | P3 | Enhance strict / balanced / creative with lock composite and local QC (no Vision QC); upscale 2K/4K targets, no-downscale policy, provider capabilities | `generation/enhance.ts`, `features/enhance/*`, `local_upscale.rs`, `regions/mask.rs` | AC-10 … AC-13 |
@@ -113,7 +113,7 @@ P1a and P1b run in parallel after P0 merges: they touch separate folders, and th
 ## 6. Decisions (user answers, 2026-10-15)
 
 1. **QC for enhance (P3):** Vision QC was removed. **Decided: free local checks only** (output size, registration against the source, SSIM on locked regions). No Vision QC, no paid calls.
-2. **Catalog curation:** the lead rewrites the 104 unaccented English labels and prompts. Specialist rooms (healthcare, education) need the user's review before production use, as the SRS notes. Open: the 13 healthcare and 13 education presets ship behind a "cần chuyên gia duyệt" badge until reviewed.
+2. **Catalog scope and curation:** **Decided:** only residential (townhouse, villa, apartment) plus hotel and resort, 152 of 256 presets. Healthcare, education, public, office, retail, cafe and restaurant are out of scope (ADR-034 amendment 2). The lead curates the unaccented English labels and prompts of the in-scope records only.
 3. **Push:** main is far ahead of `origin/main` (`35f11c9`). **Approved and pushed** on 2026-10-15.
 
 ## 7. Known risks

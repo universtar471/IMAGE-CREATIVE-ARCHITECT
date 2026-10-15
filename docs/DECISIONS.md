@@ -808,3 +808,20 @@ The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally
 - The 104 records whose `labelEn` and `englishPrompt` use unaccented Vietnamese are curated first.
 - Context Library V4 becomes a suggestion layer that sits below site evidence.
 - The full gap analysis and ordering are in `docs/plans/SRS_V7_2_UPGRADE_PLAN.md`.
+
+**ADR-034 amendment 2 (2026-10-15): catalog scope.** The user narrowed the catalog: public and specialist interiors are out of scope, and only hotel and resort are kept among the non-residential types.
+- In scope:
+  - residential: `townhouse` (35 presets), `villa` (44), `apartment` (27)
+  - hospitality: `hotel` (24), `resort` (22)
+  - total: 152 of the 256 V3 presets
+- Out of scope:
+  - `healthcare`, `education`, `public`
+  - `office`, `retail`, `cafe`, `restaurant`
+- How the converter applies this:
+  - It imports through an archetype allowlist; out-of-scope records are skipped, not stored.
+  - Re-adding a type later is a one-line allowlist change plus curation of its records.
+- Effects on P1a:
+  - Curation of unaccented English labels and prompts covers only the in-scope records.
+  - The wizard offers only the five archetypes.
+  - The "cần chuyên gia duyệt" badge for specialist rooms is dropped, because no specialist rooms remain.
+- `ProjectTypeSchema` is unchanged. A project type with no in-scope archetype gets no default archetype suggestion, and the space selector stays optional for it.
