@@ -135,6 +135,68 @@ mod tests {
         assert_eq!(index, 1);
     }
 
+    /// ADR-033: the QC feature was removed but its tables stay. A database written while QC
+    /// existed (reports, settings and a repair generation) must still open and list everything.
+    #[test]
+    fn database_with_legacy_qc_rows_still_opens() {
+        use crate::services::tests_support::{open_test_core, test_create_villa, test_import};
+        use crate::services::{assets, generations};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        let (project_id, asset_id) = {
+            let (core, _) = open_test_core(&root);
+            let p = test_create_villa(&core, "Legacy QC");
+            let asset = test_import(&core, tmp.path(), &p.id, "render.png", "regular_image");
+            let conn = core.conn().unwrap();
+            conn.execute(
+                "INSERT INTO qc_reports (id, project_id, asset_id, report_json, result, created_at)
+                 VALUES ('QC_01ARZ3NDEKTSV4RRFFQ69G5FAV', ?1, ?2, '{\"result\":\"fail\"}', 'fail', 't')",
+                rusqlite::params![p.id, asset.id],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO qc_settings (project_id, settings_json, updated_at) VALUES (?1, '{\"autoQc\":\"after_generation\"}', 't')",
+                [&p.id],
+            )
+            .unwrap();
+            let request = serde_json::json!({
+                "prompt": { "compilerVersion": "qc-domain", "positivePrompt": "Repair", "negativePrompt": "",
+                            "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+                "referenceAssetIds": [asset.id, asset.id],
+                "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null,
+                            "repair": { "qcReportId": "QC_01ARZ3NDEKTSV4RRFFQ69G5FAV" } }
+            });
+            conn.execute(
+                "INSERT INTO generations (id, project_id, provider_id, model_id, purpose, status, request_json,
+                   parent_asset_id, started_at, finished_at, duration_ms, created_at, updated_at)
+                 VALUES ('GEN_01ARZ3NDEKTSV4RRFFQ69G5FAV', ?1, 'test_remote', 'full', 'repair', 'completed', ?2,
+                   ?3, 't', 't', 5, 't', 't')",
+                rusqlite::params![p.id, request.to_string(), asset.id],
+            )
+            .unwrap();
+            (p.id, asset.id)
+        }; // core dropped = app closed
+
+        let (core, _) = open_test_core(&root);
+        let listed = assets::list(&core, &project_id).unwrap();
+        assert_eq!(listed.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(), [asset_id.as_str()]);
+        let history = generations::list(&core, &project_id).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].purpose.as_str(), "repair");
+        assert_eq!(
+            history[0].params.repair,
+            Some(serde_json::json!({ "qcReportId": "QC_01ARZ3NDEKTSV4RRFFQ69G5FAV" }))
+        );
+        let conn = core.conn().unwrap();
+        let kept: (i64, i64) = conn
+            .query_row("SELECT (SELECT COUNT(*) FROM qc_reports), (SELECT COUNT(*) FROM qc_settings)", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(kept, (1, 1), "user data in the QC tables is never deleted");
+    }
+
     #[test]
     fn migration_0006_regions_cascade_when_asset_is_deleted() {
         let conn = open_in_memory().unwrap();

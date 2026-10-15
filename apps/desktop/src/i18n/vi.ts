@@ -1,7 +1,8 @@
 /**
  * Vietnamese UI strings. Must have exactly the shape of `en.ts` (checked by the compiler).
  * Terms Vietnamese architects use as-is stay English: Render, Master, Anchor, Prompt, Batch,
- * Hero, DNA, QC. See docs/agent-notes/i18n-vi.md for the glossary.
+ * Hero, DNA. "QC" survives only in the legacy repair purpose label (the QC feature was
+ * removed, ADR-033). See docs/agent-notes/i18n-vi.md for the glossary.
  */
 import type { Dict } from "./index";
 
@@ -150,7 +151,6 @@ export const vi: Dict = {
       anchor_generation: "Đang tạo Anchor",
       design_locked: "Đã khóa thiết kế",
       production: "Đang sản xuất",
-      qc: "QC",
       final: "Bản cuối",
       archived: "Đã lưu trữ",
     },
@@ -384,7 +384,6 @@ export const vi: Dict = {
       description: "Tạo ảnh không phụ thuộc nhà cung cấp và quy trình ảnh Hero.",
     },
     enhance: { label: "Nâng cấp", description: "Upscale lên 2K/4K, giữ nguyên kiến trúc." },
-    qc: { label: "QC", description: "Điểm QC bằng thị giác máy, lớp phủ và yêu cầu sửa." },
     regions: {
       label: "Chỉnh vùng",
       description: "Vẽ vùng, liên kết đối tượng scene và chỉnh sửa có chọn lọc.",
@@ -515,7 +514,7 @@ export const vi: Dict = {
       master: "Tạo hoặc duyệt ảnh Master",
       anchors: "Tạo / duyệt Anchor cho {count} góc máy",
       render: "Render các góc máy",
-      grade: "Hậu kỳ: chỉnh màu, nâng cấp và QC",
+      grade: "Hậu kỳ: chỉnh màu và nâng cấp",
     },
   },
 
@@ -1082,61 +1081,6 @@ export const vi: Dict = {
       "Conservative is free and local: sharper and larger without design changes.",
     howToUseGenerative: "Generative adds real AI detail and uses credits.",
     howToUsePreserve: "Architecture Preserve keeps the building, openings, proportions and camera.",
-  },
-
-  qc: {
-    title: "Kiểm tra QC bằng thị giác máy",
-    howToUse: "Cách dùng",
-    howToUseLocal: "Kiểm tra cục bộ miễn phí và cho kết quả ổn định.",
-    howToUseVision: "Kiểm tra bằng AI có thể tốn tín dụng khi chọn nhà cung cấp.",
-    howToUseScores:
-      "Xem điểm tổng và điểm từng nhóm; lỗi tạo ảnh mức cao có thể khiến QC không đạt.",
-    repairAction: "Sửa theo QC",
-    needsMaster: "Hãy duyệt ảnh kiến trúc chủ đạo trước khi chạy QC.",
-    source: "Ảnh đang chọn",
-    noSource: "Chọn ảnh sẵn sàng để chạy QC.",
-    run: "Chạy QC",
-    local: "Chỉ kiểm tra cục bộ (miễn phí)",
-    vision: "Kiểm tra bằng AI",
-    provider: "Nhà cung cấp thị giác",
-    model: "Mô hình thị giác",
-    costUnknown: "Chưa có ước tính chi phí",
-    costFree: "Kiểm tra cục bộ miễn phí",
-    latest: "Báo cáo mới nhất",
-    history: "Lịch sử báo cáo",
-    overall: "Điểm tổng",
-    categories: "Nhóm điểm thị giác",
-    localMetrics: "Chỉ số cục bộ",
-    edgeAlignment: "Độ thẳng hàng cạnh",
-    notApplicable: "không áp dụng",
-    sharpness: "Độ sắc nét",
-    clippedPct: "Tỷ lệ điểm ảnh bị cắt",
-    issues: "Vấn đề",
-    artifacts: "Lỗi tạo ảnh",
-    noIssues: "Không có vấn đề.",
-    noArtifacts: "Không có lỗi tạo ảnh.",
-    repairInstruction: "Hướng dẫn sửa",
-    pass: "Đạt",
-    warn: "Cảnh báo",
-    fail: "Không đạt",
-    unscored: "Chưa chấm",
-    settings: "Cài đặt QC",
-    passMin: "Ngưỡng đạt",
-    categoryMin: "Ngưỡng từng nhóm",
-    highArtifactFails: "Lỗi tạo ảnh mức cao khiến QC không đạt",
-    autoQc: "QC tự động",
-    autoOff: "Tắt",
-    autoAfterGeneration: "Sau khi tạo ảnh",
-    autoRepairMax: "Số lần sửa tự động (0-2)",
-    costWarning: "QC và sửa tự động có thể tốn tín dụng.",
-    saveSettings: "Lưu cài đặt",
-    savedSettings: "Đã lưu cài đặt QC.",
-    batch: "QC hàng loạt",
-    batchRun: "Chạy QC hàng loạt",
-    batchProgress: "Đã kiểm tra {done}/{total}",
-    showOverlay: "Hiện lỗi",
-    hideOverlay: "Ẩn lỗi",
-    noReport: "Chưa có báo cáo QC.",
   },
 
   regions: {

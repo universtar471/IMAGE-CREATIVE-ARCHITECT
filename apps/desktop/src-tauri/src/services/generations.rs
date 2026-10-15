@@ -165,6 +165,11 @@ pub fn parse_purpose(s: &str) -> AppResult<GenerationPurpose> {
 /// does not keep the key: both are fetched again when the job runs.
 pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Validated> {
     let purpose = parse_purpose(&req.purpose)?;
+    // `repair` stays a known purpose so old history still loads, but repairs were made only
+    // from QC reports and QC was removed (ADR-033): no new repair is accepted.
+    if purpose == GenerationPurpose::Repair {
+        return Err(AppError::validation("Repair generations can no longer be submitted."));
+    }
     let provider = find_provider(core, &req.provider_id)?;
     let info = provider.info();
     let model = info
@@ -191,34 +196,8 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     };
 
     let enhance = req.params.enhance.clone();
-    let repair = req.params.repair.clone();
-    if purpose == GenerationPurpose::Repair {
-        let repair =
-            repair.as_ref().ok_or_else(|| AppError::validation("Repair parameters are required at params.repair."))?;
-        if assets.len() != 2 {
-            return Err(AppError::validation(
-                "Repair requires exactly two references: the report asset and its primary reference.",
-            ));
-        }
-        let conn = core.conn()?;
-        let raw: String = conn
-            .query_row(
-                "SELECT report_json FROM qc_reports WHERE id = ?1 AND project_id = ?2",
-                rusqlite::params![repair.qc_report_id, req.project_id],
-                |row| row.get(0),
-            )
-            .map_err(|_| AppError::not_found("QC report", &repair.qc_report_id))?;
-        let report: crate::dto::QcReportDto = serde_json::from_str(&raw)
-            .map_err(|_| AppError::new(ErrorCode::DbError, "Stored QC report is invalid."))?;
-        if report.asset_id != req.reference_asset_ids[0]
-            || report.reference_asset_ids.first() != Some(&req.reference_asset_ids[1])
-        {
-            return Err(AppError::validation(
-                "Repair references must be the QC report asset followed by its primary reference.",
-            ));
-        }
-    } else if repair.is_some() {
-        return Err(AppError::validation("params.repair is only valid when purpose is 'repair'."));
+    if req.params.repair.is_some() {
+        return Err(AppError::validation("params.repair is no longer accepted."));
     }
     if purpose == GenerationPurpose::Enhance {
         let params = enhance
@@ -1289,6 +1268,32 @@ mod tests {
         assert!(err.message.contains("generate.anchors"));
         assert_eq!(count(&core, "jobs"), 0);
         assert!(!master.id.is_empty());
+    }
+
+    /// ADR-033: `repair` stays a known purpose for history, but no new repair is accepted.
+    #[test]
+    fn repair_generations_are_no_longer_accepted() {
+        let (_tmp, core, _) = core_with_double();
+        let p = test_create_villa(&core, "No repairs");
+        let mut repair_params = params(1);
+        repair_params.repair = Some(json!({ "qcReportId": "legacy" }));
+        let request = |purpose: &str, params: GenerationParams| SubmitRequest {
+            project_id: p.id.clone(),
+            provider_id: local_preview::ID.into(),
+            model_id: local_preview::MODEL_ID.into(),
+            purpose: purpose.into(),
+            prompt: bundle("A villa"),
+            reference_asset_ids: Vec::new(),
+            params,
+            camera_id: None,
+        };
+
+        let err = validate(&core, request("repair", repair_params.clone())).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("no longer be submitted"), "{}", err.message);
+        let err = validate(&core, request("hero", repair_params)).unwrap_err();
+        assert!(err.message.contains("params.repair"), "{}", err.message);
+        assert_eq!(count(&core, "jobs"), 0);
     }
 
     #[test]

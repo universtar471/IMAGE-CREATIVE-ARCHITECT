@@ -106,7 +106,6 @@ impl Entry {
             image_sizes: self.tiers.iter().map(|(tier, _)| tier.to_string()).collect(),
             quality_options,
             price_hint: Some(price_hint),
-            vision: true,
             supports_mask: matches!(self.family, Family::Gpt),
             ..gateway_model(self.id)
         }
@@ -118,7 +117,6 @@ impl Entry {
 pub fn plain_capabilities(id: &str) -> ModelCapabilities {
     ModelCapabilities {
         quality_options: QUALITY_VALUES.iter().map(|q| q.to_string()).collect(),
-        vision: true,
         supports_mask: true,
         ..gateway_model(id)
     }

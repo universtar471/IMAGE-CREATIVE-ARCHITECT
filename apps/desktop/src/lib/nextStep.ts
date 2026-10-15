@@ -16,7 +16,6 @@ export type NextStep = {
     | "generate"
     | "mood_grade"
     | "enhance"
-    | "qc"
     | "regions";
   focus?: string;
 };
@@ -93,7 +92,7 @@ export function nextStep(workspace: WorkspaceData, workflowView: DerivedWorkflow
   }
   return {
     id: "post.grade",
-    title: "Post: grade, enhance and QC",
+    title: "Post: grade and enhance",
     action: "Open Post-production",
     module: "mood_grade",
   };

@@ -1,6 +1,6 @@
 /**
  * Reusable image viewer: fit, zoom (buttons / wheel around cursor), pan when zoomed.
- * Knows nothing about assets or persistence; future compare/mask/QC tools layer on top
+ * Knows nothing about assets or persistence; future compare/mask tools layer on top
  * through `overlay` and the toolbar `extraTools` slot.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";

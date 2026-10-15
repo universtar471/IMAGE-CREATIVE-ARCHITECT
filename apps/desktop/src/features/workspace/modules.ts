@@ -29,7 +29,6 @@ export type ModuleId =
   | "mood_grade"
   | "generate"
   | "enhance"
-  | "qc"
   | "regions"
   | "export";
 
@@ -103,13 +102,6 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "enhance",
     label: "Enhance",
     icon: Wand2,
-    group: "post",
-    availableIn: null,
-  },
-  {
-    id: "qc",
-    label: "QC",
-    icon: ScanSearch,
     group: "post",
     availableIn: null,
   },

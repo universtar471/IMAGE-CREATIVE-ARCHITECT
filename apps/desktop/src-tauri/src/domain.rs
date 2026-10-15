@@ -64,7 +64,6 @@ string_enum!(ProjectStatus {
     AnchorGeneration => "anchor_generation",
     DesignLocked => "design_locked",
     Production => "production",
-    Qc => "qc",
     Final => "final",
     Archived => "archived",
 });

@@ -15,7 +15,7 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
     anchors, assets, batches, dna, dna_assist, generations, grade, luts, projects, prompt_enhance, provider_settings,
-    qc, queue, regions, workflow, AppCore,
+    queue, regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -375,29 +375,6 @@ pub async fn prompt_enhance(
 #[tauri::command]
 pub async fn dna_assist(core: Core<'_>, request: dna_assist::AssistRequest) -> AppResult<dna_assist::AssistResult> {
     blocking(&core, move |c| dna_assist::run(c, request)).await
-}
-
-#[tauri::command]
-pub async fn qc_run(core: Core<'_>, request: qc::QcRunRequest) -> AppResult<crate::dto::QcReportDto> {
-    blocking(&core, move |c| qc::run(c, request)).await
-}
-
-#[tauri::command]
-pub async fn qc_list(core: Core<'_>, request: qc::QcListRequest) -> AppResult<Vec<crate::dto::QcReportDto>> {
-    blocking(&core, move |c| qc::list(c, request)).await
-}
-
-#[tauri::command]
-pub async fn qc_settings_get(core: Core<'_>, request: ProjectRef) -> AppResult<crate::dto::QcSettingsDto> {
-    blocking(&core, move |c| qc::settings_get(c, &request.project_id)).await
-}
-
-#[tauri::command]
-pub async fn qc_settings_set(
-    core: Core<'_>,
-    request: qc::QcSettingsSetRequest,
-) -> AppResult<crate::dto::QcSettingsDto> {
-    blocking(&core, move |c| qc::settings_set(c, request)).await
 }
 
 // ------------------------------------------------------------------ generation
