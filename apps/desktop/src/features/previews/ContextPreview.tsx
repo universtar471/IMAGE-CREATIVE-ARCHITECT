@@ -6,6 +6,7 @@ import {
   type ProjectType,
 } from "@arch/domain";
 import { currentLocale, translate } from "../../i18n";
+import { PhotoThumbnail } from "./PhotoThumbnail";
 
 export function ContextPreview({
   context,
@@ -215,9 +216,13 @@ export function ContextPresetCards({
             disabled={disabled}
           >
             <span data-testid="context-preset-thumbnail" className="preview-card-image">
-              <ContextPreview context={merged} compact />
+              <PhotoThumbnail kind="context" presetId={preset.id} label={preset.label}>
+                <ContextPreview context={merged} compact />
+              </PhotoThumbnail>
               <span className="preview-card-large">
-                <ContextPreview context={merged} />
+                <PhotoThumbnail kind="context" presetId={preset.id} label={preset.label}>
+                  <ContextPreview context={merged} />
+                </PhotoThumbnail>
               </span>
             </span>
             <span>{preset.label}</span>

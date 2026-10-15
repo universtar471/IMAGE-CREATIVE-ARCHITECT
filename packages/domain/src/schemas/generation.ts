@@ -75,6 +75,7 @@ export const GenerationPurposeSchema = z.enum([
   "enhance",
   "repair",
   "region_edit",
+  "assist",
 ]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 

@@ -31,3 +31,4 @@ export * from "./qc";
 export * from "./regions";
 export * from "./interior";
 export * from "./jsonSchema";
+export * from "./assist";

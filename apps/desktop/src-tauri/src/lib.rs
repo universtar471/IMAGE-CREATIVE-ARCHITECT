@@ -91,6 +91,7 @@ pub fn run() {
             commands::provider_clear_api_key,
             commands::provider_test,
             commands::prompt_enhance,
+            commands::dna_assist,
             commands::qc_run,
             commands::qc_list,
             commands::qc_settings_get,

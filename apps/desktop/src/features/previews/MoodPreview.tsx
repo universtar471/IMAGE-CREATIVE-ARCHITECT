@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { currentLocale, translate } from "../../i18n";
 import { LightingPreview } from "./LightingPreview";
+import { PhotoThumbnail } from "./PhotoThumbnail";
+import { useStudio } from "../../app/store";
 
 const palettes: Record<string, { colors: string[]; tint: string; timeOfDay: string }> = {
   calm: { colors: ["#a7b9a7", "#e0dfc7", "#6a7965"], tint: "#9eb78b44", timeOfDay: "morning" },
@@ -69,11 +71,15 @@ export function MoodPresetCards({
   presets,
   onChoose,
   disabled = false,
+  interior,
 }: {
   presets: Array<{ id: string; label: string; values?: Record<string, unknown> }>;
   onChoose?: (preset: { id: string; label: string; values?: Record<string, unknown> }) => void;
   disabled?: boolean;
+  interior?: boolean;
 }) {
+  const isInterior = useStudio((state) => state.workspace?.project.projectType === "interior");
+  const interiorPhoto = interior ?? isInterior;
   return (
     <div
       className="preview-card-grid"
@@ -90,14 +96,30 @@ export function MoodPresetCards({
           disabled={disabled}
         >
           <span data-testid="mood-preset-thumbnail" className="preview-card-image">
-            <MoodPreview
-              mood={{ ...(preset.values ?? {}), presetId: preset.id } as Record<string, unknown>}
-              compact
-            />
-            <span className="preview-card-large">
+            <PhotoThumbnail
+              kind="mood"
+              presetId={preset.id}
+              label={preset.label}
+              interior={interiorPhoto}
+            >
               <MoodPreview
                 mood={{ ...(preset.values ?? {}), presetId: preset.id } as Record<string, unknown>}
+                compact
               />
+            </PhotoThumbnail>
+            <span className="preview-card-large">
+              <PhotoThumbnail
+                kind="mood"
+                presetId={preset.id}
+                label={preset.label}
+                interior={interiorPhoto}
+              >
+                <MoodPreview
+                  mood={
+                    { ...(preset.values ?? {}), presetId: preset.id } as Record<string, unknown>
+                  }
+                />
+              </PhotoThumbnail>
             </span>
           </span>
           <span>{preset.label}</span>
