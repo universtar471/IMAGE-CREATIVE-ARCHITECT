@@ -1754,6 +1754,20 @@ textarea {
   background: #03241b;
   color: #a7f3d0;
 }
+/* Conflict check next to a paid submit (ADR-034). */
+.conflict-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.conflict-list {
+  margin: 0;
+  padding-left: 16px;
+}
+.conflict-panel .btn-row .btn {
+  margin-left: 0;
+}
 .run-status {
   display: inline-flex;
   align-items: center;

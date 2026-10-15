@@ -43,6 +43,8 @@ import { useAssetImport } from "../assets/useAssetImport";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { canSubmit, checkShot } from "../validation/gate";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -62,6 +64,7 @@ export function GeneratePanel() {
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
   const spend = useSpendConfirm();
+  const fixConflict = useConflictFix("extra-prompt");
 
   if (!providers) {
     if (providersError) {
@@ -100,11 +103,23 @@ export function GeneratePanel() {
         approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
       })
     : { ok: true as const };
+  // Conflict gate (ADR-034): the live view checks the draft; submit re-checks saved data.
+  const conflicts = checkShot({
+    dna: ws.draftDna,
+    projectType: project.projectType,
+    cameraId: null,
+    extraPrompt: draft.extraPrompt,
+    approvedExceptions: draft.approvedExceptions,
+  });
+  const conflictReason = canSubmit(conflicts)
+    ? null
+    : t(conflicts.verdict === "BLOCK" ? "conflictUi.refusedBlock" : "conflictUi.refusedWarn");
   const disabledReason =
     reason ??
     (workflowGate.ok
       ? null
-      : blockedReason(t, workflowGate.blockedBy, !!project.activeMasterAssetId));
+      : blockedReason(t, workflowGate.blockedBy, !!project.activeMasterAssetId)) ??
+    conflictReason;
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
@@ -137,6 +152,7 @@ export function GeneratePanel() {
       params: form.params,
       cameraId: null,
       extraPrompt: draft.extraPrompt,
+      approvedExceptions: draft.approvedExceptions,
     });
   };
 
@@ -181,6 +197,13 @@ export function GeneratePanel() {
       )}
 
       <ExtraPromptSection referenceIds={form.referenceIds} disabled={running} />
+      <ConflictPanel
+        entries={[{ validation: conflicts }]}
+        onFix={fixConflict}
+        onApprove={(codes) =>
+          setDraft({ approvedExceptions: [...(draft.approvedExceptions ?? []), ...codes] })
+        }
+      />
 
       <SectionPanel title={t("generate.compiledPrompt")} defaultOpen={false}>
         <GeneratePromptPreview referenceIds={form.referenceIds} />

@@ -107,11 +107,32 @@ pub struct PromptBundle {
     pub config_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resolved_warnings: Option<Vec<String>>,
+    /// The desktop conflict gate's outcome (ADR-034 P0-B); absent on older snapshots.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation: Option<ShotValidationSnapshot>,
     pub positive_prompt: String,
     pub negative_prompt: String,
     pub reference_instructions: String,
     pub preservation_instructions: String,
     pub metadata: Map<String, Value>,
+}
+
+/// Mirrors `ShotValidationSnapshotSchema`: the conflict check recorded in the snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShotValidationSnapshot {
+    pub verdict: ShotVerdict,
+    pub validator_version: String,
+    pub issue_codes: Vec<String>,
+    pub approved_exceptions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ShotVerdict {
+    Block,
+    Warn,
+    Allow,
 }
 
 /// Mirrors `ProviderDescriptorDTOSchema`. Never carries the key itself.

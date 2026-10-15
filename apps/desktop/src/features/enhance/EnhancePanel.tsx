@@ -1,6 +1,11 @@
 import { AlertTriangle, ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { GenerationParams, ModelCapabilities, ProviderDescriptorDTO } from "@arch/domain";
+import type {
+  ConflictCode,
+  GenerationParams,
+  ModelCapabilities,
+  ProviderDescriptorDTO,
+} from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, SelectField } from "../../components/panels/fields";
@@ -18,6 +23,8 @@ import {
   type EnhanceParams,
 } from "./enhance";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { canSubmit, checkShot } from "../validation/gate";
 
 const EMPTY_PARAMS: GenerationParams = {
   aspectRatio: null,
@@ -42,8 +49,10 @@ export function EnhancePanel() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [approvedExceptions, setApprovedExceptions] = useState<ConflictCode[]>([]);
   const t = useT();
   const spend = useSpendConfirm();
+  const fixConflict = useConflictFix();
 
   const approved = isMasterApproved(ws.project.status);
   const sourceEdge = source ? sourceLongEdge(source) : 0;
@@ -69,7 +78,24 @@ export function EnhancePanel() {
     model,
     params.targetLongEdge,
   );
-  const disabled = readOnly || !approved || !source || !!validation || !provider || !model || busy;
+  // Conflict gate (ADR-034) for the paid generative mode; conservative upscaling is local.
+  const conflicts =
+    params.mode === "generative"
+      ? checkShot({
+          dna: ws.draftDna,
+          projectType: ws.project.projectType,
+          approvedExceptions,
+        })
+      : null;
+  const disabled =
+    readOnly ||
+    !approved ||
+    !source ||
+    !!validation ||
+    !provider ||
+    !model ||
+    busy ||
+    (conflicts !== null && !canSubmit(conflicts));
 
   useEffect(() => {
     if (!providers.length) void loadProviders();
@@ -109,7 +135,7 @@ export function EnhancePanel() {
         }))
       )
         return;
-      await submit(request, request.prompt);
+      await submit({ ...request, approvedExceptions }, request.prompt);
     } finally {
       setBusy(false);
     }
@@ -267,6 +293,13 @@ export function EnhancePanel() {
         <div className="callout callout-warning" role="alert">
           {validation}
         </div>
+      )}
+      {conflicts && (
+        <ConflictPanel
+          entries={[{ validation: conflicts }]}
+          onFix={fixConflict}
+          onApprove={(codes) => setApprovedExceptions((list) => [...list, ...codes])}
+        />
       )}
       <span className="field-hint" data-testid="enhance-cost">
         {cost.kind === "free"

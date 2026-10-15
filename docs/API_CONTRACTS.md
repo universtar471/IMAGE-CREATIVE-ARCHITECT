@@ -320,6 +320,10 @@ Capabilities and params added for priced gateways (HHTECH, §11):
   (an empty list means the provider decides, so the value must be `null`), `seed` set on a model without seed support,
   `quality` not in the model's `qualityOptions` (empty = only `null`), references on a
   model without image-to-image, no references on a model without text-to-image
+  - ADR-034 P0-B: `prompt.validation` (optional `{ verdict: "BLOCK" | "WARN" | "ALLOW",
+    validatorVersion, issueCodes, approvedExceptions }`, written by the desktop conflict gate
+    and stored verbatim) with `verdict: "BLOCK"` is refused (details: `{ issueCodes }`); the
+    same check runs for every `batch_create` item. A request without the field is accepted.
 - `PROVIDER_NOT_CONFIGURED` — provider needs a key and none is available
 
 Provider errors after the call started are returned as a `failed` `GenerationDTO` with

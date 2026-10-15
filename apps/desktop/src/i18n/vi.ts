@@ -1689,5 +1689,13 @@ export const vi: Dict = {
     allow: "Hợp lệ",
     fix: "Sửa lựa chọn",
     approveException: "Duyệt ngoại lệ",
+    accepted: "Đã duyệt ngoại lệ",
+    fromExtraPrompt: "lời nhắc bổ sung",
+    fromCamera: "góc máy",
+    refusedBlock: "Kiểm tra ràng buộc đã chặn cảnh này. Hãy sửa lựa chọn rồi thử lại.",
+    refusedWarn: "Hãy duyệt ngoại lệ hoặc sửa lựa chọn trước khi tạo ảnh.",
+    batchSkipHint: "Các mục bị chặn sẽ được bỏ qua; các mục còn lại vẫn vào hàng đợi.",
+    batchSkipped: "Đã bỏ qua (kiểm tra ràng buộc): {list}",
+    batchAllBlocked: "Mọi mục đều không qua kiểm tra ràng buộc; không có gì được đưa vào hàng đợi.",
   },
 };

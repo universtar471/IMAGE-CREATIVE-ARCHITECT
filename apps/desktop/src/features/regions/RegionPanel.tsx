@@ -1,6 +1,6 @@
 import { Archive, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AssetDTO, GenerationDTO, ProjectDNA } from "@arch/domain";
+import type { AssetDTO, ConflictCode, GenerationDTO, ProjectDNA } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { call } from "../../lib/bridge";
 import {
@@ -22,6 +22,8 @@ import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { spendRequestForGeneration } from "../../lib/spend";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { canSubmit, checkShot, withValidation } from "../validation/gate";
 
 const CATEGORIES: SceneObjectCategory[] = [
   "wall",
@@ -59,9 +61,19 @@ export function RegionPanel() {
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
   const [busy, setBusy] = useState(false);
+  /** WARN codes accepted for the current instruction; cleared whenever the text changes. */
+  const [approvedExceptions, setApprovedExceptions] = useState<ConflictCode[]>([]);
   const loadToken = useRef(0);
   const dna = ws.draftDna;
   const scene = sceneOf(dna);
+  const fixConflict = useConflictFix(mode === "edit" ? "region-instruction" : "region-material");
+  // Conflict gate (ADR-034): the user's instruction is checked like the extra prompt.
+  const conflicts = checkShot({
+    dna,
+    projectType: ws.project.projectType,
+    extraPrompt: mode === "edit" ? instruction : material,
+    approvedExceptions,
+  });
 
   const load = useCallback(async () => {
     if (!selectedId) return;
@@ -223,7 +235,8 @@ export function RegionPanel() {
       !approved ||
       readOnly ||
       !selectedRegions.size ||
-      (mode === "edit" ? !instruction.trim() : !material.trim())
+      (mode === "edit" ? !instruction.trim() : !material.trim()) ||
+      !canSubmit(conflicts)
     )
       return;
     setBusy(true);
@@ -240,7 +253,10 @@ export function RegionPanel() {
         maskCoveragePct: coveragePct,
       });
       if (!(await spend.request(spendRequestForGeneration(request, providers, t)))) return;
-      await call("generation_submit", request);
+      await call("generation_submit", {
+        ...request,
+        prompt: withValidation(request.prompt, conflicts),
+      });
     } finally {
       setBusy(false);
     }
@@ -454,8 +470,12 @@ export function RegionPanel() {
           <label className="field">
             <span>{t("regions.instruction")}</span>
             <textarea
+              id="region-instruction"
               value={instruction}
-              onChange={(event) => setInstruction(event.target.value)}
+              onChange={(event) => {
+                setInstruction(event.target.value);
+                setApprovedExceptions([]);
+              }}
               placeholder={t("regions.instructionPlaceholder")}
             />
           </label>
@@ -463,8 +483,12 @@ export function RegionPanel() {
           <label className="field">
             <span>{t("regions.materialField")}</span>
             <input
+              id="region-material"
               value={material}
-              onChange={(event) => setMaterial(event.target.value)}
+              onChange={(event) => {
+                setMaterial(event.target.value);
+                setApprovedExceptions([]);
+              }}
               placeholder={t("regions.materialPlaceholder")}
             />
           </label>
@@ -511,9 +535,22 @@ export function RegionPanel() {
             {prompt.preservationInstructions}
           </pre>
         </details>
+        <ConflictPanel
+          entries={[{ validation: conflicts }]}
+          onFix={fixConflict}
+          onApprove={(codes) => setApprovedExceptions((list) => [...list, ...codes])}
+        />
         <button
           className="btn btn-primary"
-          disabled={busy || readOnly || !approved || !selectedRegions.size || !provider || !model}
+          disabled={
+            busy ||
+            readOnly ||
+            !approved ||
+            !selectedRegions.size ||
+            !provider ||
+            !model ||
+            !canSubmit(conflicts)
+          }
           onClick={() => void submit()}
         >
           {t("regions.run")}

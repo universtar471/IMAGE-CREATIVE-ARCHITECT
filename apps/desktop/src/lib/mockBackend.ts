@@ -737,6 +737,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     // Repairs came only from QC reports; QC was removed (ADR-033), so none are created now.
     if (purpose === "repair")
       fail("VALIDATION_ERROR", "Repair generations can no longer be submitted.");
+    // ADR-034: a snapshot the conflict gate blocked is never queued (old snapshots have none).
+    if (req.prompt.validation?.verdict === "BLOCK")
+      fail("VALIDATION_ERROR", "The conflict check blocked this shot; fix the selection first.", {
+        issueCodes: req.prompt.validation.issueCodes,
+      });
     const gate =
       purpose === "enhance"
         ? facts.masterApproved

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ContextDNASchema,
   attachedSides,
+  cameraSitePlan,
   isExposableBoundary,
   resolveSiteAdjacency,
   type SiteExtension,
@@ -72,6 +73,29 @@ describe("resolveSiteAdjacency — derived from context.siteTopology", () => {
       rear: "unknown",
     });
     expect(a.left.evidence.status).toBe("user_declared");
+  });
+
+  it("never claims an unknown cornerSide as a street; cameraSitePlan agrees (P0-B)", () => {
+    const ctx = context({
+      siteTopology: { left: "unknown", right: "attached", cornerLot: true, cornerSide: "left" },
+    });
+    const a = resolveSiteAdjacency({ context: ctx });
+    expect(a.left).toEqual({
+      kind: "unknown",
+      evidence: { status: "unknown", sourceAssetIds: [] },
+    });
+    const sideLeft = { viewType: "exterior_side" as const, azimuthDeg: 30 };
+    expect(cameraSitePlan(sideLeft, ctx, "townhouse")).toEqual({
+      mode: "unknown_side",
+      side: "left",
+      reason: "side_not_confirmed",
+    });
+    // Once the side is declared open, both call it the street side.
+    const open = context({
+      siteTopology: { left: "open", right: "attached", cornerLot: true, cornerSide: "left" },
+    });
+    expect(resolveSiteAdjacency({ context: open }).left.kind).toBe("street");
+    expect(cameraSitePlan(sideLeft, open, "townhouse").mode).toBe("corner_side");
   });
 
   it("keeps a non-corner open side as open_space on a corner lot", () => {

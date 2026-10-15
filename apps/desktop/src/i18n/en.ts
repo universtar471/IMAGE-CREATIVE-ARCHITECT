@@ -1689,5 +1689,13 @@ export const en = {
     allow: "OK",
     fix: "Fix selection",
     approveException: "Approve exception",
+    accepted: "Exception approved",
+    fromExtraPrompt: "extra prompt",
+    fromCamera: "camera",
+    refusedBlock: "The constraint check blocked this shot. Fix the selection and try again.",
+    refusedWarn: "Approve the exception or fix the selection before generating.",
+    batchSkipHint: "Blocked items are skipped; the rest are queued.",
+    batchSkipped: "Skipped (constraint check): {list}",
+    batchAllBlocked: "Every item failed the constraint check; nothing was queued.",
   },
 };
