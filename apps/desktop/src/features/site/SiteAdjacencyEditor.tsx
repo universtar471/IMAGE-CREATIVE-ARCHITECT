@@ -22,10 +22,11 @@ import { editSiteSide } from "./siteEdit";
 export function SiteAdjacencyEditor() {
   const t = useT();
   const editDna = useStudio((state) => state.editDna);
-  const dna = useStudio((state) => state.workspace!.draftDna as ProjectDNA);
+  const workspace = useStudio((state) => state.workspace!);
+  const dna = workspace.draftDna as ProjectDNA;
   const readOnly = useStudio(selectReadOnly);
   const disabled = readOnly || dna.locks.context;
-  const site = siteForEditing(dna);
+  const site = siteForEditing(dna, workspace.project.projectType);
   const kindOptions = SITE_BOUNDARY_KINDS.map((kind) => ({
     value: kind,
     label: t(`site.kinds.${kind}`),
@@ -50,7 +51,9 @@ export function SiteAdjacencyEditor() {
                 allowEmpty={false}
                 disabled={disabled}
                 options={kindOptions}
-                onChange={(kind) => kind && editSiteSide(editDna, dna, side, { kind })}
+                onChange={(kind) =>
+                  kind && editSiteSide(editDna, dna, side, { kind }, workspace.project.projectType)
+                }
               />
               <SelectField
                 label={t(`site.evidenceFor.${side}`)}
@@ -58,7 +61,10 @@ export function SiteAdjacencyEditor() {
                 allowEmpty={false}
                 disabled={disabled}
                 options={statusOptions}
-                onChange={(status) => status && editSiteSide(editDna, dna, side, { status })}
+                onChange={(status) =>
+                  status &&
+                  editSiteSide(editDna, dna, side, { status }, workspace.project.projectType)
+                }
               />
             </div>
           ))}

@@ -237,8 +237,11 @@ describe("camera section (pc-1.1.0)", () => {
   });
 
   it("does not promise a side facade whose site side is unknown (pc-1.7.0)", () => {
-    // The villa pack declares no sides: the left side is unknown, so it is not claimed.
-    const bundle = compilePrompt({ ...withCamera(), cameraId: corner.id });
+    // Townhouse/custom projects keep undeclared sides unknown; detached project defaults are
+    // intentionally open and are covered by the villa regression test.
+    const i = withCamera();
+    i.project.projectType = "custom";
+    const bundle = compilePrompt({ ...i, cameraId: corner.id });
     expect(bundle.positivePrompt).toContain(
       "Camera: exterior corner view; viewpoint: front-left oblique view centred on the front facade from eye level; lens: 24 mm wide-angle lens; distance: about 25 m from the building; composition: two-point perspective; camera notes: keep the gate in frame.",
     );

@@ -34,7 +34,7 @@ export function shotVisibility(
   projectType: ProjectType,
 ): { adjacency: ResolvedSiteAdjacency; visibility: VisibilityResult } | null {
   if (!camera || projectType === "interior") return null;
-  const adjacency = resolveSiteAdjacency(dna);
+  const adjacency = resolveSiteAdjacency(dna, projectType);
   return { adjacency, visibility: resolveVisibility(adjacency, camera) };
 }
 

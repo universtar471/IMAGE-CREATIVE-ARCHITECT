@@ -35,7 +35,7 @@ afterEach(() => {
 async function openExterior() {
   const project = await createProject({
     name: "Anchor topology",
-    projectType: "villa",
+    projectType: "custom",
     subtype: "default",
     starter: { floors: 2 },
   });

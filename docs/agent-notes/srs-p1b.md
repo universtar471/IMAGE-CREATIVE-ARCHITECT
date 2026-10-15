@@ -212,3 +212,19 @@ is `pc-1.7.0`.
   "attached neighbouring townhouse" text, so the editor opens them as `inferred`.
 - In tests, `nhapho-dna.json` keeps its attached-neighbour text. Setting
   `siteTopology.left = "unknown"` is still inferred as attached unless the text is cleared.
+
+## P1b fix (lead review)
+
+- Added project-type-aware topology defaults. `villa`, `single_storey_house` and
+  `prefab_modular` now resolve an undeclared side to inferred `open_space` (default source),
+  while `townhouse`, `urban_villa` and `custom` remain unknown. Explicit values and inferred
+  attached-neighbour notes still win. The compiler, validator, site editor and camera chip now
+  thread the optional project type through the resolver; detached defaults therefore retain the
+  legacy three-quarter camera wording without being persisted as user-declared edits.
+- Bumped `VALIDATOR_VERSION` to `cv-1.1.0` and updated pinned snapshots/tests.
+- Added regression coverage for detached defaults/evidence, townhouse unknown sides, explicit
+  attached blocking, and villa corner-camera wording. Existing AC-03/AC-04 and editor sync tests
+  remain green.
+- Remaining debts: the detached default is intentionally conservative/inferred (confidence is
+  lowered); rear topology and neighbour height/setback modelling remain future work as noted
+  above.

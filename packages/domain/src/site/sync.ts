@@ -11,6 +11,7 @@
 import type { SideTopology, SiteTopology } from "../schemas/context";
 import type { SiteBoundary, SiteBoundaryKind, SiteExtension } from "../schemas/extensions";
 import type { EvidenceStatus } from "../facts/evidence";
+import type { ProjectType } from "../schemas/enums";
 import { resolveSiteAdjacency, type SiteAdjacencyInput } from "./adjacency";
 
 const TOPOLOGY_OF_KIND: Record<SiteBoundaryKind, SideTopology> = {
@@ -37,8 +38,8 @@ export function siteTopologyFromSite(site: Pick<SiteExtension, "left" | "right">
  * The `site` extension to start editing from: the stored one, or the four sides derived
  * from the ADR-028 toggles (so the editor opens on what older projects already declared).
  */
-export function siteForEditing(dna: SiteAdjacencyInput): SiteExtension {
-  const { coordinateConvention, front, left, right, rear } = resolveSiteAdjacency(dna);
+export function siteForEditing(dna: SiteAdjacencyInput, projectType?: ProjectType): SiteExtension {
+  const { coordinateConvention, front, left, right, rear } = resolveSiteAdjacency(dna, projectType);
   return { version: 1, coordinateConvention, front, left, right, rear };
 }
 

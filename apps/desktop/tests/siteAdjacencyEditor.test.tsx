@@ -162,8 +162,8 @@ describe("site adjacency editor", () => {
 describe("camera chip resolution", () => {
   it("writes the site extension too when an unknown side is resolved", async () => {
     const project = await createProject({
-      name: "Villa chip",
-      projectType: "villa",
+      name: "Custom chip",
+      projectType: "custom",
       subtype: "default",
       starter: {},
     });

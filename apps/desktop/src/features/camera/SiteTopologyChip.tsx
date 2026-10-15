@@ -35,10 +35,16 @@ export function SiteTopologyChip({ camera }: { camera: CameraDNA }) {
   // Writes `site` and the synced toggles (ADR-034), like the site editor.
   const resolve = (mode: "attached" | "corner") => {
     const dna = useStudio.getState().workspace!.draftDna as ProjectDNA;
-    editSiteSide(editDna, dna, plan.side!, {
-      kind: mode === "attached" ? "attached_building" : "street",
-      status: "user_declared",
-    });
+    editSiteSide(
+      editDna,
+      dna,
+      plan.side!,
+      {
+        kind: mode === "attached" ? "attached_building" : "street",
+        status: "user_declared",
+      },
+      project.projectType,
+    );
   };
 
   return (

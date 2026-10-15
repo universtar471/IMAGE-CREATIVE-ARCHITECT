@@ -412,7 +412,7 @@ describe("Interior prompt compiler pc-1.7.0", () => {
         resolvedWarnings,
         ...legacy
       } = actual;
-      expect([validatorVersion, catalogVersion]).toEqual(["cv-1.0.0", "none"]);
+      expect([validatorVersion, catalogVersion]).toEqual(["cv-1.1.0", "none"]);
       expect(sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
       expect(configHash).toMatch(/^sha256:[0-9a-f]{64}$/);
       expect(resolvedWarnings).toEqual([]);

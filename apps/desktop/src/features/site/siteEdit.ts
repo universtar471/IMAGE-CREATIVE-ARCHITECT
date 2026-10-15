@@ -9,6 +9,7 @@ import {
   withSiteBoundary,
   type EvidenceStatus,
   type ProjectDNA,
+  type ProjectType,
   type SiteBoundaryKind,
   type SiteExtension,
   type SiteSide,
@@ -40,8 +41,9 @@ export function editSiteSide(
   dna: Pick<ProjectDNA, "site" | "context">,
   side: SiteSide,
   patch: { kind?: SiteBoundaryKind; status?: EvidenceStatus },
+  projectType?: ProjectType,
 ): void {
-  const site = siteForEditing(dna);
+  const site = siteForEditing(dna, projectType);
   const status =
     patch.status ??
     (patch.kind !== undefined

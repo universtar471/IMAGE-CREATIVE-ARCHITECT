@@ -355,7 +355,7 @@ export function validateShot(input: ValidateShotInput): ShotValidation {
     dna: input.dna,
     shot: input.shotIntent,
     extra: extraText ? prepareText(extraText) : null,
-    adjacency: resolveSiteAdjacency(input.dna),
+    adjacency: resolveSiteAdjacency(input.dna, input.shotIntent.projectType),
   };
   const approved = new Set<string>(input.approvedExceptions ?? []);
   const issues = SHOT_RULES.flatMap((rule) => rule.check(ctx)).map((draft): ConflictIssue => {

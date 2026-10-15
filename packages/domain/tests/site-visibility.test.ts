@@ -292,6 +292,34 @@ describe("AC-03 attached townhouse, AC-04 corner lot", () => {
   });
 });
 
+describe("detached project defaults preserve corner-camera wording", () => {
+  it("keeps the legacy three-quarter wording for an undeclared villa", () => {
+    const dna = withTopology(null);
+    const compiled = compilePrompt({
+      project: { id: "PRJ_VILLA", name: "Villa", projectType: "villa" },
+      dna,
+      references: [],
+      cameraId: FRONT_LEFT,
+    });
+    expect(compiled.positivePrompt).toContain("front-left three-quarter view");
+    expect(resolveSiteAdjacency(dna, "villa").left).toMatchObject({
+      kind: "open_space",
+      evidence: { status: "inferred" },
+    });
+  });
+
+  it("blocks an explicitly attached villa side while inferred open remains visible", () => {
+    const dna = withTopology(null);
+    dna.context.siteTopology = { left: "attached", right: "unknown", cornerLot: false };
+    const result = validateShot({
+      dna,
+      shotIntent: { projectType: "villa", cameraId: SIDE_LEFT },
+    });
+    expect(result.verdict).toBe("BLOCK");
+    expect(result.issues.map((issue) => issue.code)).toEqual(["ADJACENT_BUILDING_CONFLICT"]);
+  });
+});
+
 // ---------------------------------------------------------------- compiler section
 
 /** The ADR-028 party-wall wording exactly as pc-1.6.0 produced it (with a master). */
