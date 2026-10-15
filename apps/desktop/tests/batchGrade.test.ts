@@ -74,6 +74,51 @@ describe("Batch Color Grade V5.3", () => {
     expect(() => gradeAtIntensity(grade, 101)).toThrow();
   });
 
+  it("scales v2 fields, split-tone saturation and LUT strength; keeps curve and hues", () => {
+    const grade = {
+      ...GRADE_LOOKS.neutral,
+      exposure: 40,
+      texture: 20,
+      vignette: -30,
+      grain: 50,
+      toneCurve: "matte" as const,
+      splitTone: {
+        shadowsHue: 200,
+        shadowsSat: 40,
+        highlightsHue: 40,
+        highlightsSat: 60,
+        balance: 10,
+      },
+      lut: { lutId: "L1", strength: 80 },
+      look: "custom",
+    };
+    const half = gradeAtIntensity(grade, 50);
+    expect(half).toMatchObject({
+      exposure: 20,
+      texture: 10,
+      vignette: -15,
+      grain: 25,
+      toneCurve: "matte",
+      splitTone: {
+        shadowsHue: 200,
+        shadowsSat: 20,
+        highlightsHue: 40,
+        highlightsSat: 30,
+        balance: 10,
+      },
+      lut: { lutId: "L1", strength: 40 },
+      look: "custom",
+    });
+    // Absent optional fields stay absent (neutral), and the input is not mutated.
+    const v1 = gradeAtIntensity(GRADE_LOOKS.cool_modern, 25);
+    expect("texture" in v1 || "splitTone" in v1 || "lut" in v1).toBe(false);
+    expect(grade.lut.strength).toBe(80);
+    const zero = gradeAtIntensity(grade, 0);
+    expect(zero.lut).toEqual({ lutId: "L1", strength: 0 });
+    expect(zero.splitTone?.shadowsSat).toBe(0);
+    expect(gradeAtIntensity(grade, 100)).toEqual(grade);
+  });
+
   it("processes sequentially, persists successful items and isolates failures", async () => {
     const visited: string[] = [];
     const apply = vi.fn(async (id: string) => {

@@ -1,6 +1,11 @@
 import { CheckSquare, Layers, RotateCcw, Search, Square, StopCircle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GRADE_LOOK_CATALOG, GRADE_LOOKS, type AssetDTO, type GradeLookId } from "@arch/domain";
+import {
+  GRADE_LOOK_CATALOG,
+  GRADE_STYLE_PRESETS,
+  type AssetDTO,
+  type ColorGradeDNA,
+} from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
 import { call } from "../../lib/bridge";
@@ -8,6 +13,14 @@ import { fileUrl } from "../../lib/files";
 import { useLocale, useT } from "../../i18n";
 import { GradeCanvas } from "./GradeCanvas";
 import { GradeLookGallery } from "./GradeLookGallery";
+import {
+  STYLE_PRESET_IDS,
+  gradeForPreset,
+  matchingStylePresets,
+  withLut,
+  withLutStrength,
+} from "./gradePresets";
+import { neutralGrade } from "../../lib/grade";
 import {
   batchSourceAssets,
   gradeAtIntensity,
@@ -28,7 +41,8 @@ const initialProgress: BatchProgress = {
   cancelled: false,
 };
 
-const isLookId = (id: string): id is GradeLookId => Object.hasOwn(GRADE_LOOKS, id);
+/** Batch choice: a v1 look id, a style preset id, or the project's current grade. */
+const CURRENT = "current";
 
 /**
  * Batch colour grade (V5.3, ADR-032): real project thumbnails, bulk selection and one
@@ -47,7 +61,9 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [lookId, setLookId] = useState<GradeLookId>("daylight_clean");
+  const [presetId, setPresetId] = useState<string>("daylight_clean");
+  // The LUT layer of the batch grade, chosen in the gallery's LUT tab.
+  const [lut, setLut] = useState<ColorGradeDNA["lut"]>(undefined);
   const [intensity, setIntensity] = useState(100);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -84,11 +100,22 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
     shown[0] ??
     null;
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
-  const scaledGrade = useMemo(
-    () => gradeAtIntensity(GRADE_LOOKS[lookId], intensity),
-    [lookId, intensity],
+  const currentGrade = workspace.draftDna.colorGrade as ColorGradeDNA | undefined;
+  const styleMatches = useMemo(
+    () => matchingStylePresets(workspace.draftDna),
+    [workspace.draftDna],
   );
-  const label = `Batch color grade · ${lookId} · ${intensity}%`;
+  // Read once per choice; the batch never writes draftDna.colorGrade.
+  const baseGrade = useMemo<ColorGradeDNA>(() => {
+    const chosen =
+      presetId === CURRENT ? { ...(currentGrade ?? neutralGrade()) } : gradeForPreset(presetId);
+    const { lut: _ignored, ...rest } = chosen ?? neutralGrade();
+    return lut ? { ...rest, lut } : rest;
+  }, [currentGrade, lut, presetId]);
+  const scaledGrade = useMemo(() => gradeAtIntensity(baseGrade, intensity), [baseGrade, intensity]);
+  const label = `Batch color grade · ${presetId === CURRENT ? (currentGrade?.look ?? CURRENT) : presetId}${
+    lut ? " + LUT" : ""
+  } · ${intensity}%`;
   const runningDisabled = busy || readOnly;
   const selectionDisabled = runningDisabled || hasRun;
   const errors = Object.values(results).filter((r) => r.status === "failed");
@@ -257,6 +284,11 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <p className="field-hint">{t("moodGrade.batchDialog.intro")}</p>
+      {readOnly && (
+        <p className="field-hint" role="alert" data-testid="batch-grade-readonly">
+          {t("moodGrade.batchDialog.readOnly")}
+        </p>
+      )}
       <div className="batch-grade-toolbar">
         <label>
           <span>{t("moodGrade.batchDialog.source")}</span>
@@ -383,17 +415,31 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
           {t("moodGrade.batchDialog.look")}
           <select
             className="input"
-            value={lookId}
+            value={presetId}
+            data-testid="batch-grade-look"
             disabled={busy || hasRun}
             onChange={(event) => {
-              if (isLookId(event.target.value)) setLookId(event.target.value);
+              const id = event.target.value;
+              if (id === CURRENT || gradeForPreset(id)) setPresetId(id);
             }}
           >
-            {GRADE_LOOK_CATALOG.map((item) => (
-              <option key={item.id} value={item.id}>
-                {locale === "vi" ? item.labelVi : item.labelEn}
-              </option>
-            ))}
+            {currentGrade && (
+              <option value={CURRENT}>{t("moodGrade.batchDialog.currentGrade")}</option>
+            )}
+            <optgroup label={t("moodGrade.batchDialog.looksGroup")}>
+              {GRADE_LOOK_CATALOG.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {locale === "vi" ? item.labelVi : item.labelEn}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label={t("moodGrade.gradeCategory.style")}>
+              {STYLE_PRESET_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {locale === "vi" ? GRADE_STYLE_PRESETS[id].vi : GRADE_STYLE_PRESETS[id].en}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
         <label>
@@ -418,13 +464,35 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
       >
         {t(galleryOpen ? "moodGrade.batchDialog.hideGallery" : "moodGrade.batchDialog.showGallery")}
       </button>
+      {lut && (
+        <p className="field-hint" data-testid="batch-grade-lut">
+          {t("moodGrade.batchDialog.lutLayer", { strength: Math.round(lut.strength) })}{" "}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={busy || hasRun}
+            onClick={() => setLut(undefined)}
+          >
+            {t("luts.clear")}
+          </button>
+        </p>
+      )}
       {galleryOpen && (
         <GradeLookGallery
           asset={previewAsset}
-          value={lookId}
+          value={presetId}
           disabled={busy || hasRun}
+          styleMatches={styleMatches}
+          lutId={lut?.lutId}
+          lutStrength={lut?.strength}
           onChange={(id) => {
-            if (!hasRun && isLookId(id)) setLookId(id);
+            if (!hasRun && gradeForPreset(id)) setPresetId(id);
+          }}
+          onLut={(lutId) => {
+            if (!hasRun) setLut(withLut({ ...neutralGrade(), lut }, lutId).lut);
+          }}
+          onLutStrength={(value) => {
+            if (!hasRun) setLut(withLutStrength({ ...neutralGrade(), lut }, value).lut);
           }}
         />
       )}

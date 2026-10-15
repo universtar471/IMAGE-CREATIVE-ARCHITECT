@@ -71,13 +71,34 @@ export function selectFilteredIds(
   return updated;
 }
 
-/** Scale the *actual* grade input, so the large preview and native saved image match. */
+/** Optional v2 numbers (absent = neutral); scaled like the v1 fields when present. */
+const OPTIONAL_FIELDS = ["texture", "vignette", "grain"] as const;
+
+/**
+ * Scale the *actual* grade input, so the large preview and native saved image match
+ * (ADR-032): every numeric field goes linearly toward neutral, `lut.strength` and the
+ * split-tone saturations scale the same way; the tone curve, split-tone hues and balance,
+ * the LUT id and `look` are kept.
+ */
 export function gradeAtIntensity(grade: ColorGradeDNA, intensity: number): ColorGradeDNA {
   if (!Number.isFinite(intensity) || intensity < 0 || intensity > 100) {
     throw new Error("Grade intensity must be between 0 and 100.");
   }
+  const k = intensity / 100;
   const result: ColorGradeDNA = { ...grade };
-  for (const field of GRADE_FIELDS) result[field] = ((grade[field] ?? 0) * intensity) / 100;
+  for (const field of GRADE_FIELDS) result[field] = (grade[field] ?? 0) * k;
+  for (const field of OPTIONAL_FIELDS) {
+    const value = grade[field];
+    if (value !== undefined) result[field] = value * k;
+  }
+  if (grade.splitTone) {
+    result.splitTone = {
+      ...grade.splitTone,
+      shadowsSat: grade.splitTone.shadowsSat * k,
+      highlightsSat: grade.splitTone.highlightsSat * k,
+    };
+  }
+  if (grade.lut) result.lut = { ...grade.lut, strength: grade.lut.strength * k };
   return result;
 }
 

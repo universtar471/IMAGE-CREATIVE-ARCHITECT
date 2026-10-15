@@ -459,6 +459,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       });
       return { source, added: sampleNames.length, invalid: 0 };
     },
+    lut_source_list: () => [...lutSources.values()],
     lut_source_remove: (request) => {
       const { sourceId } = request as { sourceId: string };
       if (!lutSources.delete(sourceId)) fail("NOT_FOUND", "LUT source not found.");
@@ -1169,7 +1170,12 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   // Resume queued/retrying jobs left from a previous session.
   if (jobs.some((j) => !isTerminal(j))) schedulePump();
 
-  const handlers: { [C in CommandName]: (req: Requests[C]) => unknown | Promise<unknown> } = {
+  // LUT commands and grade_preview are served by `lutHandlers` above.
+  const handlers: {
+    [C in Exclude<CommandName, `lut_${string}` | "grade_preview">]: (
+      req: Requests[C],
+    ) => unknown | Promise<unknown>;
+  } = {
     dna_assist: (req) => {
       getProject(req.projectId);
       const provider = getProvider("hhtech");
@@ -1795,7 +1801,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const transport: Transport = async (command, args) => {
     const lutHandler = lutHandlers[command as string];
     if (lutHandler) return structuredClone(await lutHandler(args.request));
-    const handler = handlers[command] as (req: unknown) => unknown;
+    const handler = handlers[command as keyof typeof handlers] as (req: unknown) => unknown;
     return structuredClone(await handler(args.request));
   };
   transport.connectEvents = (sink) => {

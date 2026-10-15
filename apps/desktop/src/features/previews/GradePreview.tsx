@@ -4,7 +4,16 @@ import { fileUrl } from "../../lib/files";
 import { currentLocale, translate } from "../../i18n";
 import { LightingPreview } from "./LightingPreview";
 
-function gradeFilter(grade: ColorGradeDNA) {
+/**
+ * CSS brightness for `exposure` (−100..100 = −1..+1 stop, as in `applyGradePixel`). The stop
+ * multiplies linear light; CSS brightness scales sRGB values, so use the ~1/2.2 power of it.
+ */
+export function exposureBrightness(exposure: number): number {
+  const stops = Math.max(-100, Math.min(100, Number(exposure) || 0)) / 100;
+  return Number((2 ** (stops / 2.2)).toFixed(4));
+}
+
+export function gradeFilter(grade: ColorGradeDNA) {
   const contrast = Math.max(0.55, Math.min(1.65, 1 + Number(grade.contrast ?? 0) / 140));
   const saturation = Math.max(
     0,
@@ -12,7 +21,7 @@ function gradeFilter(grade: ColorGradeDNA) {
   );
   const temperature = Number(grade.temperature ?? 0);
   const sepia = Math.max(0, Math.min(0.5, temperature / 300));
-  return `brightness(${Math.max(0.7, Math.min(1.3, 1 + Number(grade.exposure ?? 0) / 6))}) contrast(${contrast}) saturate(${saturation}) sepia(${sepia}) hue-rotate(${Number(grade.tint ?? 0) * 0.25}deg)`;
+  return `brightness(${exposureBrightness(Number(grade.exposure ?? 0))}) contrast(${contrast}) saturate(${saturation}) sepia(${sepia}) hue-rotate(${Number(grade.tint ?? 0) * 0.25}deg)`;
 }
 
 export function GradePreview({

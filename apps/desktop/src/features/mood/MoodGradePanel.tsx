@@ -2,6 +2,7 @@ import { Images, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   defaultGenerationParams,
+  isGradeV2,
   type ColorGradeDNA,
   type GenerationParams,
   type WeatherPreset,
@@ -13,8 +14,10 @@ import { Dialog } from "../../components/common/Dialog";
 import { FieldGroup, SelectField, TextAreaField, TextField } from "../../components/panels/fields";
 import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
-import { GRADE_LOOKS, neutralGrade } from "../../lib/grade";
+import { neutralGrade } from "../../lib/grade";
 import { GradeLookGallery } from "./GradeLookGallery";
+import { GradeSliders } from "./GradeSliders";
+import { chooseGradePreset, matchingStylePresets, withLut, withLutStrength } from "./gradePresets";
 import { BatchGradeDialog } from "./BatchGradeDialog";
 import {
   adoptMoodPresetSections,
@@ -26,20 +29,6 @@ import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { MoodPreview, MoodPresetCards } from "../previews/MoodPreview";
 import { GradePreview } from "../previews/GradePreview";
 
-const SLIDERS = [
-  "exposure",
-  "contrast",
-  "highlights",
-  "shadows",
-  "whites",
-  "blacks",
-  "temperature",
-  "tint",
-  "vibrance",
-  "saturation",
-  "clarity",
-  "dehaze",
-] as const;
 type Preset = MoodVariationPreset;
 
 export function presetSelectValue(section: Record<string, unknown>): string | undefined {
@@ -103,9 +92,10 @@ export function MoodGradePanel() {
     : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const sourceId =
     ws.assets.find((a) => a.id === selectedAssetId)?.id ?? ws.project.activeMasterAssetId ?? "";
-  const masterAsset = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
-  const selectedAsset = ws.assets.find((a) => a.id === selectedAssetId) ?? null;
-  const gradeSource = masterAsset ?? selectedAsset;
+  // The same image `applyGrade` grades: the selected asset, else the active master.
+  const gradeSource = ws.assets.find((a) => a.id === sourceId) ?? null;
+  const styleMatches = useMemo(() => matchingStylePresets(ws.draftDna), [ws.draftDna]);
+  const gradeV2 = isGradeV2(grade);
   const costHint =
     provider?.id === "hhtech" && model?.priceHint && params.imageSize
       ? `${chosen.length * params.outputCount} × ${model.priceHint[params.imageSize] ?? "?"}đ`
@@ -127,12 +117,11 @@ export function MoodGradePanel() {
     return sections.length > 0 && sections.every((section) => !!locks[section]);
   };
   const setMood = (field: string, value: unknown) => editDna("mood", { ...mood, [field]: value });
-  const setGrade = (field: string, value: unknown) =>
-    editDna("colorGrade", { ...grade, [field]: value, look: undefined });
   const chooseLook = (id: string | undefined) => {
-    if (id && Object.hasOwn(GRADE_LOOKS, id))
-      editDna("colorGrade", { ...GRADE_LOOKS[id as keyof typeof GRADE_LOOKS] });
+    const next = id ? chooseGradePreset(grade, id) : null;
+    if (next) editDna("colorGrade", next);
   };
+  const applyLabel = [grade.look, grade.lut ? "LUT" : null].filter(Boolean).join(" + ");
   const adopt = (preset: Preset) => {
     if (workflowView?.steps.find((step) => step.id === "dna.lighting")?.status === "confirmed") {
       if (!window.confirm(t("moodGrade.confirmLightingChange"))) return;
@@ -261,27 +250,29 @@ export function MoodGradePanel() {
         )}
       </SectionPanel>
       <SectionPanel title={t("moodGrade.grade")} aside={<LockToggle section="colorGrade" />}>
-        <GradePreview asset={gradeSource} grade={grade} />
+        {gradeV2 ? (
+          <p className="field-hint" data-testid="grade-v2-hint">
+            {t("moodGrade.v2PreviewHint")}
+          </p>
+        ) : (
+          <GradePreview asset={gradeSource} grade={grade} />
+        )}
         <GradeLookGallery
-          asset={ws.assets.find((a) => a.id === sourceId) ?? null}
+          asset={gradeSource}
           value={grade.look}
           disabled={gradeLocked}
+          styleMatches={styleMatches}
+          lutId={grade.lut?.lutId}
+          lutStrength={grade.lut?.strength}
           onChange={chooseLook}
+          onLut={(lutId) => editDna("colorGrade", withLut(grade, lutId))}
+          onLutStrength={(value) => editDna("colorGrade", withLutStrength(grade, value))}
         />
-        {SLIDERS.map((field) => (
-          <FieldGroup key={field} label={field[0]!.toUpperCase() + field.slice(1)}>
-            <input
-              className="input"
-              type="range"
-              min={-100}
-              max={100}
-              step={1}
-              value={Number(grade[field] ?? 0)}
-              disabled={gradeLocked}
-              onChange={(e) => setGrade(field, Number(e.target.value))}
-            />
-          </FieldGroup>
-        ))}
+        <GradeSliders
+          grade={grade}
+          disabled={gradeLocked}
+          onChange={(next) => editDna("colorGrade", next)}
+        />
         <div className="btn-row">
           <button
             className="btn btn-ghost btn-sm"
@@ -296,7 +287,7 @@ export function MoodGradePanel() {
           <button
             className="btn btn-primary btn-sm"
             disabled={gradeLocked || !sourceId}
-            onClick={() => void applyGrade(grade, grade.look ? `Grade · ${grade.look}` : undefined)}
+            onClick={() => void applyGrade(grade, applyLabel ? `Grade · ${applyLabel}` : undefined)}
           >
             <Sparkles size={12} /> {t("moodGrade.apply")}
           </button>
