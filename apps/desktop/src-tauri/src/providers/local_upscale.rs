@@ -4,8 +4,8 @@ use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
 use serde_json::json;
 
 use super::{
-    EnhanceMode, ImageProvider, ModelCapabilities, ProviderError, ProviderErrorKind, ProviderImage, ProviderInfo,
-    ProviderKind, ProviderOutput, ProviderRequest,
+    EnhanceMode, IfAlreadyLarger, ImageProvider, ModelCapabilities, PreservationMode, ProviderError, ProviderErrorKind,
+    ProviderImage, ProviderInfo, ProviderKind, ProviderOutput, ProviderRequest, UpscaleTarget,
 };
 
 pub const ID: &str = "local_upscale";
@@ -44,7 +44,9 @@ impl ImageProvider for LocalUpscaleProvider {
         let enhance = request.params.enhance.as_ref().ok_or_else(|| {
             ProviderError::new(ProviderErrorKind::InvalidRequest, "Local upscale requires enhancement parameters.")
         })?;
-        if enhance.mode != EnhanceMode::Conservative {
+        if enhance.mode != EnhanceMode::Conservative
+            || matches!(enhance.preservation_mode, Some(PreservationMode::Balanced | PreservationMode::Creative))
+        {
             return Err(ProviderError::new(
                 ProviderErrorKind::InvalidRequest,
                 "Local upscale only supports conservative enhancement.",
@@ -65,7 +67,11 @@ impl ImageProvider for LocalUpscaleProvider {
         let source = image::load_from_memory(&reference.bytes).map_err(|e| {
             ProviderError::new(ProviderErrorKind::InvalidRequest, format!("The source image could not be decoded: {e}"))
         })?;
-        let output = resize_and_sharpen(&source, target as u32, enhance.detail_strength);
+        let output = if let Some(upscale) = &enhance.upscale {
+            resize_to_target(&source, &upscale.target, upscale.if_already_larger, enhance.detail_strength)
+        } else {
+            resize_and_sharpen(&source, target as u32, enhance.detail_strength)
+        };
         let mut bytes = Vec::new();
         output.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|e| {
             ProviderError::new(ProviderErrorKind::BadResponse, format!("Could not encode local upscale: {e}"))
@@ -112,6 +118,54 @@ pub fn resize_and_sharpen(source: &DynamicImage, target_long_edge: u32, detail_s
     DynamicImage::ImageRgba8(output)
 }
 
+fn resize_to_target(
+    source: &DynamicImage,
+    target: &UpscaleTarget,
+    if_already_larger: IfAlreadyLarger,
+    detail_strength: i32,
+) -> DynamicImage {
+    let (canvas_w, canvas_h) = match target {
+        UpscaleTarget::LongEdge2048 => (2048, 2048),
+        UpscaleTarget::LongEdge4096 => (4096, 4096),
+        UpscaleTarget::Uhd3840x2160Contain => (3840, 2160),
+        UpscaleTarget::Custom { width, height, .. } => (*width, *height),
+    };
+    let source_long = source.width().max(source.height());
+    let target_long = match target {
+        UpscaleTarget::LongEdge2048 => 2048,
+        UpscaleTarget::LongEdge4096 => 4096,
+        _ => canvas_w.max(canvas_h),
+    };
+    if matches!(target, UpscaleTarget::LongEdge2048 | UpscaleTarget::LongEdge4096) {
+        if source_long >= target_long {
+            return match if_already_larger {
+                IfAlreadyLarger::QualityOnly => resize_and_sharpen(source, source_long, detail_strength),
+                IfAlreadyLarger::Keep | IfAlreadyLarger::Skip => source.clone(),
+            };
+        }
+        return resize_and_sharpen(source, target_long, detail_strength);
+    }
+    if source.width() > canvas_w || source.height() > canvas_h {
+        return match if_already_larger {
+            IfAlreadyLarger::QualityOnly => resize_and_sharpen(source, source_long, detail_strength),
+            IfAlreadyLarger::Keep | IfAlreadyLarger::Skip => source.clone(),
+        };
+    }
+    let _ = if_already_larger;
+    let scale = (canvas_w as f32 / source.width() as f32).min(canvas_h as f32 / source.height() as f32);
+    let scale = scale.clamp(0.0001, 1.0);
+    let width = (source.width() as f32 * scale).round().max(1.0) as u32;
+    let height = (source.height() as f32 * scale).round().max(1.0) as u32;
+    let resized = resize_and_sharpen(source, width.max(height), detail_strength)
+        .resize_exact(width, height, image::imageops::FilterType::Lanczos3)
+        .to_rgba8();
+    let mut canvas = RgbaImage::from_pixel(canvas_w, canvas_h, Rgba([0, 0, 0, 0]));
+    let x = (canvas_w - width) / 2;
+    let y = (canvas_h - height) / 2;
+    image::imageops::overlay(&mut canvas, &resized, i64::from(x), i64::from(y));
+    DynamicImage::ImageRgba8(canvas)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,6 +200,9 @@ mod tests {
                     target_long_edge: Some(target as i32),
                     detail_strength: detail as i32,
                     architecture_preserve: true,
+                    preservation_mode: None,
+                    locks: None,
+                    upscale: None,
                 }),
                 repair: None,
                 region: None,

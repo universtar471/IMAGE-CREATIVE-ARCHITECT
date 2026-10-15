@@ -550,6 +550,10 @@ Migration `0004_workflow.sql`: table `workflow_steps(project_id, step_id, status
 
 ### 14.1 Params
 
+SRS P3 adds optional `preservationMode`, `locks`, and `upscale` targets. Legacy enhancement
+requests remain valid; strict mode is local-only and emits an optional deterministic
+`enhanceCheck` on the generation DTO.
+
 `GenerationPurpose` gains `"enhance"`. An enhance request is an ordinary `generation_submit` / batch item with `purpose: "enhance"`, exactly one reference (the source asset, role treated as master), and `params.enhance`:
 
 ```ts

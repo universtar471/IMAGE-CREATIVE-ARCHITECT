@@ -101,14 +101,17 @@ export function EnhancePanel() {
     if (!providers.length) void loadProviders();
   }, [loadProviders, providers.length]);
 
-  const updateMode = (mode: EnhanceParams["mode"]) => {
-    const next =
-      mode === "conservative"
-        ? { ...params, mode, targetLongEdge: params.targetLongEdge ?? 2048 }
-        : { ...params, mode };
-    setParams(next);
-    setProviderId(mode === "conservative" ? "local_upscale" : (generativeProviders[0]?.id ?? ""));
-    setModelId(mode === "conservative" ? "lanczos3" : "");
+  const preservationMode =
+    params.preservationMode ?? (params.mode === "conservative" ? "strict" : "balanced");
+  const updatePreservationMode = (mode: NonNullable<EnhanceParams["preservationMode"]>) => {
+    setParams({
+      ...params,
+      preservationMode: mode,
+      mode: mode === "strict" ? "conservative" : "generative",
+      targetLongEdge: mode === "strict" ? (params.targetLongEdge ?? 2048) : params.targetLongEdge,
+    });
+    setProviderId(mode === "strict" ? "local_upscale" : (generativeProviders[0]?.id ?? ""));
+    setModelId(mode === "strict" ? "lanczos3" : "");
   };
 
   const enhance = async () => {
@@ -162,20 +165,48 @@ export function EnhancePanel() {
       </SectionPanel>
       <SectionPanel title={t("enhance.mode")}>
         <div className="segmented" role="group" aria-label={t("enhance.mode")}>
-          <button
-            type="button"
-            aria-pressed={params.mode === "conservative"}
-            onClick={() => updateMode("conservative")}
-          >
-            {t("enhance.conservative")}
-          </button>
-          <button
-            type="button"
-            aria-pressed={params.mode === "generative"}
-            onClick={() => updateMode("generative")}
-          >
-            {t("enhance.generative")}
-          </button>
+          {(["strict", "balanced", "creative"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={preservationMode === mode}
+              onClick={() => updatePreservationMode(mode)}
+            >
+              {t(
+                `enhance.${mode === "strict" ? "strictMode" : mode === "balanced" ? "balancedMode" : "creativeMode"}` as Parameters<
+                  typeof t
+                >[0],
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="field-row">
+          {(["geometry", "material", "context", "camera"] as const).map((lock) => (
+            <label key={lock} className="toggle-row">
+              <input
+                type="checkbox"
+                checked={params.locks?.[lock] ?? true}
+                onChange={(event) =>
+                  setParams({
+                    ...params,
+                    locks: {
+                      geometry: true,
+                      material: true,
+                      context: true,
+                      camera: true,
+                      ...params.locks,
+                      [lock]: event.target.checked,
+                    },
+                  })
+                }
+              />
+              {t(
+                `enhance.lock${lock.charAt(0).toUpperCase()}${lock.slice(1)}` as Parameters<
+                  typeof t
+                >[0],
+              )}
+            </label>
+          ))}
         </div>
         <FieldGroup label={t("enhance.target")} hint={t("enhance.targetHint")}>
           <div className="segmented">

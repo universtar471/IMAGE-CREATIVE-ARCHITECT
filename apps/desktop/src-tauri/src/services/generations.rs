@@ -1073,6 +1073,7 @@ fn to_dto(conn: &Connection, row: GenerationRow) -> AppResult<GenerationDto> {
         started_at,
         finished_at: row.finished_at,
         duration_ms: row.duration_ms,
+        enhance_check: None,
     })
 }
 
@@ -1981,6 +1982,9 @@ mod tests {
             target_long_edge: target,
             detail_strength: 40,
             architecture_preserve: true,
+            preservation_mode: None,
+            locks: None,
+            upscale: None,
         });
         req
     }

@@ -803,6 +803,9 @@ fn hhtech_live_enhance() {
         target_long_edge: Some(2048),
         detail_strength: 40,
         architecture_preserve: true,
+        preservation_mode: None,
+        locks: None,
+        upscale: None,
     });
     match provider.generate(&request) {
         Ok(out) => save("enhance", &out),

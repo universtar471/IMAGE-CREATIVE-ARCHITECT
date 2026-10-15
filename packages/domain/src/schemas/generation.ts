@@ -82,8 +82,47 @@ export const EnhanceParamsSchema = z.object({
   targetLongEdge: z.union([z.literal(2048), z.literal(3072), z.literal(4096), z.null()]),
   detailStrength: z.number().int().min(0).max(100).default(40),
   architecturePreserve: z.boolean().default(true),
+  /** SRS P3 mode; optional so legacy rows remain byte-compatible. */
+  preservationMode: z.enum(["strict", "balanced", "creative"]).optional(),
+  /** Locks are only written by the new UI; omitted means the legacy contract. */
+  locks: z
+    .object({
+      geometry: z.boolean(),
+      material: z.boolean(),
+      context: z.boolean(),
+      camera: z.boolean(),
+    })
+    .optional(),
+  upscale: z
+    .object({
+      target: z.union([
+        z.literal("long_edge_2048"),
+        z.literal("long_edge_4096"),
+        z.literal("uhd_3840x2160_contain"),
+        z.object({
+          width: z.number().int().positive(),
+          height: z.number().int().positive(),
+          fit: z.literal("contain"),
+        }),
+      ]),
+      ifAlreadyLarger: z.enum(["keep", "quality_only", "skip"]).default("keep"),
+    })
+    .optional(),
 });
 export type EnhanceParams = z.infer<typeof EnhanceParamsSchema>;
+
+export const EnhanceCheckSchema = z.object({
+  status: z.enum(["pass", "warn"]),
+  reasons: z.array(z.string()),
+  size: z
+    .object({ width: z.number().int().positive(), height: z.number().int().positive() })
+    .optional(),
+  aspectRatio: z.number().positive().optional(),
+  registrationOffset: z.number().nonnegative().optional(),
+  lockedSsim: z.number().min(0).max(1).optional(),
+  edgeDelta: z.number().nonnegative().optional(),
+});
+export type EnhanceCheck = z.infer<typeof EnhanceCheckSchema>;
 
 /**
  * Params of a legacy `repair` generation. Repairs were created only from QC reports; QC was
@@ -152,6 +191,13 @@ function addPurposeContractIssues(
         code: "custom",
         path: ["providerId"],
         message: 'Conservative enhancement requires providerId "local_upscale".',
+      });
+    }
+    if (enhance.preservationMode === "strict" && value.providerId !== "local_upscale") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["providerId"],
+        message: 'Strict enhancement requires providerId "local_upscale".',
       });
     }
   }
@@ -250,6 +296,7 @@ export const GenerationDTOSchema = z
     startedAt: z.string().nullable(),
     finishedAt: z.string().nullable(),
     durationMs: z.number().int().nonnegative().nullable(),
+    enhanceCheck: EnhanceCheckSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => addPurposeContractIssues(value, ctx));
 export type GenerationDTO = z.infer<typeof GenerationDTOSchema>;

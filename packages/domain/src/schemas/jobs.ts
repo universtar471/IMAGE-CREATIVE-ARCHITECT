@@ -113,6 +113,13 @@ export const BatchCreateRequestSchema = z
             message: 'Conservative enhancement requires providerId "local_upscale".',
           });
         }
+        if (enhance.preservationMode === "strict" && value.providerId !== "local_upscale") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["providerId"],
+            message: 'Strict enhancement requires providerId "local_upscale".',
+          });
+        }
       }
       if (value.purpose === "region_edit") {
         if (!item.params.region) {

@@ -23,6 +23,8 @@ export const DEFAULT_ENHANCE_PARAMS: EnhanceParams = {
   targetLongEdge: 2048,
   detailStrength: 40,
   architecturePreserve: true,
+  preservationMode: "strict",
+  locks: { geometry: true, material: true, context: true, camera: true },
 };
 
 export function disabledEnhanceTargets(

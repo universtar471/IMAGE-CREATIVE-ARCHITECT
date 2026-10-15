@@ -1066,6 +1066,16 @@ export const vi: Dict = {
   },
 
   enhance: {
+    strictMode: "Giữ nguyên chi tiết",
+    balancedMode: "Nâng cấp thông minh",
+    creativeMode: "Nâng cấp mạnh",
+    lockGeometry: "Khóa hình học",
+    lockMaterial: "Khóa vật liệu",
+    lockContext: "Khóa bối cảnh",
+    lockCamera: "Khóa camera",
+    checkPass: "Đạt kiểm tra",
+    checkWarn: "Cần xem lại",
+    checkReasons: "Lý do",
     title: "Nâng cấp",
     source: "Ảnh nguồn",
     mode: "Chế độ",

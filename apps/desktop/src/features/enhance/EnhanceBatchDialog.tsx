@@ -80,6 +80,8 @@ export function EnhanceBatchDialog({
   );
   const invalidSources = reasons.filter((item) => item.blocked);
   const validation = validateEnhanceParams(params);
+  const preservationMode =
+    params.preservationMode ?? (params.mode === "conservative" ? "strict" : "balanced");
   const cost = enhanceCost(
     params.mode === "conservative" ? (provider?.id ?? providerId) : (provider?.id ?? ""),
     model,
@@ -94,15 +96,15 @@ export function EnhanceBatchDialog({
     !model ||
     busy;
 
-  const updateMode = (mode: EnhanceParams["mode"]) => {
+  const updatePreservationMode = (mode: NonNullable<EnhanceParams["preservationMode"]>) => {
     setParams((current) => ({
       ...current,
-      mode,
-      targetLongEdge:
-        mode === "conservative" ? (current.targetLongEdge ?? 2048) : current.targetLongEdge,
+      preservationMode: mode,
+      mode: mode === "strict" ? "conservative" : "generative",
+      targetLongEdge: mode === "strict" ? (current.targetLongEdge ?? 2048) : current.targetLongEdge,
     }));
-    setProviderId(mode === "conservative" ? "local_upscale" : (generativeProviders[0]?.id ?? ""));
-    setModelId(mode === "conservative" ? "lanczos3" : "");
+    setProviderId(mode === "strict" ? "local_upscale" : (generativeProviders[0]?.id ?? ""));
+    setModelId(mode === "strict" ? "lanczos3" : "");
   };
 
   const submit = async () => {
@@ -135,7 +137,7 @@ export function EnhanceBatchDialog({
         providerId: provider.id,
         modelId: model.id,
         purpose: "enhance",
-        name: `${t("enhance.batch")} Â· ${selectedSources.length}`,
+        name: `${t("enhance.batch")} · ${selectedSources.length}`,
         priority: 0,
         items,
       });
@@ -203,20 +205,20 @@ export function EnhanceBatchDialog({
         </ul>
         <Section title={t("enhance.mode")}>
           <div className="segmented" role="group" aria-label={t("enhance.mode")}>
-            <button
-              type="button"
-              aria-pressed={params.mode === "conservative"}
-              onClick={() => updateMode("conservative")}
-            >
-              {t("enhance.conservative")}
-            </button>
-            <button
-              type="button"
-              aria-pressed={params.mode === "generative"}
-              onClick={() => updateMode("generative")}
-            >
-              {t("enhance.generative")}
-            </button>
+            {(["strict", "balanced", "creative"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={preservationMode === mode}
+                onClick={() => updatePreservationMode(mode)}
+              >
+                {t(
+                  `enhance.${mode === "strict" ? "strictMode" : mode === "balanced" ? "balancedMode" : "creativeMode"}` as Parameters<
+                    typeof t
+                  >[0],
+                )}
+              </button>
+            ))}
           </div>
           <FieldGroup label={t("enhance.target")} hint={t("enhance.targetHint")}>
             <div className="segmented">

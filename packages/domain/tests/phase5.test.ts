@@ -5,6 +5,7 @@ import {
   GenerationSubmitRequestSchema,
   buildEnhanceItems,
   buildEnhancePrompt,
+  resolveUpscaleSize,
   createInitialDNA,
   isGenerationAllowed,
   type EnhanceParams,
@@ -44,6 +45,56 @@ const promptRequest = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("phase 5 enhancement domain", () => {
+  it("resolves long-edge and contain targets without accidental downscale", () => {
+    expect(
+      resolveUpscaleSize({ width: 3000, height: 2000 }, "long_edge_4096", "keep"),
+    ).toMatchObject({
+      width: 4096,
+      height: 2731,
+      action: "upscale",
+    });
+    expect(
+      resolveUpscaleSize({ width: 4000, height: 2000 }, "long_edge_2048", "keep"),
+    ).toMatchObject({
+      width: 4000,
+      height: 2000,
+      action: "keep",
+    });
+    expect(
+      resolveUpscaleSize({ width: 3000, height: 2000 }, "uhd_3840x2160_contain"),
+    ).toMatchObject({
+      width: 3240,
+      height: 2160,
+      letterbox: true,
+    });
+  });
+
+  it("uses the SRS preservation prompt only when the new mode is set", () => {
+    const legacy = buildEnhancePrompt({
+      dna,
+      params: {
+        mode: "generative",
+        targetLongEdge: null,
+        detailStrength: 40,
+        architecturePreserve: true,
+      },
+    });
+    const preserved = buildEnhancePrompt({
+      dna,
+      params: {
+        mode: "generative",
+        targetLongEdge: null,
+        detailStrength: 40,
+        architecturePreserve: true,
+        preservationMode: "balanced",
+        locks: { geometry: true, material: true, context: true, camera: true },
+      },
+    });
+    expect(legacy).toContain("Enhance this architectural image");
+    expect(preserved).toContain(
+      "TASK: Enhance the provided architectural render; DO NOT redesign.",
+    );
+  });
   it("defaults enhancement params exactly as the contract specifies", () => {
     expect(EnhanceParamsSchema.parse({ mode: "generative", targetLongEdge: null })).toEqual({
       mode: "generative",
