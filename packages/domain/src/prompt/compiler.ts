@@ -23,6 +23,7 @@ import { VALIDATOR_VERSION } from "../validation/codes";
 import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
+import type { ShotIntent } from "../validation";
 
 export const COMPILER_VERSION = "pc-1.7.0";
 
@@ -53,6 +54,8 @@ export type PromptCompileInput = {
   pack?: KnowledgePack | null;
   /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
   cameraId?: string | null;
+  /** Optional per-shot snapshot. It is never written back into the DNA. */
+  shotIntent?: ShotIntent;
 };
 
 export type PromptSectionOverrides = {
@@ -244,7 +247,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const cameraId = camera?.id ?? null;
   const validation = validateShot({
     dna,
-    shotIntent: { projectType: project.projectType, cameraId },
+    shotIntent: input.shotIntent ?? { projectType: project.projectType, cameraId },
   });
   const sourceHash = canonicalHash({
     dna,
@@ -253,6 +256,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       projectType: project.projectType,
       subtype: project.subtype ?? null,
       cameraId,
+      visualIntent: input.shotIntent?.visualIntent,
       references: references.map((r) => ({
         assetId: r.assetId,
         role: r.role,
@@ -275,6 +279,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     sourceHash,
     configHash,
     resolvedWarnings: warningCodes(validation),
+    ...(input.shotIntent ? { shotIntent: input.shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),

@@ -13,8 +13,10 @@
  *   to WARN, so a guess never hard-blocks the user.
  */
 import type { ProjectDNA } from "../schemas/projectDna";
-import type { ProjectType } from "../schemas/enums";
+import { ProjectTypeSchema, type ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
+import { VisualIntentSchema, type VisualIntent } from "../camera/intent";
+import { z } from "zod";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
 import { isFacadeExposable, resolveVisibility, type Facade } from "../site/visibility";
@@ -51,7 +53,17 @@ export type ShotIntent = {
   targetSpaceId?: string | null;
   /** P2: the target architectural detail. */
   targetDetailId?: string | null;
+  /** P2a visual camera choice; kept in the shot snapshot, never in DNA. */
+  visualIntent?: VisualIntent;
 };
+
+export const ShotIntentSchema = z.object({
+  projectType: ProjectTypeSchema,
+  cameraId: z.string().nullable().optional(),
+  targetSpaceId: z.string().nullable().optional(),
+  targetDetailId: z.string().nullable().optional(),
+  visualIntent: VisualIntentSchema.optional(),
+});
 
 export type ValidateShotInput = {
   dna: ProjectDNA;
