@@ -304,7 +304,7 @@ describe("UNVERIFIED_GEOMETRY", () => {
       spaces: [
         {
           id: "SPC_1",
-          presetId: "townhouse.living",
+          presetId: "townhouse.living.phong_khach_rieng",
           facts: {
             widthM: { value: 5, evidence: { status: "verified", sourceAssetIds: ["AST_plan"] } },
           },
@@ -374,7 +374,7 @@ describe("LOCKED_LIGHTING_CONFLICT", () => {
 });
 
 describe("P1 hooks and determinism", () => {
-  it("SPACE_NOT_IN_BUILDING and OCCLUDED_TARGET return nothing until P1", () => {
+  it("OCCLUDED_TARGET returns nothing until P1b (SPACE_NOT_IN_BUILDING: space-catalog.test)", () => {
     const dna = midBlock();
     dna.spaceCatalog = {
       version: 1,
@@ -382,7 +382,7 @@ describe("P1 hooks and determinism", () => {
       spaces: [
         {
           id: "SPC_pool",
-          presetId: "villa.pool",
+          presetId: "townhouse.outdoor.san_sau_hep",
           facts: {},
           lockedElementIds: [],
           approvedOptionalIds: [],

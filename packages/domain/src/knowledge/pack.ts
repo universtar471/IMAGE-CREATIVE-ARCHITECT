@@ -149,6 +149,17 @@ export const KnowledgePackSchema = z.object({
       context: ContextPartialSchema.default({}),
     })
     .default({ building: {}, context: {} }),
+  /**
+   * Illustrative values only (ADR-034), e.g. a typical apartment room size. Sample data, not
+   * verified: never copied into a new project's DNA and never compiled as project facts.
+   */
+  sampleDefaults: z
+    .object({
+      note: z.string().default(""),
+      building: BuildingPartialSchema.default({}),
+      context: ContextPartialSchema.default({}),
+    })
+    .optional(),
   styleSuggestions: textList,
   contextPresets: z.array(ContextPresetSchema).default([]),
   cameraPresets: z.array(CameraPresetSchema).default([]),

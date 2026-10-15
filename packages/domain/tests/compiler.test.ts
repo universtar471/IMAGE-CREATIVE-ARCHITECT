@@ -194,7 +194,7 @@ describe("prompt compiler", () => {
     const bundle = compilePrompt(input("interior"));
     expect(bundle.metadata).toMatchObject({
       projectType: "interior",
-      knowledgePack: "interior/default@1.3.0",
+      knowledgePack: "interior/default@1.4.0",
       referenceCount: 0,
     });
   });

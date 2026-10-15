@@ -1520,6 +1520,10 @@
                 "type": "string",
                 "minLength": 1
               },
+              "variantId": {
+                "type": "string",
+                "minLength": 1
+              },
               "floorId": {
                 "type": "string",
                 "minLength": 1

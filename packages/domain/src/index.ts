@@ -6,6 +6,7 @@ export * from "./schemas/projectDna";
 export * from "./schemas/extensions";
 export * from "./facts";
 export * from "./site";
+export * from "./spaceCatalog";
 export * from "./validation";
 export * from "./schemas/prompt";
 export * from "./schemas/dto";

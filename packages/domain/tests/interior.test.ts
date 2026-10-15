@@ -18,6 +18,7 @@ import {
   styleDefaults,
   validateProjectDNA,
   type InteriorDNA,
+  type KnowledgePack,
 } from "../src";
 import { loadSeedRegistry } from "./helpers";
 
@@ -209,6 +210,19 @@ describe("Interior DNA helpers and schema", () => {
   });
 });
 
+function legacyPack(pack: KnowledgePack | null): KnowledgePack | null {
+  if (!pack?.sampleDefaults) return pack;
+  const { sampleDefaults, ...rest } = pack;
+  return {
+    ...rest,
+    packVersion: "1.3.0",
+    defaults: {
+      building: { ...rest.defaults.building, ...sampleDefaults.building },
+      context: { ...rest.defaults.context, ...sampleDefaults.context },
+    },
+  };
+}
+
 describe("Interior prompt compiler pc-1.7.0", () => {
   function compilerInput() {
     const pack = registry.resolve("interior").pack!;
@@ -241,6 +255,8 @@ describe("Interior prompt compiler pc-1.7.0", () => {
     };
   }
 
+  // ADR-034: the pack's "residential apartment" is sample data, so a new interior project no
+  // longer carries it and the prompt has no context section.
   it("compiles the full Japandi living-room example in stable section order", () => {
     const bundle = compilePrompt(compilerInput());
     expect(COMPILER_VERSION).toBe("pc-1.7.0");
@@ -250,7 +266,6 @@ describe("Interior prompt compiler pc-1.7.0", () => {
       "language",
       "materials",
       "furnishing",
-      "context",
       "lighting",
       "camera",
       "quality",
@@ -265,8 +280,6 @@ describe("Interior prompt compiler pc-1.7.0", () => {
       Materials and colors: warm beige, ivory and natural wood; floor: natural oak flooring with terrazzo accents; walls: soft limewash walls; cabinetry: oak veneer cabinetry; textiles: natural linen textiles; metal: matte black metal.
 
       Furnishing: sofa, armchair, coffee table; balanced furnishing density.
-
-      Surroundings and views: residential apartment.
 
       Interior lighting: morning, high daylight from the left, ambient lighting and accent lighting, warm 3000 K.
 
@@ -373,7 +386,12 @@ describe("Interior prompt compiler pc-1.7.0", () => {
       ),
     ) as Record<string, ReturnType<typeof compilePrompt>>;
     for (const [projectType, expected] of Object.entries(golden)) {
-      const pack = registry.resolve(projectType as Parameters<typeof registry.resolve>[0]).pack;
+      // Old projects persisted the interior sample values (5 x 6 x 3 m, "residential
+      // apartment") as DNA; ADR-034 moved them to `sampleDefaults`. Rebuild the pack as those
+      // projects saw it, so the golden checks that their DNA still compiles to the same text.
+      const pack = legacyPack(
+        registry.resolve(projectType as Parameters<typeof registry.resolve>[0]).pack,
+      );
       const dna = createInitialDNA({
         projectType: projectType as Parameters<typeof createInitialDNA>[0]["projectType"],
         pack,
