@@ -691,3 +691,114 @@ Status: accepted (2026-10-15). Basis: the user asked to remove the scoring featu
   - the vision provider calls used only by QC
 - User data is never deleted. The QC tables and migrations stay unchanged and no drop migration is added, so old databases open as before.
 - The generation purpose `repair` and its label stay, so old history displays. ADR-024 is superseded.
+
+
+## ADR-034 — Master SRS 1.0, phases P0–P1: project facts, unified conflict validator, Space Catalog V3, site adjacency and visibility
+
+Status: accepted (2026-10-15). Basis: the user asked to implement `IMAGE_CREATIVE_ARCHITECT_MASTER_SPEC_V7_2` (SRS 1.0), phases P0 and P1 first. The SRS describes an older snapshot (compiler `pc-1.3.0`, QC present). Main has since gained the following, and this ADR builds on them instead of duplicating them:
+- ADR-027 interior DNA
+- ADR-028 `context.siteTopology` and `cameraSitePlan`
+- ADR-030 assist
+- ADR-033, which removed QC
+
+The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally. P1 therefore ships the catalog infrastructure and a curated starter set, and imports V3 data when the user supplies it.
+
+**P0 — foundation**
+
+**Evidence** (`packages/domain/src/facts/`)
+- `EvidenceRefSchema`:
+  - `status`: `verified | user_declared | inferred | unknown`
+  - `sourceAssetIds: string[]`
+  - `approvedByUser?: boolean`
+  - `confidence?: 0..1`
+- Helper `isConfirmed(e)` is true for `verified` and `user_declared`.
+
+**Project extensions** — all optional, versioned per extension, with `ProjectDNA.schemaVersion` staying `1`:
+- `spaceCatalog?: { version: 1, buildingArchetype, spaces: SpaceInstance[], activeSpaceId? }`
+  - `SpaceInstance`: `{ id, presetId, floorId?, label?, facts: Record<string, { value, evidence }>, lockedElementIds: string[], approvedOptionalIds: string[] }`
+- `site?: { version: 1, coordinateConvention: "viewer_facing_front_facade", front, left, right, rear }`
+  - Each side is a `SiteBoundary`: `{ kind: attached_building | street | open_space | boundary_wall | unknown, evidence, neighborObjectId?, heightRelation?: lower | similar | taller | unknown }`
+- `architecturalDetails?: DetailRecord[]`
+  - Schema only in P0. Planner, prompts and UI come in P2.
+
+**Compatibility**
+- An old DNA without extensions loads, saves and reopens byte-equivalent apart from defaults that already exist.
+- Rust validation (`dna_validation.rs` via the generated JSON schema) accepts the extensions.
+- Unknown future extension keys are rejected, as today.
+- `context.siteTopology` (ADR-028) stays.
+  - `resolveSiteAdjacency(dna)` reads `site` when present. Otherwise it derives sides from `siteTopology`:
+    - `attached` → `attached_building`
+    - `open` → `open_space`, or `street` on the `cornerSide` of a corner lot
+    - `unknown` → `unknown`
+    - front → `street`; rear → `unknown`
+  - Derived sides have evidence status `user_declared` when they come from the UI toggles.
+  - The UI writes `site` from now on and keeps `siteTopology` in sync for older code paths.
+
+**Unified conflict validator** (`packages/domain/src/validation/`)
+- `CONFLICT_CODES`: the SRS §12.4 table, with code, default severity, and vi/en message keys.
+- `validateShot(input) → { verdict: BLOCK | WARN | ALLOW, issues: Issue[], validatorVersion }`
+  - `input = { dna, shotIntent, extraPrompt?, approvedExceptions? }`
+  - `Issue = { code, severity, path, messageKey, params, exceptionAllowed }`
+- `VALIDATOR_VERSION = "cv-1.0.0"`.
+- P0/P1 rules:
+  - `SPACE_NOT_IN_BUILDING`
+  - `UNVERIFIED_GEOMETRY`: WARN when a prompt or extra text asks for exact dimensions that are not verified
+  - `ADJACENT_BUILDING_CONFLICT`: BLOCK when the camera plan or extra prompt would expose a side that is `attached_building`, for example "show the side facade", "remove the neighbour", "corner view", in vi and en
+  - `OCCLUDED_TARGET`: WARN from the visibility resolver
+  - `LOCKED_LIGHTING_CONFLICT`: BLOCK when the extra prompt asks for night or dusk while `locks.lighting` holds a daytime preset
+- The other codes are registered but have no rules yet; they belong to P2–P5.
+- A WARN may be accepted as an exception, stored per shot in the generation request snapshot. A BLOCK can only be cleared by editing the project data.
+- **Gate:** the desktop UI runs `validateShot` before every paid generation submit, including batches and anchors. BLOCK disables submit and shows the reason with a "Sửa lựa chọn" action. The Rust backend re-checks only what it can cheaply: the snapshot carries the verdict, and a BLOCK snapshot is refused.
+
+**Prompt versioning**
+- `PromptBundle` gains:
+  - `catalogVersion`
+  - `validatorVersion`
+  - `sourceHash`: sha256 of the canonical JSON of the DNA plus the shot intent
+  - `configHash`: sha256 of the canonical JSON of the compiler options
+  - `resolvedWarnings: string[]` (codes)
+- Byte-identical output for identical input stays tested (AC-21).
+- The extra prompt is validated before it is appended (AC-22).
+
+**P1 — catalog and context**
+
+**Space Catalog** (`packages/domain/src/spaceCatalog/`)
+- Schemas for `BuildingArchetype` and `SpacePreset`:
+  - `id`, `buildingArchetypes[]`, `zone`: `interior | exterior | semi_outdoor`
+  - `category`, `spaceType`, `labelVi`, `labelEn`, `variants[]`
+  - `requiredIfVerified[]`, `optional[]`, `forbiddenUnlessConfirmed[]`
+  - `cameraIntentIds[]`, `objectCategoryRules?`, `promptTemplateId`
+  - `scopeEn`: a curated English scope sentence
+- A registry with lookup by archetype, plus a resolver: `spacesFor(archetype)`, `resolveActiveSpace(dna)`, `spaceScopeLines(dna)`.
+- `CATALOG_VERSION = "sc-3.0.0-starter"`.
+- Starter data (`knowledge/space-catalog/catalog.json`):
+  - all 12 SRS archetypes, with labels
+  - curated presets for townhouse, villa and apartment covering the SRS examples (living + kitchen, narrow rear courtyard, light well, rooftop terrace, garage, villa lobby, master suite, large garden, pool, apartment studio, loggia)
+  - at least one preset per other archetype
+  - English labels are real English, never unaccented Vietnamese
+- `buildingArchetype` is independent of `ProjectTypeSchema`. A mapping table suggests the default archetype from the project type, and the project type is never changed.
+
+**Compiler**
+- Adds the sections `SPACE SCOPE` (only the active space, with its required, optional and forbidden lines) and `SITE & OCCLUSION`, which replaces the ADR-028 party-wall wording with resolver output.
+- `COMPILER_VERSION` becomes `pc-1.7.0`.
+- The interior default pack values (5 × 6 × 3 m, apartment) are labelled "sample — not verified" and no longer compiled as facts.
+
+**Site adjacency and visibility** (`packages/domain/src/site/`)
+- `resolveSiteAdjacency(dna)` as described above.
+- `resolveVisibility(adjacency, camera) → { visibleFacades, occludedFacades, warnings, confidence, feasibleCameraZones }`
+  - Facades: front, left, right, rear, roof.
+  - An attached side is never visible.
+  - A side counts as visible only when it is `street` or `open_space` and the camera azimuth reveals it.
+  - Confidence is lowered when sides are `unknown` or evidence is not confirmed.
+  - The resolver never claims exact visibility without heights or setbacks.
+- `describeCamera` must not promise a side facade that the resolver marks occluded.
+- Prompt core text follows SRS §5.2.
+
+**UI (P1)**
+- **Space selector wizard:** archetype → floor → group → space → variant, with an "other / custom" option and evidence badges (Đã xác minh / Chưa rõ / Theo ảnh tham chiếu). Unmeasured dimensions stay blank. It sets `activeSpaceId`.
+- **Site adjacency editor:** four sides, each with kind and evidence, using the viewer-facing convention and a small plan diagram. It replaces the ADR-028 toggles but writes both representations.
+- **Validator panel:** "Kiểm tra ràng buộc" with BLOCK, WARN and ALLOW, plus WARN exception approval.
+
+**Out of scope here:** P2–P6 (simple camera, detail planner, effects, objects, enhance and upscale, diagram, publishing).
+
+**Acceptance for this ADR:** AC-01, AC-02 (no bedroom furniture leaks into a garden scope), AC-03, AC-04, AC-20, AC-21, AC-22, plus the SRS §5.4 camera tests that apply without P2.
