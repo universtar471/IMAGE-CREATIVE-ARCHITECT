@@ -23,8 +23,10 @@ import { VALIDATOR_VERSION } from "../validation/codes";
 import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
+import { sceneObjectsSection } from "./sections/sceneObjects";
+import type { ShotIntent } from "../validation/shotIntent";
 
-export const COMPILER_VERSION = "pc-1.7.0";
+export const COMPILER_VERSION = "pc-1.8.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -53,6 +55,11 @@ export type PromptCompileInput = {
   pack?: KnowledgePack | null;
   /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
   cameraId?: string | null;
+  /**
+   * Per-shot choices (ADR-036), recorded in `PromptBundle.shotIntent`; never written into
+   * ProjectDNA. `projectType` and `cameraId` always come from the project and `cameraId`.
+   */
+  shotIntent?: ShotIntent;
 };
 
 export type PromptSectionOverrides = {
@@ -145,6 +152,32 @@ export function compileWithOverrides(
  * The bundle with more accepted WARN codes recorded (for example the extra prompt's, once
  * the gate has validated it); the list stays sorted and unique.
  */
+/**
+ * The shot intent as compiled and snapshotted: the project's type and the compiled camera
+ * win over the stored values, unset or empty choices are dropped, and no choice means `undefined`.
+ */
+export function normalizeShotIntent(
+  shotIntent: ShotIntent | undefined,
+  projectType: ProjectType,
+  cameraId: string | null,
+): ShotIntent | undefined {
+  if (!shotIntent) return undefined;
+  // Every choice is kept (later phases add their own fields); unset or empty ones are dropped.
+  const choices = Object.fromEntries(
+    Object.entries(shotIntent).filter(
+      ([key, value]) =>
+        key !== "projectType" &&
+        key !== "cameraId" &&
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        !(Array.isArray(value) && value.length === 0),
+    ),
+  );
+  if (!Object.keys(choices).length) return undefined;
+  return { ...choices, projectType, cameraId };
+}
+
 export function withResolvedWarnings(bundle: PromptBundle, codes: readonly string[]): PromptBundle {
   const merged = [...new Set([...(bundle.resolvedWarnings ?? []), ...codes])].sort(compareStrings);
   return { ...bundle, resolvedWarnings: merged };
@@ -158,10 +191,12 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const usesInteriorDna = isInterior && dna.interior !== undefined;
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
+  const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
-  // furnishing, context, lighting, weather, mood, camera, quality. Furnishing is interior-only;
-  // spaceScope appears only with an active catalog space.
+  // furnishing, context, lighting, weather, mood, camera, sceneObjects, quality. Furnishing is
+  // interior-only; spaceScope appears only with an active catalog space; sceneObjects only
+  // when the shot adds objects (SRS §12.2 item 7, after the camera).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -199,6 +234,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
         ? cameraSectionTextForPlan(camera, dna, project.projectType)
         : (interiorLine(interiorLines, "Camera:") ?? null),
     ],
+    ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -244,7 +280,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const cameraId = camera?.id ?? null;
   const validation = validateShot({
     dna,
-    shotIntent: { projectType: project.projectType, cameraId },
+    shotIntent: shotIntent ?? { projectType: project.projectType, cameraId },
   });
   const sourceHash = canonicalHash({
     dna,
@@ -253,6 +289,8 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       projectType: project.projectType,
       subtype: project.subtype ?? null,
       cameraId,
+      // Only present with per-shot choices, so a shot without them hashes as before.
+      ...(shotIntent ? { shotIntent } : {}),
       references: references.map((r) => ({
         assetId: r.assetId,
         role: r.role,
@@ -275,6 +313,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     sourceHash,
     configHash,
     resolvedWarnings: warningCodes(validation),
+    ...(shotIntent ? { shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),

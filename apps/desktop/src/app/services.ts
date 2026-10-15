@@ -10,6 +10,7 @@ import {
   type ProjectDTO,
   type ProjectType,
   type PromptBundle,
+  type ShotIntent,
   type WizardStarter,
 } from "@arch/domain";
 import { call, type CommandResponse } from "../lib/bridge";
@@ -55,6 +56,7 @@ export function compileFromBundle(
     referenceAssetIds?: readonly string[];
     cameraId?: string | null;
     anchorAssetId?: string | null;
+    shotIntent?: ShotIntent;
   } = {},
 ): PromptBundle {
   const { project, dna, assets } = bundle;
@@ -70,6 +72,7 @@ export function compileFromBundle(
     dna,
     pack,
     cameraId: options.cameraId ?? null,
+    shotIntent: options.shotIntent,
     references: assets
       .filter((a) => a.status === "ready")
       .filter((a) => !ids || ids.includes(a.id))
@@ -90,7 +93,8 @@ export async function compilePromptPreview(
   projectId: string,
   referenceAssetIds?: readonly string[],
   camera?: { cameraId: string | null; anchorAssetId?: string | null },
+  shotIntent?: ShotIntent,
 ): Promise<PromptBundle> {
   const bundle = await call("project_get", { projectId });
-  return compileFromBundle(bundle, { referenceAssetIds, ...camera });
+  return compileFromBundle(bundle, { referenceAssetIds, ...camera, shotIntent });
 }
