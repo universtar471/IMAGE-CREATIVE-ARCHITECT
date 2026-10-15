@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ShotIntentSchema } from "../validation/validateShot";
+import { ShotIntentSchema } from "../validation/shotIntent";
 
 /**
  * The conflict check of the shot as it was submitted (ADR-034 P0-B). The desktop gate runs

@@ -1,13 +1,8 @@
-import type { CameraDNA, ProjectType } from "@arch/domain";
+import type { CameraDNA, ProjectDNA, ProjectType } from "@arch/domain";
 import { useStudio, selectReadOnly } from "../../app/store";
 import { useT } from "../../i18n";
-import {
-  cameraSitePlan,
-  resolveSiteTopology,
-  type CornerSide,
-  type SiteTopology,
-  type TopologyContext,
-} from "../../lib/siteTopology";
+import { cameraSitePlan, type TopologyContext } from "../../lib/siteTopology";
+import { editSiteSide } from "../site/siteEdit";
 
 export function SiteTopologyChip({ camera }: { camera: CameraDNA }) {
   const t = useT();
@@ -37,27 +32,19 @@ export function SiteTopologyChip({ camera }: { camera: CameraDNA }) {
     );
   }
 
+  // Writes `site` and the synced toggles (ADR-034), like the site editor.
   const resolve = (mode: "attached" | "corner") => {
-    const current = resolveSiteTopology(context);
-    const raw = context.siteTopology ?? {};
-    const next: SiteTopology = {
-      left: raw.left ?? current.left,
-      right: raw.right ?? current.right,
-      cornerLot: raw.cornerLot === true,
-      ...(raw.cornerSide ? { cornerSide: raw.cornerSide } : {}),
-    };
-    if (mode === "attached") {
-      next[plan.side!] = "attached";
-      if (next.cornerSide === plan.side) {
-        next.cornerLot = false;
-        delete next.cornerSide;
-      }
-    } else {
-      next.cornerLot = true;
-      next.cornerSide = plan.side as CornerSide;
-      next[plan.side!] = "open";
-    }
-    editDna("context.siteTopology", next);
+    const dna = useStudio.getState().workspace!.draftDna as ProjectDNA;
+    editSiteSide(
+      editDna,
+      dna,
+      plan.side!,
+      {
+        kind: mode === "attached" ? "attached_building" : "street",
+        status: "user_declared",
+      },
+      project.projectType,
+    );
   };
 
   return (

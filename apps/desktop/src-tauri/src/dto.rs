@@ -110,7 +110,7 @@ pub struct PromptBundle {
     /// The desktop conflict gate's outcome (ADR-034 P0-B); absent on older snapshots.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation: Option<ShotValidationSnapshot>,
-    /// Per-shot choices from ADR-036 P2d; absent on legacy snapshots.
+    /// Per-shot choices (ADR-036); absent on older snapshots and shots without choices.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shot_intent: Option<ShotIntent>,
     pub positive_prompt: String,
@@ -120,37 +120,49 @@ pub struct PromptBundle {
     pub metadata: Map<String, Value>,
 }
 
-/// Mirrors the domain `ShotIntentSchema`; choices are a generation snapshot, never DNA.
+/// Mirrors the domain `ShotIntentSchema` (ADR-036): the per-shot choices recorded in the
+/// generation snapshot, never in the DNA. Absent options are omitted so the snapshot
+/// round-trips verbatim; fields this build does not know yet are kept in `extra`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ShotIntent {
     pub project_type: ProjectType,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub camera_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_space_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_detail_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene_objects: Option<Vec<SceneObjectRequest>>,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
 }
 
-/// Mirrors `SceneObjectRequestSchema` with provider-neutral JSON override maps.
+/// Mirrors `SceneObjectRequestSchema` (ADR-036 P2d). The domain validator owns the rules;
+/// the backend stores the request as submitted.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SceneObjectRequest {
     pub preset_id: String,
     pub quantity: u32,
     pub target_space_id: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub placement_zone_id: Option<String>,
-    pub state: String,
-    #[serde(default)]
+    pub state: SceneObjectState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance_overrides: Option<Map<String, Value>>,
-    #[serde(default)]
-    pub visibility: Option<Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
     #[serde(default)]
     pub source_reference_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SceneObjectState {
+    Static,
+    Moving,
 }
 
 /// Mirrors `ShotValidationSnapshotSchema`: the conflict check recorded in the snapshot.

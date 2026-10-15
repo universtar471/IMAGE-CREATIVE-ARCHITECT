@@ -13,10 +13,10 @@
  *   to WARN, so a guess never hard-blocks the user.
  */
 import type { ProjectDNA } from "../schemas/projectDna";
-import { ProjectTypeSchema, type ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
+import { isFacadeExposable, resolveVisibility, type Facade } from "../site/visibility";
 import { revealedSide } from "../prompt/topology";
 import { resolveActiveSpace } from "../spaceCatalog/resolve";
 import {
@@ -31,6 +31,7 @@ import {
   EXACT_DIMENSION_PHRASES,
   LEFT_SIDE_PHRASES,
   NIGHT_PHRASES,
+  REAR_FACADE_PHRASES,
   REMOVE_NEIGHBOUR_PHRASES,
   RIGHT_SIDE_PHRASES,
   SHOW_SIDE_PHRASES,
@@ -39,31 +40,10 @@ import {
   prepareText,
   type PreparedText,
 } from "./phrases";
-import { SceneObjectRequestSchema, type SceneObjectRequest } from "../sceneObjects/schemas";
 import { validateObjectPlacement } from "../sceneObjects/placement";
-import { z } from "zod";
+import type { ShotIntent } from "./shotIntent";
 
-/** What one generation request asks for (SRS §3.1 Shot Intent; P0 subset). */
-export type ShotIntent = {
-  projectType: ProjectType;
-  /** The DNA camera being rendered; unknown ids are ignored, as in the compiler. */
-  cameraId?: string | null;
-  /** P1: the target space of the Space Catalog. */
-  targetSpaceId?: string | null;
-  /** P2: the target architectural detail. */
-  targetDetailId?: string | null;
-  /** P2d choices for this shot; never persisted into ProjectDNA. */
-  sceneObjects?: SceneObjectRequest[];
-};
-
-/** Runtime contract for the per-shot snapshot carried by a generation request. */
-export const ShotIntentSchema = z.object({
-  projectType: ProjectTypeSchema,
-  cameraId: z.string().nullable().optional(),
-  targetSpaceId: z.string().nullable().optional(),
-  targetDetailId: z.string().nullable().optional(),
-  sceneObjects: z.array(SceneObjectRequestSchema).optional(),
-});
+export type { ShotIntent } from "./shotIntent";
 
 export type ValidateShotInput = {
   dna: ProjectDNA;
@@ -274,20 +254,93 @@ const spaceNotInBuildingRule: ConflictRule = {
   },
 };
 
-/** P1 hook: needs the visibility resolver. No issues until then. */
+/**
+ * The camera or the extra prompt targets a facade the visibility resolver marks occluded.
+ * - Camera: a side or rear elevation (`exterior_side`, `exterior_rear`) aimed at a side
+ *   that is unknown or behind a boundary wall. Corner and front cameras target the front
+ *   facade; the resolver only narrows their wording.
+ * - Extra prompt: asking for a side or rear facade when every side it can mean is hidden.
+ * An attached side is left to ADJACENT_BUILDING_CONFLICT (a BLOCK), so one request never
+ * raises both codes. Always WARN: the side may simply not be recorded yet (P2 detail targets
+ * may escalate it).
+ */
 const occludedTargetRule: ConflictRule = {
   code: "OCCLUDED_TARGET",
-  check: () => [],
+  check(ctx) {
+    if (!isExterior(ctx.shot)) return [];
+    const { adjacency } = ctx;
+    const hidden = (f: Facade) =>
+      !isFacadeExposable(adjacency, f) && !(f !== "roof" && attached(adjacency, f));
+    const issues: IssueDraft[] = [];
+    const found = shotCamera(ctx);
+    const cameraSide = found ? revealedSide(found.camera) : null;
+    if (found) {
+      const { camera, index } = found;
+      const target: Facade | null =
+        camera.viewType === "exterior_side"
+          ? cameraSide
+          : camera.viewType === "exterior_rear"
+            ? "rear"
+            : null;
+      const visibility = resolveVisibility(adjacency, camera);
+      if (target && visibility.occludedFacades.includes(target) && hidden(target))
+        issues.push({
+          code: "OCCLUDED_TARGET",
+          path: `cameras[${index}]`,
+          params: {
+            source: "camera",
+            facade: target,
+            kind: adjacency[target as SiteSide].kind,
+            viewType: camera.viewType,
+          },
+        });
+    }
+    const text = ctx.extra;
+    if (!text) return issues;
+    const side = firstPhrase(text, SHOW_SIDE_PHRASES);
+    const rear = firstPhrase(text, REAR_FACADE_PHRASES);
+    const facades: Facade[] = [];
+    let phrase = "";
+    if (side) {
+      const named = mentionedSides(text);
+      const candidates = named.length
+        ? named
+        : cameraSide
+          ? [cameraSide]
+          : (["left", "right"] as const);
+      // Satisfiable when one candidate is free; all attached is ADJACENT_BUILDING_CONFLICT.
+      if (candidates.every((s) => !isFacadeExposable(adjacency, s))) {
+        facades.push(...candidates.filter(hidden));
+        if (facades.length) phrase = side.text;
+      }
+    }
+    if (rear && hidden("rear")) {
+      facades.push("rear");
+      phrase ||= rear.text;
+    }
+    if (facades.length)
+      issues.push({
+        code: "OCCLUDED_TARGET",
+        path: "extraPrompt",
+        params: { source: "extraPrompt", facade: facades.join(","), phrase },
+      });
+    return issues;
+  },
 };
 
-const sceneObjectRule: ConflictRule = {
+/**
+ * ObjectPlacementValidator (P2d): scene objects the shot adds must belong in their target
+ * space and stand on a zone the project data records. Raises OBJECT_NOT_ALLOWED_IN_SPACE and
+ * OBJECT_NO_PLACEMENT_ZONE; no objects, no issues.
+ */
+const objectPlacementRule: ConflictRule = {
   code: "OBJECT_NOT_ALLOWED_IN_SPACE",
   check(ctx) {
-    return validateObjectPlacement(ctx.dna, ctx.shot).map((issue) => ({
-      code: issue.code,
-      severity: issue.severity,
-      path: issue.path,
-      params: issue.params,
+    return validateObjectPlacement(ctx.dna, ctx.shot).map(({ code, severity, path, params }) => ({
+      code,
+      severity,
+      path,
+      params,
     }));
   },
 };
@@ -297,7 +350,7 @@ export const SHOT_RULES: readonly ConflictRule[] = [
   spaceNotInBuildingRule,
   adjacentBuildingRule,
   occludedTargetRule,
-  sceneObjectRule,
+  objectPlacementRule,
   unverifiedGeometryRule,
   lockedLightingRule,
 ];
@@ -312,7 +365,7 @@ export function validateShot(input: ValidateShotInput): ShotValidation {
     dna: input.dna,
     shot: input.shotIntent,
     extra: extraText ? prepareText(extraText) : null,
-    adjacency: resolveSiteAdjacency(input.dna),
+    adjacency: resolveSiteAdjacency(input.dna, input.shotIntent.projectType),
   };
   const approved = new Set<string>(input.approvedExceptions ?? []);
   const issues = SHOT_RULES.flatMap((rule) => rule.check(ctx)).map((draft): ConflictIssue => {

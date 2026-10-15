@@ -1,13 +1,36 @@
-import { isConfirmed } from "../facts/evidence";
-import { resolveActiveSpace } from "../spaceCatalog/resolve";
+/**
+ * ObjectPlacementValidator (ADR-036 P2d, SRS §7.2). Registered in the single validator
+ * (`validateShot`); it never edits the DNA and never creates a driveway, garage or road.
+ *
+ * - OBJECT_NOT_ALLOWED_IN_SPACE (BLOCK): the object type does not belong in the target space
+ *   (a classic car in a bedroom, AC-06), or the target or preset is unknown.
+ * - OBJECT_NO_PLACEMENT_ZONE: the object has nowhere real to stand.
+ *   - BLOCK: the chosen zone is not a zone of that space for the type, the zone is absent
+ *     from the project data (no driveway / garage / street on record), a vehicle is moving
+ *     outside a road, or a measured garage is too small for the requested vehicles.
+ *   - WARN: the zone is recorded but not confirmed; the prompt then adds "if adequate
+ *     clearance". A verified garage with a 300 SL raises nothing (AC-07).
+ */
+import type { ProjectType } from "../schemas/enums";
 import type { ProjectDNA } from "../schemas/projectDna";
-import type { ShotIntent } from "../validation/validateShot";
 import {
-  allowedObjectsForSpace,
-  sceneObjectPreset,
-  VEHICLES,
-  type AllowedObjectResult,
-} from "./catalog";
+  confirmedFootprint,
+  defaultZone,
+  isObjectAllowed,
+  placementZoneStatus,
+  resolveSceneTarget,
+  SCENE_OBJECT_TABLE,
+  stateAllowed,
+  type SceneTarget,
+  type ZoneStatus,
+} from "./allowed";
+import { sceneObjectPreset } from "./catalog";
+import {
+  isVehicleType,
+  type PlacementZoneId,
+  type SceneObjectRequest,
+  type SceneObjectType,
+} from "./schemas";
 
 export type ObjectPlacementIssue = {
   code: "OBJECT_NOT_ALLOWED_IN_SPACE" | "OBJECT_NO_PLACEMENT_ZONE";
@@ -16,79 +39,131 @@ export type ObjectPlacementIssue = {
   params: Record<string, string | number>;
 };
 
-const zoneText = (value: string | undefined) => (value ?? "").trim().toLowerCase();
-const plausibleZone = (zone: string, allowed: AllowedObjectResult) => {
-  if (!zone) return false;
-  if (allowed.hardscapeOnly) return /hardscape|paved|terrace|drive|gara|garage/.test(zone);
-  return /garage|gara|driveway|drive|road|street|đường|hardscape|paved|parking|bãi/.test(zone);
+/** Plan footprint of one parked object (metres): a parking bay, not the bare body. */
+const FOOTPRINT_M: Partial<Record<SceneObjectType, readonly [number, number]>> = {
+  car: [2.5, 5.0],
+  motorbike: [1.0, 2.0],
+  bicycle: [0.7, 1.8],
 };
 
-function verifiedZone(
-  instance: NonNullable<ReturnType<typeof resolveActiveSpace>>["space"],
-  zone: string,
-) {
-  if (!zone) return false;
-  return Object.entries(instance.facts).some(([key, fact]) => {
-    if (!isConfirmed(fact.evidence)) return false;
-    const keyText = key.toLowerCase();
-    return (
-      keyText.includes(zone) ||
-      zone.includes(keyText) ||
-      /garage|gara|driveway|hardscape|road|street/.test(keyText)
-    );
+/** How many objects of a type fit in a measured rectangle (either orientation). */
+export function parkingCapacity(type: SceneObjectType, w: number, d: number): number {
+  const size = FOOTPRINT_M[type];
+  if (!size) return Number.POSITIVE_INFINITY;
+  const [a, b] = size;
+  const fit = (x: number, y: number) => Math.floor(x / a + 1e-9) * Math.floor(y / b + 1e-9);
+  return Math.max(fit(w, d), fit(d, w));
+}
+
+export type ResolvedObjectRequest = {
+  request: SceneObjectRequest;
+  index: number;
+  target: SceneTarget | null;
+  type: SceneObjectType | null;
+  zone: PlacementZoneId | null;
+  /** Evidence of the zone; `null` when the type does not need a checked zone. */
+  zoneStatus: ZoneStatus | null;
+};
+
+/** Resolves every request against the DNA (shared by the validator, compiler and UI). */
+export function resolveObjectRequests(
+  dna: Pick<ProjectDNA, "spaceCatalog" | "site" | "context">,
+  projectType: ProjectType,
+  requests: readonly SceneObjectRequest[] | undefined,
+): ResolvedObjectRequest[] {
+  return (requests ?? []).map((request, index) => {
+    const target = resolveSceneTarget(dna, projectType, request.targetSpaceId);
+    const type = sceneObjectPreset(request.presetId)?.type ?? null;
+    const zone =
+      request.placementZoneId ?? (target && type ? defaultZone(target.kind, type) : null);
+    const zoneStatus =
+      target && type && zone && isVehicleType(type)
+        ? placementZoneStatus(dna, projectType, target, zone)
+        : null;
+    return { request, index, target, type, zone, zoneStatus };
   });
 }
 
-/** Placement-only rules for P2d. It never mutates DNA or invents a driveway. */
 export function validateObjectPlacement(
-  dna: ProjectDNA,
-  shot: Pick<ShotIntent, "sceneObjects" | "targetSpaceId">,
+  dna: Pick<ProjectDNA, "spaceCatalog" | "site" | "context">,
+  shot: { projectType: ProjectType; sceneObjects?: readonly SceneObjectRequest[] | null },
 ): ObjectPlacementIssue[] {
-  const requests = shot.sceneObjects ?? [];
-  if (!requests.length) return [];
+  const resolved = resolveObjectRequests(dna, shot.projectType, shot.sceneObjects ?? undefined);
   const issues: ObjectPlacementIssue[] = [];
-  for (const [index, request] of requests.entries()) {
-    const preset = sceneObjectPreset(request.presetId);
-    if (!preset) {
-      issues.push({
-        code: "OBJECT_NOT_ALLOWED_IN_SPACE",
-        severity: "BLOCK",
-        path: `sceneObjects[${index}].presetId`,
-        params: { presetId: request.presetId },
-      });
+  const blocked = (r: ResolvedObjectRequest, reason: string, field = "") =>
+    issues.push({
+      code: "OBJECT_NOT_ALLOWED_IN_SPACE",
+      severity: "BLOCK",
+      path: `sceneObjects[${r.index}]${field}`,
+      params: {
+        presetId: r.request.presetId,
+        targetSpaceId: r.request.targetSpaceId,
+        reason,
+        ...(r.target ? { kind: r.target.kind } : {}),
+      },
+    });
+  const noZone = (r: ResolvedObjectRequest, severity: "BLOCK" | "WARN", reason: string) =>
+    issues.push({
+      code: "OBJECT_NO_PLACEMENT_ZONE",
+      severity,
+      path: `sceneObjects[${r.index}].placementZoneId`,
+      params: {
+        presetId: r.request.presetId,
+        targetSpaceId: r.request.targetSpaceId,
+        zone: r.zone ?? "none",
+        reason,
+      },
+    });
+
+  const placed: ResolvedObjectRequest[] = [];
+  for (const r of resolved) {
+    if (!r.type) {
+      blocked(r, "unknown_preset", ".presetId");
       continue;
     }
-    const active = resolveActiveSpace(dna, { targetSpaceId: request.targetSpaceId });
-    const allowed = active ? allowedObjectsForSpace(active.preset, active.space) : null;
-    if (!active || !allowed || !allowed.allowed.includes(preset.type)) {
-      issues.push({
-        code: "OBJECT_NOT_ALLOWED_IN_SPACE",
-        severity: "BLOCK",
-        path: `sceneObjects[${index}]`,
-        params: { presetId: request.presetId, targetSpaceId: request.targetSpaceId },
-      });
+    if (!r.target) {
+      blocked(r, "unknown_target", ".targetSpaceId");
       continue;
     }
-    if (!allowed.requiresPlacementZone || !VEHICLES.includes(preset.type)) continue;
-    const zone = zoneText(request.placementZoneId);
-    if (!plausibleZone(zone, allowed)) {
-      issues.push({
-        code: "OBJECT_NO_PLACEMENT_ZONE",
-        severity: "BLOCK",
-        path: `sceneObjects[${index}].placementZoneId`,
-        params: { presetId: request.presetId, targetSpaceId: request.targetSpaceId },
-      });
-    } else if (!verifiedZone(active.space, zone)) {
-      issues.push({
-        code: "OBJECT_NO_PLACEMENT_ZONE",
-        severity: "WARN",
-        path: `sceneObjects[${index}].placementZoneId`,
-        params: { presetId: request.presetId, targetSpaceId: request.targetSpaceId },
-      });
+    if (!isObjectAllowed(r.target.kind, r.type)) {
+      blocked(r, "type_not_allowed");
+      continue;
+    }
+    if (!r.zone || !SCENE_OBJECT_TABLE[r.target.kind][r.type]!.includes(r.zone)) {
+      noZone(r, "BLOCK", "zone_not_in_space");
+      continue;
+    }
+    if (!stateAllowed(r.type, r.zone, r.request.state)) {
+      noZone(r, "BLOCK", "moving_outside_road");
+      continue;
+    }
+    if (r.zoneStatus === "absent") noZone(r, "BLOCK", "zone_absent");
+    else if (r.zoneStatus === "plausible") noZone(r, "WARN", "zone_unverified");
+    if (r.zoneStatus && r.zoneStatus !== "absent") placed.push(r);
+  }
+
+  // Physical fit: vehicles sharing one measured zone must fit in it together.
+  const groups = new Map<string, ResolvedObjectRequest[]>();
+  for (const r of placed) {
+    const key = `${r.request.targetSpaceId}|${r.zone}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  for (const group of groups.values()) {
+    const footprint = confirmedFootprint(group[0]!.target!.space);
+    if (!footprint) continue;
+    let load = 0;
+    for (const r of group) {
+      const capacity = parkingCapacity(r.type!, footprint.w, footprint.d);
+      load += capacity === 0 ? Number.POSITIVE_INFINITY : r.request.quantity / capacity;
+      if (load > 1 + 1e-9) {
+        noZone(r, "BLOCK", "too_small");
+        issues[issues.length - 1]!.params.capacity = capacity;
+        break;
+      }
     }
   }
   return issues;
 }
 
-/** Named export used by feature modules that register this validator in the shared gate. */
+/** Named export of the rule set, as registered in the shared validator. */
 export const ObjectPlacementValidator = validateObjectPlacement;

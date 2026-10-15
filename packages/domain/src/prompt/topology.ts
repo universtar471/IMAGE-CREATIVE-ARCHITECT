@@ -5,6 +5,13 @@ import type { ProjectType } from "../schemas/enums";
 export type CornerSide = "left" | "right";
 export type TopologySource = "explicit" | "inferred" | "default";
 
+/** Detached project types whose undeclared lateral sides are conventionally open. */
+const DETACHED_PROJECT_TYPES = new Set<ProjectType>([
+  "villa",
+  "single_storey_house",
+  "prefab_modular",
+]);
+
 /** The context shape needed by topology helpers; complete ContextDNA is accepted too. */
 export type TopologyContext = {
   siteTopology?: Partial<SiteTopology>;
@@ -36,6 +43,7 @@ function inferredSide(context: TopologyContext, side: CornerSide): boolean {
 
 export function resolveSiteTopology(
   context: TopologyContext | null | undefined,
+  projectType?: ProjectType,
 ): ResolvedSiteTopology {
   const safe = context ?? {};
   const explicit = safe.siteTopology;
@@ -43,7 +51,9 @@ export function resolveSiteTopology(
     const value = explicit?.[side];
     if (value && value !== "unknown") return [value, "explicit"];
     if (inferredSide(safe, side)) return ["attached", "inferred"];
-    return [value ?? "unknown", value === "unknown" ? "explicit" : "default"];
+    if (value === "unknown") return ["unknown", "explicit"];
+    if (projectType && DETACHED_PROJECT_TYPES.has(projectType)) return ["open", "default"];
+    return ["unknown", "default"];
   };
   const [left, leftSource] = resolve("left");
   const [right, rightSource] = resolve("right");
@@ -82,7 +92,7 @@ export function cameraSitePlan(
 ): SitePlan {
   if (!camera || projectType === "interior")
     return { mode: "normal", reason: "interior_or_no_camera" };
-  const topology = resolveSiteTopology(context);
+  const topology = resolveSiteTopology(context, projectType);
   if (
     camera.viewType === "aerial" &&
     (topology.left === "attached" || topology.right === "attached" || context?.density === "high")

@@ -126,6 +126,45 @@ describe("resolveSiteAdjacency — derived from context.siteTopology", () => {
       rear: "unknown",
     });
   });
+
+  it("defaults undeclared sides to inferred open space for detached project types", () => {
+    for (const projectType of ["villa", "single_storey_house", "prefab_modular"] as const) {
+      const a = resolveSiteAdjacency({ context: context() }, projectType);
+      expect(a.left).toMatchObject({
+        kind: "open_space",
+        evidence: { status: "inferred" },
+      });
+      expect(a.right).toMatchObject({
+        kind: "open_space",
+        evidence: { status: "inferred" },
+      });
+    }
+  });
+
+  it("keeps townhouse undeclared sides unknown and lets inferred attachment win", () => {
+    const unknown = resolveSiteAdjacency({ context: context() }, "townhouse");
+    expect(unknown.left.kind).toBe("unknown");
+    expect(unknown.left.evidence.status).toBe("unknown");
+    const inferred = resolveSiteAdjacency(
+      { context: context({ left: { notes: "attached neighbouring townhouse" } }) },
+      "villa",
+    );
+    expect(inferred.left).toMatchObject({
+      kind: "attached_building",
+      evidence: { status: "inferred" },
+    });
+  });
+
+  it("keeps an explicit attached value over the detached default", () => {
+    const a = resolveSiteAdjacency(
+      { context: context({ siteTopology: { left: "attached" } }) },
+      "villa",
+    );
+    expect(a.left).toMatchObject({
+      kind: "attached_building",
+      evidence: { status: "user_declared" },
+    });
+  });
 });
 
 describe("resolveSiteAdjacency — explicit site wins", () => {

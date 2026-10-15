@@ -1115,7 +1115,8 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::*;
-    use crate::dto::AssetDto;
+    use crate::domain::ProjectType;
+    use crate::dto::{AssetDto, SceneObjectState};
     use crate::providers::local_preview;
     use crate::providers::local_upscale;
     use crate::providers::ProviderErrorKind;
@@ -1783,6 +1784,39 @@ mod tests {
         });
         let bundle: PromptBundle = serde_json::from_value(legacy.clone()).unwrap();
         assert_eq!(serde_json::to_value(&bundle).unwrap(), legacy);
+    }
+
+    /// ADR-036: the shot intent (scene objects) survives the request snapshot verbatim,
+    /// including fields a later phase adds.
+    #[test]
+    fn prompt_bundle_keeps_the_shot_intent_verbatim() {
+        let raw = json!({
+            "compilerVersion": "pc-1.8.0", "positivePrompt": "p", "negativePrompt": "",
+            "referenceInstructions": "", "preservationInstructions": "", "metadata": {},
+            "shotIntent": {
+                "projectType": "villa", "cameraId": null,
+                "sceneObjects": [{
+                    "presetId": "car.mercedes_300sl.gullwing", "quantity": 1, "targetSpaceId": "SPC_gara",
+                    "placementZoneId": "garage_bay", "state": "static",
+                    "appearanceOverrides": { "color": "silver" }, "sourceReferenceIds": []
+                }],
+                "visualIntent": "front"
+            }
+        });
+        let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
+        let intent = bundle.shot_intent.as_ref().unwrap();
+        assert_eq!(intent.project_type, ProjectType::Villa);
+        let objects = intent.scene_objects.as_ref().unwrap();
+        assert_eq!((objects[0].quantity, objects[0].state), (1, SceneObjectState::Static));
+        assert_eq!(intent.extra["visualIntent"], json!("front"));
+        // `cameraId: null` is written back as absent, which the domain schema reads the same.
+        let mut expected = raw.clone();
+        expected["shotIntent"].as_object_mut().unwrap().remove("cameraId");
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), expected);
+
+        let mut moving = raw.clone();
+        moving["shotIntent"]["sceneObjects"][0]["state"] = json!("flying");
+        assert!(serde_json::from_value::<PromptBundle>(moving).is_err());
     }
 
     #[test]

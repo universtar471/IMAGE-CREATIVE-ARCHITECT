@@ -1,177 +1,198 @@
-import type { SpacePreset } from "../spaceCatalog/schemas";
-import type { SpaceInstance } from "../schemas/extensions";
-import { SceneObjectPresetSchema, type SceneObjectPreset, type SceneObjectType } from "./schemas";
+/**
+ * Scene object catalog and car library (ADR-036 P2d, SRS §7.2). Read-only reference data.
+ *
+ * Named cars are only "simulated after the model": image models may not reproduce badges or
+ * period details exactly, so the UI labels them "mô phỏng theo mẫu xe" and warns before
+ * commercial publishing that involves a trademark. Each prompt description pins the exact
+ * variant (coupe vs roadster, 289 vs 427 body) so two variants are never mixed.
+ */
+import {
+  SceneObjectPresetSchema,
+  type ObjectColorId,
+  type SceneObjectPreset,
+  type SceneObjectType,
+} from "./schemas";
 
-export const TRADEMARK_WARNING =
-  "Mô phỏng theo mẫu xe; cần kiểm tra quyền sử dụng thương hiệu khi xuất bản thương mại.";
+/** The label every named car carries in the UI (SRS §7.2). */
+export const SIMULATED_MODEL_LABEL_VI = "mô phỏng theo mẫu xe";
+export const SIMULATED_MODEL_LABEL_EN = "simulated after the model";
 
-const car = (id: string, labelVi: string, labelEn: string, promptEn: string): SceneObjectPreset =>
-  SceneObjectPresetSchema.parse({
-    id,
-    type: "car",
-    labelVi,
-    labelEn,
-    promptEn,
-    trademarkWarning: TRADEMARK_WARNING,
-  });
+type PresetInput = Omit<
+  SceneObjectPreset,
+  "simulatedModel" | "trademarkWarning" | "colorable" | "promptPluralEn"
+> &
+  Partial<Pick<SceneObjectPreset, "simulatedModel" | "trademarkWarning" | "colorable">> & {
+    promptPluralEn?: string;
+  };
+
+const preset = (input: PresetInput): SceneObjectPreset =>
+  SceneObjectPresetSchema.parse({ promptPluralEn: `${input.promptEn}s`, ...input });
+
+/** A named (branded) car: simulated, trademark warning, colour chosen by the user. */
+const namedCar = (input: Omit<PresetInput, "type">): SceneObjectPreset =>
+  preset({ ...input, type: "car", simulatedModel: true, trademarkWarning: true, colorable: true });
+
+const genericCar = (input: Omit<PresetInput, "type">): SceneObjectPreset =>
+  preset({ ...input, type: "car", simulatedModel: true, colorable: true });
 
 export const SCENE_OBJECT_PRESETS: readonly SceneObjectPreset[] = [
-  { id: "person", type: "person", labelVi: "Người", labelEn: "Person", promptEn: "person" },
-  {
-    id: "pet",
+  preset({
+    id: "person.adult",
+    type: "person",
+    labelVi: "Người lớn",
+    labelEn: "Adult",
+    promptEn: "adult person in everyday clothing",
+    promptPluralEn: "adults in everyday clothing",
+  }),
+  preset({
+    id: "person.family",
+    type: "person",
+    labelVi: "Gia đình",
+    labelEn: "Family group",
+    promptEn: "small family group",
+  }),
+  preset({
+    id: "pet.dog",
     type: "pet",
-    labelVi: "Thú cưng",
-    labelEn: "Pet",
-    promptEn: "domestic pet",
-  },
-  { id: "plant", type: "plant", labelVi: "Cây", labelEn: "Plant", promptEn: "potted plant" },
-  {
-    id: "motorbike",
+    labelVi: "Chó",
+    labelEn: "Dog",
+    promptEn: "medium-sized dog",
+  }),
+  preset({ id: "pet.cat", type: "pet", labelVi: "Mèo", labelEn: "Cat", promptEn: "domestic cat" }),
+  preset({
+    id: "plant.potted",
+    type: "plant",
+    labelVi: "Chậu cây",
+    labelEn: "Potted plant",
+    promptEn: "potted plant",
+  }),
+  preset({
+    id: "plant.large_potted",
+    type: "plant",
+    labelVi: "Chậu cây lớn",
+    labelEn: "Large potted plant",
+    promptEn: "large potted indoor tree",
+    promptPluralEn: "large potted indoor trees",
+  }),
+  namedCar({
+    id: "car.mercedes_300sl.gullwing",
+    labelVi: "Mercedes-Benz 300 SL Gullwing (coupe)",
+    labelEn: "Mercedes-Benz 300 SL Gullwing (coupe)",
+    promptEn:
+      "1950s Mercedes-Benz 300 SL Gullwing coupe (low body, upward-opening gullwing doors, fixed roof; not the roadster)",
+    promptPluralEn:
+      "1950s Mercedes-Benz 300 SL Gullwing coupes (low body, upward-opening gullwing doors, fixed roof; not the roadster)",
+  }),
+  namedCar({
+    id: "car.mercedes_300sl.roadster",
+    labelVi: "Mercedes-Benz 300 SL Roadster",
+    labelEn: "Mercedes-Benz 300 SL Roadster",
+    promptEn:
+      "late-1950s Mercedes-Benz 300 SL Roadster (open top, conventional front-hinged doors; not the Gullwing coupe)",
+    promptPluralEn:
+      "late-1950s Mercedes-Benz 300 SL Roadsters (open top, conventional front-hinged doors; not the Gullwing coupe)",
+  }),
+  namedCar({
+    id: "car.shelby_cobra.1964_289",
+    labelVi: "Shelby/AC Cobra 289 (đời 1964)",
+    labelEn: "Shelby/AC Cobra 289 (1964)",
+    promptEn:
+      "1964 Shelby/AC Cobra 289 roadster (slim early 289 body with narrow fenders; not the later, wider Cobra 427 body)",
+    promptPluralEn:
+      "1964 Shelby/AC Cobra 289 roadsters (slim early 289 body with narrow fenders; not the later, wider Cobra 427 body)",
+  }),
+  namedCar({
+    id: "car.jaguar_e_type.series1_coupe",
+    labelVi: "Jaguar E-Type Series 1 (coupe)",
+    labelEn: "Jaguar E-Type Series 1 (coupe)",
+    promptEn:
+      "1960s Jaguar E-Type Series 1 fixed-head coupe (long bonnet, covered headlamps, fastback roof; not the roadster)",
+    promptPluralEn:
+      "1960s Jaguar E-Type Series 1 fixed-head coupes (long bonnet, covered headlamps, fastback roof; not the roadster)",
+  }),
+  namedCar({
+    id: "car.jaguar_e_type.series1_roadster",
+    labelVi: "Jaguar E-Type Series 1 (roadster)",
+    labelEn: "Jaguar E-Type Series 1 (roadster)",
+    promptEn:
+      "1960s Jaguar E-Type Series 1 roadster (long bonnet, covered headlamps, open two-seat cabin; not the coupe)",
+    promptPluralEn:
+      "1960s Jaguar E-Type Series 1 roadsters (long bonnet, covered headlamps, open two-seat cabin; not the coupe)",
+  }),
+  genericCar({
+    id: "car.generic.modern_luxury_sedan",
+    labelVi: "Sedan hạng sang hiện đại",
+    labelEn: "Modern luxury sedan",
+    promptEn: "modern luxury sedan without visible brand badges",
+    promptPluralEn: "modern luxury sedans without visible brand badges",
+  }),
+  genericCar({
+    id: "car.generic.suv",
+    labelVi: "SUV hiện đại",
+    labelEn: "Modern SUV",
+    promptEn: "modern SUV without visible brand badges",
+    promptPluralEn: "modern SUVs without visible brand badges",
+  }),
+  genericCar({
+    id: "car.generic.ev",
+    labelVi: "Ô tô điện hiện đại",
+    labelEn: "Modern electric car",
+    promptEn: "modern electric car without visible brand badges",
+    promptPluralEn: "modern electric cars without visible brand badges",
+  }),
+  genericCar({
+    id: "car.generic.vn_city_car",
+    labelVi: "Xe đô thị cỡ nhỏ (Việt Nam)",
+    labelEn: "Vietnamese city car",
+    promptEn: "compact city car typical of Vietnamese streets, without visible brand badges",
+    promptPluralEn: "compact city cars typical of Vietnamese streets, without visible brand badges",
+  }),
+  preset({
+    id: "motorbike.scooter",
     type: "motorbike",
-    labelVi: "Xe máy",
-    labelEn: "Motorbike",
-    promptEn: "motorbike",
-  },
-  {
-    id: "bicycle",
+    labelVi: "Xe máy tay ga",
+    labelEn: "Scooter",
+    promptEn: "motor scooter typical of Vietnamese streets",
+    promptPluralEn: "motor scooters typical of Vietnamese streets",
+    colorable: true,
+  }),
+  preset({
+    id: "motorbike.underbone",
+    type: "motorbike",
+    labelVi: "Xe máy số",
+    labelEn: "Underbone motorbike",
+    promptEn: "underbone motorbike typical of Vietnamese streets",
+    promptPluralEn: "underbone motorbikes typical of Vietnamese streets",
+    colorable: true,
+  }),
+  preset({
+    id: "bicycle.city",
     type: "bicycle",
-    labelVi: "Xe đạp",
-    labelEn: "Bicycle",
-    promptEn: "bicycle",
-  },
-  car(
-    "car.mercedes_300sl.gullwing",
-    "Mercedes-Benz 300 SL Gullwing coupe",
-    "Mercedes-Benz 300 SL Gullwing coupe",
-    "1950s Mercedes-Benz 300 SL Gullwing coupe, low body with distinctive gullwing doors; never a roadster",
-  ),
-  car(
-    "car.shelby_cobra.1964_289",
-    "Shelby/AC Cobra 289 (1964)",
-    "Shelby/AC Cobra 289 (1964)",
-    "1964 Shelby/AC Cobra 289 roadster with the period 289 body; never the later 427 body",
-  ),
-  car(
-    "car.jaguar_e_type.series1_coupe",
-    "Jaguar E-Type Series 1 coupe",
-    "Jaguar E-Type Series 1 coupe",
-    "Jaguar E-Type Series 1 coupe, Series 1 proportions and enclosed roof",
-  ),
-  car(
-    "car.jaguar_e_type.series1_roadster",
-    "Jaguar E-Type Series 1 roadster",
-    "Jaguar E-Type Series 1 roadster",
-    "Jaguar E-Type Series 1 roadster, Series 1 proportions and open cabin; never a coupe",
-  ),
-  car(
-    "car.modern_luxury_sedan",
-    "Sedan hạng sang hiện đại",
-    "Modern luxury sedan",
-    "modern luxury sedan",
-  ),
-  car("car.suv", "SUV", "SUV", "modern SUV"),
-  car("car.ev", "Xe điện", "Electric vehicle", "modern electric vehicle"),
-  car(
-    "car.vietnamese_city_car",
-    "Xe đô thị Việt Nam",
-    "Vietnamese city car",
-    "compact Vietnamese city car",
-  ),
+    labelVi: "Xe đạp phố",
+    labelEn: "City bicycle",
+    promptEn: "city bicycle",
+    colorable: true,
+  }),
 ];
-export const OBJECT_CATALOG = SCENE_OBJECT_PRESETS;
 
+/** Presets in catalog order; ids are stable and stored in shot snapshots. */
+export const OBJECT_CATALOG = SCENE_OBJECT_PRESETS;
 export const CAR_PRESETS = SCENE_OBJECT_PRESETS.filter((p) => p.type === "car");
 
-const byId = new Map(SCENE_OBJECT_PRESETS.map((preset) => [preset.id, preset]));
-export const sceneObjectPreset = (id: string) => byId.get(id);
+const BY_ID = new Map(SCENE_OBJECT_PRESETS.map((p) => [p.id, p]));
+export const sceneObjectPreset = (id: string): SceneObjectPreset | undefined => BY_ID.get(id);
 
-export type AllowedObjectResult = {
-  allowed: readonly SceneObjectType[];
-  reasonVi: string;
-  reasonEn: string;
-  requiresPlacementZone: boolean;
-  hardscapeOnly?: boolean;
+export const presetsOfType = (type: SceneObjectType) =>
+  SCENE_OBJECT_PRESETS.filter((p) => p.type === type);
+
+/** English colour wording used in the prompt. */
+export const OBJECT_COLOR_EN: Readonly<Record<ObjectColorId, string>> = {
+  white: "white",
+  silver: "silver",
+  grey: "grey",
+  black: "black",
+  red: "red",
+  blue: "blue",
+  cream: "cream",
+  racing_green: "dark racing green",
 };
-
-const PEOPLE_PETS_PLANTS: readonly SceneObjectType[] = ["person", "pet", "plant"];
-const VEHICLES: readonly SceneObjectType[] = ["car", "motorbike", "bicycle"];
-
-const idText = (space: SpacePreset | null, instance: SpaceInstance) =>
-  `${space?.id ?? ""} ${instance.presetId} ${space?.labelEn ?? ""}`.toLowerCase();
-
-/** SRS §7.1 table, expressed from the catalog's zone/category and stable preset id. */
-export function allowedObjectsForSpace(
-  space: SpacePreset | null,
-  instance: SpaceInstance,
-): AllowedObjectResult {
-  const text = idText(space, instance);
-  const isGarage = /garage|gara|driveway/.test(text);
-  const isPool = /pool|bể bơi/.test(text);
-  const isFacade = /facade|façade|front|mặt tiền|san_truoc|yard|garden/.test(text);
-  const isLobby = /lobby|sanh|reception|quay/.test(text);
-
-  if (isPool || (instance.presetId.includes("pool") && space?.zone === "exterior"))
-    return {
-      allowed: ["person"],
-      reasonVi: "Hồ bơi resort chỉ cho phép người.",
-      reasonEn: "A resort pool allows people only.",
-      requiresPlacementZone: false,
-    };
-  if (isGarage || /garage|driveway/.test(instance.presetId))
-    return {
-      allowed: ["car", "motorbike", "person"],
-      reasonVi: "Gara hoặc driveway cho phép xe và người khi đủ khoảng trống.",
-      reasonEn: "A garage or driveway allows vehicles and people when there is enough room.",
-      requiresPlacementZone: true,
-    };
-  if (isFacade && instance.presetId.startsWith("townhouse."))
-    return {
-      allowed: ["person", "car", "motorbike"],
-      reasonVi: "Mặt tiền nhà phố chỉ cho xe trên con đường hiện hữu, không tạo driveway mới.",
-      reasonEn:
-        "A townhouse facade allows vehicles only on the existing road; never create a driveway.",
-      requiresPlacementZone: true,
-    };
-  if (instance.presetId.startsWith("villa.") && space?.zone === "exterior")
-    return {
-      allowed: ["car", "person", "pet", "plant"],
-      reasonVi: "Sân biệt thự chỉ cho xe đỗ trên hardscape.",
-      reasonEn: "A villa yard allows parked cars on hardscape only.",
-      requiresPlacementZone: true,
-      hardscapeOnly: true,
-    };
-  if (
-    isLobby &&
-    (instance.presetId.startsWith("hotel.") || instance.presetId.startsWith("resort."))
-  )
-    return {
-      allowed: ["person", "plant"],
-      reasonVi: "Sảnh khách sạn cho phép người và cây.",
-      reasonEn: "A hotel lobby allows people and plants.",
-      requiresPlacementZone: false,
-    };
-  if (space?.zone === "interior" && (space.category === "sleeping" || space.category === "living"))
-    return {
-      allowed: PEOPLE_PETS_PLANTS,
-      reasonVi: "Phòng khách và phòng ngủ chỉ cho người, thú cưng và cây.",
-      reasonEn: "Bedrooms and living rooms allow people, pets and plants only.",
-      requiresPlacementZone: false,
-    };
-  if (space?.zone === "interior")
-    return {
-      allowed: ["person", "plant"],
-      reasonVi: "Không gian nội thất này chỉ cho người và cây.",
-      reasonEn: "This interior space allows people and plants only.",
-      requiresPlacementZone: false,
-    };
-  return {
-    allowed: ["person", "pet", "plant"],
-    reasonVi: "Không gian ngoài trời này cho người, thú cưng và cây.",
-    reasonEn: "This outdoor space allows people, pets and plants.",
-    requiresPlacementZone: false,
-  };
-}
-
-export const allowedObjectTypesForSpace = allowedObjectsForSpace;
-
-export { VEHICLES };
