@@ -261,7 +261,10 @@ describe("ADJACENT_BUILDING_CONFLICT", () => {
     const unknown = townhouse();
     unknown.context.left.adjacentBuildings = [];
     unknown.context.right.adjacentBuildings = [];
-    expect(run(unknown, "show the side facade").verdict).toBe("ALLOW");
+    // Unknown sides are not ADJACENT_BUILDING_CONFLICT; since P1b they are OCCLUDED_TARGET.
+    const result = run(unknown, "show the side facade");
+    expect(result.issues.map((i) => i.code)).toEqual(["OCCLUDED_TARGET"]);
+    expect(result.verdict).toBe("WARN");
   });
 });
 

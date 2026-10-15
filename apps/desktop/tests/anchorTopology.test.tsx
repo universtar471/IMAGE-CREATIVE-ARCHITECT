@@ -178,13 +178,17 @@ describe("site topology UI", () => {
     expect(screen.getByText("Keep the same street block")).toBeTruthy();
   });
 
-  it("writes explicit values and shows the inferred hint", async () => {
+  it("writes explicit values through the site editor, which replaces the toggles", async () => {
     await openExterior();
     useStudio.getState().editDna("context.left.adjacentBuildings", ["party wall"]);
     render(<ContextDnaPanel />);
 
-    expect(screen.getAllByText("Inferred from description").length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByLabelText("Left side"), { target: { value: "open" } });
+    // The attached side inferred from the description opens as attached / inferred.
+    expect((screen.getByLabelText("Left side") as HTMLSelectElement).value).toBe(
+      "attached_building",
+    );
+    expect((screen.getByLabelText("Left evidence") as HTMLSelectElement).value).toBe("inferred");
+    fireEvent.change(screen.getByLabelText("Left side"), { target: { value: "open_space" } });
     expect(
       (
         useStudio.getState().workspace!.draftDna.context as unknown as {
@@ -194,18 +198,18 @@ describe("site topology UI", () => {
     ).toMatchObject({ left: "open" });
   });
 
-  it("disables attached sides in the corner-side select", async () => {
+  it("derives the corner lot from a street side instead of a corner-side select", async () => {
     await openExterior();
-    useStudio.getState().editDna("context.siteTopology", {
-      left: "attached",
-      right: "open",
-      cornerLot: true,
-      cornerSide: "right",
-    });
     render(<ContextDnaPanel />);
-    const select = screen.getByLabelText("Corner side") as HTMLSelectElement;
-    expect((select.querySelector('option[value="left"]') as HTMLOptionElement).disabled).toBe(true);
-    expect(select.value).toBe("right");
+    expect(screen.queryByLabelText("Corner side")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Left side"), {
+      target: { value: "attached_building" },
+    });
+    fireEvent.change(screen.getByLabelText("Right side"), { target: { value: "street" } });
+    expect(
+      (useStudio.getState().workspace!.draftDna.context as { siteTopology?: SiteTopology })
+        .siteTopology,
+    ).toEqual({ left: "attached", right: "open", cornerLot: true, cornerSide: "right" });
   });
 
   it("renders an unknown-side camera warning and writes the chosen resolution", async () => {
@@ -304,6 +308,7 @@ describe("site topology UI", () => {
     });
     await useStudio.getState().openProject(project.id);
     render(<ContextDnaPanel />);
-    expect(screen.queryByText("Lot position")).toBeNull();
+    expect(screen.queryByText("Lot position and neighbours")).toBeNull();
+    expect(screen.queryByTestId("site-adjacency-editor")).toBeNull();
   });
 });

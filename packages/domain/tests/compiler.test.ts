@@ -223,7 +223,10 @@ describe("camera section (pc-1.1.0)", () => {
   };
 
   it("adds a camera section right after context", () => {
-    const bundle = compilePrompt({ ...withCamera(), cameraId: corner.id });
+    // Declared open sides: the three-quarter wording may show the left side (pc-1.7.0).
+    const i = withCamera();
+    i.dna.context.siteTopology = { left: "open", right: "open", cornerLot: false };
+    const bundle = compilePrompt({ ...i, cameraId: corner.id });
     const sections = bundle.metadata.sections as string[];
     expect(sections.indexOf("camera")).toBe(sections.indexOf("context") + 1);
     const paragraphs = bundle.positivePrompt.split("\n\n");
@@ -231,6 +234,18 @@ describe("camera section (pc-1.1.0)", () => {
       "Camera: exterior corner view; viewpoint: front-left three-quarter view from eye level; lens: 24 mm wide-angle lens; distance: about 25 m from the building; composition: two-point perspective; camera notes: keep the gate in frame.",
     );
     expect(bundle.metadata.cameraId).toBe(corner.id);
+  });
+
+  it("does not promise a side facade whose site side is unknown (pc-1.7.0)", () => {
+    // The villa pack declares no sides: the left side is unknown, so it is not claimed.
+    const bundle = compilePrompt({ ...withCamera(), cameraId: corner.id });
+    expect(bundle.positivePrompt).toContain(
+      "Camera: exterior corner view; viewpoint: front-left oblique view centred on the front facade from eye level; lens: 24 mm wide-angle lens; distance: about 25 m from the building; composition: two-point perspective; camera notes: keep the gate in frame.",
+    );
+    expect(bundle.positivePrompt).not.toContain("viewpoint: front-left three-quarter");
+    expect(bundle.preservationInstructions).toContain(
+      "The left side is not confirmed: do not invent a corner plot, side street or new neighbour arrangement",
+    );
   });
 
   it("omits the section without a camera or for an unknown camera", () => {
@@ -274,6 +289,7 @@ describe("camera section (pc-1.1.0)", () => {
     };
     const i = input("villa");
     i.dna.cameras = [aerial];
+    i.dna.context.siteTopology = { left: "open", right: "open", cornerLot: false };
     expect(compilePrompt({ ...i, cameraId: aerial.id }).positivePrompt).toMatch(
       /Camera: aerial view; viewpoint: front-right three-quarter view from an aerial viewpoint, about 32° down; lens: 35 mm natural standard lens; distance: about 25 m from the building\./,
     );

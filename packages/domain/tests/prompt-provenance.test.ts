@@ -91,11 +91,11 @@ describe("canonicalJson", () => {
 });
 
 describe("PromptBundle provenance (ADR-034)", () => {
-  it("records versions, hashes and resolved warnings; compiler stays pc-1.6.0", () => {
+  it("records versions, hashes and resolved warnings; compiler stays pc-1.7.0", () => {
     const bundle = compilePrompt(input());
-    expect(COMPILER_VERSION).toBe("pc-1.6.0");
+    expect(COMPILER_VERSION).toBe("pc-1.7.0");
     expect(bundle).toMatchObject({
-      compilerVersion: "pc-1.6.0",
+      compilerVersion: "pc-1.7.0",
       validatorVersion: VALIDATOR_VERSION,
       catalogVersion: NO_CATALOG_VERSION,
       resolvedWarnings: [],

@@ -17,6 +17,7 @@ import type { ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
+import { isFacadeExposable, resolveVisibility, type Facade } from "../site/visibility";
 import { revealedSide } from "../prompt/topology";
 import {
   CONFLICT_CODES,
@@ -30,6 +31,7 @@ import {
   EXACT_DIMENSION_PHRASES,
   LEFT_SIDE_PHRASES,
   NIGHT_PHRASES,
+  REAR_FACADE_PHRASES,
   REMOVE_NEIGHBOUR_PHRASES,
   RIGHT_SIDE_PHRASES,
   SHOW_SIDE_PHRASES,
@@ -244,10 +246,78 @@ const spaceNotInBuildingRule: ConflictRule = {
   check: () => [],
 };
 
-/** P1 hook: needs the visibility resolver. No issues until then. */
+/**
+ * The camera or the extra prompt targets a facade the visibility resolver marks occluded.
+ * - Camera: a side or rear elevation (`exterior_side`, `exterior_rear`) aimed at a side
+ *   that is unknown or behind a boundary wall. Corner and front cameras target the front
+ *   facade; the resolver only narrows their wording.
+ * - Extra prompt: asking for a side or rear facade when every side it can mean is hidden.
+ * An attached side is left to ADJACENT_BUILDING_CONFLICT (a BLOCK), so one request never
+ * raises both codes. Always WARN: the side may simply not be recorded yet (P2 detail targets
+ * may escalate it).
+ */
 const occludedTargetRule: ConflictRule = {
   code: "OCCLUDED_TARGET",
-  check: () => [],
+  check(ctx) {
+    if (!isExterior(ctx.shot)) return [];
+    const { adjacency } = ctx;
+    const hidden = (f: Facade) =>
+      !isFacadeExposable(adjacency, f) && !(f !== "roof" && attached(adjacency, f));
+    const issues: IssueDraft[] = [];
+    const found = shotCamera(ctx);
+    const cameraSide = found ? revealedSide(found.camera) : null;
+    if (found) {
+      const { camera, index } = found;
+      const target: Facade | null =
+        camera.viewType === "exterior_side"
+          ? cameraSide
+          : camera.viewType === "exterior_rear"
+            ? "rear"
+            : null;
+      const visibility = resolveVisibility(adjacency, camera);
+      if (target && visibility.occludedFacades.includes(target) && hidden(target))
+        issues.push({
+          code: "OCCLUDED_TARGET",
+          path: `cameras[${index}]`,
+          params: {
+            source: "camera",
+            facade: target,
+            kind: adjacency[target as SiteSide].kind,
+            viewType: camera.viewType,
+          },
+        });
+    }
+    const text = ctx.extra;
+    if (!text) return issues;
+    const side = firstPhrase(text, SHOW_SIDE_PHRASES);
+    const rear = firstPhrase(text, REAR_FACADE_PHRASES);
+    const facades: Facade[] = [];
+    let phrase = "";
+    if (side) {
+      const named = mentionedSides(text);
+      const candidates = named.length
+        ? named
+        : cameraSide
+          ? [cameraSide]
+          : (["left", "right"] as const);
+      // Satisfiable when one candidate is free; all attached is ADJACENT_BUILDING_CONFLICT.
+      if (candidates.every((s) => !isFacadeExposable(adjacency, s))) {
+        facades.push(...candidates.filter(hidden));
+        if (facades.length) phrase = side.text;
+      }
+    }
+    if (rear && hidden("rear")) {
+      facades.push("rear");
+      phrase ||= rear.text;
+    }
+    if (facades.length)
+      issues.push({
+        code: "OCCLUDED_TARGET",
+        path: "extraPrompt",
+        params: { source: "extraPrompt", facade: facades.join(","), phrase },
+      });
+    return issues;
+  },
 };
 
 /** Rules in evaluation order. Later phases append theirs here. */

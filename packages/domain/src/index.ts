@@ -17,6 +17,7 @@ export * from "./knowledge/defaults";
 export * from "./invariants/dna";
 export * from "./prompt/compiler";
 export * from "./prompt/topology";
+export * from "./prompt/sections/siteOcclusion";
 export * from "./prompt/hash";
 export * from "./prompt/stylePhrases";
 export * from "./generation/helpers";

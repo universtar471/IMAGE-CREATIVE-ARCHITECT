@@ -852,15 +852,7 @@ export const vi: Dict = {
   },
 
   topology: {
-    title: "Vị trí lô đất",
-    left: "Trái",
-    right: "Phải",
     cornerLot: "Lô góc",
-    cornerSide: "Mặt hông lô góc",
-    attached: "Liền kề",
-    open: "Trống",
-    unknown: "Chưa rõ",
-    inferred: "(tự nhận từ mô tả)",
     normal: "Góc nhìn khu đất bình thường",
     obliqueStreet: "Nhìn chéo dọc phố — không lộ hông (liền kề)",
     aerialBlock: "Giữ nguyên dãy phố",
@@ -876,6 +868,46 @@ export const vi: Dict = {
     attachedSide: "liền kề bên {side}",
     standalone: "Nhà đứng riêng",
     unknownLot: "Chưa rõ vị trí lô",
+  },
+
+  site: {
+    title: "Vị trí lô đất và nhà bên cạnh",
+    convention: "Trái/phải tính theo người đứng ngoài nhìn vào mặt tiền.",
+    derived: "Đang suy ra từ thiết lập lô đất cũ; chọn một giá trị để lưu cả bốn phía.",
+    diagram: "Sơ đồ lô đất: mặt tiền ở dưới",
+    building: "Công trình",
+    viewer: "Người nhìn",
+    sides: {
+      front: "Phía trước",
+      left: "Bên trái",
+      right: "Bên phải",
+      rear: "Phía sau",
+    },
+    short: {
+      front: "Trước",
+      left: "Trái",
+      right: "Phải",
+      rear: "Sau",
+    },
+    evidenceFor: {
+      front: "Bằng chứng phía trước",
+      left: "Bằng chứng bên trái",
+      right: "Bằng chứng bên phải",
+      rear: "Bằng chứng phía sau",
+    },
+    kinds: {
+      attached_building: "Nhà liền kề",
+      street: "Đường phố",
+      open_space: "Khoảng trống",
+      boundary_wall: "Tường rào",
+      unknown: "Chưa rõ",
+    },
+    evidence: {
+      verified: "Đã xác minh",
+      user_declared: "Người dùng khai báo",
+      inferred: "Suy luận",
+      unknown: "Chưa rõ",
+    },
   },
 
   assets: {

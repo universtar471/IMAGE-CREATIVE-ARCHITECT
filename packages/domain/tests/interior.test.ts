@@ -209,7 +209,7 @@ describe("Interior DNA helpers and schema", () => {
   });
 });
 
-describe("Interior prompt compiler pc-1.6.0", () => {
+describe("Interior prompt compiler pc-1.7.0", () => {
   function compilerInput() {
     const pack = registry.resolve("interior").pack!;
     const dna = createInitialDNA({ projectType: "interior", pack });
@@ -243,7 +243,7 @@ describe("Interior prompt compiler pc-1.6.0", () => {
 
   it("compiles the full Japandi living-room example in stable section order", () => {
     const bundle = compilePrompt(compilerInput());
-    expect(COMPILER_VERSION).toBe("pc-1.6.0");
+    expect(COMPILER_VERSION).toBe("pc-1.7.0");
     expect(bundle.metadata.sections).toEqual([
       "subject",
       "form",

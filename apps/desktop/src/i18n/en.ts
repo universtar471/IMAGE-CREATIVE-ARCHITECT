@@ -852,15 +852,7 @@ export const en = {
   },
 
   topology: {
-    title: "Lot position",
-    left: "Left side",
-    right: "Right side",
     cornerLot: "Corner lot",
-    cornerSide: "Corner side",
-    attached: "Attached",
-    open: "Open",
-    unknown: "Unknown",
-    inferred: "Inferred from description",
     normal: "Normal site view",
     obliqueStreet: "Oblique street view — attached side hidden",
     aerialBlock: "Keep the same street block",
@@ -876,6 +868,46 @@ export const en = {
     attachedSide: "attached on the {side} side",
     standalone: "Detached house",
     unknownLot: "Lot position unknown",
+  },
+
+  site: {
+    title: "Lot position and neighbours",
+    convention: "Left and right are as seen standing outside, facing the front facade.",
+    derived: "Derived from the older lot settings; choosing a value saves the four sides.",
+    diagram: "Site plan: front facade at the bottom",
+    building: "Building",
+    viewer: "Viewer",
+    sides: {
+      front: "Front side",
+      left: "Left side",
+      right: "Right side",
+      rear: "Rear side",
+    },
+    short: {
+      front: "Front",
+      left: "Left",
+      right: "Right",
+      rear: "Rear",
+    },
+    evidenceFor: {
+      front: "Front evidence",
+      left: "Left evidence",
+      right: "Right evidence",
+      rear: "Rear evidence",
+    },
+    kinds: {
+      attached_building: "Attached building",
+      street: "Street",
+      open_space: "Open space",
+      boundary_wall: "Boundary wall",
+      unknown: "Unknown",
+    },
+    evidence: {
+      verified: "Verified",
+      user_declared: "Declared by user",
+      inferred: "Inferred",
+      unknown: "Unknown",
+    },
   },
 
   assets: {
