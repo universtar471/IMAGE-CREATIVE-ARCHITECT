@@ -13,6 +13,7 @@ export const ID_PREFIX = {
   batch: "BAT",
   material: "MAT",
   light: "LGT",
+  space: "SPC",
 } as const;
 
 const ULID = "[0-9A-HJKMNP-TV-Z]{26}";
@@ -96,4 +97,9 @@ export function newCameraId(): string {
 /** A fresh `LGT_<ULID>` for an artificial light created in the UI. */
 export function newLightingId(): string {
   return `${ID_PREFIX.light}_${newUlid()}`;
+}
+
+/** A fresh `SPC_<ULID>` for a Space Catalog space instance created in the UI (ADR-034). */
+export function newSpaceId(): string {
+  return `${ID_PREFIX.space}_${newUlid()}`;
 }

@@ -1,12 +1,17 @@
 {
-  "packVersion": "1.3.0",
+  "packVersion": "1.4.0",
   "projectType": "interior",
   "subtype": "living_room",
   "label": "Living room",
   "description": "Residential living room.",
   "defaults": {
     "building": {
-      "buildingType": "living room",
+      "buildingType": "living room"
+    }
+  },
+  "sampleDefaults": {
+    "note": "Sample only, not verified: a typical 5 x 6 x 3 m apartment living room.",
+    "building": {
       "dimensions": {
         "widthM": 5,
         "depthM": 6,

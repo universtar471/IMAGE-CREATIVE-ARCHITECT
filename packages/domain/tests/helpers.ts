@@ -12,6 +12,8 @@ export function loadSeedRegistry(): KnowledgeRegistry {
     const typeDir = join(knowledgeRoot, type);
     if (!statSync(typeDir).isDirectory()) continue;
     for (const subtype of readdirSync(typeDir)) {
+      // Packs are `<type>/<subtype>/pack.json`; other knowledge (space-catalog/) is not a pack.
+      if (!statSync(join(typeDir, subtype)).isDirectory()) continue;
       const file = join(typeDir, subtype, "pack.json");
       raw.push({ source: `${type}/${subtype}`, data: JSON.parse(readFileSync(file, "utf8")) });
     }

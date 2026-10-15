@@ -9,6 +9,7 @@ import { DnaNumber, DnaTags, DnaText, DnaTextArea, useDnaLock } from "./DnaField
 import { LockToggle } from "./LockToggle";
 import { InteriorDnaPanel } from "./InteriorDnaPanel";
 import { AssistControl } from "../assist/AssistControl";
+import { SpaceSelector } from "../space/SpaceSelector";
 
 export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -51,6 +52,8 @@ export function BuildingDnaPanel() {
           <DnaText path="building.subtype" label={t("dna.subtype")} />
         </div>
       </SectionPanel>
+
+      <SpaceSelector />
 
       <SectionPanel title={t("dna.dimensions")}>
         <div className="field-row">

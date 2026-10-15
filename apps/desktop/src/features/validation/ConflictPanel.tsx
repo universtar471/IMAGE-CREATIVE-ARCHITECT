@@ -37,7 +37,9 @@ export function ConflictPanel({
       ? t("conflictUi.fromExtraPrompt")
       : issue.path.startsWith("cameras")
         ? t("conflictUi.fromCamera")
-        : issue.path;
+        : issue.path.startsWith("spaceCatalog")
+          ? t("conflictUi.fromSpace")
+          : issue.path;
 
   return (
     <div
@@ -107,6 +109,12 @@ export function useConflictFix(textFieldId?: string, before?: () => void) {
       return;
     }
     before?.();
-    setModule(issue.path.startsWith("cameras") ? "camera" : "context");
+    setModule(
+      issue.path.startsWith("cameras")
+        ? "camera"
+        : issue.path.startsWith("spaceCatalog")
+          ? "design_dna"
+          : "context",
+    );
   };
 }

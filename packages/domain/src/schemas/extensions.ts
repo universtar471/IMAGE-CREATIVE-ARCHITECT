@@ -56,6 +56,8 @@ export type SpaceFact = z.infer<typeof SpaceFactSchema>;
 export const SpaceInstanceSchema = z.object({
   id,
   presetId: id,
+  /** One of the preset's `variants` (P1a); absent when the preset has none. */
+  variantId: id.optional(),
   floorId: id.optional(),
   label: z.string().trim().min(1).optional(),
   facts: z.record(z.string(), SpaceFactSchema).default({}),

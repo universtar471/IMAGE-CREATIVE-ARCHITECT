@@ -26,6 +26,7 @@ import {
 } from "../../lib/interior";
 import { AssistControl } from "../assist/AssistControl";
 import { PhotoThumbnail } from "../previews/PhotoThumbnail";
+import { SpaceSelector } from "../space/SpaceSelector";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -147,6 +148,8 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
             onChange={(value) => value && patch("roomId", value)}
           />
         </SectionPanel>
+
+        <SpaceSelector />
 
         <SectionPanel title={`${t("interior.style")} & ${t("interior.palette")}`}>
           <SelectField
