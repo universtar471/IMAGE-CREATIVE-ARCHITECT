@@ -677,3 +677,17 @@ Status: accepted (2026-10-15). Basis: the user supplied `IMAGE_CREATIVE_ARCHITEC
 - The Rust `ColorGrade.look` stays a free string.
 - Parity vectors are unchanged, since looks are plain numbers.
 - The grade-ui brief (`docs/agent-tasks/grade-ui.md`) is rewritten around this merge.
+
+## ADR-033 — Remove the Vision QC / scoring feature
+
+Status: accepted (2026-10-15). Basis: the user asked to remove the scoring feature because it is not needed.
+
+**Decision**
+- The Vision QC feature of ADR-024 is removed:
+  - the workspace module, badges, next-step guidance, settings and auto QC
+  - repair from a QC report
+  - the `qc_*` commands
+  - `services/qc.rs`
+  - the vision provider calls used only by QC
+- User data is never deleted. The QC tables and migrations stay unchanged and no drop migration is added, so old databases open as before.
+- The generation purpose `repair` and its label stay, so old history displays. ADR-024 is superseded.
