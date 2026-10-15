@@ -14,8 +14,8 @@ use crate::dto::{
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, dna, dna_assist, generations, grade, luts, projects, prompt_enhance, provider_settings, qc,
-    queue, regions, workflow, AppCore,
+    anchors, assets, batches, dna, dna_assist, generations, grade, luts, projects, prompt_enhance, provider_settings,
+    qc, queue, regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
