@@ -627,3 +627,53 @@ Status: accepted (2026-10-11). Basis: the user approved, the LightCraft spike wa
 **Live preview**
 - `grade_preview` renders the selected asset at ≤ 640 px. LightCraft takes about 15 ms at 512 px, measured in the spike.
 - The UI debounces the call at 120 ms and shows a before/after split.
+
+
+## ADR-032 — Adopt the user's Color Grading Studio V5.2/V5.3 patch into the grade v2 UI
+
+Status: accepted (2026-10-15). Basis: the user supplied `IMAGE_CREATIVE_ARCHITECT_COLOR_GRADING_V5_3_FULL_SOURCE`. It was built on `35f11c9` and adds 18 files, all TypeScript/React. Its specs are kept as `docs/COLOR_GRADING_STUDIO_V5_2.md` and `V5_3.md`.
+
+**Context**
+- V5.2 contains:
+  - 30 v1 looks (`GRADE_LOOKS`) with bilingual metadata in six categories
+  - a live thumbnail gallery rendered from the selected project image through the TypeScript v1 pixel path
+  - an exposure slider range fix (−5..5 → −100..100)
+  - a Split-view fix: `putImageData` ignores clip paths, so the patch uses the dirty-rectangle overload
+  - manual slider edits clear `look`
+- V5.3 contains a batch colour-grade dialog:
+  - real thumbnails, filters, selection
+  - one preset with an intensity from 0 to 100 %, plus preview
+  - a sequential `grade_apply` queue with stop-after-current, resume and retry-failed
+  - one `asset_list` refresh at the end
+- The patch was never typechecked or tested in its origin environment.
+- It predates ADR-028..031:
+  - grade v2
+  - LightCraft
+  - the five style presets
+  - the LUT library
+  - the ADR-029 preview components
+
+**Decision**
+- The patch is applied with a 3-way merge onto `wt/grade-ui`, which branches from main after `wt/grade-core` merges. Conflicts are resolved toward current main.
+- Preset gallery categories:
+  - All, Natural, Warm, Cool, Editorial, Cinematic, Special (the 30 v1 looks)
+  - **Hợp phong cách**: the five v2 style presets of ADR-031, flagged by `gradePresetsForStyle`
+  - **LUT**: the user LUT library
+- Thumbnail sources:
+  - v1 looks keep the fast TypeScript thumbnails.
+  - v2 presets and LUTs use the backend `grade_preview`/`lut_preview`.
+- Overlapping names (for example `clean_concrete` vs `concrete_steel`) stay; they are different looks. The style group explains that it is matched to the project style.
+- Batch grading accepts any `ColorGradeDNA`, including v2 fields and `lut`.
+  - Intensity scales every numeric field linearly toward neutral.
+  - `lut.strength` is scaled the same way.
+  - `toneCurve` and `splitTone` hues are kept; split-tone saturations are scaled.
+  - The backend `grade_apply` renders v2 through LightCraft, as for a single image.
+- Batch grading never writes `draftDna.colorGrade`.
+- Read-only or archived projects are refused, by the UI and by the existing backend guard.
+- The batch queue lives in the dialog for now. A persistent backend batch job stays future work.
+
+**Consequences**
+- The `look` enum grows by 24 ids, so the JSON schema is regenerated.
+- The Rust `ColorGrade.look` stays a free string.
+- Parity vectors are unchanged, since looks are plain numbers.
+- The grade-ui brief (`docs/agent-tasks/grade-ui.md`) is rewritten around this merge.
