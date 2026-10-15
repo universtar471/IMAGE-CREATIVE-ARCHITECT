@@ -1,0 +1,2547 @@
+{
+  "version": "4.0.0",
+  "count": 131,
+  "presets": [
+    {
+      "id": "townhouse.urban_infill",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố liền kề",
+      "requiredIfSupported": [
+        "continuous party-wall neighbors",
+        "street frontage",
+        "realistic road access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "expansive lawn",
+        "detached villa grounds"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.urban_infill. Depict a Nhà phố in the specific setting of Nhà phố liền kề. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: continuous party-wall neighbors, street frontage, realistic road access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: expansive lawn, detached villa grounds. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.corner_lot",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố lô góc",
+      "requiredIfSupported": [
+        "two street-facing elevations",
+        "intersection and pedestrian access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "single-frontage depiction",
+        "invented garden"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.corner_lot. Depict a Nhà phố in the specific setting of Nhà phố lô góc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two street-facing elevations, intersection and pedestrian access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: single-frontage depiction, invented garden. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.subdivision_vacant",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố phân lô đất trống",
+      "requiredIfSupported": [
+        "visible plot boundaries",
+        "serviced subdivision street",
+        "plausible vacant adjacent plots"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mature built-up neighborhood asserted as fact"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.subdivision_vacant. Depict a Nhà phố in the specific setting of Nhà phố phân lô đất trống. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: visible plot boundaries, serviced subdivision street, plausible vacant adjacent plots. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mature built-up neighborhood asserted as fact. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.one_side_attached",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố giáp một bên",
+      "requiredIfSupported": [
+        "one attached neighbor and one exposed side boundary"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "detached four-sided garden"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.one_side_attached. Depict a Nhà phố in the specific setting of Nhà phố giáp một bên. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: one attached neighbor and one exposed side boundary. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: detached four-sided garden. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.alley",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố trong hẻm",
+      "requiredIfSupported": [
+        "narrow access lane",
+        "dense nearby homes",
+        "realistic utilities"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "wide boulevard",
+        "grand driveway"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.alley. Depict a Nhà phố in the specific setting of Nhà phố trong hẻm. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: narrow access lane, dense nearby homes, realistic utilities. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: wide boulevard, grand driveway. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.main_road",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố mặt tiền đường lớn",
+      "requiredIfSupported": [
+        "urban arterial street",
+        "sidewalk where present",
+        "mixed streetscape"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private resort road"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.main_road. Depict a Nhà phố in the specific setting of Nhà phố mặt tiền đường lớn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban arterial street, sidewalk where present, mixed streetscape. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private resort road. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.new_town",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố khu đô thị mới",
+      "requiredIfSupported": [
+        "planned street infrastructure",
+        "regulated lot boundaries"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "old dense street assumed"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.new_town. Depict a Nhà phố in the specific setting of Nhà phố khu đô thị mới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned street infrastructure, regulated lot boundaries. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: old dense street assumed. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.old_quarter",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố khu phố cũ",
+      "requiredIfSupported": [
+        "varied neighboring facades",
+        "aged but credible infrastructure"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "uniform masterplanned villas"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.old_quarter. Depict a Nhà phố in the specific setting of Nhà phố khu phố cũ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: varied neighboring facades, aged but credible infrastructure. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: uniform masterplanned villas. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.riverfront",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố ven sông",
+      "requiredIfSupported": [
+        "documented waterfront frontage",
+        "embankment or natural bank"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented marina"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.riverfront. Depict a Nhà phố in the specific setting of Nhà phố ven sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: documented waterfront frontage, embankment or natural bank. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented marina. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.sloping",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố trên đất dốc",
+      "requiredIfSupported": [
+        "sloping street",
+        "grade transitions",
+        "stable access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "perfectly flat terrain"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.sloping. Depict a Nhà phố in the specific setting of Nhà phố trên đất dốc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: sloping street, grade transitions, stable access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: perfectly flat terrain. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.front_back_roads",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố hai đường trước sau",
+      "requiredIfSupported": [
+        "two independent street interfaces where evidenced"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "imaginary side road"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.front_back_roads. Depict a Nhà phố in the specific setting of Nhà phố hai đường trước sau. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two independent street interfaces where evidenced. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: imaginary side road. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "townhouse.mixed_use",
+      "buildingType": "townhouse",
+      "buildingTypeVi": "Nhà phố",
+      "nameVi": "Nhà phố kết hợp kinh doanh",
+      "requiredIfSupported": [
+        "ground-floor commercial interface",
+        "upper residential frontage"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "purely isolated residential landscape"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: townhouse.mixed_use. Depict a Nhà phố in the specific setting of Nhà phố kết hợp kinh doanh. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: ground-floor commercial interface, upper residential frontage. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: purely isolated residential landscape. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.urban",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự phố",
+      "requiredIfSupported": [
+        "urban plot boundaries",
+        "setbacks",
+        "neighboring residences"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "unbounded estate"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.urban. Depict a Biệt thự in the specific setting of Biệt thự phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban plot boundaries, setbacks, neighboring residences. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: unbounded estate. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.detached",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự đơn lập",
+      "requiredIfSupported": [
+        "four exposed elevations",
+        "private plot",
+        "proportionate landscaping"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "attached party walls"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.detached. Depict a Biệt thự in the specific setting of Biệt thự đơn lập. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: four exposed elevations, private plot, proportionate landscaping. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: attached party walls. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.semi_detached",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự song lập",
+      "requiredIfSupported": [
+        "shared dividing boundary",
+        "paired house rhythm"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "fully detached campus"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.semi_detached. Depict a Biệt thự in the specific setting of Biệt thự song lập. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: shared dividing boundary, paired house rhythm. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: fully detached campus. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.row_villa",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự liền kề",
+      "requiredIfSupported": [
+        "planned villa row",
+        "repeated street frontage"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated wilderness"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.row_villa. Depict a Biệt thự in the specific setting of Biệt thự liền kề. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned villa row, repeated street frontage. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated wilderness. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.coastal",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự biển",
+      "requiredIfSupported": [
+        "coastal terrain",
+        "salt-tolerant planting",
+        "beach access if documented"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "alpine forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.coastal. Depict a Biệt thự in the specific setting of Biệt thự biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: coastal terrain, salt-tolerant planting, beach access if documented. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: alpine forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.resort",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự resort",
+      "requiredIfSupported": [
+        "resort pathways",
+        "planned landscape and privacy buffers"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense inner-city alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.resort. Depict a Biệt thự in the specific setting of Biệt thự resort. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: resort pathways, planned landscape and privacy buffers. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense inner-city alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.forest",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự trong rừng",
+      "requiredIfSupported": [
+        "existing tree canopy",
+        "minimal site disturbance",
+        "forest access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "urban commercial frontage"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.forest. Depict a Biệt thự in the specific setting of Biệt thự trong rừng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: existing tree canopy, minimal site disturbance, forest access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: urban commercial frontage. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.mountain",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự đồi núi",
+      "requiredIfSupported": [
+        "terrain-adapted foundations",
+        "mountain slopes and access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat seaside promenade"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.mountain. Depict a Biệt thự in the specific setting of Biệt thự đồi núi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: terrain-adapted foundations, mountain slopes and access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat seaside promenade. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.lake",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự ven hồ",
+      "requiredIfSupported": [
+        "lake shoreline",
+        "safe setbacks",
+        "natural or built edge"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ocean surf"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.lake. Depict a Biệt thự in the specific setting of Biệt thự ven hồ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: lake shoreline, safe setbacks, natural or built edge. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ocean surf. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.river",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự ven sông",
+      "requiredIfSupported": [
+        "riverbank terrain",
+        "flood-aware access",
+        "riparian vegetation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented harbor"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.river. Depict a Biệt thự in the specific setting of Biệt thự ven sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: riverbank terrain, flood-aware access, riparian vegetation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented harbor. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.golf",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự sân golf",
+      "requiredIfSupported": [
+        "golf course adjacency",
+        "fairway views and course boundary"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense street market"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.golf. Depict a Biệt thự in the specific setting of Biệt thự sân golf. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: golf course adjacency, fairway views and course boundary. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense street market. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.rural",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự nông thôn",
+      "requiredIfSupported": [
+        "rural road",
+        "local agriculture and garden within parcel"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "metropolitan skyline"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.rural. Depict a Biệt thự in the specific setting of Biệt thự nông thôn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: rural road, local agriculture and garden within parcel. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: metropolitan skyline. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.desert",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự sa mạc",
+      "requiredIfSupported": [
+        "arid terrain",
+        "low-water planting and mineral surfaces"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "tropical rainforest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.desert. Depict a Biệt thự in the specific setting of Biệt thự sa mạc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: arid terrain, low-water planting and mineral surfaces. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: tropical rainforest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "villa.corner_urban",
+      "buildingType": "villa",
+      "buildingTypeVi": "Biệt thự",
+      "nameVi": "Biệt thự góc phố",
+      "requiredIfSupported": [
+        "two street edges",
+        "gates and privacy screening"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "beach frontage"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: villa.corner_urban. Depict a Biệt thự in the specific setting of Biệt thự góc phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two street edges, gates and privacy screening. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: beach frontage. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.downtown",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Phố thương mại trung tâm",
+      "requiredIfSupported": [
+        "continuous storefronts",
+        "urban sidewalks",
+        "shop access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private lawns"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.downtown. Depict a Shophouse in the specific setting of Phố thương mại trung tâm. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: continuous storefronts, urban sidewalks, shop access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private lawns. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.new_town",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse đô thị mới",
+      "requiredIfSupported": [
+        "planned retail street and consistent infrastructure"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "remote forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.new_town. Depict a Shophouse in the specific setting of Shophouse đô thị mới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned retail street and consistent infrastructure. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: remote forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.corner",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse lô góc",
+      "requiredIfSupported": [
+        "two active commercial facades and safe intersection access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "single blind frontage"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.corner. Depict a Shophouse in the specific setting of Shophouse lô góc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two active commercial facades and safe intersection access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: single blind frontage. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.pedestrian",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse phố đi bộ",
+      "requiredIfSupported": [
+        "pedestrian retail frontage and public realm"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "heavy truck yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.pedestrian. Depict a Shophouse in the specific setting of Shophouse phố đi bộ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: pedestrian retail frontage and public realm. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: heavy truck yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.lake",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse ven hồ",
+      "requiredIfSupported": [
+        "retail frontage adjoining a documented lake promenade"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.lake. Depict a Shophouse in the specific setting of Shophouse ven hồ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: retail frontage adjoining a documented lake promenade. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.coastal",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse ven biển",
+      "requiredIfSupported": [
+        "tourist street",
+        "coastal pedestrian access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mountain forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.coastal. Depict a Shophouse in the specific setting of Shophouse ven biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: tourist street, coastal pedestrian access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mountain forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.market",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse gần chợ",
+      "requiredIfSupported": [
+        "market street activity",
+        "local commercial neighbors"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated resort"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.market. Depict a Shophouse in the specific setting of Shophouse gần chợ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: market street activity, local commercial neighbors. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated resort. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "shophouse.live_work",
+      "buildingType": "shophouse",
+      "buildingTypeVi": "Shophouse",
+      "nameVi": "Shophouse ở kết hợp kinh doanh",
+      "requiredIfSupported": [
+        "ground-floor retail and upper residential access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "single-use warehouse"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: shophouse.live_work. Depict a Shophouse in the specific setting of Shophouse ở kết hợp kinh doanh. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: ground-floor retail and upper residential access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: single-use warehouse. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.highrise",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư cao tầng",
+      "requiredIfSupported": [
+        "urban high-rise block",
+        "vehicular and pedestrian access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "detached villa garden"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.highrise. Depict a Chung cư in the specific setting of Chung cư cao tầng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban high-rise block, vehicular and pedestrian access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: detached villa garden. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.new_town",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư đô thị mới",
+      "requiredIfSupported": [
+        "planned tower spacing and communal landscape"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "rural farm"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.new_town. Depict a Chung cư in the specific setting of Chung cư đô thị mới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned tower spacing and communal landscape. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: rural farm. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.lowrise",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư thấp tầng",
+      "requiredIfSupported": [
+        "low-rise residential blocks and shared courtyards"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "tower skyline as immediate neighbors"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.lowrise. Depict a Chung cư in the specific setting of Chung cư thấp tầng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: low-rise residential blocks and shared courtyards. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: tower skyline as immediate neighbors. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.river",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư ven sông",
+      "requiredIfSupported": [
+        "waterfront setback and river-oriented public realm"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented sea"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.river. Depict a Chung cư in the specific setting of Chung cư ven sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: waterfront setback and river-oriented public realm. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented sea. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.coast",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư ven biển",
+      "requiredIfSupported": [
+        "coastal street network and shoreline where evidenced"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "alpine trees"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.coast. Depict a Chung cư in the specific setting of Chung cư ven biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: coastal street network and shoreline where evidenced. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: alpine trees. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.slope",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư sườn đồi",
+      "requiredIfSupported": [
+        "stepped ground and stable access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat ground assumptions"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.slope. Depict a Chung cư in the specific setting of Chung cư sườn đồi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: stepped ground and stable access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat ground assumptions. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.mixed_use",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Chung cư khối đế thương mại",
+      "requiredIfSupported": [
+        "retail podium and residential tower circulation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated single-family lot"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.mixed_use. Depict a Chung cư in the specific setting of Chung cư khối đế thương mại. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: retail podium and residential tower circulation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated single-family lot. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "apartment.serviced",
+      "buildingType": "apartment",
+      "buildingTypeVi": "Chung cư",
+      "nameVi": "Căn hộ dịch vụ",
+      "requiredIfSupported": [
+        "urban or hospitality-oriented access and mixed streetscape"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "industrial loading yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: apartment.serviced. Depict a Chung cư in the specific setting of Căn hộ dịch vụ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban or hospitality-oriented access and mixed streetscape. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: industrial loading yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.beach",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort biển",
+      "requiredIfSupported": [
+        "beach dunes",
+        "coastal paths",
+        "local vegetation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense downtown blocks"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.beach. Depict a Resort in the specific setting of Resort biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: beach dunes, coastal paths, local vegetation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense downtown blocks. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.island",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort đảo",
+      "requiredIfSupported": [
+        "island shoreline and documented arrival access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented bridge"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.island. Depict a Resort in the specific setting of Resort đảo. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: island shoreline and documented arrival access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented bridge. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.forest",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort rừng",
+      "requiredIfSupported": [
+        "forest canopy and low-impact pathways"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "urban high-rise canyon"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.forest. Depict a Resort in the specific setting of Resort rừng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: forest canopy and low-impact pathways. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: urban high-rise canyon. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.mountain",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort núi",
+      "requiredIfSupported": [
+        "mountain contours",
+        "hillside circulation and viewpoints"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat urban boulevard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.mountain. Depict a Resort in the specific setting of Resort núi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: mountain contours, hillside circulation and viewpoints. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat urban boulevard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.lake",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort hồ",
+      "requiredIfSupported": [
+        "lakefront walking paths and site boundaries"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ocean surf"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.lake. Depict a Resort in the specific setting of Resort hồ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: lakefront walking paths and site boundaries. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ocean surf. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.river",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort sông",
+      "requiredIfSupported": [
+        "riverbank pathways and riparian planting"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.river. Depict a Resort in the specific setting of Resort sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: riverbank pathways and riparian planting. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.hot_spring",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort suối khoáng",
+      "requiredIfSupported": [
+        "documented spring facilities and terrain"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented geysers"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.hot_spring. Depict a Resort in the specific setting of Resort suối khoáng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: documented spring facilities and terrain. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented geysers. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.desert",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort sa mạc",
+      "requiredIfSupported": [
+        "arid landscape and shaded circulation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "tropical rainforest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.desert. Depict a Resort in the specific setting of Resort sa mạc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: arid landscape and shaded circulation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: tropical rainforest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.farm",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort nông trại",
+      "requiredIfSupported": [
+        "working agricultural landscape and internal routes"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "high-density urban center"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.farm. Depict a Resort in the specific setting of Resort nông trại. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: working agricultural landscape and internal routes. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: high-density urban center. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.wetland",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort đầm lầy",
+      "requiredIfSupported": [
+        "wetland vegetation and raised access where evidenced"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "uncontrolled land reclamation"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.wetland. Depict a Resort in the specific setting of Resort đầm lầy. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: wetland vegetation and raised access where evidenced. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: uncontrolled land reclamation. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "resort.tropical",
+      "buildingType": "resort",
+      "buildingTypeVi": "Resort",
+      "nameVi": "Resort nhiệt đới",
+      "requiredIfSupported": [
+        "regional tropical planting and climatic shade"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "snow landscape"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: resort.tropical. Depict a Resort in the specific setting of Resort nhiệt đới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: regional tropical planting and climatic shade. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: snow landscape. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.downtown",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn trung tâm",
+      "requiredIfSupported": [
+        "city street frontage and lobby access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.downtown. Depict a Khách sạn in the specific setting of Khách sạn trung tâm. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: city street frontage and lobby access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.airport",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn sân bay",
+      "requiredIfSupported": [
+        "airport district roads and hospitality services"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "runway adjacent unless documented"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.airport. Depict a Khách sạn in the specific setting of Khách sạn sân bay. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: airport district roads and hospitality services. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: runway adjacent unless documented. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.coast",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn biển",
+      "requiredIfSupported": [
+        "coastal street or beachfront site as documented"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mountain forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.coast. Depict a Khách sạn in the specific setting of Khách sạn biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: coastal street or beachfront site as documented. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mountain forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.mountain",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn núi",
+      "requiredIfSupported": [
+        "terrain-aware access and local vegetation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat coastal road"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.mountain. Depict a Khách sạn in the specific setting of Khách sạn núi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: terrain-aware access and local vegetation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat coastal road. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.lake",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn hồ",
+      "requiredIfSupported": [
+        "lake-edge site and pedestrian access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ocean surf"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.lake. Depict a Khách sạn in the specific setting of Khách sạn hồ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: lake-edge site and pedestrian access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ocean surf. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.heritage",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn phố cổ",
+      "requiredIfSupported": [
+        "historic street scale and context-sensitive facades"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "generic glass tower district"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.heritage. Depict a Khách sạn in the specific setting of Khách sạn phố cổ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: historic street scale and context-sensitive facades. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: generic glass tower district. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.business",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn thương mại",
+      "requiredIfSupported": [
+        "commercial district streets and office neighbors"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "remote wilderness"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.business. Depict a Khách sạn in the specific setting of Khách sạn thương mại. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: commercial district streets and office neighbors. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: remote wilderness. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "hotel.retreat",
+      "buildingType": "hotel",
+      "buildingTypeVi": "Khách sạn",
+      "nameVi": "Khách sạn nghỉ dưỡng",
+      "requiredIfSupported": [
+        "private grounds and documented recreational landscape"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented facilities"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: hotel.retreat. Depict a Khách sạn in the specific setting of Khách sạn nghỉ dưỡng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: private grounds and documented recreational landscape. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented facilities. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.street",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe nhà phố",
+      "requiredIfSupported": [
+        "shopfront and neighborhood sidewalk"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "expansive resort lawn"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.street. Depict a Cafe in the specific setting of Cafe nhà phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: shopfront and neighborhood sidewalk. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: expansive resort lawn. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.corner",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe góc phố",
+      "requiredIfSupported": [
+        "two street frontages and pedestrian visibility"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.corner. Depict a Cafe in the specific setting of Cafe góc phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two street frontages and pedestrian visibility. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.garden",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe sân vườn",
+      "requiredIfSupported": [
+        "garden within actual lot",
+        "outdoor seating"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "garden beyond boundaries"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.garden. Depict a Cafe in the specific setting of Cafe sân vườn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: garden within actual lot, outdoor seating. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: garden beyond boundaries. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.forest",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe rừng",
+      "requiredIfSupported": [
+        "tree canopy and appropriate access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense shopping mall"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.forest. Depict a Cafe in the specific setting of Cafe rừng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: tree canopy and appropriate access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense shopping mall. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.lake",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe hồ",
+      "requiredIfSupported": [
+        "lake-facing seating and shore edge"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ocean waves"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.lake. Depict a Cafe in the specific setting of Cafe hồ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: lake-facing seating and shore edge. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ocean waves. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.river",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe sông",
+      "requiredIfSupported": [
+        "river-facing terrace and bank access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented pier"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.river. Depict a Cafe in the specific setting of Cafe sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: river-facing terrace and bank access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented pier. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.beach",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe biển",
+      "requiredIfSupported": [
+        "coastal seating and wind-aware materials"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "alpine snow"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.beach. Depict a Cafe in the specific setting of Cafe biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: coastal seating and wind-aware materials. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: alpine snow. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.hill",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe trên đồi",
+      "requiredIfSupported": [
+        "stepped access and viewpoint"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat inner-city lot"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.hill. Depict a Cafe in the specific setting of Cafe trên đồi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: stepped access and viewpoint. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat inner-city lot. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.rooftop",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe sân thượng",
+      "requiredIfSupported": [
+        "existing rooftop",
+        "parapet and city context"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ground-level meadow"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.rooftop. Depict a Cafe in the specific setting of Cafe sân thượng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: existing rooftop, parapet and city context. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ground-level meadow. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.mall",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe trong mall",
+      "requiredIfSupported": [
+        "mall concourse",
+        "storefront and interior lighting"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "outdoor street invented"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.mall. Depict a Cafe in the specific setting of Cafe trong mall. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: mall concourse, storefront and interior lighting. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: outdoor street invented. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "cafe.office",
+      "buildingType": "cafe",
+      "buildingTypeVi": "Cafe",
+      "nameVi": "Cafe khu văn phòng",
+      "requiredIfSupported": [
+        "office district or workplace campus context"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "remote farmland"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: cafe.office. Depict a Cafe in the specific setting of Cafe khu văn phòng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: office district or workplace campus context. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: remote farmland. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.street",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng mặt phố",
+      "requiredIfSupported": [
+        "commercial frontage and customer arrival"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.street. Depict a Nhà hàng in the specific setting of Nhà hàng mặt phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: commercial frontage and customer arrival. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.garden",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng sân vườn",
+      "requiredIfSupported": [
+        "lot-contained landscape and outdoor tables"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "oversized grounds"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.garden. Depict a Nhà hàng in the specific setting of Nhà hàng sân vườn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: lot-contained landscape and outdoor tables. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: oversized grounds. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.beach",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng ven biển",
+      "requiredIfSupported": [
+        "shoreline setting and coastal access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mountain snow"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.beach. Depict a Nhà hàng in the specific setting of Nhà hàng ven biển. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: shoreline setting and coastal access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mountain snow. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.river",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng ven sông",
+      "requiredIfSupported": [
+        "river-facing seating and safe edge"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented marina"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.river. Depict a Nhà hàng in the specific setting of Nhà hàng ven sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: river-facing seating and safe edge. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented marina. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.hill",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng trên đồi",
+      "requiredIfSupported": [
+        "terraced approach and hillside views"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat street assumed"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.hill. Depict a Nhà hàng in the specific setting of Nhà hàng trên đồi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: terraced approach and hillside views. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat street assumed. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.rooftop",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng rooftop",
+      "requiredIfSupported": [
+        "rooftop enclosure and urban panorama"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ground-floor meadow"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.rooftop. Depict a Nhà hàng in the specific setting of Nhà hàng rooftop. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: rooftop enclosure and urban panorama. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ground-floor meadow. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.hotel",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng khách sạn",
+      "requiredIfSupported": [
+        "hotel circulation and hospitality interiors"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "unrelated city street"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.hotel. Depict a Nhà hàng in the specific setting of Nhà hàng khách sạn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: hotel circulation and hospitality interiors. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: unrelated city street. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "restaurant.mall",
+      "buildingType": "restaurant",
+      "buildingTypeVi": "Nhà hàng",
+      "nameVi": "Nhà hàng trong mall",
+      "requiredIfSupported": [
+        "retail concourse and storefront access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "standalone beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: restaurant.mall. Depict a Nhà hàng in the specific setting of Nhà hàng trong mall. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: retail concourse and storefront access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: standalone beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.downtown",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng trung tâm",
+      "requiredIfSupported": [
+        "commercial street and urban pedestrian access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "resort landscaping"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.downtown. Depict a Văn phòng in the specific setting of Văn phòng trung tâm. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: commercial street and urban pedestrian access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: resort landscaping. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.new_town",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng đô thị mới",
+      "requiredIfSupported": [
+        "planned business blocks and infrastructure"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "rural village"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.new_town. Depict a Văn phòng in the specific setting of Văn phòng đô thị mới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned business blocks and infrastructure. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: rural village. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.corner",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng lô góc",
+      "requiredIfSupported": [
+        "two street edges and entrance visibility"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "forest resort"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.corner. Depict a Văn phòng in the specific setting of Văn phòng lô góc. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: two street edges and entrance visibility. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: forest resort. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.tech_park",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng công nghệ",
+      "requiredIfSupported": [
+        "technology campus pathways and shared spaces"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "historic alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.tech_park. Depict a Văn phòng in the specific setting of Văn phòng công nghệ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: technology campus pathways and shared spaces. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: historic alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.industrial",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng khu công nghiệp",
+      "requiredIfSupported": [
+        "industrial estate roads and service areas"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "downtown luxury plaza"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.industrial. Depict a Văn phòng in the specific setting of Văn phòng khu công nghiệp. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: industrial estate roads and service areas. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: downtown luxury plaza. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.campus",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng campus",
+      "requiredIfSupported": [
+        "multiple buildings and campus circulation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "attached townhouse assumptions"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.campus. Depict a Văn phòng in the specific setting of Văn phòng campus. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: multiple buildings and campus circulation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: attached townhouse assumptions. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.renovated_house",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng cải tạo nhà phố",
+      "requiredIfSupported": [
+        "existing row-house context and conserved shell"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented new tower"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.renovated_house. Depict a Văn phòng in the specific setting of Văn phòng cải tạo nhà phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: existing row-house context and conserved shell. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented new tower. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "office.retail_podium",
+      "buildingType": "office",
+      "buildingTypeVi": "Văn phòng",
+      "nameVi": "Văn phòng có khối đế",
+      "requiredIfSupported": [
+        "office tower and street-level retail interface"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated countryside"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: office.retail_podium. Depict a Văn phòng in the specific setting of Văn phòng có khối đế. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: office tower and street-level retail interface. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated countryside. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.urban_mall",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Mall đô thị",
+      "requiredIfSupported": [
+        "large urban commercial block and plaza"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "forest trails"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.urban_mall. Depict a Thương mại in the specific setting of Mall đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: large urban commercial block and plaza. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: forest trails. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.suburban_mall",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Mall ngoại ô",
+      "requiredIfSupported": [
+        "suburban road access and parking where planned"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense pedestrian alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.suburban_mall. Depict a Thương mại in the specific setting of Mall ngoại ô. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: suburban road access and parking where planned. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense pedestrian alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.podium",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Khối đế bán lẻ",
+      "requiredIfSupported": [
+        "retail podium under larger building"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated standalone cabin"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.podium. Depict a Thương mại in the specific setting of Khối đế bán lẻ. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: retail podium under larger building. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated standalone cabin. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.retail_park",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Retail park",
+      "requiredIfSupported": [
+        "low-rise stores and vehicle access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mountain resort"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.retail_park. Depict a Thương mại in the specific setting of Retail park. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: low-rise stores and vehicle access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mountain resort. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.open_air",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Phố mua sắm ngoài trời",
+      "requiredIfSupported": [
+        "pedestrian retail streets and public seating"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "industrial loading yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.open_air. Depict a Thương mại in the specific setting of Phố mua sắm ngoài trời. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: pedestrian retail streets and public seating. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: industrial loading yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.market",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Chợ hiện đại",
+      "requiredIfSupported": [
+        "market circulation and neighborhood access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private estate"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.market. Depict a Thương mại in the specific setting of Chợ hiện đại. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: market circulation and neighborhood access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private estate. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.street_showroom",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Showroom mặt phố",
+      "requiredIfSupported": [
+        "glazed storefront and curbside approach"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "remote forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.street_showroom. Depict a Thương mại in the specific setting of Showroom mặt phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: glazed storefront and curbside approach. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: remote forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "retail.standalone_showroom",
+      "buildingType": "retail",
+      "buildingTypeVi": "Thương mại",
+      "nameVi": "Showroom độc lập",
+      "requiredIfSupported": [
+        "individual commercial plot and access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "attached party-wall assumption"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: retail.standalone_showroom. Depict a Thương mại in the specific setting of Showroom độc lập. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: individual commercial plot and access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: attached party-wall assumption. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.industrial_park",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà xưởng khu công nghiệp",
+      "requiredIfSupported": [
+        "truck roads",
+        "neighboring factories and loading zones"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "resort pool"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.industrial_park. Depict a Công nghiệp in the specific setting of Nhà xưởng khu công nghiệp. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: truck roads, neighboring factories and loading zones. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: resort pool. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.standalone",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà xưởng độc lập",
+      "requiredIfSupported": [
+        "industrial site boundaries and service yard"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "urban cafe street"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.standalone. Depict a Công nghiệp in the specific setting of Nhà xưởng độc lập. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: industrial site boundaries and service yard. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: urban cafe street. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.logistics",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Kho logistics",
+      "requiredIfSupported": [
+        "truck docks",
+        "freight circulation and yard"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "pedestrian resort paths"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.logistics. Depict a Công nghiệp in the specific setting of Kho logistics. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: truck docks, freight circulation and yard. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: pedestrian resort paths. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.high_tech",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà máy công nghệ cao",
+      "requiredIfSupported": [
+        "clean industrial campus and technical infrastructure"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "rustic village market"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.high_tech. Depict a Công nghiệp in the specific setting of Nhà máy công nghệ cao. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: clean industrial campus and technical infrastructure. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: rustic village market. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.agri_processing",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà máy nông sản",
+      "requiredIfSupported": [
+        "processing access and agricultural region if documented"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "tourist beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.agri_processing. Depict a Công nghiệp in the specific setting of Nhà máy nông sản. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: processing access and agricultural region if documented. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: tourist beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.port",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà xưởng ven cảng",
+      "requiredIfSupported": [
+        "port logistics and container access where evidenced"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "mountain forest"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.port. Depict a Công nghiệp in the specific setting of Nhà xưởng ven cảng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: port logistics and container access where evidenced. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: mountain forest. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "industrial.rural_factory",
+      "buildingType": "industrial",
+      "buildingTypeVi": "Công nghiệp",
+      "nameVi": "Nhà máy vùng nông thôn",
+      "requiredIfSupported": [
+        "rural industrial access and surrounding agricultural landscape"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "urban skyline assumed"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: industrial.rural_factory. Depict a Công nghiệp in the specific setting of Nhà máy vùng nông thôn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: rural industrial access and surrounding agricultural landscape. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: urban skyline assumed. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.urban_school",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Trường học đô thị",
+      "requiredIfSupported": [
+        "urban entrance",
+        "secure perimeter and schoolyard"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "resort beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.urban_school. Depict a Giáo dục in the specific setting of Trường học đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban entrance, secure perimeter and schoolyard. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: resort beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.suburban_school",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Trường ngoại ô",
+      "requiredIfSupported": [
+        "suburban site and play spaces"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "downtown office plaza"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.suburban_school. Depict a Giáo dục in the specific setting of Trường ngoại ô. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: suburban site and play spaces. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: downtown office plaza. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.rural_school",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Trường nông thôn",
+      "requiredIfSupported": [
+        "rural road and regional settlement"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "high-rise financial district"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.rural_school. Depict a Giáo dục in the specific setting of Trường nông thôn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: rural road and regional settlement. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: high-rise financial district. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.international",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Trường quốc tế",
+      "requiredIfSupported": [
+        "campus learning blocks and sports spaces"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "industrial truck yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.international. Depict a Giáo dục in the specific setting of Trường quốc tế. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: campus learning blocks and sports spaces. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: industrial truck yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.urban_university",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Đại học đô thị",
+      "requiredIfSupported": [
+        "academic buildings integrated into city blocks"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated villa plot"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.urban_university. Depict a Giáo dục in the specific setting of Đại học đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: academic buildings integrated into city blocks. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated villa plot. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.campus_university",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Đại học campus",
+      "requiredIfSupported": [
+        "academic quadrangles and campus paths"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense townhouse alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.campus_university. Depict a Giáo dục in the specific setting of Đại học campus. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: academic quadrangles and campus paths. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense townhouse alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "education.urban_preschool",
+      "buildingType": "education",
+      "buildingTypeVi": "Giáo dục",
+      "nameVi": "Mầm non nhà phố",
+      "requiredIfSupported": [
+        "compact school frontage and safe child access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "large forest estate"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: education.urban_preschool. Depict a Giáo dục in the specific setting of Mầm non nhà phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: compact school frontage and safe child access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: large forest estate. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.urban_hospital",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Bệnh viện đô thị",
+      "requiredIfSupported": [
+        "emergency access and urban transport"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "leisure resort frontage"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.urban_hospital. Depict a Y tế in the specific setting of Bệnh viện đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: emergency access and urban transport. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: leisure resort frontage. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.new_town_hospital",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Bệnh viện đô thị mới",
+      "requiredIfSupported": [
+        "planned medical campus and service circulation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "small residential alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.new_town_hospital. Depict a Y tế in the specific setting of Bệnh viện đô thị mới. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: planned medical campus and service circulation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: small residential alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.urban_clinic",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Phòng khám nhà phố",
+      "requiredIfSupported": [
+        "urban clinic frontage and accessible entry"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "industrial loading yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.urban_clinic. Depict a Y tế in the specific setting of Phòng khám nhà phố. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban clinic frontage and accessible entry. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: industrial loading yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.standalone_clinic",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Phòng khám độc lập",
+      "requiredIfSupported": [
+        "private lot and patient access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense commercial mall interior"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.standalone_clinic. Depict a Y tế in the specific setting of Phòng khám độc lập. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: private lot and patient access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense commercial mall interior. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.care_center",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Trung tâm điều dưỡng",
+      "requiredIfSupported": [
+        "quiet grounds and accessible pathways"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "noisy freight yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.care_center. Depict a Y tế in the specific setting of Trung tâm điều dưỡng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: quiet grounds and accessible pathways. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: noisy freight yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "healthcare.wellness_retreat",
+      "buildingType": "healthcare",
+      "buildingTypeVi": "Y tế",
+      "nameVi": "Khu chăm sóc nghỉ dưỡng",
+      "requiredIfSupported": [
+        "calm natural context supported by site"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "invented thermal springs"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: healthcare.wellness_retreat. Depict a Y tế in the specific setting of Khu chăm sóc nghỉ dưỡng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: calm natural context supported by site. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: invented thermal springs. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.urban_museum",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Bảo tàng đô thị",
+      "requiredIfSupported": [
+        "civic plaza and urban access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private villa garden"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.urban_museum. Depict a Công cộng in the specific setting of Bảo tàng đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: civic plaza and urban access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private villa garden. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.landscape_museum",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Bảo tàng cảnh quan",
+      "requiredIfSupported": [
+        "site-specific outdoor landscape and paths"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense shopfronts inside site"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.landscape_museum. Depict a Công cộng in the specific setting of Bảo tàng cảnh quan. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: site-specific outdoor landscape and paths. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense shopfronts inside site. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.library",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Thư viện đô thị",
+      "requiredIfSupported": [
+        "public entrance and civic pedestrian realm"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "industrial truck yard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.library. Depict a Công cộng in the specific setting of Thư viện đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: public entrance and civic pedestrian realm. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: industrial truck yard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.community",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Nhà văn hóa",
+      "requiredIfSupported": [
+        "community gathering space and neighborhood access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "private resort"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.community. Depict a Công cộng in the specific setting of Nhà văn hóa. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: community gathering space and neighborhood access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: private resort. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.exhibition",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Triển lãm",
+      "requiredIfSupported": [
+        "exhibition forecourt and service access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "isolated cabin"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.exhibition. Depict a Công cộng in the specific setting of Triển lãm. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: exhibition forecourt and service access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: isolated cabin. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.arena",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Nhà thi đấu",
+      "requiredIfSupported": [
+        "large crowd access and event forecourt"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "narrow residential alley"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.arena. Depict a Công cộng in the specific setting of Nhà thi đấu. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: large crowd access and event forecourt. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: narrow residential alley. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.urban_religious",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Công trình tôn giáo đô thị",
+      "requiredIfSupported": [
+        "urban context and ceremonial approach"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "generic resort"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.urban_religious. Depict a Công cộng in the specific setting of Công trình tôn giáo đô thị. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: urban context and ceremonial approach. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: generic resort. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "civic.country_religious",
+      "buildingType": "civic",
+      "buildingTypeVi": "Công cộng",
+      "nameVi": "Công trình tôn giáo nông thôn",
+      "requiredIfSupported": [
+        "regional landscape and local ceremonial access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "metropolitan skyline"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: civic.country_religious. Depict a Công cộng in the specific setting of Công trình tôn giáo nông thôn. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: regional landscape and local ceremonial access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: metropolitan skyline. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.plain",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà vườn đồng bằng",
+      "requiredIfSupported": [
+        "flat farmland and rural road"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "downtown skyscrapers"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.plain. Depict a Nhà nông thôn in the specific setting of Nhà vườn đồng bằng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: flat farmland and rural road. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: downtown skyscrapers. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.river",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà vườn ven sông",
+      "requiredIfSupported": [
+        "riverbank and regional riparian planting"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "ocean beach"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.river. Depict a Nhà nông thôn in the specific setting of Nhà vườn ven sông. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: riverbank and regional riparian planting. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: ocean beach. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.mountain",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà ở miền núi",
+      "requiredIfSupported": [
+        "mountain terrain and regional access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "flat urban grid"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.mountain. Depict a Nhà nông thôn in the specific setting of Nhà ở miền núi. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: mountain terrain and regional access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: flat urban grid. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.highland",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà cao nguyên",
+      "requiredIfSupported": [
+        "upland terrain and climate-appropriate vegetation"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "coastal palm boulevard"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.highland. Depict a Nhà nông thôn in the specific setting of Nhà cao nguyên. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: upland terrain and climate-appropriate vegetation. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: coastal palm boulevard. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.farmstay",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Farmstay",
+      "requiredIfSupported": [
+        "working fields and guest access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "city shopping mall"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.farmstay. Depict a Nhà nông thôn in the specific setting of Farmstay. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: working fields and guest access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: city shopping mall. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.forest_edge",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà ven rừng",
+      "requiredIfSupported": [
+        "forest edge and local access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "dense downtown blocks"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.forest_edge. Depict a Nhà nông thôn in the specific setting of Nhà ven rừng. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: forest edge and local access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: dense downtown blocks. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    },
+    {
+      "id": "farmhouse.wetland",
+      "buildingType": "farmhouse",
+      "buildingTypeVi": "Nhà nông thôn",
+      "nameVi": "Nhà vùng ngập nước",
+      "requiredIfSupported": [
+        "wetland terrain and flood-aware access"
+      ],
+      "optional": [
+        "restrained local activity",
+        "site-appropriate vegetation",
+        "realistic surface weathering"
+      ],
+      "forbiddenByDefault": [
+        "arid desert"
+      ],
+      "regionCompatibility": "site_evidence_first",
+      "englishPrompt": "ARCHITECTURAL CONTEXT PRESET: farmhouse.wetland. Depict a Nhà nông thôn in the specific setting of Nhà vùng ngập nước. Integrate the building with its real plot and surroundings. Required site cues, only when consistent with verified site evidence: wetland terrain and flood-aware access. Optional atmospheric details: subtle local human activity, restrained site-appropriate vegetation, plausible material weathering and coherent daylight, only if permitted by the project. Do not introduce: arid desert. Preserve documented site boundaries, access, adjacent structures, architecture, materials and scale. When a required cue conflicts with verified site evidence, prioritize the evidence and report the conflict instead of inventing it."
+    }
+  ]
+}
