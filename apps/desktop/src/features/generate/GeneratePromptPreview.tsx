@@ -12,17 +12,18 @@ import { useT } from "../../i18n";
 export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly string[] }) {
   const projectId = useStudio((s) => s.workspace!.project.id);
   const revision = useStudio((s) => s.dataRevision);
+  const shotIntent = useStudio((s) => s.workspace!.shotIntent);
   const flushDna = useStudio((s) => s.flushDna);
   const [result, setResult] = useState<{ key: string; bundle?: PromptBundle; error?: string }>();
   const t = useT();
   const refsKey = referenceIds.join(",");
-  const key = `${projectId}|${revision}|${refsKey}`;
+  const key = `${projectId}|${revision}|${refsKey}|${JSON.stringify(shotIntent ?? null)}`;
 
   useEffect(() => {
     let alive = true;
     const ids = refsKey ? refsKey.split(",") : [];
     void flushDna()
-      .then(() => compilePromptPreview(projectId, ids))
+      .then(() => compilePromptPreview(projectId, ids, undefined, shotIntent))
       .then(
         (bundle) => alive && setResult({ key, bundle }),
         (e: unknown) => alive && setResult({ key, error: toBridgeError(e).message }),
@@ -30,7 +31,7 @@ export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly
     return () => {
       alive = false;
     };
-  }, [flushDna, projectId, refsKey, key]);
+  }, [flushDna, projectId, refsKey, key, shotIntent]);
 
   // Older results stay visible (dimmed) while the new compile runs.
   const stale = result?.key !== key;

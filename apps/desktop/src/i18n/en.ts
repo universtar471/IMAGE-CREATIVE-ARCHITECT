@@ -376,6 +376,10 @@ export const en = {
       label: "Camera",
       description: "Camera presets, anchor views and the Camera Director.",
     },
+    scene_objects: {
+      label: "Scene objects",
+      description: "Add people, vehicles, plants and pets to one shot with placement checks.",
+    },
     lighting: { label: "Lighting", description: "Sun, sky and artificial lighting systems." },
     mood_grade: { label: "Mood / Grade", description: "Weather, mood presets and color grading." },
     generate: {
@@ -1116,6 +1120,21 @@ export const en = {
     after: "After",
     split: "Split position",
     previewError: "The image preview could not be loaded.",
+  },
+
+  sceneObjects: {
+    section: "Scene object request",
+    targetSpace: "Target space",
+    noSpaces: "Choose a target space in the Space Catalog first.",
+    category: "Allowed category",
+    preset: "Preset",
+    quantity: "Quantity",
+    zone: "Placement zone",
+    zonePlaceholder: "existing driveway, garage or road",
+    state: "State",
+    static: "Static / parked",
+    moving: "Moving",
+    clear: "Clear scene objects",
   },
 
   regions: {

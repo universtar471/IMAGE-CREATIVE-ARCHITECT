@@ -36,6 +36,7 @@ import {
   type ProviderDescriptorDTO,
   type ColorGradeDNA,
   type ShotValidation,
+  type ShotIntent,
 } from "@arch/domain";
 import {
   BridgeError,
@@ -94,6 +95,8 @@ export type WorkspaceData = {
   /** Batches of this project, newest first. */
   batches: BatchDTO[];
   workflow?: WorkflowDTO;
+  /** Current per-shot choices; intentionally separate from DNA. */
+  shotIntent?: ShotIntent;
 };
 
 /**
@@ -150,6 +153,7 @@ export type GenerationInput = Omit<GenerationSubmitRequest, "prompt" | "cameraId
   extraPrompt?: string;
   /** WARN conflict codes the user accepted for this shot (ADR-034). */
   approvedExceptions?: readonly ConflictCode[];
+  shotIntent?: ShotIntent;
 };
 
 type State = {
@@ -193,6 +197,7 @@ type State = {
   editDna: (path: string, value: unknown) => void;
   /** Replace the camera list (add / delete / duplicate / reorder). */
   setCameras: (cameras: CameraDNA[]) => void;
+  setShotIntent: (shotIntent: ShotIntent | undefined) => void;
   flushDna: () => Promise<boolean>;
   adoptProject: (p: ProjectDTO) => void;
   /**
@@ -448,6 +453,7 @@ export const useStudio = create<State>((set, get) => {
               anchors,
               batches,
               workflow,
+              shotIntent: undefined,
             },
             selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
             selectedCameraId: bundle.dna.cameras[0]?.id ?? null,
@@ -521,6 +527,10 @@ export const useStudio = create<State>((set, get) => {
     },
 
     setCameras: (cameras) => get().editDna("cameras", cameras),
+    setShotIntent: (shotIntent) => {
+      const ws = get().workspace;
+      if (ws) set({ workspace: { ...ws, shotIntent } });
+    },
 
     /** Save pending DNA now. Resolves true when nothing is left unsaved. */
     flushDna: async () => {
@@ -687,7 +697,7 @@ export const useStudio = create<State>((set, get) => {
 
     submitGeneration: async (input, prompt) => {
       if (get().run?.status === "submitting") return undefined;
-      const { extraPrompt, approvedExceptions, ...submitInput } = input;
+      const { extraPrompt, approvedExceptions, shotIntent, ...submitInput } = input;
       const { projectId } = submitInput;
       // Everything below is bound to this project; never read another project's data.
       if (!prompt && !isOpen(projectId)) return undefined;
@@ -705,7 +715,13 @@ export const useStudio = create<State>((set, get) => {
         if (prompt) {
           // A resent or hand-built snapshot (enhance, retry): gated on the persisted DNA.
           const project = await persistedProject(projectId);
-          const validation = checkShot({ ...project, cameraId, extraPrompt, approvedExceptions });
+          const validation = checkShot({
+            ...project,
+            cameraId,
+            extraPrompt,
+            approvedExceptions,
+            shotIntent,
+          });
           if (!canSubmit(validation)) throw conflictError(validation);
           request = { ...submitInput, cameraId, prompt: withValidation(prompt, validation) };
         } else {
@@ -725,17 +741,23 @@ export const useStudio = create<State>((set, get) => {
           );
           // AC-22: the extra prompt is checked BEFORE it is appended; a refused shot is
           // never sent to the bridge or a provider.
+          const selectedShotIntent = shotIntent ?? get().workspace?.shotIntent;
           const validation = checkShot({
             dna: bundle.dna,
             projectType: bundle.project.projectType,
             cameraId,
             extraPrompt,
             approvedExceptions,
+            shotIntent: selectedShotIntent,
           });
           if (!canSubmit(validation)) throw conflictError(validation);
           const compiled = withExtraPrompt(
             withValidation(
-              compileFromBundle(bundle, { referenceAssetIds: ids, cameraId }),
+              compileFromBundle(bundle, {
+                referenceAssetIds: ids,
+                cameraId,
+                shotIntent: selectedShotIntent,
+              }),
               validation,
             ),
             extraPrompt,

@@ -110,11 +110,47 @@ pub struct PromptBundle {
     /// The desktop conflict gate's outcome (ADR-034 P0-B); absent on older snapshots.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation: Option<ShotValidationSnapshot>,
+    /// Per-shot choices from ADR-036 P2d; absent on legacy snapshots.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shot_intent: Option<ShotIntent>,
     pub positive_prompt: String,
     pub negative_prompt: String,
     pub reference_instructions: String,
     pub preservation_instructions: String,
     pub metadata: Map<String, Value>,
+}
+
+/// Mirrors the domain `ShotIntentSchema`; choices are a generation snapshot, never DNA.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShotIntent {
+    pub project_type: ProjectType,
+    #[serde(default)]
+    pub camera_id: Option<String>,
+    #[serde(default)]
+    pub target_space_id: Option<String>,
+    #[serde(default)]
+    pub target_detail_id: Option<String>,
+    #[serde(default)]
+    pub scene_objects: Option<Vec<SceneObjectRequest>>,
+}
+
+/// Mirrors `SceneObjectRequestSchema` with provider-neutral JSON override maps.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneObjectRequest {
+    pub preset_id: String,
+    pub quantity: u32,
+    pub target_space_id: String,
+    #[serde(default)]
+    pub placement_zone_id: Option<String>,
+    pub state: String,
+    #[serde(default)]
+    pub appearance_overrides: Option<Map<String, Value>>,
+    #[serde(default)]
+    pub visibility: Option<Map<String, Value>>,
+    #[serde(default)]
+    pub source_reference_ids: Vec<String>,
 }
 
 /// Mirrors `ShotValidationSnapshotSchema`: the conflict check recorded in the snapshot.

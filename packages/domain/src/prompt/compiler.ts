@@ -22,8 +22,10 @@ import { VALIDATOR_VERSION } from "../validation/codes";
 import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
+import { sceneObjectsSection } from "./sections/sceneObjects";
+import type { ShotIntent } from "../validation/validateShot";
 
-export const COMPILER_VERSION = "pc-1.7.0";
+export const COMPILER_VERSION = "pc-1.8.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -52,6 +54,8 @@ export type PromptCompileInput = {
   pack?: KnowledgePack | null;
   /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
   cameraId?: string | null;
+  /** Per-shot P2 choices. These are snapshotted, never written into ProjectDNA. */
+  shotIntent?: ShotIntent;
 };
 
 export type PromptSectionOverrides = {
@@ -157,6 +161,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const usesInteriorDna = isInterior && dna.interior !== undefined;
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
+  const shotIntent = input.shotIntent;
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
   // furnishing, context, lighting, weather, mood, camera, quality. Furnishing is interior-only;
@@ -192,6 +197,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ],
     ["weather", weatherSection(dna)],
     ["mood", moodSection(dna)],
+    ["sceneObjects", sceneObjectsSection(shotIntent?.sceneObjects)],
     [
       "camera",
       camera
@@ -243,7 +249,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const cameraId = camera?.id ?? null;
   const validation = validateShot({
     dna,
-    shotIntent: { projectType: project.projectType, cameraId },
+    shotIntent: shotIntent ?? { projectType: project.projectType, cameraId },
   });
   const sourceHash = canonicalHash({
     dna,
@@ -252,6 +258,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       projectType: project.projectType,
       subtype: project.subtype ?? null,
       cameraId,
+      shotIntent: shotIntent ?? null,
       references: references.map((r) => ({
         assetId: r.assetId,
         role: r.role,
@@ -274,6 +281,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     sourceHash,
     configHash,
     resolvedWarnings: warningCodes(validation),
+    ...(shotIntent ? { shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),

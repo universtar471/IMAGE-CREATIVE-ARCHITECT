@@ -22,6 +22,7 @@ import {
   type PromptBundle,
   type ShotValidation,
   type ShotValidationSnapshot,
+  type ShotIntent,
 } from "@arch/domain";
 import { BridgeError } from "../../lib/bridge";
 import { t } from "../../i18n";
@@ -33,12 +34,17 @@ export type ShotCheck = {
   /** The user's free text (extra prompt, region instruction); checked before it is appended. */
   extraPrompt?: string | null;
   approvedExceptions?: readonly ConflictCode[];
+  shotIntent?: Partial<ShotIntent>;
 };
 
 export function checkShot(input: ShotCheck): ShotValidation {
   return validateShot({
     dna: input.dna,
-    shotIntent: { projectType: input.projectType, cameraId: input.cameraId ?? null },
+    shotIntent: {
+      projectType: input.projectType,
+      cameraId: input.cameraId ?? null,
+      ...(input.shotIntent ?? {}),
+    },
     extraPrompt: input.extraPrompt ?? null,
     approvedExceptions: input.approvedExceptions,
   });

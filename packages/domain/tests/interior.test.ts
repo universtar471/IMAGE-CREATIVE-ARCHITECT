@@ -223,7 +223,7 @@ function legacyPack(pack: KnowledgePack | null): KnowledgePack | null {
   };
 }
 
-describe("Interior prompt compiler pc-1.7.0", () => {
+describe("Interior prompt compiler pc-1.8.0", () => {
   function compilerInput() {
     const pack = registry.resolve("interior").pack!;
     const dna = createInitialDNA({ projectType: "interior", pack });
@@ -259,7 +259,7 @@ describe("Interior prompt compiler pc-1.7.0", () => {
   // longer carries it and the prompt has no context section.
   it("compiles the full Japandi living-room example in stable section order", () => {
     const bundle = compilePrompt(compilerInput());
-    expect(COMPILER_VERSION).toBe("pc-1.7.0");
+    expect(COMPILER_VERSION).toBe("pc-1.8.0");
     expect(bundle.metadata.sections).toEqual([
       "subject",
       "form",
@@ -412,7 +412,7 @@ describe("Interior prompt compiler pc-1.7.0", () => {
         resolvedWarnings,
         ...legacy
       } = actual;
-      expect([validatorVersion, catalogVersion]).toEqual(["cv-1.0.0", "none"]);
+      expect([validatorVersion, catalogVersion]).toEqual(["cv-1.2.0", "none"]);
       expect(sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
       expect(configHash).toMatch(/^sha256:[0-9a-f]{64}$/);
       expect(resolvedWarnings).toEqual([]);

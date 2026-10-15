@@ -13,7 +13,7 @@
  *   to WARN, so a guess never hard-blocks the user.
  */
 import type { ProjectDNA } from "../schemas/projectDna";
-import type { ProjectType } from "../schemas/enums";
+import { ProjectTypeSchema, type ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
@@ -39,6 +39,9 @@ import {
   prepareText,
   type PreparedText,
 } from "./phrases";
+import { SceneObjectRequestSchema, type SceneObjectRequest } from "../sceneObjects/schemas";
+import { validateObjectPlacement } from "../sceneObjects/placement";
+import { z } from "zod";
 
 /** What one generation request asks for (SRS §3.1 Shot Intent; P0 subset). */
 export type ShotIntent = {
@@ -49,7 +52,18 @@ export type ShotIntent = {
   targetSpaceId?: string | null;
   /** P2: the target architectural detail. */
   targetDetailId?: string | null;
+  /** P2d choices for this shot; never persisted into ProjectDNA. */
+  sceneObjects?: SceneObjectRequest[];
 };
+
+/** Runtime contract for the per-shot snapshot carried by a generation request. */
+export const ShotIntentSchema = z.object({
+  projectType: ProjectTypeSchema,
+  cameraId: z.string().nullable().optional(),
+  targetSpaceId: z.string().nullable().optional(),
+  targetDetailId: z.string().nullable().optional(),
+  sceneObjects: z.array(SceneObjectRequestSchema).optional(),
+});
 
 export type ValidateShotInput = {
   dna: ProjectDNA;
@@ -266,11 +280,24 @@ const occludedTargetRule: ConflictRule = {
   check: () => [],
 };
 
+const sceneObjectRule: ConflictRule = {
+  code: "OBJECT_NOT_ALLOWED_IN_SPACE",
+  check(ctx) {
+    return validateObjectPlacement(ctx.dna, ctx.shot).map((issue) => ({
+      code: issue.code,
+      severity: issue.severity,
+      path: issue.path,
+      params: issue.params,
+    }));
+  },
+};
+
 /** Rules in evaluation order. Later phases append theirs here. */
 export const SHOT_RULES: readonly ConflictRule[] = [
   spaceNotInBuildingRule,
   adjacentBuildingRule,
   occludedTargetRule,
+  sceneObjectRule,
   unverifiedGeometryRule,
   lockedLightingRule,
 ];

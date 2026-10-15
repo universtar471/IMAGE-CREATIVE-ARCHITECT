@@ -374,6 +374,10 @@ export const vi: Dict = {
       label: "Góc máy",
       description: "Góc máy dựng sẵn, góc Anchor và bảng bố trí góc máy.",
     },
+    scene_objects: {
+      label: "Đối tượng cảnh",
+      description: "Thêm người, phương tiện, cây và thú cưng cho từng cảnh, có kiểm tra vị trí.",
+    },
     lighting: { label: "Ánh sáng", description: "Mặt trời, bầu trời và hệ chiếu sáng nhân tạo." },
     mood_grade: {
       label: "Mood / Chỉnh màu",
@@ -1117,6 +1121,21 @@ export const vi: Dict = {
       "Conservative is free and local: sharper and larger without design changes.",
     howToUseGenerative: "Generative adds real AI detail and uses credits.",
     howToUsePreserve: "Architecture Preserve keeps the building, openings, proportions and camera.",
+  },
+
+  sceneObjects: {
+    section: "Yêu cầu đối tượng cảnh",
+    targetSpace: "Không gian đích",
+    noSpaces: "Hãy chọn không gian đích trong Danh mục không gian trước.",
+    category: "Danh mục được phép",
+    preset: "Preset",
+    quantity: "Số lượng",
+    zone: "Vùng đặt",
+    zonePlaceholder: "driveway, gara hoặc đường hiện hữu",
+    state: "Trạng thái",
+    static: "Đứng yên / đỗ",
+    moving: "Đang chuyển động",
+    clear: "Xóa đối tượng cảnh",
   },
 
   regions: {

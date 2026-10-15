@@ -302,6 +302,7 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
             resolved_warnings: None,
             // Keep the gate's outcome on the (otherwise empty) conservative snapshot.
             validation: req.prompt.validation.clone(),
+            shot_intent: req.prompt.shot_intent.clone(),
             positive_prompt: String::new(),
             negative_prompt: String::new(),
             reference_instructions: String::new(),
@@ -1191,6 +1192,7 @@ mod tests {
             config_hash: None,
             resolved_warnings: None,
             validation: None,
+            shot_intent: None,
             positive_prompt: positive.into(),
             negative_prompt: "blurry".into(),
             reference_instructions: "Image 1 is the master.".into(),
