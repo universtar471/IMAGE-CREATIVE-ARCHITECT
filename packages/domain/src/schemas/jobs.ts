@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import {
+  enhanceContractIssues,
   GenerationErrorSchema,
   GenerationParamsSchema,
   GenerationPurposeSchema,
@@ -99,25 +100,14 @@ export const BatchCreateRequestSchema = z
           });
           return;
         }
-        if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+        for (const issue of enhanceContractIssues(enhance, value.providerId)) {
           ctx.addIssue({
             code: "custom",
-            path: ["items", index, "params", "enhance", "targetLongEdge"],
-            message: "Conservative enhancement requires targetLongEdge.",
-          });
-        }
-        if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["providerId"],
-            message: 'Conservative enhancement requires providerId "local_upscale".',
-          });
-        }
-        if (enhance.preservationMode === "strict" && value.providerId !== "local_upscale") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["providerId"],
-            message: 'Strict enhancement requires providerId "local_upscale".',
+            path:
+              issue.path[0] === "providerId"
+                ? issue.path
+                : ["items", index, "params", "enhance", ...issue.path],
+            message: issue.message,
           });
         }
       }

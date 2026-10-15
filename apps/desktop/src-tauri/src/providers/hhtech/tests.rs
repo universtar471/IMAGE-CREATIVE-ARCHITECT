@@ -805,6 +805,7 @@ fn hhtech_live_enhance() {
         architecture_preserve: true,
         preservation_mode: None,
         locks: None,
+        allowed_region_ids: None,
         upscale: None,
     });
     match provider.generate(&request) {

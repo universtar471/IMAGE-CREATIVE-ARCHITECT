@@ -550,10 +550,6 @@ Migration `0004_workflow.sql`: table `workflow_steps(project_id, step_id, status
 
 ### 14.1 Params
 
-SRS P3 adds optional `preservationMode`, `locks`, and `upscale` targets. Legacy enhancement
-requests remain valid; strict mode is local-only and emits an optional deterministic
-`enhanceCheck` on the generation DTO.
-
 `GenerationPurpose` gains `"enhance"`. An enhance request is an ordinary `generation_submit` / batch item with `purpose: "enhance"`, exactly one reference (the source asset, role treated as master), and `params.enhance`:
 
 ```ts
@@ -572,6 +568,28 @@ Validation:
 - An effective long edge above 8192 is rejected.
 
 The prompt for `generative` comes from domain `buildEnhancePrompt({ dna, params })`. `conservative` sends no prompt; the compiled prompt fields are empty strings.
+
+**SRS P3 additions (ADR-035).** All optional; params without them parse and run exactly as before.
+
+```ts
+EnhanceParams += {
+  preservationMode?: "strict" | "balanced" | "creative",
+  locks?: { geometry: boolean, material: boolean, context: boolean, camera: boolean }, // each default true
+  allowedRegionIds?: string[],   // regions of the source the AI may edit (balanced/creative)
+  upscale?: {
+    target: "long_edge_2048" | "long_edge_4096" | "uhd_3840x2160_contain"
+          | { width: number, height: number, fit: "contain" },   // 1..8192 per side
+    ifAlreadyLarger: "keep" | "quality_only" | "skip",           // default "keep"
+  },
+}
+```
+
+- `strict` requires `mode: "conservative"`, provider `local_upscale` and no `allowedRegionIds`: it never calls a paid provider. `balanced` and `creative` require `mode: "generative"`. `allowedRegionIds` requires a `preservationMode`; every id must be a region of the source asset.
+- With `upscale`, `targetLongEdge` may be null even for `conservative`, and the downsizing rule is replaced by `ifAlreadyLarger`. The size math is `resolveUpscaleSize` (domain) = `enhance::resolve_upscale_size` (Rust), shared vectors in `packages/domain/test-vectors/upscale.json`: aspect kept, long edge exact, UHD/custom contain with letterbox padding (transparent for alpha sources, else opaque black), never a crop, never a downscale. A source already larger than the target keeps its size; `skip` is refused at validation ("…set to be skipped") and the UI leaves such sources out of a batch.
+- With a `preservationMode` the generative prompt is the SRS §8.2 template plus one line per active lock; without one the prompt is byte-identical to before.
+- `GenerationDTO.enhanceCheck?: EnhanceCheck` — the local check (no Vision QC, ADR-033) run after the provider returns, for every enhance with a `preservationMode`; absent (not null) on legacy and non-enhance rows. Stored in `generations.enhance_check_json` (migration `0008_enhance_check.sql`). Shape `EnhanceCheckSchema`: `id` (`ECK_…`), `version` (`ec-1.0.0`), `preservationMode`, `status: "pass" | "warn"`, `reasons` (`size_mismatch | aspect_changed | registration_shift | locked_ssim_low | edge_structure_changed | no_allowed_region | creative_review`), `expectedSize`, `actualSize`, `content` rect, `aspectDelta`, `registration {dx, dy, shiftPx}`, `lockedSsim | null` (≥ 0.98 required), `lockedPct`, `edgeDelta | null` (strict only), `composited`, `sizeAction`. A warning never blocks saving.
+- Balanced/creative with allowed regions: locked pixels (outside the regions) are composited back from the Lanczos3-resized source (inward feather only), so every locked pixel equals the source.
+- Provenance: the enhanced asset's `operation_json` also records `parentAssetId`, `inputHash` (source SHA-256), `configHash`, `preservationMode`, `enhanceCheckId` and `enhanceCheckStatus`.
 
 ### 14.2 Provider `local_upscale`
 

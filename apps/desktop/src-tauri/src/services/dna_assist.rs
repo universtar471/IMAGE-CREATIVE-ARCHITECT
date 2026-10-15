@@ -131,6 +131,7 @@ pub fn run(core: &AppCore, request: AssistRequest) -> AppResult<AssistResult> {
         batch_id: None,
         job_id: None,
         job_started_at: None,
+        enhance_check_json: None,
     };
     repo::insert_generation(&*core.conn()?, &row)?;
     let started = Instant::now();

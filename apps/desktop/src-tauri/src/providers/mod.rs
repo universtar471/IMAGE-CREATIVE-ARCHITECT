@@ -128,6 +128,10 @@ pub struct EnhanceParams {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub locks: Option<EnhanceLocks>,
+    /// Regions of the source asset the AI may change (balanced/creative); the rest is locked.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_region_ids: Option<Vec<String>>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upscale: Option<UpscaleParams>,
@@ -161,7 +165,7 @@ pub struct EnhanceLocks {
     pub camera: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UpscaleParams {
     pub target: UpscaleTarget,
@@ -169,20 +173,22 @@ pub struct UpscaleParams {
     pub if_already_larger: IfAlreadyLarger,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+/// `"long_edge_2048" | "long_edge_4096" | "uhd_3840x2160_contain" | {width, height, fit: "contain"}`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum UpscaleTarget {
+    Named(NamedUpscaleTarget),
+    Custom { width: u32, height: u32, fit: ContainFit },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum NamedUpscaleTarget {
     #[serde(rename = "long_edge_2048")]
     LongEdge2048,
     #[serde(rename = "long_edge_4096")]
     LongEdge4096,
     #[serde(rename = "uhd_3840x2160_contain")]
     Uhd3840x2160Contain,
-    Custom {
-        width: u32,
-        height: u32,
-        fit: ContainFit,
-    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

@@ -1,11 +1,6 @@
 import { AlertTriangle, ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type {
-  ConflictCode,
-  GenerationParams,
-  ModelCapabilities,
-  ProviderDescriptorDTO,
-} from "@arch/domain";
+import type { ConflictCode, GenerationParams } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, SelectField } from "../../components/panels/fields";
@@ -14,14 +9,24 @@ import { isMasterApproved } from "../camera/labels";
 import { EnhanceBatchDialog } from "./EnhanceBatchDialog";
 import {
   DEFAULT_ENHANCE_PARAMS,
-  ENHANCE_TARGETS,
   buildEnhanceRequest,
+  enhanceCost,
   enhancePrompt,
+  enhanceProviderChoice,
+  enhanceSizeFor,
+  enhanceTargetEdge,
   sourceLongEdge,
   validateEnhanceParams,
-  enhanceCost,
+  withPreservationMode,
   type EnhanceParams,
+  type PreservationMode,
 } from "./enhance";
+import {
+  AllowedRegionPicker,
+  LockToggles,
+  PreservationModeSelector,
+  SizeTargetSelector,
+} from "./EnhanceControls";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { canSubmit, checkShot } from "../validation/gate";
@@ -43,7 +48,22 @@ export function EnhancePanel() {
   const selectedId = useStudio((s) => s.selectedAssetId) ?? ws.project.activeMasterAssetId;
   const source =
     ws.assets.find((asset) => asset.id === selectedId && asset.status === "ready") ?? null;
-  const [params, setParams] = useState<EnhanceParams>(DEFAULT_ENHANCE_PARAMS);
+  const [baseParams, setParams] = useState<EnhanceParams>(DEFAULT_ENHANCE_PARAMS);
+  // Allowed regions belong to the source they were drawn on, so they are kept per asset and
+  // only apply while that asset is the source (never in strict mode).
+  const [regionPick, setRegionPick] = useState<{ assetId: string; ids: string[] } | null>(null);
+  const params = useMemo<EnhanceParams>(() => {
+    const next = { ...baseParams };
+    delete next.allowedRegionIds;
+    if (
+      baseParams.preservationMode !== "strict" &&
+      regionPick &&
+      regionPick.assetId === source?.id &&
+      regionPick.ids.length
+    )
+      next.allowedRegionIds = regionPick.ids;
+    return next;
+  }, [baseParams, regionPick, source?.id]);
   const [providerId, setProviderId] = useState("local_upscale");
   const [modelId, setModelId] = useState("lanczos3");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -57,12 +77,21 @@ export function EnhancePanel() {
   const approved = isMasterApproved(ws.project.status);
   const sourceEdge = source ? sourceLongEdge(source) : 0;
   const validation = validateEnhanceParams(params, sourceEdge);
+  const size = enhanceSizeFor(params, source);
+  const preservationMode: PreservationMode =
+    params.preservationMode ?? (params.mode === "conservative" ? "strict" : "balanced");
+  const strict = preservationMode === "strict";
   const local = providers.find((provider) => provider.id === "local_upscale");
   const generativeProviders = providers.filter((provider) =>
     provider.models.some((model) => model.imageToImage && model.maxReferenceImages >= 1),
   );
+  // Strict never offers a paid provider: only the local upscaler (ADR-035).
   const availableProviders =
-    params.mode === "conservative" ? (local ? [local] : []) : generativeProviders;
+    strict || params.mode === "conservative"
+      ? local
+        ? [local]
+        : []
+      : generativeProviders.filter((item) => item.id !== "local_upscale");
   const provider =
     availableProviders.find((item) => item.id === providerId) ?? availableProviders[0] ?? null;
   const models =
@@ -76,7 +105,7 @@ export function EnhancePanel() {
   const cost = enhanceCost(
     params.mode === "conservative" ? (provider?.id ?? providerId) : (provider?.id ?? ""),
     model,
-    params.targetLongEdge,
+    enhanceTargetEdge(params, source),
   );
   // Conflict gate (ADR-034) for the paid generative mode; conservative upscaling is local.
   const conflicts =
@@ -92,8 +121,10 @@ export function EnhancePanel() {
     !approved ||
     !source ||
     !!validation ||
+    size?.action === "skip" ||
     !provider ||
     !model ||
+    (strict && provider.id !== "local_upscale") ||
     busy ||
     (conflicts !== null && !canSubmit(conflicts));
 
@@ -101,21 +132,16 @@ export function EnhancePanel() {
     if (!providers.length) void loadProviders();
   }, [loadProviders, providers.length]);
 
-  const preservationMode =
-    params.preservationMode ?? (params.mode === "conservative" ? "strict" : "balanced");
-  const updatePreservationMode = (mode: NonNullable<EnhanceParams["preservationMode"]>) => {
-    setParams({
-      ...params,
-      preservationMode: mode,
-      mode: mode === "strict" ? "conservative" : "generative",
-      targetLongEdge: mode === "strict" ? (params.targetLongEdge ?? 2048) : params.targetLongEdge,
-    });
-    setProviderId(mode === "strict" ? "local_upscale" : (generativeProviders[0]?.id ?? ""));
-    setModelId(mode === "strict" ? "lanczos3" : "");
+  const updatePreservationMode = (mode: PreservationMode) => {
+    setParams(withPreservationMode(params, mode));
+    const choice = enhanceProviderChoice(mode, generativeProviders);
+    setProviderId(choice.providerId);
+    setModelId(choice.modelId);
   };
 
   const enhance = async () => {
     if (disabled || !source || !provider || !model) return;
+    if (strict && provider.id !== "local_upscale") return;
     setBusy(true);
     try {
       const request = buildEnhanceRequest({
@@ -164,78 +190,24 @@ export function EnhancePanel() {
         )}
       </SectionPanel>
       <SectionPanel title={t("enhance.mode")}>
-        <div className="segmented" role="group" aria-label={t("enhance.mode")}>
-          {(["strict", "balanced", "creative"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={preservationMode === mode}
-              onClick={() => updatePreservationMode(mode)}
-            >
-              {t(
-                `enhance.${mode === "strict" ? "strictMode" : mode === "balanced" ? "balancedMode" : "creativeMode"}` as Parameters<
-                  typeof t
-                >[0],
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="field-row">
-          {(["geometry", "material", "context", "camera"] as const).map((lock) => (
-            <label key={lock} className="toggle-row">
-              <input
-                type="checkbox"
-                checked={params.locks?.[lock] ?? true}
-                onChange={(event) =>
-                  setParams({
-                    ...params,
-                    locks: {
-                      geometry: true,
-                      material: true,
-                      context: true,
-                      camera: true,
-                      ...params.locks,
-                      [lock]: event.target.checked,
-                    },
-                  })
-                }
-              />
-              {t(
-                `enhance.lock${lock.charAt(0).toUpperCase()}${lock.slice(1)}` as Parameters<
-                  typeof t
-                >[0],
-              )}
-            </label>
-          ))}
-        </div>
-        <FieldGroup label={t("enhance.target")} hint={t("enhance.targetHint")}>
-          <div className="segmented">
-            {params.mode === "generative" && (
-              <button
-                type="button"
-                aria-pressed={params.targetLongEdge === null}
-                onClick={() => setParams({ ...params, targetLongEdge: null })}
-              >
-                {t("enhance.keepSize")}
-              </button>
-            )}
-            {ENHANCE_TARGETS.map((target) => {
-              const downsize = target < sourceEdge;
-              return (
-                <button
-                  key={target}
-                  type="button"
-                  disabled={downsize}
-                  title={downsize ? t("enhance.targetTooSmall") : undefined}
-                  aria-pressed={params.targetLongEdge === target}
-                  onClick={() => setParams({ ...params, targetLongEdge: target })}
-                >
-                  {target}px
-                </button>
-              );
-            })}
-          </div>
-        </FieldGroup>
+        <PreservationModeSelector value={preservationMode} onChange={updatePreservationMode} />
+        <LockToggles params={params} onChange={setParams} />
+        {!strict && source && (
+          <AllowedRegionPicker
+            projectId={ws.project.id}
+            assetId={source.id}
+            params={params}
+            onChange={(next) =>
+              setRegionPick({ assetId: source.id, ids: next.allowedRegionIds ?? [] })
+            }
+          />
+        )}
+        <SizeTargetSelector
+          params={params}
+          onChange={setParams}
+          allowKeepSize={!strict}
+          size={size}
+        />
         <FieldGroup label={t("enhance.detailStrength")} hint={t("enhance.strengthHint")}>
           <input
             type="range"
@@ -257,28 +229,13 @@ export function EnhancePanel() {
                 : t("enhance.high")}
           </span>
         </FieldGroup>
-        <label className="toggle-row">
-          <input
-            type="checkbox"
-            checked={params.architecturePreserve}
-            onChange={(event) =>
-              setParams({ ...params, architecturePreserve: event.target.checked })
-            }
-          />{" "}
-          {t("enhance.architecturePreserve")}
-        </label>
-        {!params.architecturePreserve && (
-          <div className="callout callout-warning">
-            <AlertTriangle size={14} /> {t("enhance.preserveWarning")}
-          </div>
-        )}
       </SectionPanel>
       <SectionPanel title={t("enhance.howToUse")} defaultOpen={false}>
         <p className="field-hint">{t("enhance.howToUseConservative")}</p>
         <p className="field-hint">{t("enhance.howToUseGenerative")}</p>
         <p className="field-hint">{t("enhance.howToUsePreserve")}</p>
       </SectionPanel>
-      {params.mode === "generative" && (
+      {!strict && params.mode === "generative" && (
         <SectionPanel title={t("enhance.provider")}>
           <div className="field-row">
             <SelectField
@@ -368,17 +325,4 @@ export function EnhancePanel() {
       {spend.dialog}
     </div>
   );
-}
-
-export function enhanceProviderForMode(
-  providers: readonly ProviderDescriptorDTO[],
-  mode: EnhanceParams["mode"],
-): ProviderDescriptorDTO | null {
-  return mode === "conservative"
-    ? (providers.find((provider) => provider.id === "local_upscale") ?? null)
-    : (providers.find((provider) =>
-        provider.models.some(
-          (model: ModelCapabilities) => model.imageToImage && model.maxReferenceImages > 0,
-        ),
-      ) ?? null);
 }
