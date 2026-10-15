@@ -23,6 +23,8 @@ export * from "./camera/describe";
 export * from "./generation/batch";
 export * from "./generation/enhance";
 export * from "./grade";
+export { ColorGradeV2Schema as ColorGradeDNASchema } from "./grade/schema";
+export type { ColorGradeV2 as ColorGradeDNA } from "./grade/schema";
 export * from "./workflow/schemas";
 export * from "./workflow/workflow";
 export * from "./qc";

@@ -40,6 +40,7 @@ import {
   type ProjectDTO,
   type ProjectStatus,
   type ProviderDescriptorDTO,
+  ARCH_LUT_FILTER,
 } from "@arch/domain";
 import type {
   CommandName,
@@ -402,6 +403,116 @@ function load(): Db {
 }
 
 export function createMockTransport(initial?: Db, options: MockOptions = {}): Transport {
+  const lutSources = new Map<
+    string,
+    { id: string; path: string; addedAt: string; lastScanAt: string; lutCount: number }
+  >();
+  const luts = new Map<
+    string,
+    {
+      id: string;
+      sourceId: string;
+      relPath: string;
+      pack: string;
+      category: string;
+      name: string;
+      size: number;
+      isLog: boolean;
+      favorite: boolean;
+      status: string;
+    }
+  >();
+  const sampleNames = ["Natural Earthy", "Urban Film", "Portrait Wedding", "D-Log"];
+  const previewJpeg = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQAAAQABAAD/2Q=="), (char) =>
+    char.charCodeAt(0),
+  );
+  const lutHandlers: Record<string, (request: unknown) => unknown> = {
+    lut_source_add: (request) => {
+      const { path } = request as { path: string };
+      if (!path.trim()) fail("VALIDATION_ERROR", "A source path is required.");
+      if ([...lutSources.values()].some((source) => source.path === path))
+        fail("VALIDATION_ERROR", "Source already added.");
+      const id = newId("LTS");
+      const timestamp = new Date().toISOString();
+      const source = {
+        id,
+        path,
+        addedAt: timestamp,
+        lastScanAt: timestamp,
+        lutCount: sampleNames.length,
+      };
+      lutSources.set(id, source);
+      sampleNames.forEach((name) => {
+        const lutId = newId("LUT");
+        luts.set(lutId, {
+          id: lutId,
+          sourceId: id,
+          relPath: name + ".cube",
+          pack: "Sample",
+          category: "Sample",
+          name,
+          size: 33,
+          isLog: name === "D-Log",
+          favorite: false,
+          status: "ok",
+        });
+      });
+      return { source, added: sampleNames.length, invalid: 0 };
+    },
+    lut_source_remove: (request) => {
+      const { sourceId } = request as { sourceId: string };
+      if (!lutSources.delete(sourceId)) fail("NOT_FOUND", "LUT source not found.");
+      for (const [id, lut] of luts) if (lut.sourceId === sourceId) luts.delete(id);
+      return { removed: true };
+    },
+    lut_source_rescan: (request) => {
+      const { sourceId } = request as { sourceId: string };
+      const source = lutSources.get(sourceId) ?? fail("NOT_FOUND", "LUT source not found.");
+      source.lastScanAt = new Date().toISOString();
+      return { source, added: 0, invalid: 0 };
+    },
+    lut_list: (rawRequest) => {
+      const request = rawRequest as {
+        query?: string;
+        sourceId?: string;
+        pack?: string;
+        category?: string;
+        favoritesOnly?: boolean;
+        archOnly?: boolean;
+        limit?: number;
+        offset?: number;
+      };
+      const items = [...luts.values()].filter((lut) => {
+        const label = (lut.pack + " " + lut.category + " " + lut.name).toLowerCase();
+        return (
+          (!request.query || label.includes(request.query.toLowerCase())) &&
+          (!request.sourceId || lut.sourceId === request.sourceId) &&
+          (!request.pack || lut.pack === request.pack) &&
+          (!request.category || lut.category === request.category) &&
+          (!request.favoritesOnly || lut.favorite) &&
+          (!request.archOnly ||
+            (!ARCH_LUT_FILTER.exclude.some((word) => label.includes(word)) &&
+              ARCH_LUT_FILTER.prefer.some((word) => label.includes(word))))
+        );
+      });
+      return {
+        items: items.slice(request.offset ?? 0, (request.offset ?? 0) + (request.limit ?? 100)),
+        total: items.length,
+      };
+    },
+    lut_set_favorite: (request) => {
+      const { lutId, favorite } = request as { lutId: string; favorite: boolean };
+      const lut = luts.get(lutId) ?? fail("NOT_FOUND", "LUT not found.");
+      lut.favorite = favorite;
+      return lut;
+    },
+    lut_preview: (request) => {
+      const { lutId } = request as { lutId: string };
+      if (!luts.has(lutId)) fail("NOT_FOUND", "LUT not found.");
+      return previewJpeg;
+    },
+    grade_preview: () => previewJpeg,
+  };
   const db: Db = initial ?? load();
   const generations = (db.generations ??= []);
   const providerKeys = (db.providerKeys ??= {});
@@ -1682,6 +1793,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   };
 
   const transport: Transport = async (command, args) => {
+    const lutHandler = lutHandlers[command as string];
+    if (lutHandler) return structuredClone(await lutHandler(args.request));
     const handler = handlers[command] as (req: unknown) => unknown;
     return structuredClone(await handler(args.request));
   };
