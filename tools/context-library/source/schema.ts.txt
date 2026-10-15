@@ -1,0 +1,5 @@
+export type EvidenceSource = "user" | "site_photo" | "survey" | "model_inference";
+export interface SiteFact { value: string; source: EvidenceSource; confidence: number; locked: boolean }
+export interface ContextPreset { id: string; buildingType: string; buildingTypeVi: string; nameVi: string; requiredIfSupported: string[]; optional: string[]; forbiddenByDefault: string[]; regionCompatibility: string; englishPrompt: string }
+export interface ContextRequest { presetId: string; regionId: string; verifiedFacts: Record<string, SiteFact>; permittedOptional: string[]; userOverrides: string[] }
+export interface ContextResult { prompt: string; conflicts: string[]; warnings: string[] }

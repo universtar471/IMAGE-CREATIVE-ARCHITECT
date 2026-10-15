@@ -1,0 +1,23 @@
+import type { ContextPreset, ContextRequest, ContextResult } from './schema';
+export function resolveContext(request: ContextRequest, presets: ContextPreset[], regions: Record<string, {climate:string; details:string[]; avoid:string[]}>): ContextResult {
+  const preset = presets.find(p => p.id === request.presetId);
+  if (!preset) throw new Error(`Unknown preset: ${request.presetId}`);
+  const region = regions[request.regionId];
+  if (!region) throw new Error(`Unknown region: ${request.regionId}`);
+  const warnings: string[] = [];
+  const conflicts: string[] = [];
+  for (const [key, fact] of Object.entries(request.verifiedFacts)) {
+    if (fact.confidence < 0 || fact.confidence > 1) throw new Error(`Invalid confidence for ${key}`);
+    if (fact.source === 'model_inference' && fact.locked) warnings.push(`Review inferred locked fact: ${key}`);
+  }
+  const facts = Object.entries(request.verifiedFacts).map(([key,f]) => `${key}: ${f.value} [${f.source}; confidence=${f.confidence}; locked=${f.locked}]`).join('\n');
+  const allowed = request.permittedOptional.filter(x => preset.optional.includes(x));
+  const prompt = [preset.englishPrompt, `REGION: ${request.regionId}; climate: ${region.climate}.`,
+    `Regional cues only if supported: ${region.details.join('; ')}.`,
+    `Avoid regional mismatches: ${region.avoid.join('; ')}.`,
+    `VERIFIED SITE FACTS (highest priority):\n${facts || 'No site facts supplied; do not claim exact conditions.'}`,
+    `PERMITTED OPTIONAL DETAILS: ${allowed.join('; ') || 'none'}.`,
+    `USER OVERRIDES (subject to locked facts): ${request.userOverrides.join('; ') || 'none'}.`,
+    'If a preset conflicts with verified site facts, do not fabricate compliance; flag for review.'] .join('\n\n');
+  return {prompt, conflicts, warnings};
+}
