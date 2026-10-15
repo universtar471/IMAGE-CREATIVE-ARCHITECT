@@ -15,6 +15,7 @@ import type { ContextDNA } from "../schemas/context";
 import type { SiteBoundary, SiteExtension, SiteSide } from "../schemas/extensions";
 import { resolveSiteTopology, type CornerSide, type TopologySource } from "../prompt/topology";
 import type { EvidenceStatus } from "../facts/evidence";
+import type { ProjectType } from "../schemas/enums";
 
 export type SiteAdjacencySource = "site" | "siteTopology";
 
@@ -39,18 +40,21 @@ const boundary = (kind: SiteBoundary["kind"], status: EvidenceStatus): SiteBound
 const TOPOLOGY_EVIDENCE: Record<TopologySource, EvidenceStatus> = {
   explicit: "user_declared",
   inferred: "inferred",
-  default: "unknown",
+  default: "inferred",
 };
 
-export function resolveSiteAdjacency(dna: SiteAdjacencyInput): ResolvedSiteAdjacency {
+export function resolveSiteAdjacency(
+  dna: SiteAdjacencyInput,
+  projectType?: ProjectType,
+): ResolvedSiteAdjacency {
   if (dna.site) {
     const { coordinateConvention, front, left, right, rear } = dna.site;
     return { source: "site", coordinateConvention, front, left, right, rear };
   }
-  const topology = resolveSiteTopology(dna.context);
+  const topology = resolveSiteTopology(dna.context, projectType);
   const side = (name: CornerSide): SiteBoundary => {
     const value = topology[name];
-    const status = TOPOLOGY_EVIDENCE[topology.source[name]];
+    const status = value === "unknown" ? "unknown" : TOPOLOGY_EVIDENCE[topology.source[name]];
     if (value === "attached") return boundary("attached_building", status);
     if (value === "open")
       return boundary(

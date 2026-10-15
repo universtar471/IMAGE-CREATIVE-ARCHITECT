@@ -102,14 +102,14 @@ describe("conflict code table (SRS §12.4)", () => {
   });
 
   it("is versioned", () => {
-    expect(VALIDATOR_VERSION).toBe("cv-1.0.0");
-    expect(run(midBlock()).validatorVersion).toBe("cv-1.0.0");
+    expect(VALIDATOR_VERSION).toBe("cv-1.1.0");
+    expect(run(midBlock()).validatorVersion).toBe("cv-1.1.0");
   });
 });
 
 describe("validateShot — ALLOW", () => {
   it("allows a plain shot with no extra prompt", () => {
-    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.0.0" });
+    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.1.0" });
   });
 
   it("AC-03: allows an oblique corner camera on an attached townhouse (compiled as oblique street)", () => {
@@ -261,7 +261,10 @@ describe("ADJACENT_BUILDING_CONFLICT", () => {
     const unknown = townhouse();
     unknown.context.left.adjacentBuildings = [];
     unknown.context.right.adjacentBuildings = [];
-    expect(run(unknown, "show the side facade").verdict).toBe("ALLOW");
+    // Unknown sides are not ADJACENT_BUILDING_CONFLICT; since P1b they are OCCLUDED_TARGET.
+    const result = run(unknown, "show the side facade");
+    expect(result.issues.map((i) => i.code)).toEqual(["OCCLUDED_TARGET"]);
+    expect(result.verdict).toBe("WARN");
   });
 });
 

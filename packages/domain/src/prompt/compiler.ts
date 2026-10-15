@@ -15,7 +15,8 @@ import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
-import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
+import { cameraSitePlan, viewTypeFraming } from "./topology";
+import { siteCameraText, siteOcclusionLines } from "./sections/siteOcclusion";
 import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
 import { VALIDATOR_VERSION } from "../validation/codes";
@@ -560,37 +561,8 @@ function preservationSection(
   if (dna.locks.weather)
     lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
   if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
-  if (camera && masterIndex >= 0) {
-    const plan = cameraSitePlan(camera, dna.context, projectType);
-    if (plan.mode === "oblique_street") {
-      const topology = resolveSiteTopology(dna.context);
-      const sideText =
-        topology.left === "attached" && topology.right === "attached"
-          ? "both sides"
-          : plan.side
-            ? `the ${plan.side} side`
-            : "both sides";
-      const hidden = plan.side === "left" ? "front-left" : "front-right";
-      lines.push(
-        `The building is attached to neighbouring buildings on ${sideText}. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.`,
-      );
-      lines.push(
-        `Camera viewpoint: ${hidden} oblique street view from eye level, about 30–35° off the facade axis, looking along the street. Composition: front facade dominant; the ${plan.side ?? "side"} side wall stays hidden behind the attached neighbour.`,
-      );
-    } else if (plan.mode === "aerial_block") {
-      lines.push(
-        `Keep the same continuous mid-block street and neighbourhood shown in Image ${masterIndex + 1}. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image ${masterIndex + 1}; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.`,
-      );
-    } else if (plan.mode === "corner_side" && plan.side) {
-      lines.push(
-        `This is a corner plot: a side street runs along the ${plan.side} side; reveal that side facade consistently with Image ${masterIndex + 1}.`,
-      );
-    } else if (plan.mode === "unknown_side" && plan.side) {
-      lines.push(
-        `Do not invent a corner plot, side street or new neighbour arrangement; reveal the ${plan.side} side only as a plain continuation consistent with Image ${masterIndex + 1}.`,
-      );
-    }
-  }
+  // SITE & OCCLUSION (ADR-034) replaces the ADR-028 party-wall wording.
+  lines.push(...siteOcclusionLines(dna, camera, projectType, masterIndex));
   lines.push(...sceneObjectLines(dna));
   return lines.join("\n");
 }
@@ -609,7 +581,7 @@ function cameraSectionTextForPlan(
     });
   }
   if (plan.mode === "aerial_block") {
-    const base = cameraSectionText(camera);
+    const base = siteCameraText(camera, dna, projectType);
     const composition = base.match(/(?:^|; )composition: (.*?)(?:; camera notes:|\.$)/)?.[1];
     const blockComposition = composition
       ? composition.replace(
@@ -617,17 +589,18 @@ function cameraSectionTextForPlan(
           "same street block and surrounding rooftops",
         )
       : "same street block and surrounding rooftops";
-    return cameraSectionForPlan(camera, { composition: blockComposition });
+    return cameraSectionForPlan(camera, { composition: blockComposition }, base);
   }
-  return cameraSectionText(camera);
+  return siteCameraText(camera, dna, projectType);
 }
 
 /** Keep measured camera fields while applying the narrowly scoped plan-mode substitutions. */
 function cameraSectionForPlan(
   camera: CameraDNA,
   replacements: { viewpoint?: string; composition: string },
+  base: string = cameraSectionText(camera),
 ): string {
-  const parts = cameraSectionText(camera).slice("Camera: ".length, -1).split("; ");
+  const parts = base.slice("Camera: ".length, -1).split("; ");
   const viewType = parts[0]!;
   const measured = parts.filter(
     (part) =>

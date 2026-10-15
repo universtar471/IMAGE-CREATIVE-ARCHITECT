@@ -126,6 +126,17 @@ export const CORNER_PHRASES: PhraseSet = {
   ],
 };
 
+/** Requests to show the rear elevation. */
+export const REAR_FACADE_PHRASES: PhraseSet = {
+  folded: [
+    "(?:rear|back) (?:facades?|elevations?|views?|sides?|of the (?:house|building|townhouse))",
+    // Not bare "phía sau" / "mặt sau": "cây phía sau" is only "trees behind".
+    "mat (?:dung )?(?:sau|hau) (?:nha|cong trinh|ngoi nha)",
+    "mat (?:dung )?hau",
+    "mat dung sau",
+  ],
+};
+
 export const LEFT_SIDE_PHRASES: PhraseSet = {
   folded: ["left(?:[- ]hand)?", "(?:ben|phia|hong|mat|canh|tuong) trai"],
   accented: ["trái"],

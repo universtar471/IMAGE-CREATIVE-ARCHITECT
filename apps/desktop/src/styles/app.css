@@ -2244,6 +2244,30 @@ textarea {
   padding: 1px 4px;
   font-size: 10px;
 }
+.site-editor {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.site-editor-fields {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.site-plan {
+  width: 100%;
+  height: auto;
+  color: var(--c-text-2);
+}
+@media (max-width: 720px) {
+  .site-editor {
+    grid-template-columns: 1fr;
+  }
+  .site-plan {
+    max-width: 200px;
+  }
+}
 .camera-thumb {
   flex: 0 0 auto;
   width: 34px;
