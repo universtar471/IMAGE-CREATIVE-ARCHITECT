@@ -1494,6 +1494,529 @@
         "objectIds"
       ],
       "additionalProperties": false
+    },
+    "spaceCatalog": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "buildingArchetype": {
+          "type": "string",
+          "minLength": 1
+        },
+        "spaces": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "presetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "floorId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "facts": {
+                "default": {},
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "value": {},
+                    "evidence": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "verified",
+                            "user_declared",
+                            "inferred",
+                            "unknown"
+                          ]
+                        },
+                        "sourceAssetIds": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "approvedByUser": {
+                          "type": "boolean"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "sourceAssetIds"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "evidence"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "lockedElementIds": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "approvedOptionalIds": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "id",
+              "presetId",
+              "facts",
+              "lockedElementIds",
+              "approvedOptionalIds"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "activeSpaceId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "version",
+        "buildingArchetype",
+        "spaces"
+      ],
+      "additionalProperties": false
+    },
+    "site": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "coordinateConvention": {
+          "type": "string",
+          "const": "viewer_facing_front_facade"
+        },
+        "front": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "attached_building",
+                "street",
+                "open_space",
+                "boundary_wall",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "user_declared",
+                    "inferred",
+                    "unknown"
+                  ]
+                },
+                "sourceAssetIds": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "approvedByUser": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "sourceAssetIds"
+              ],
+              "additionalProperties": false
+            },
+            "neighborObjectId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "heightRelation": {
+              "type": "string",
+              "enum": [
+                "lower",
+                "similar",
+                "taller",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "left": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "attached_building",
+                "street",
+                "open_space",
+                "boundary_wall",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "user_declared",
+                    "inferred",
+                    "unknown"
+                  ]
+                },
+                "sourceAssetIds": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "approvedByUser": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "sourceAssetIds"
+              ],
+              "additionalProperties": false
+            },
+            "neighborObjectId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "heightRelation": {
+              "type": "string",
+              "enum": [
+                "lower",
+                "similar",
+                "taller",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "right": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "attached_building",
+                "street",
+                "open_space",
+                "boundary_wall",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "user_declared",
+                    "inferred",
+                    "unknown"
+                  ]
+                },
+                "sourceAssetIds": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "approvedByUser": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "sourceAssetIds"
+              ],
+              "additionalProperties": false
+            },
+            "neighborObjectId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "heightRelation": {
+              "type": "string",
+              "enum": [
+                "lower",
+                "similar",
+                "taller",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "rear": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "attached_building",
+                "street",
+                "open_space",
+                "boundary_wall",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "user_declared",
+                    "inferred",
+                    "unknown"
+                  ]
+                },
+                "sourceAssetIds": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "approvedByUser": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "sourceAssetIds"
+              ],
+              "additionalProperties": false
+            },
+            "neighborObjectId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "heightRelation": {
+              "type": "string",
+              "enum": [
+                "lower",
+                "similar",
+                "taller",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "evidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "coordinateConvention",
+        "front",
+        "left",
+        "right",
+        "rear"
+      ],
+      "additionalProperties": false
+    },
+    "architecturalDetails": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "const": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "spaceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "facade": {
+                "type": "string",
+                "enum": [
+                  "front",
+                  "rear",
+                  "left",
+                  "right"
+                ]
+              },
+              "floorId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "elementId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "verified",
+                  "user_declared",
+                  "inferred",
+                  "unknown"
+                ]
+              },
+              "sourceAssetIds": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "approvedByUser": {
+                "type": "boolean"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "status",
+              "sourceAssetIds"
+            ],
+            "additionalProperties": false
+          },
+          "materialIds": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "locked": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "id",
+          "spaceId",
+          "name",
+          "evidence",
+          "materialIds",
+          "locked"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

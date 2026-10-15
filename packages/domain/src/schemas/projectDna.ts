@@ -10,6 +10,7 @@ import {
 } from "./future";
 import { SceneSchema } from "../regions/schemas";
 import { InteriorDNASchema } from "../interior/schemas";
+import { DetailRecordSchema, SiteExtensionSchema, SpaceCatalogExtensionSchema } from "./extensions";
 
 export const LockStateSchema = z.object({
   building: z.boolean().default(false),
@@ -46,6 +47,10 @@ export const ProjectDNASchema = z.object({
   scene: SceneSchema.optional(),
   interior: InteriorDNASchema.optional(),
   locks: LockStateSchema.default(defaultLockState),
+  // Optional, individually versioned extensions (ADR-034). schemaVersion stays 1.
+  spaceCatalog: SpaceCatalogExtensionSchema.optional(),
+  site: SiteExtensionSchema.optional(),
+  architecturalDetails: z.array(DetailRecordSchema).optional(),
 });
 
 /** Fully resolved (parsed) DNA — what is persisted and compiled. */

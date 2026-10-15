@@ -147,6 +147,27 @@ fn validate_additive_fields(dna: &Value, field_errors: &mut Map<String, Value>) 
         }
     }
     validate_site_topology(root, field_errors);
+    validate_space_catalog(root, field_errors);
+}
+
+/// The two refinements the JSON schema cannot express (ADR-034, mirrored from the Zod
+/// `SpaceCatalogExtensionSchema`): space ids are unique and `activeSpaceId` names one of them.
+/// Shape errors (missing ids, wrong types) are left to the schema pass.
+fn validate_space_catalog(root: &Map<String, Value>, field_errors: &mut Map<String, Value>) {
+    let Some(catalog) = root.get("spaceCatalog").and_then(Value::as_object) else { return };
+    let Some(spaces) = catalog.get("spaces").and_then(Value::as_array) else { return };
+    let mut seen = std::collections::HashSet::new();
+    for (index, space) in spaces.iter().enumerate() {
+        let Some(id) = space.get("id").and_then(Value::as_str) else { continue };
+        if !seen.insert(id) {
+            additive_error(field_errors, &format!("spaceCatalog.spaces.{index}.id"), "Space ids must be unique.");
+        }
+    }
+    if let Some(active) = catalog.get("activeSpaceId").and_then(Value::as_str) {
+        if !seen.contains(active) {
+            additive_error(field_errors, "spaceCatalog.activeSpaceId", "activeSpaceId must name one of the spaces.");
+        }
+    }
 }
 
 fn validate_site_topology(root: &Map<String, Value>, field_errors: &mut Map<String, Value>) {
@@ -428,6 +449,91 @@ pub(crate) mod tests {
         let err = validate_dna(&dna).unwrap_err();
         let fields = &err.details.unwrap()["fieldErrors"];
         assert!(fields.get("interior.roomId").is_some(), "{fields}");
+    }
+
+    /// Persisted v1 DNA from before ADR-034 (no extensions); shared with the TS AC-20 test.
+    pub(crate) const LEGACY_DNA: &str = include_str!("../../../tests/fixtures/nhapho-dna.json");
+    /// The same DNA with `spaceCatalog`, `site` and `architecturalDetails` (ADR-034).
+    pub(crate) const EXTENDED_DNA: &str =
+        include_str!("../../../../../packages/domain/test-vectors/dna-v1-extensions.json");
+
+    #[test]
+    fn accepts_legacy_dna_without_extensions_unchanged() {
+        let dna: Value = serde_json::from_str(LEGACY_DNA).unwrap();
+        let before = dna.clone();
+        validate_dna(&dna).unwrap();
+        assert_eq!(dna, before);
+        for key in ["spaceCatalog", "site", "architecturalDetails"] {
+            assert!(dna.get(key).is_none(), "{key}");
+        }
+    }
+
+    #[test]
+    fn accepts_adr_034_extensions() {
+        let dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        validate_dna(&dna).unwrap();
+        assert_eq!(dna["schemaVersion"], json!(1));
+        assert_eq!(dna["site"]["left"]["kind"], json!("attached_building"));
+    }
+
+    #[test]
+    fn rejects_invalid_extension_values() {
+        let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        type Mutation = fn(&mut Value);
+        let cases: [(&str, Mutation); 6] = [
+            ("site.version", |d| d["site"]["version"] = json!(2)),
+            ("site.left.kind", |d| d["site"]["left"]["kind"] = json!("cliff")),
+            ("site.coordinateConvention", |d| d["site"]["coordinateConvention"] = json!("north_up")),
+            ("spaceCatalog.spaces.0.facts.widthM.evidence.status", |d| {
+                d["spaceCatalog"]["spaces"][0]["facts"]["widthM"]["evidence"]["status"] = json!("guess")
+            }),
+            ("architecturalDetails.0.version", |d| d["architecturalDetails"][0]["version"] = json!(2)),
+            ("spaceCatalog.spaces.0.facts.ceilingHeightM.evidence.confidence", |d| {
+                d["spaceCatalog"]["spaces"][0]["facts"]["ceilingHeightM"]["evidence"]["confidence"] = json!(1.5)
+            }),
+        ];
+        for (field, mutate) in cases {
+            let mut dna = base.clone();
+            mutate(&mut dna);
+            let err = validate_dna(&dna).unwrap_err();
+            let fields = err.details.unwrap()["fieldErrors"].clone();
+            assert!(fields.get(field).is_some(), "{field}: {fields}");
+        }
+    }
+
+    /// P0-B: the backend enforces the two TS-only refinements of `spaceCatalog`.
+    #[test]
+    fn enforces_unique_space_ids_and_an_existing_active_space() {
+        let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        assert!(base["spaceCatalog"]["activeSpaceId"].is_string(), "fixture names an active space");
+
+        // A second space that reuses the first one's id.
+        let mut duplicate = base.clone();
+        let copy = duplicate["spaceCatalog"]["spaces"][0].clone();
+        duplicate["spaceCatalog"]["spaces"].as_array_mut().unwrap().push(copy);
+        let fields = validate_dna(&duplicate).unwrap_err().details.unwrap()["fieldErrors"].clone();
+        assert!(fields.get("spaceCatalog.spaces.1.id").is_some(), "{fields}");
+        assert!(fields.get("spaceCatalog.spaces.0.id").is_none(), "the first occurrence is fine: {fields}");
+
+        let mut missing = base.clone();
+        missing["spaceCatalog"]["activeSpaceId"] = json!("SPC_nowhere");
+        let fields = validate_dna(&missing).unwrap_err().details.unwrap()["fieldErrors"].clone();
+        assert!(fields.get("spaceCatalog.activeSpaceId").is_some(), "{fields}");
+
+        // activeSpaceId is optional; without it the catalog is valid.
+        let mut no_active = base.clone();
+        no_active["spaceCatalog"].as_object_mut().unwrap().remove("activeSpaceId");
+        validate_dna(&no_active).unwrap();
+    }
+
+    #[test]
+    fn rejects_unknown_extension_keys() {
+        let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        dna["futureExtension"] = json!({ "version": 1 });
+        assert!(validate_dna(&dna).is_err());
+        let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        dna["site"]["skyline"] = json!("tall");
+        assert!(validate_dna(&dna).is_err());
     }
 
     #[test]

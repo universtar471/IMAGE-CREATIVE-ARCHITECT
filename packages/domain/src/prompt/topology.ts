@@ -93,9 +93,11 @@ export function cameraSitePlan(
   if (!side) return { mode: "normal", reason: "no_side_revealed" };
   const sideValue = topology[side];
   if (sideValue === "attached") return { mode: "oblique_street", side, reason: "attached_side" };
+  // An unknown side is never claimed as the street side, even when it is the corner lot's
+  // cornerSide: `resolveSiteAdjacency` derives it as `unknown` too (ADR-034, conservative).
+  if (sideValue === "unknown") return { mode: "unknown_side", side, reason: "side_not_confirmed" };
   if (topology.cornerLot && topology.cornerSide === side)
     return { mode: "corner_side", side, reason: "confirmed_corner_side" };
-  if (sideValue === "unknown") return { mode: "unknown_side", side, reason: "side_not_confirmed" };
   return { mode: "normal", side, reason: "open_side" };
 }
 

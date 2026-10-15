@@ -23,6 +23,7 @@ import {
   type BatchDTO,
   type CameraAnchorDTO,
   type CameraDNA,
+  type ConflictCode,
   type DnaStepId,
   type GenerationDTO,
   type GenerationParams,
@@ -34,6 +35,7 @@ import {
   type PromptBundle,
   type ProviderDescriptorDTO,
   type ColorGradeDNA,
+  type ShotValidation,
 } from "@arch/domain";
 import {
   BridgeError,
@@ -52,6 +54,14 @@ import type { ModuleId, TrayTabId } from "../features/workspace/modules";
 import { isActiveGeneration } from "../features/generate/labels";
 import { withExtraPrompt } from "../features/generate/extraPrompt";
 import { compileFromBundle } from "./services";
+import {
+  canSubmit,
+  checkShot,
+  conflictError,
+  conflictOf,
+  gateBatch,
+  withValidation,
+} from "../features/validation/gate";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
@@ -99,6 +109,8 @@ export type GenerateDraft = {
   referenceAssetIds: string[] | null;
   /** Free text appended to the DNA-compiled positive prompt at submit (Generate panel). */
   extraPrompt?: string;
+  /** WARN conflict codes the user accepted for this shot; cleared when the extra prompt changes. */
+  approvedExceptions?: ConflictCode[];
 };
 
 export const EMPTY_GENERATE_DRAFT: GenerateDraft = {
@@ -125,12 +137,19 @@ export type GenerationRun =
       message: string;
       /** Set when the provider has no API key: the UI offers "Set API key". */
       needsKeyFor: string | null;
+      /** Set when the conflict gate refused the submit (nothing was sent). */
+      validation?: ShotValidation;
     };
 
 export type GenerationInput = Omit<GenerationSubmitRequest, "prompt" | "cameraId"> & {
   cameraId?: string | null;
-  /** Appended to the compiled positive prompt (ignored when a `prompt` is passed). */
+  /**
+   * Appended to the compiled positive prompt after the conflict gate checked it. With a
+   * `prompt` passed it is only checked, never appended.
+   */
   extraPrompt?: string;
+  /** WARN conflict codes the user accepted for this shot (ADR-034). */
+  approvedExceptions?: readonly ConflictCode[];
 };
 
 type State = {
@@ -208,7 +227,14 @@ type State = {
   refreshJobs: () => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   retryJob: (jobId: string) => Promise<JobDTO | undefined>;
-  createBatch: (request: BatchCreateRequest) => Promise<BatchDTO | undefined>;
+  /**
+   * Queue a batch. Every item passes the conflict gate first (ADR-034): items that are not
+   * ALLOW are skipped and reported; nothing is sent when no item is left.
+   */
+  createBatch: (
+    request: BatchCreateRequest,
+    options?: { approvedExceptions?: readonly ConflictCode[] },
+  ) => Promise<BatchDTO | undefined>;
   applyGrade: (grade: ColorGradeDNA, label?: string) => Promise<AssetDTO | undefined>;
   refreshBatches: () => Promise<void>;
   showContactSheet: (batchId: string | null) => void;
@@ -308,6 +334,15 @@ function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]
 
 export const useStudio = create<State>((set, get) => {
   const isOpen = (projectId: string) => get().workspace?.project.id === projectId;
+
+  /** The saved DNA + type the conflict gate checks (the open project's, else loaded). */
+  const persistedProject = async (projectId: string) => {
+    const ws = get().workspace;
+    if (ws && ws.project.id === projectId)
+      return { dna: ws.persistedDna, projectType: ws.project.projectType };
+    const bundle = await call("project_get", { projectId });
+    return { dna: bundle.dna, projectType: bundle.project.projectType };
+  };
 
   /** Refresh assets + project after outputs land (ignored if another project is open). */
   const reloadAssets = async (projectId: string) => {
@@ -594,7 +629,20 @@ export const useStudio = create<State>((set, get) => {
     },
     closeProviderDialog: () => set({ providerDialog: null }),
 
-    setGenerateDraft: (patch) => set((s) => ({ generateDraft: { ...s.generateDraft, ...patch } })),
+    setGenerateDraft: (patch) =>
+      set((s) => {
+        // An approval belongs to the text it was given for: new text is checked afresh.
+        const textChanged =
+          patch.extraPrompt !== undefined && patch.extraPrompt !== s.generateDraft.extraPrompt;
+        const reset = textChanged && !("approvedExceptions" in patch);
+        return {
+          generateDraft: {
+            ...s.generateDraft,
+            ...patch,
+            ...(reset ? { approvedExceptions: undefined } : {}),
+          },
+        };
+      }),
     reuseGeneration: (g) => {
       set({
         generateDraft: {
@@ -639,7 +687,7 @@ export const useStudio = create<State>((set, get) => {
 
     submitGeneration: async (input, prompt) => {
       if (get().run?.status === "submitting") return undefined;
-      const { extraPrompt, ...submitInput } = input;
+      const { extraPrompt, approvedExceptions, ...submitInput } = input;
       const { projectId } = submitInput;
       // Everything below is bound to this project; never read another project's data.
       if (!prompt && !isOpen(projectId)) return undefined;
@@ -655,7 +703,11 @@ export const useStudio = create<State>((set, get) => {
         let request: GenerationSubmitRequest;
         const cameraId = input.cameraId ?? null;
         if (prompt) {
-          request = { ...submitInput, cameraId, prompt };
+          // A resent or hand-built snapshot (enhance, retry): gated on the persisted DNA.
+          const project = await persistedProject(projectId);
+          const validation = checkShot({ ...project, cameraId, extraPrompt, approvedExceptions });
+          if (!canSubmit(validation)) throw conflictError(validation);
+          request = { ...submitInput, cameraId, prompt: withValidation(prompt, validation) };
         } else {
           // flushDna saves the open project, which is `projectId` at this point (checked above).
           if (!(await get().flushDna())) {
@@ -671,8 +723,21 @@ export const useStudio = create<State>((set, get) => {
             resolveReferenceIds(input.referenceAssetIds, bundle.assets),
             bundle.assets,
           );
+          // AC-22: the extra prompt is checked BEFORE it is appended; a refused shot is
+          // never sent to the bridge or a provider.
+          const validation = checkShot({
+            dna: bundle.dna,
+            projectType: bundle.project.projectType,
+            cameraId,
+            extraPrompt,
+            approvedExceptions,
+          });
+          if (!canSubmit(validation)) throw conflictError(validation);
           const compiled = withExtraPrompt(
-            compileFromBundle(bundle, { referenceAssetIds: ids, cameraId }),
+            withValidation(
+              compileFromBundle(bundle, { referenceAssetIds: ids, cameraId }),
+              validation,
+            ),
             extraPrompt,
           );
           request = { ...submitInput, cameraId, referenceAssetIds: ids, prompt: compiled };
@@ -699,6 +764,7 @@ export const useStudio = create<State>((set, get) => {
         return queued;
       } catch (err) {
         const e = toBridgeError(err);
+        const validation = conflictOf(e);
         set({
           run: {
             status: "error",
@@ -706,6 +772,7 @@ export const useStudio = create<State>((set, get) => {
             code: e.code,
             message: e.message,
             needsKeyFor: providerNeedingKey(e, input.providerId),
+            ...(validation ? { validation } : {}),
           },
         });
         if (isOpen(projectId)) void get().refreshGenerations();
@@ -811,8 +878,24 @@ export const useStudio = create<State>((set, get) => {
       }
     },
 
-    createBatch: async (request) => {
+    createBatch: async (input, options) => {
       try {
+        const project = await persistedProject(input.projectId);
+        const gate = gateBatch(
+          input,
+          project.dna,
+          project.projectType,
+          options?.approvedExceptions,
+        );
+        if (gate.skipped.length)
+          get().notify(
+            gate.request ? "warning" : "error",
+            gate.request
+              ? t("conflictUi.batchSkipped", { list: gate.skipped.map((x) => x.label).join(", ") })
+              : t("conflictUi.batchAllBlocked"),
+          );
+        if (!gate.request) return undefined;
+        const request = gate.request;
         const batch = await call("batch_create", request);
         const ws = get().workspace;
         if (ws && ws.project.id === request.projectId) {

@@ -289,8 +289,17 @@ describe("ADR-028 compiler", () => {
     expect(interior.preservationInstructions).toContain(
       "Keep the same room, window positions, view outside and lighting character.",
     );
+    // pc-1.4.0 had no provenance fields (ADR-034); compare the prompt content only.
+    const {
+      validatorVersion: _v,
+      catalogVersion: _c,
+      sourceHash: _s,
+      configHash: _h,
+      resolvedWarnings: _w,
+      ...interiorContent
+    } = interior;
     const pc14InteriorBundle = {
-      ...interior,
+      ...interiorContent,
       compilerVersion: "pc-1.4.0",
       preservationInstructions: interior.preservationInstructions
         .replace("Keep the same room, window positions, view outside and lighting character.", "")

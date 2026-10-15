@@ -385,7 +385,20 @@ describe("Interior prompt compiler pc-1.6.0", () => {
         references: [],
         pack,
       });
-      expect({ ...actual, compilerVersion: "pc-1.3.0" }).toEqual(expected);
+      // pc-1.3.0 had no provenance fields (ADR-034); the prompt text must be unchanged.
+      const {
+        validatorVersion,
+        catalogVersion,
+        sourceHash,
+        configHash,
+        resolvedWarnings,
+        ...legacy
+      } = actual;
+      expect([validatorVersion, catalogVersion]).toEqual(["cv-1.0.0", "none"]);
+      expect(sourceHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(configHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(resolvedWarnings).toEqual([]);
+      expect({ ...legacy, compilerVersion: "pc-1.3.0" }).toEqual(expected);
     }
   });
 });

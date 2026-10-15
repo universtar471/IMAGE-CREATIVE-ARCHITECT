@@ -74,6 +74,29 @@ mod tests {
         assert_eq!(update(&core, &p.id, dna).unwrap_err().code, ErrorCode::InvalidState);
     }
 
+    /// AC-20: an old v1 DNA (no ADR-034 extensions) and an extended one both survive
+    /// save → reopen byte-for-byte through SQLite.
+    #[test]
+    fn legacy_and_extended_dna_round_trip_unchanged() {
+        use crate::services::dna_validation::tests::{EXTENDED_DNA, LEGACY_DNA};
+        let (_tmp, core) = core();
+        let p = test_create_villa(&core, "A");
+        for text in [LEGACY_DNA, EXTENDED_DNA] {
+            let dna: Value = serde_json::from_str(text).unwrap();
+            update(&core, &p.id, dna.clone()).unwrap();
+            let reopened = get(&core, &p.id).unwrap();
+            assert_eq!(reopened, dna);
+            assert_eq!(reopened.to_string(), dna.to_string());
+            update(&core, &p.id, reopened.clone()).unwrap();
+            assert_eq!(get(&core, &p.id).unwrap(), dna);
+        }
+        let reopened = get(&core, &p.id).unwrap();
+        assert!(reopened.get("site").is_some());
+        let legacy: Value = serde_json::from_str(LEGACY_DNA).unwrap();
+        update(&core, &p.id, legacy).unwrap();
+        assert!(get(&core, &p.id).unwrap().get("site").is_none());
+    }
+
     #[test]
     fn phase_four_additive_fields_round_trip_unchanged() {
         let (_tmp, core) = core();

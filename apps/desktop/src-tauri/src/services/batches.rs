@@ -191,6 +191,24 @@ mod tests {
         (n("batches"), n("generations"), n("jobs"))
     }
 
+    /// ADR-034 P0-B: a batch item whose snapshot verdict is BLOCK fails the whole batch
+    /// (all-or-nothing); the desktop gate skips such items before sending.
+    #[test]
+    fn refuses_a_batch_item_whose_snapshot_is_blocked() {
+        let h = queue_harness();
+        let p = test_create_villa(&h.core, "Blocked batch");
+        set_cameras(&h.core, &p.id, &[(CAM_A, "Front corner", true)]);
+        let master = test_import(&h.core, h.tmp.path(), &p.id, "m.png", "master_architecture");
+        projects::approve_master(&h.core, &p.id, true).unwrap();
+        let mut blocked = item("Front corner — anchor", Some(CAM_A), &[&master.id]);
+        blocked["prompt"]["validation"] = json!({ "verdict": "BLOCK", "validatorVersion": "cv-1.0.0",
+            "issueCodes": ["ADJACENT_BUILDING_CONFLICT"], "approvedExceptions": [] });
+        let err = create(&h.core, request(&p.id, TEST_LOCAL_PROVIDER, vec![blocked])).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("conflict check blocked"), "{}", err.message);
+        assert_eq!(rows(&h), (0, 0, 0));
+    }
+
     #[test]
     fn creates_one_queued_job_per_item_in_order() {
         let h = queue_harness();

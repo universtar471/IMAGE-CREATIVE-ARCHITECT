@@ -17,8 +17,14 @@ import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
 import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
 import { stylePhrase } from "./stylePhrases";
+import { canonicalHash } from "./hash";
+import { VALIDATOR_VERSION } from "../validation/codes";
+import { validateShot, warningCodes } from "../validation/validateShot";
 
 export const COMPILER_VERSION = "pc-1.6.0";
+
+/** `PromptBundle.catalogVersion` until the Space Catalog ships (P1, ADR-034). */
+export const NO_CATALOG_VERSION = "none";
 
 export type PromptReference = {
   assetId: string;
@@ -132,6 +138,15 @@ export function compileWithOverrides(
   return compilePromptInternal(compileInput, dna);
 }
 
+/**
+ * The bundle with more accepted WARN codes recorded (for example the extra prompt's, once
+ * the gate has validated it); the list stays sorted and unique.
+ */
+export function withResolvedWarnings(bundle: PromptBundle, codes: readonly string[]): PromptBundle {
+  const merged = [...new Set([...(bundle.resolvedWarnings ?? []), ...codes])].sort(compareStrings);
+  return { ...bundle, resolvedWarnings: merged };
+}
+
 function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): PromptBundle {
   const { project, pack } = input;
   const references = sortReferences(input.references);
@@ -215,8 +230,42 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   for (const r of references) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
   const anchorIndex = references.findIndex(isAnchorRef);
 
+  // Provenance (ADR-034): the warnings the validator raises for this DNA + shot, and hashes
+  // of exactly what was compiled. Display-only fields (project name, reference labels) are
+  // left out so they do not change the hashes.
+  const cameraId = camera?.id ?? null;
+  const validation = validateShot({
+    dna,
+    shotIntent: { projectType: project.projectType, cameraId },
+  });
+  const sourceHash = canonicalHash({
+    dna,
+    shot: {
+      projectId: project.id,
+      projectType: project.projectType,
+      subtype: project.subtype ?? null,
+      cameraId,
+      references: references.map((r) => ({
+        assetId: r.assetId,
+        role: r.role,
+        isAnchor: r.isAnchor === true,
+      })),
+    },
+  });
+  const configHash = canonicalHash({
+    compilerVersion: COMPILER_VERSION,
+    validatorVersion: VALIDATOR_VERSION,
+    catalogVersion: NO_CATALOG_VERSION,
+    knowledgePack: pack ?? null,
+  });
+
   return {
     compilerVersion: COMPILER_VERSION,
+    validatorVersion: VALIDATOR_VERSION,
+    catalogVersion: NO_CATALOG_VERSION,
+    sourceHash,
+    configHash,
+    resolvedWarnings: warningCodes(validation),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),

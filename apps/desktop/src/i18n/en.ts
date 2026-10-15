@@ -1659,4 +1659,43 @@ export const en = {
     markAnchored: ", anchored",
     markMove: ". Drag or use arrow keys to move.",
   },
+  /** Unified conflict validator messages, one per SRS §12.4 code (ADR-034). */
+  conflicts: {
+    SPACE_NOT_IN_BUILDING: "The selected space does not belong to this building type.",
+    UNVERIFIED_GEOMETRY: "The request asks for exact dimensions that have not been verified.",
+    OCCLUDED_TARGET: "The camera cannot see, or barely sees, the chosen target.",
+    ADJACENT_BUILDING_CONFLICT:
+      "The request would expose a side that is attached to a neighbouring building, or remove the neighbours.",
+    OBJECT_NOT_ALLOWED_IN_SPACE: "This object does not belong in the selected space.",
+    OBJECT_NO_PLACEMENT_ZONE: "There is no clear, plausible place to put this object.",
+    EFFECT_SOURCE_MISSING:
+      "The effect has no source in the scene (for example a sunstar without a light source).",
+    EFFECT_MOTION_CONFLICT:
+      "The motion effect contradicts a static object (for example light trails from a parked car).",
+    LOCKED_LIGHTING_CONFLICT: "Night or dusk contradicts the locked daytime lighting.",
+    ENHANCE_PRESERVATION_RISK: "The enhancement may change locked areas or the geometry.",
+    OUTPUT_SIZE_MISMATCH: "The output size does not match the requested profile.",
+    PAGE_COUNT_MISMATCH: "The page count differs from the target page count.",
+    REQUIRED_IMAGE_MISSING: "A required image is missing.",
+    PRINT_READABILITY_LOW: "Resolution, text or layout may be hard to read in print.",
+    UNVERIFIED_PUBLICATION_FACT:
+      "The text states a fact that has no source or has not been approved.",
+  },
+
+  conflictUi: {
+    title: "Constraint check",
+    block: "Blocked",
+    warn: "Warning",
+    allow: "OK",
+    fix: "Fix selection",
+    approveException: "Approve exception",
+    accepted: "Exception approved",
+    fromExtraPrompt: "extra prompt",
+    fromCamera: "camera",
+    refusedBlock: "The constraint check blocked this shot. Fix the selection and try again.",
+    refusedWarn: "Approve the exception or fix the selection before generating.",
+    batchSkipHint: "Blocked items are skipped; the rest are queued.",
+    batchSkipped: "Skipped (constraint check): {list}",
+    batchAllBlocked: "Every item failed the constraint check; nothing was queued.",
+  },
 };

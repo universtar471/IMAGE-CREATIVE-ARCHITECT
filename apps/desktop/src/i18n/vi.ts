@@ -1660,4 +1660,42 @@ export const vi: Dict = {
     markAnchored: ", đã có Anchor",
     markMove: ". Kéo hoặc dùng phím mũi tên để di chuyển.",
   },
+  conflicts: {
+    SPACE_NOT_IN_BUILDING: "Không gian đã chọn không thuộc loại công trình này.",
+    UNVERIFIED_GEOMETRY: "Yêu cầu kích thước chính xác trong khi dữ liệu chưa được xác minh.",
+    OCCLUDED_TARGET: "Góc máy không thấy hoặc khó thấy đối tượng cần chụp.",
+    ADJACENT_BUILDING_CONFLICT:
+      "Yêu cầu làm lộ mặt hông đang liền kề nhà bên cạnh, hoặc xóa nhà hàng xóm.",
+    OBJECT_NOT_ALLOWED_IN_SPACE: "Vật thể này không phù hợp với công năng của không gian đã chọn.",
+    OBJECT_NO_PLACEMENT_ZONE: "Không có vị trí hợp lý, rõ ràng để đặt vật thể này.",
+    EFFECT_SOURCE_MISSING:
+      "Hiệu ứng không có nguồn trong cảnh (ví dụ tia sao mà không có nguồn sáng).",
+    EFFECT_MOTION_CONFLICT:
+      "Hiệu ứng chuyển động mâu thuẫn với vật thể đứng yên (ví dụ vệt đèn của xe đang đỗ).",
+    LOCKED_LIGHTING_CONFLICT: "Cảnh đêm hoặc hoàng hôn mâu thuẫn với ánh sáng ban ngày đã khóa.",
+    ENHANCE_PRESERVATION_RISK:
+      "Nâng cấp ảnh có thể làm thay đổi vùng đã khóa hoặc hình học công trình.",
+    OUTPUT_SIZE_MISMATCH: "Kích thước ảnh xuất không đúng cấu hình đã yêu cầu.",
+    PAGE_COUNT_MISMATCH: "Số trang khác với số trang mục tiêu.",
+    REQUIRED_IMAGE_MISSING: "Thiếu ảnh bắt buộc.",
+    PRINT_READABILITY_LOW: "Độ phân giải, chữ hoặc bố cục có thể khó đọc khi in.",
+    UNVERIFIED_PUBLICATION_FACT: "Nội dung công bố dữ kiện chưa có nguồn hoặc chưa được duyệt.",
+  },
+
+  conflictUi: {
+    title: "Kiểm tra ràng buộc",
+    block: "Bị chặn",
+    warn: "Cảnh báo",
+    allow: "Hợp lệ",
+    fix: "Sửa lựa chọn",
+    approveException: "Duyệt ngoại lệ",
+    accepted: "Đã duyệt ngoại lệ",
+    fromExtraPrompt: "lời nhắc bổ sung",
+    fromCamera: "góc máy",
+    refusedBlock: "Kiểm tra ràng buộc đã chặn cảnh này. Hãy sửa lựa chọn rồi thử lại.",
+    refusedWarn: "Hãy duyệt ngoại lệ hoặc sửa lựa chọn trước khi tạo ảnh.",
+    batchSkipHint: "Các mục bị chặn sẽ được bỏ qua; các mục còn lại vẫn vào hàng đợi.",
+    batchSkipped: "Đã bỏ qua (kiểm tra ràng buộc): {list}",
+    batchAllBlocked: "Mọi mục đều không qua kiểm tra ràng buộc; không có gì được đưa vào hàng đợi.",
+  },
 };

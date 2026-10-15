@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus};
-use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle};
+use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle, ShotVerdict};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
@@ -161,6 +161,18 @@ pub fn parse_purpose(s: &str) -> AppResult<GenerationPurpose> {
 
 // ------------------------------------------------------------------ validation
 
+/// ADR-034: the desktop conflict gate records its verdict in the snapshot. A BLOCK verdict
+/// is never queued; a snapshot without the field (older clients, tests) is accepted.
+fn ensure_not_blocked(prompt: &PromptBundle) -> AppResult<()> {
+    match &prompt.validation {
+        Some(v) if v.verdict == ShotVerdict::Block => {
+            Err(AppError::validation("The conflict check blocked this shot; fix the selection before generating.")
+                .with_details(json!({ "issueCodes": v.issue_codes })))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Every check of API_CONTRACTS §9/§10, before any row is written. Reads no image bytes and
 /// does not keep the key: both are fetched again when the job runs.
 pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Validated> {
@@ -170,6 +182,7 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     if purpose == GenerationPurpose::Repair {
         return Err(AppError::validation("Repair generations can no longer be submitted."));
     }
+    ensure_not_blocked(&req.prompt)?;
     let provider = find_provider(core, &req.provider_id)?;
     let info = provider.info();
     let model = info
@@ -282,6 +295,13 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     let prompt = if conservative_prompt(&req, purpose) {
         PromptBundle {
             compiler_version: String::new(),
+            validator_version: None,
+            catalog_version: None,
+            source_hash: None,
+            config_hash: None,
+            resolved_warnings: None,
+            // Keep the gate's outcome on the (otherwise empty) conservative snapshot.
+            validation: req.prompt.validation.clone(),
             positive_prompt: String::new(),
             negative_prompt: String::new(),
             reference_instructions: String::new(),
@@ -1165,6 +1185,12 @@ mod tests {
         let metadata = json!({ "moduleId": "generate", "dnaVersion": 1 });
         PromptBundle {
             compiler_version: "1.0.0".into(),
+            validator_version: None,
+            catalog_version: None,
+            source_hash: None,
+            config_hash: None,
+            resolved_warnings: None,
+            validation: None,
             positive_prompt: positive.into(),
             negative_prompt: "blurry".into(),
             reference_instructions: "Image 1 is the master.".into(),
@@ -1294,6 +1320,41 @@ mod tests {
         let err = validate(&core, request("hero", repair_params)).unwrap_err();
         assert!(err.message.contains("params.repair"), "{}", err.message);
         assert_eq!(count(&core, "jobs"), 0);
+    }
+
+    /// ADR-034 P0-B: a snapshot whose conflict verdict is BLOCK is refused before any row is
+    /// written; ALLOW (with accepted exceptions) and old snapshots without the field pass.
+    #[test]
+    fn block_verdict_snapshot_is_refused_with_validation_error() {
+        let (tmp, core, _) = core_with_double();
+        let p = test_create_villa(&core, "Conflict gate");
+        let master = import(&core, tmp.path(), &p.id, "m.png", "master_architecture", [9, 9, 9]);
+        let snapshot = |verdict: ShotVerdict| crate::dto::ShotValidationSnapshot {
+            verdict,
+            validator_version: "cv-1.0.0".into(),
+            issue_codes: vec!["ADJACENT_BUILDING_CONFLICT".into()],
+            approved_exceptions: Vec::new(),
+        };
+
+        let mut blocked = local(&p.id, &[&master.id], 1);
+        blocked.prompt.validation = Some(snapshot(ShotVerdict::Block));
+        let err = validate(&core, blocked).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("conflict check blocked"), "{}", err.message);
+        assert_eq!(err.details.unwrap()["issueCodes"], json!(["ADJACENT_BUILDING_CONFLICT"]));
+        assert_eq!(count(&core, "jobs"), 0);
+        assert_eq!(count(&core, "generations"), 0);
+
+        let mut allowed = local(&p.id, &[&master.id], 1);
+        let mut accepted = snapshot(ShotVerdict::Allow);
+        accepted.issue_codes = vec!["UNVERIFIED_GEOMETRY".into()];
+        accepted.approved_exceptions = vec!["UNVERIFIED_GEOMETRY".into()];
+        allowed.prompt.validation = Some(accepted.clone());
+        let g = submit(&core, allowed).unwrap();
+        assert_eq!(g.prompt.validation, Some(accepted), "the snapshot keeps the verdict verbatim");
+
+        // Old clients and tests send no validation field: accepted as before.
+        submit(&core, local(&p.id, &[&master.id], 1)).unwrap();
     }
 
     #[test]
@@ -1684,6 +1745,42 @@ mod tests {
 
         let failed = GenerationErrorDto { kind: "auth".into(), message: "m".into(), retryable: false };
         assert_eq!(keys(&serde_json::to_value(failed).unwrap()), ["kind", "message", "retryable"]);
+    }
+
+    /// ADR-034: the provenance fields of a compiled bundle survive the request snapshot.
+    #[test]
+    fn prompt_bundle_keeps_adr_034_provenance_verbatim() {
+        let raw = json!({
+            "compilerVersion": "pc-1.6.0", "validatorVersion": "cv-1.0.0", "catalogVersion": "none",
+            "sourceHash": "sha256:aa", "configHash": "sha256:bb",
+            "resolvedWarnings": ["UNVERIFIED_GEOMETRY"],
+            "positivePrompt": "p", "negativePrompt": "", "referenceInstructions": "",
+            "preservationInstructions": "", "metadata": { "cameraId": null }
+        });
+        let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
+        assert_eq!(bundle.validator_version.as_deref(), Some("cv-1.0.0"));
+        assert_eq!(bundle.resolved_warnings.as_deref(), Some(&["UNVERIFIED_GEOMETRY".to_string()][..]));
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), raw);
+
+        let gated = json!({
+            "compilerVersion": "pc-1.6.0", "positivePrompt": "p", "negativePrompt": "",
+            "referenceInstructions": "", "preservationInstructions": "", "metadata": {},
+            "validation": { "verdict": "WARN", "validatorVersion": "cv-1.0.0",
+                            "issueCodes": ["UNVERIFIED_GEOMETRY"], "approvedExceptions": [] }
+        });
+        let bundle: PromptBundle = serde_json::from_value(gated.clone()).unwrap();
+        assert_eq!(bundle.validation.as_ref().unwrap().verdict, ShotVerdict::Warn);
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), gated);
+        let mut unknown = gated.clone();
+        unknown["validation"]["verdict"] = json!("MAYBE");
+        assert!(serde_json::from_value::<PromptBundle>(unknown).is_err());
+
+        let legacy = json!({
+            "compilerVersion": "1", "positivePrompt": "p", "negativePrompt": "", "referenceInstructions": "",
+            "preservationInstructions": "", "metadata": {}
+        });
+        let bundle: PromptBundle = serde_json::from_value(legacy.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), legacy);
     }
 
     #[test]

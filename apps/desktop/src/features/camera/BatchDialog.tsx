@@ -4,6 +4,7 @@ import {
   anchorViews,
   defaultGenerationParams,
   orderReferences,
+  type ConflictCode,
   type GenerationParams,
 } from "@arch/domain";
 import { useStudio } from "../../app/store";
@@ -17,6 +18,8 @@ import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { SiteTopologyChip } from "./SiteTopologyChip";
 import { cameraSitePlan, type TopologyContext } from "../../lib/siteTopology";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { gateBatch } from "../validation/gate";
 
 /**
  * "Generate anchors" (one item per anchor view, master as reference) and "Render cameras"
@@ -60,6 +63,9 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
   );
   const [extraIds, setExtraIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  /** WARN codes accepted for this batch (ADR-034); blocked items are skipped, not sent. */
+  const [approvedExceptions, setApprovedExceptions] = useState<ConflictCode[]>([]);
+  const fixConflict = useConflictFix(undefined, onClose);
 
   const extras = orderReferences(
     ws.assets.filter((a) => a.status === "ready" && a.id !== master?.id),
@@ -83,6 +89,10 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     providers,
   );
   const unsaved = ws.draftDna !== ws.persistedDna;
+  // Preview of the per-item conflict gate (the store re-runs it on the fresh build).
+  const gate = plan.request
+    ? gateBatch(plan.request, ws.persistedDna, ws.project.projectType, approvedExceptions)
+    : null;
 
   const submit = async () => {
     setBusy(true);
@@ -110,7 +120,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
         }))
       )
         return;
-      if (await createBatch(fresh.request)) onClose();
+      if (await createBatch(fresh.request, { approvedExceptions })) onClose();
     } catch (err) {
       notifyError(toBridgeError(err));
     } finally {
@@ -141,7 +151,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
           </button>
           <button
             className="btn btn-primary"
-            disabled={busy || !plan.request}
+            disabled={busy || !plan.request || (gate !== null && !gate.request)}
             onClick={() => void submit()}
             data-testid="batch-submit"
           >
@@ -336,6 +346,14 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
               ))}
             </ul>
           </div>
+        )}
+        {gate && (
+          <ConflictPanel
+            batch
+            entries={gate.entries}
+            onFix={fixConflict}
+            onApprove={(codes) => setApprovedExceptions((list) => [...list, ...codes])}
+          />
         )}
         {plan.issues.length > 0 && (
           <div className="callout callout-warning" role="alert" data-testid="batch-issues">
