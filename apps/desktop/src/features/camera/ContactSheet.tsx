@@ -30,7 +30,6 @@ import { EnhanceBatchDialog } from "../enhance/EnhanceBatchDialog";
 import { resolveEnhancePair, type EnhancePair } from "../enhance/enhance";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { GENERATION_STATUS_TONE, JOB_STATUS_TONE, isActiveGeneration } from "../generate/labels";
-import { QcBadge } from "../qc/QcBadge";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import {
   groupContactSheet,
@@ -499,7 +498,6 @@ function OutputCard({
           {asset.originalName ?? asset.id}
         </span>
         <span className="contact-asset-detail">
-          <QcBadge assetId={asset.id} projectId={asset.projectId} />
           {isAnchor && (
             <span className="badge badge-success">
               <Anchor size={10} /> {t("common.anchor")}

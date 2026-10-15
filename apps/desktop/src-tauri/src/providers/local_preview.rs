@@ -49,7 +49,6 @@ impl ImageProvider for LocalPreviewProvider {
                 supports_seed: true,
                 quality_options: Vec::new(),
                 price_hint: None,
-                vision: false,
                 supports_mask: false,
             }],
         }

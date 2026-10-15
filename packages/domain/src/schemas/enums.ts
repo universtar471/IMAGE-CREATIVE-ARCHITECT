@@ -26,7 +26,6 @@ export const ProjectStatusSchema = z.enum([
   "anchor_generation",
   "design_locked",
   "production",
-  "qc",
   "final",
   "archived",
 ]);

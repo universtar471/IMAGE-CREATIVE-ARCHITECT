@@ -169,7 +169,6 @@ describe("phase 7 region schemas", () => {
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
-        vision: false,
       }).supportsMask,
     ).toBe(false);
   });

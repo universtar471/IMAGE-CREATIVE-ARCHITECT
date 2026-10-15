@@ -12,7 +12,6 @@ pub mod grade;
 pub mod projects;
 pub mod prompt_enhance;
 pub mod provider_settings;
-pub mod qc;
 pub mod queue;
 pub mod regions;
 pub mod status;
@@ -423,7 +422,6 @@ pub(crate) mod tests_support {
             supports_seed: false,
             quality_options: Vec::new(),
             price_hint: None,
-            vision: false,
             supports_mask: false,
         }
     }
@@ -434,7 +432,6 @@ pub(crate) mod tests_support {
             full.aspect_ratios = vec!["1:1".into(), "16:9".into()];
             full.image_sizes = vec!["1K".into(), "2K".into()];
             full.quality_options = vec!["low".into(), "high".into()];
-            full.vision = true;
             let mut text_only = model("text-only", true, false, 0, 1);
             text_only.supports_seed = true;
             if self.local {
@@ -499,17 +496,6 @@ pub(crate) mod tests_support {
 
         fn chat_model(&self) -> Option<String> {
             (!self.local).then(|| "test-chat".to_string())
-        }
-
-        fn vision(
-            &self,
-            _system: &str,
-            _user: &str,
-            _images: &[(&str, Vec<u8>)],
-            _model: Option<&str>,
-            _api_key: Option<&str>,
-        ) -> Result<String, ProviderError> {
-            Ok(r#"{"scores":{"geometry":40,"material":80,"openings":80,"context":80,"lighting":80},"artifacts":[],"issues":[{"category":"geometry","text":"Test geometry issue."}],"repairInstruction":"Fix test geometry."}"#.into())
         }
 
         /// Answers `Enhanced: <last line of the user message>`, or fails like `generate`.

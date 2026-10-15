@@ -28,10 +28,6 @@ import {
   WorkflowGetRequestSchema,
   WorkflowReopenStepRequestSchema,
   WorkflowStepStateSchema,
-  QcReportDTOSchema,
-  QcSettingsSchema,
-  type QcRunRequest,
-  type QcSettings,
   type WorkflowDTO,
   type WorkflowStepState,
   type AppError,
@@ -180,10 +176,6 @@ export type Requests = {
   workflow_get: z.infer<typeof WorkflowGetRequestSchema>;
   workflow_confirm_step: z.infer<typeof WorkflowConfirmStepRequestSchema>;
   workflow_reopen_step: z.infer<typeof WorkflowReopenStepRequestSchema>;
-  qc_run: QcRunRequest;
-  qc_list: { projectId: string; assetId?: string };
-  qc_settings_get: { projectId: string };
-  qc_settings_set: { projectId: string; settings: QcSettings };
   region_list: { projectId: string; assetId: string };
   region_save: RegionSaveRequest;
   region_delete: { projectId: string; regionId: string };
@@ -234,10 +226,6 @@ export const responses = {
   workflow_get: WorkflowDTOSchema,
   workflow_confirm_step: WorkflowDTOSchema,
   workflow_reopen_step: WorkflowDTOSchema,
-  qc_run: QcReportDTOSchema,
-  qc_list: z.array(QcReportDTOSchema),
-  qc_settings_get: QcSettingsSchema,
-  qc_settings_set: QcSettingsSchema,
   region_list: z.array(RegionDTOSchema),
   region_save: RegionDTOSchema,
   region_delete: RegionDeleteResultSchema,

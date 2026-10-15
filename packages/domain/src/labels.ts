@@ -26,7 +26,6 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   anchor_generation: "Anchor generation",
   design_locked: "Design locked",
   production: "Production",
-  qc: "QC",
   final: "Final",
   archived: "Archived",
 };

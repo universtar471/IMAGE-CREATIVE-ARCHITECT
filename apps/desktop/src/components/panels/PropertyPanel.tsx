@@ -14,7 +14,6 @@ import { LightingPanel } from "../../features/lighting/LightingPanel";
 import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
-import { QcPanel } from "../../features/qc/QcPanel";
 import { RegionPanel } from "../../features/regions/RegionPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
@@ -141,7 +140,6 @@ export function PropertyPanel() {
           </PostStepFrame>
         )}
         {active === "enhance" && <EnhancePanel />}
-        {active === "qc" && <QcPanel />}
         {active === "regions" && <RegionPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder

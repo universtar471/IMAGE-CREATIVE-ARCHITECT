@@ -35,7 +35,6 @@ impl ImageProvider for LocalUpscaleProvider {
                 supports_seed: false,
                 quality_options: vec![],
                 price_hint: None,
-                vision: false,
                 supports_mask: false,
             }],
         }

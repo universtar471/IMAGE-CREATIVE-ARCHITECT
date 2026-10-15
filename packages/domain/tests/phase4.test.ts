@@ -103,7 +103,6 @@ describe("phase 4 compiler and mood batches", () => {
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
-        vision: false,
       },
       params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
     });
@@ -141,7 +140,6 @@ describe("phase 4 compiler and mood batches", () => {
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
-        vision: false,
       },
       params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
     });
@@ -208,7 +206,6 @@ describe("phase 4 compiler and mood batches", () => {
         supportsSeed: false,
         qualityOptions: [],
         priceHint: null,
-        vision: false,
       },
       params: { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null },
     });

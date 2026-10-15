@@ -47,14 +47,6 @@ describe("dictionaries", () => {
     }
   });
 
-  it("keeps QC Vietnamese labels accented", () => {
-    for (const { key, value } of leaves(vi.qc)) {
-      if (/[A-Za-zÀ-ỹ]/.test(value)) {
-        expect(value, `vi qc.${key}`).toMatch(/[À-ỹ]/);
-      }
-    }
-  });
-
   it("keeps region-edit module labels accented", () => {
     const keys = [
       ["modules.regions.label", vi.modules.regions.label],
