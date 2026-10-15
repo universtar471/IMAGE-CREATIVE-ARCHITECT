@@ -16,6 +16,7 @@ import {
 import { adoptContactMood } from "../src/features/camera/ContactSheet";
 import { ContactSheet } from "../src/features/camera/ContactSheet";
 import { GradeCanvas } from "../src/features/mood/GradeCanvas";
+import { GradeLookGallery } from "../src/features/mood/GradeLookGallery";
 import { resolveMoodPreset } from "../src/features/camera/contactGroups";
 import {
   MoodGradePanel,
@@ -431,6 +432,28 @@ describe("GradeCanvas preview", () => {
     expect(regraded.data[0]).toBeGreaterThan(10);
   });
 
+  it("restores the left part of Split with the putImageData dirty rectangle", async () => {
+    const { putImageData } = installCanvasMocks();
+    const transport: Transport = (async (command) => {
+      if (command === "asset_preview") return new Blob(["preview"], { type: "image/png" });
+      throw new Error(`unexpected command ${command}`);
+    }) as Transport;
+    setTransport(transport);
+    render(
+      createElement(GradeCanvas, {
+        asset: asset("P", "SOURCE"),
+        grade: { ...neutralGrade(), temperature: 80 },
+      }),
+    );
+    await waitForDom(() => expect(putImageData).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Split" }));
+    // putImageData ignores clip paths, so the original must be drawn with a dirty rectangle
+    // covering exactly the left `cut` columns (2 px wide image, split at 50 % → 1 px).
+    await waitForDom(() => expect(putImageData.mock.lastCall?.length).toBe(7));
+    expect(putImageData.mock.lastCall?.slice(1)).toEqual([0, 0, 0, 0, 1, 1]);
+    expect((putImageData.mock.lastCall?.[0] as ImageData).data[0]).toBe(10);
+  });
+
   it("shows an inline error when the preview cannot load", async () => {
     installCanvasMocks();
     const transport: Transport = (async (command) => {
@@ -441,6 +464,55 @@ describe("GradeCanvas preview", () => {
     render(createElement(GradeCanvas, { asset: asset("P", "SOURCE"), grade: neutralGrade() }));
     await screen.findByTestId("grade-preview-error");
     expect(screen.getByTestId("grade-preview-error").textContent).toMatch(/preview/i);
+  });
+});
+
+describe("V5.2 live grade thumbnail gallery", () => {
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+  afterEach(() => {
+    HTMLCanvasElement.prototype.getContext = originalGetContext;
+    vitest.unstubAllGlobals();
+  });
+
+  it("uses actual selected asset pixels and selects a look without generating an image", async () => {
+    class TestImageData {
+      readonly data: Uint8ClampedArray;
+      readonly width: number;
+      readonly height: number;
+      constructor(data: Uint8ClampedArray, width: number, height: number) {
+        this.data = data;
+        this.width = width;
+        this.height = height;
+      }
+    }
+    vitest.stubGlobal("ImageData", TestImageData);
+    vitest.stubGlobal(
+      "createImageBitmap",
+      vitest.fn(async () => ({ width: 2, height: 1, close: vitest.fn() })),
+    );
+    const putImageData = vitest.fn();
+    HTMLCanvasElement.prototype.getContext = vitest.fn(() => ({
+      drawImage: vitest.fn(),
+      getImageData: () =>
+        new TestImageData(new Uint8ClampedArray([100, 90, 80, 255, 30, 40, 50, 255]), 2, 1),
+      putImageData,
+    })) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    const transport = vitest.fn(async (command: string) => {
+      if (command === "asset_preview") return new Blob(["preview"], { type: "image/png" });
+      throw new Error(`unexpected command: ${command}`);
+    });
+    setTransport(transport as unknown as Transport);
+    const onChange = vitest.fn();
+    render(
+      createElement(GradeLookGallery, { asset: asset("P", "SOURCE"), value: "neutral", onChange }),
+    );
+    await waitForDom(() => expect(putImageData.mock.calls.length).toBeGreaterThan(10));
+    expect(transport.mock.calls.filter(([command]) => command === "asset_preview")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("grade-look-warm_tropical"));
+    expect(onChange).toHaveBeenCalledWith("warm_tropical");
+    expect(
+      transport.mock.calls.filter(([command]) => command === "generation_submit"),
+    ).toHaveLength(0);
   });
 });
 

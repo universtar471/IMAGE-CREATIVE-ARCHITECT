@@ -99,6 +99,55 @@ export const AssetPreviewRequestSchema = z.object({
   maxEdge: z.number().int().min(256).max(4096),
 });
 
+/** LUT library (API §21.2). */
+export const LutSourceSchema = z.object({
+  id: z.string(),
+  path: z.string(),
+  addedAt: z.string(),
+  lastScanAt: z.string(),
+  lutCount: z.number(),
+});
+export type LutSource = z.infer<typeof LutSourceSchema>;
+export const LutItemSchema = z.object({
+  id: z.string(),
+  sourceId: z.string(),
+  relPath: z.string(),
+  pack: z.string(),
+  category: z.string(),
+  name: z.string(),
+  size: z.number(),
+  isLog: z.boolean(),
+  favorite: z.boolean(),
+  status: z.string(),
+});
+export type LutItem = z.infer<typeof LutItemSchema>;
+export const LutScanResultSchema = z.object({
+  source: LutSourceSchema,
+  added: z.number(),
+  invalid: z.number(),
+});
+export type LutScanResult = z.infer<typeof LutScanResultSchema>;
+export const LutListResultSchema = z.object({
+  items: z.array(LutItemSchema),
+  total: z.number(),
+});
+export type LutListRequest = {
+  query?: string;
+  sourceId?: string;
+  pack?: string;
+  category?: string;
+  favoritesOnly?: boolean;
+  archOnly?: boolean;
+  limit: number;
+  offset: number;
+};
+export const GradePreviewRequestSchema = z.object({
+  projectId: z.string().min(1),
+  assetId: z.string().min(1),
+  grade: ColorGradeDNASchema,
+  size: z.number().int().min(1).max(640).optional(),
+});
+
 export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
 export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
   purpose: "region_edit";
@@ -173,6 +222,14 @@ export type Requests = {
   camera_anchor_clear: { projectId: string; cameraId: string };
   grade_apply: z.infer<typeof GradeApplyRequestSchema>;
   asset_preview: AssetPreviewRequest;
+  grade_preview: z.infer<typeof GradePreviewRequestSchema>;
+  lut_source_add: { path: string };
+  lut_source_list: Record<string, never>;
+  lut_source_remove: { sourceId: string };
+  lut_source_rescan: { sourceId: string };
+  lut_list: LutListRequest;
+  lut_set_favorite: { lutId: string; favorite: boolean };
+  lut_preview: { lutId: string; assetId: string; size?: number };
   workflow_get: z.infer<typeof WorkflowGetRequestSchema>;
   workflow_confirm_step: z.infer<typeof WorkflowConfirmStepRequestSchema>;
   workflow_reopen_step: z.infer<typeof WorkflowReopenStepRequestSchema>;
@@ -223,6 +280,15 @@ export const responses = {
   grade_apply: AssetDTOSchema,
   // Binary PNG response; consumed by assetPreview instead of the JSON call parser.
   asset_preview: z.unknown(),
+  // Binary JPEG responses; consumed by binaryPreview.
+  grade_preview: z.unknown(),
+  lut_preview: z.unknown(),
+  lut_source_add: LutScanResultSchema,
+  lut_source_list: z.array(LutSourceSchema),
+  lut_source_remove: z.unknown(),
+  lut_source_rescan: LutScanResultSchema,
+  lut_list: LutListResultSchema,
+  lut_set_favorite: z.unknown(),
   workflow_get: WorkflowDTOSchema,
   workflow_confirm_step: WorkflowDTOSchema,
   workflow_reopen_step: WorkflowDTOSchema,
@@ -409,38 +475,58 @@ export async function call<C extends CommandName>(
   return parsed.data as CommandResponse<C>;
 }
 
-/** Fetch a tainted-canvas-safe PNG preview and expose it as a browser Blob. */
-export async function assetPreview(request: AssetPreviewRequest): Promise<Blob> {
+type BinaryCommand = "asset_preview" | "grade_preview" | "lut_preview";
+
+/**
+ * Call a command whose response is raw image bytes (Tauri `ipc::Response`, the mock's
+ * Uint8Array or a Blob) and expose it as a browser Blob of `mime`.
+ */
+export async function binaryPreview<C extends BinaryCommand>(
+  command: C,
+  request: Requests[C],
+  mime: string,
+): Promise<Blob> {
   const t = await getTransport();
   let raw: unknown;
   try {
-    raw = await t("asset_preview", { request });
+    raw = await t(command, { request });
   } catch (err) {
     throw toBridgeError(err);
   }
-  if (raw instanceof Blob) return new Blob([raw], { type: "image/png" });
-  if (raw instanceof ArrayBuffer) return new Blob([raw], { type: "image/png" });
+  const notBinary = () =>
+    new BridgeError({ code: "IO_ERROR", message: tr("errors.badResponse", { command }) });
+  if (raw instanceof Blob) return new Blob([raw], { type: mime });
+  if (raw instanceof ArrayBuffer) return new Blob([raw], { type: mime });
   if (ArrayBuffer.isView(raw)) {
     const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
     const copy = new Uint8Array(bytes.byteLength);
     copy.set(bytes);
-    return new Blob([copy.buffer], { type: "image/png" });
+    return new Blob([copy.buffer], { type: mime });
   }
   if (Array.isArray(raw)) {
     for (const value of raw) {
       if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 255) {
-        throw new BridgeError({
-          code: "IO_ERROR",
-          message: "The asset preview response was not binary data.",
-        });
+        throw notBinary();
       }
     }
-    return new Blob([new Uint8Array(raw).buffer], { type: "image/png" });
+    return new Blob([new Uint8Array(raw).buffer], { type: mime });
   }
-  throw new BridgeError({
-    code: "IO_ERROR",
-    message: "The asset preview response was not binary data.",
-  });
+  throw notBinary();
+}
+
+/** Fetch a tainted-canvas-safe PNG preview and expose it as a browser Blob. */
+export function assetPreview(request: AssetPreviewRequest): Promise<Blob> {
+  return binaryPreview("asset_preview", request, "image/png");
+}
+
+/** JPEG of `grade` rendered by the v2 engine (API §21.2), at most 640 px. */
+export function gradePreview(request: Requests["grade_preview"]): Promise<Blob> {
+  return binaryPreview("grade_preview", request, "image/jpeg");
+}
+
+/** JPEG of one LUT applied to an asset (API §21.2), cached by the backend. */
+export function lutPreview(request: Requests["lut_preview"]): Promise<Blob> {
+  return binaryPreview("lut_preview", request, "image/jpeg");
 }
 
 /** Field errors attached to a VALIDATION_ERROR (keys are dotted DNA paths). */

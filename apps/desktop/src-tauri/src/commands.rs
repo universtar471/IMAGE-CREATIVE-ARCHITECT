@@ -62,6 +62,11 @@ pub async fn lut_source_add(core: Core<'_>, request: LutPathRequest) -> AppResul
 }
 
 #[tauri::command]
+pub async fn lut_source_list(core: Core<'_>) -> AppResult<Vec<luts::LutSource>> {
+    blocking(&core, luts::list_sources).await
+}
+
+#[tauri::command]
 pub async fn lut_source_remove(core: Core<'_>, request: LutSourceRequest) -> AppResult<()> {
     blocking(&core, move |core| luts::remove(core, &request.source_id)).await
 }

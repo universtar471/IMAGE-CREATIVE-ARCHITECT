@@ -135,6 +135,23 @@ fn source(core: &AppCore, id: &str) -> AppResult<LutSource> {
         .ok_or_else(|| AppError::not_found("LUT source", id))
 }
 
+/// Every indexed source, oldest first, for the UI source manager.
+pub fn list_sources(core: &AppCore) -> AppResult<Vec<LutSource>> {
+    let conn = core.conn()?;
+    let mut stmt =
+        conn.prepare("SELECT id, path, added_at, last_scan_at, lut_count FROM lut_sources ORDER BY added_at, id")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(LutSource {
+            id: row.get(0)?,
+            path: row.get(1)?,
+            added_at: row.get(2)?,
+            last_scan_at: row.get(3)?,
+            lut_count: row.get(4)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
 fn safe_file(root: &Path, relative: &str) -> AppResult<PathBuf> {
     if fs::symlink_metadata(root)
         .map_err(|err| AppError::io("Cannot inspect LUT source", err))?
@@ -560,6 +577,9 @@ mod tests {
         fs::write(root.join("ignore.txt"), cube()).unwrap();
         let scanned = add(&core, root.to_str().unwrap()).unwrap();
         assert_eq!((scanned.added, scanned.invalid), (3, 1));
+        let sources = list_sources(&core).unwrap();
+        assert_eq!(sources.len(), 1);
+        assert_eq!(sources[0].id, scanned.source.id);
         let mut all = list(&core, request()).unwrap();
         assert_eq!(all.total, 3);
         assert_eq!(all.items.iter().find(|item| item.name == "Sky").unwrap().pack, "Urban");
@@ -585,6 +605,7 @@ mod tests {
         all = list(&core, request()).unwrap();
         assert_eq!(all.items.iter().find(|item| item.id == sky).unwrap().status, "missing");
         remove(&core, &scanned.source.id).unwrap();
+        assert!(list_sources(&core).unwrap().is_empty());
         assert!(food.join("Dinner.cube").exists());
         assert!(root.join("bad.cube").exists());
         assert_eq!(list(&core, request()).unwrap().total, 0);

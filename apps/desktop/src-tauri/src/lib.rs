@@ -80,6 +80,7 @@ pub fn run() {
             commands::grade_apply,
             commands::grade_preview,
             commands::lut_source_add,
+            commands::lut_source_list,
             commands::lut_source_remove,
             commands::lut_source_rescan,
             commands::lut_list,
