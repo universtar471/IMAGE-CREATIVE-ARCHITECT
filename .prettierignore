@@ -6,3 +6,4 @@ package-lock.json
 *.md
 packages/domain/schema
 apps/desktop/tests/fixtures/backend
+tools/space-catalog/source/
