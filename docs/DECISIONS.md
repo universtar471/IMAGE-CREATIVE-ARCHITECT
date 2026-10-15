@@ -825,3 +825,45 @@ The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally
   - The wizard offers only the five archetypes.
   - The "cần chuyên gia duyệt" badge for specialist rooms is dropped, because no specialist rooms remain.
 - `ProjectTypeSchema` is unchanged. A project type with no in-scope archetype gets no default archetype suggestion, and the space selector stays optional for it.
+
+## ADR-035 — SRS P3: enhance preservation modes with local checks, upscale size targets
+
+Status: accepted (2026-10-16). Basis: SRS §8–§9 (modules E and F), the upgrade plan §5 P3, and the user's decision of 2026-10-15 to use local checks only, with no Vision QC (ADR-033).
+
+**Enhance preservation modes**
+- `EnhanceParams` gains an optional `preservationMode` with three values:
+  - `strict`: local and non-generative only (provider `local_upscale` plus deterministic tone, denoise and sharpen). No AI call.
+  - `balanced`: AI edit inside the allowed region only. Locked regions are composited back from the source pixels.
+  - `creative`: stronger AI edit inside the allowed region. Review is always required.
+- Mapping from the existing fields:
+  - Old params without `preservationMode` keep their current behaviour.
+  - `conservative` maps to `strict` and `generative` maps to `balanced`, but only when the UI shows the new selector.
+- Locks: `geometry`, `material`, `context` and `camera`. They are booleans, all on by default.
+  - The generative prompt follows the SRS §8.2 template.
+  - The camera lock forbids any crop or aspect-ratio change.
+- Allowed region:
+  - It reuses the existing region masks (`regions/mask.rs`).
+  - When no mask is set in `balanced` or `creative` mode, the whole frame is allowed, but every lock still applies to the prompt, and the result is marked "review required".
+
+**Local checks** (`EnhanceCheck`; free, deterministic, run in Rust after the provider returns)
+- The output size matches the requested target and the aspect ratio is kept.
+- Registration: a global offset estimate on downscaled luminance. A shift above the threshold is a warning.
+- SSIM on locked regions after compositing. It must be at least 0.98 in locked pixels, otherwise a warning.
+- In `strict` mode, an edge-structure check confirms that no new structure was introduced.
+- The result is stored as JSON on the generation (a new optional column or the existing metadata JSON). It is shown as a pass/warn badge with reasons.
+- These are checks, not a score. They never block saving; a warning asks for review.
+- The QC tables from ADR-024 stay untouched and unused.
+
+**Upscale targets**
+- Optional `upscale`:
+  - `target`: `long_edge_2048 | long_edge_4096 | uhd_3840x2160_contain | custom{width,height,fit:"contain"}`
+  - `ifAlreadyLarger`: `keep | quality_only | skip`
+- Aspect ratio is always kept. UHD is contain or letterbox only, never a crop. Nothing is ever downscaled unintentionally.
+- `UpscaleProviderCapabilities`: `maxPixels`, `supportsTiling`, `imageToImage`, `privacyClass`, `costEstimate | null`.
+  - A null cost shows "Chưa xác định chi phí".
+  - A batch with a known cost needs confirmation before any paid submit.
+- Batch behaviour is unchanged: one job per item, a failed item does not stop the others, and retry resends only the failed items with no duplicate charge.
+
+**Provenance:** every enhanced asset records `parentAssetId`, `inputHash`, `configHash`, provider/model, `preservationMode` and the `EnhanceCheck` id.
+
+**Out of scope:** ComfyUI and remote GPU providers (P6), LPIPS, and Vision QC.
