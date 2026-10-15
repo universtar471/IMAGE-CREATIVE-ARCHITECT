@@ -30,6 +30,33 @@ where
     Ok(Some(String::deserialize(deserializer)?))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SplitTone {
+    pub shadows_hue: f32,
+    pub shadows_sat: f32,
+    pub highlights_hue: f32,
+    pub highlights_sat: f32,
+    pub balance: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToneCurve {
+    None,
+    SoftS,
+    StrongS,
+    Faded,
+    Matte,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GradeLut {
+    pub lut_id: String,
+    pub strength: f32,
+}
+
 /// Mirrors `ColorGradeDNA`. Defaults are useful for callers that submit the parsed
 /// Zod shape as well as for tests that only exercise one slider.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -60,6 +87,18 @@ pub struct ColorGrade {
     pub clarity: f32,
     #[serde(default = "zero")]
     pub dehaze: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vignette: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grain: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub split_tone: Option<SplitTone>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone_curve: Option<ToneCurve>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lut: Option<GradeLut>,
     #[serde(default, deserialize_with = "deserialize_non_null_string", skip_serializing_if = "Option::is_none")]
     pub look: Option<String>,
 }
@@ -108,6 +147,28 @@ pub fn validate_grade(grade: &ColorGrade) -> AppResult<()> {
     ] {
         in_range(name, value, -100.0, 100.0)?;
     }
+    if let Some(value) = grade.texture {
+        in_range("texture", value, -100.0, 100.0)?;
+    }
+    if let Some(value) = grade.vignette {
+        in_range("vignette", value, -100.0, 100.0)?;
+    }
+    if let Some(value) = grade.grain {
+        in_range("grain", value, 0.0, 100.0)?;
+    }
+    if let Some(split_tone) = &grade.split_tone {
+        in_range("splitTone.shadowsHue", split_tone.shadows_hue, 0.0, 360.0)?;
+        in_range("splitTone.shadowsSat", split_tone.shadows_sat, 0.0, 100.0)?;
+        in_range("splitTone.highlightsHue", split_tone.highlights_hue, 0.0, 360.0)?;
+        in_range("splitTone.highlightsSat", split_tone.highlights_sat, 0.0, 100.0)?;
+        in_range("splitTone.balance", split_tone.balance, -100.0, 100.0)?;
+    }
+    if let Some(lut) = &grade.lut {
+        if lut.lut_id.trim().is_empty() {
+            return Err(AppError::validation("lut.lutId must not be empty."));
+        }
+        in_range("lut.strength", lut.strength, 0.0, 100.0)?;
+    }
     Ok(())
 }
 
@@ -140,7 +201,7 @@ fn luminance(c: [f32; 3]) -> f32 {
     0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 
-fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
+pub(crate) fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
     let k_exposure = 2.0_f32.powf(grade.exposure / 100.0);
     for channel in &mut c {
         *channel = linear_to_srgb(clamp01(srgb_to_linear(*channel) * k_exposure));
@@ -182,13 +243,7 @@ fn grade_rgb(mut c: [f32; 3], grade: &ColorGrade) -> [f32; 3] {
 
 /// Grade one RGBA image, preserving the alpha byte exactly.
 pub fn apply_grade(image: &DynamicImage, grade: &ColorGrade) -> RgbaImage {
-    let mut output = image.to_rgba8();
-    for pixel in output.pixels_mut() {
-        let [r, g, b, a] = pixel.0;
-        let rgb = grade_rgb([r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0], grade);
-        pixel.0 = [(rgb[0] * 255.0).round() as u8, (rgb[1] * 255.0).round() as u8, (rgb[2] * 255.0).round() as u8, a];
-    }
-    output
+    crate::services::grade_engine::render(image, grade)
 }
 
 fn source_asset(core: &AppCore, project_id: &str, asset_id: &str, require_writable: bool) -> AppResult<AssetRow> {
@@ -249,7 +304,8 @@ pub fn apply(core: &AppCore, request: GradeApplyRequest) -> AppResult<AssetDto> 
     let source_image = imaging::decode(&source_bytes, source_info.format)
         .map_err(|e| AppError::new(ErrorCode::InvalidState, format!("The source image cannot be decoded: {e}")))?;
 
-    let graded = apply_grade(&source_image, &request.grade);
+    let lut = request.grade.lut.as_ref().map(|item| super::luts::load(core, &item.lut_id)).transpose()?;
+    let graded = super::grade_engine::render_with_lut(&source_image, &request.grade, lut.as_ref());
     let mut output_bytes = Vec::new();
     DynamicImage::ImageRgba8(graded)
         .write_to(&mut Cursor::new(&mut output_bytes), ImageFormat::Png)
@@ -366,6 +422,27 @@ mod tests {
     }
 
     #[test]
+    fn rejects_v2_values_outside_ranges() {
+        let mut grade = neutral();
+        grade.texture = Some(101.0);
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.texture = None;
+        grade.grain = Some(-1.0);
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.grain = None;
+        grade.split_tone = Some(SplitTone {
+            shadows_hue: 361.0,
+            shadows_sat: 0.0,
+            highlights_hue: 0.0,
+            highlights_sat: 0.0,
+            balance: 0.0,
+        });
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+        grade.split_tone = None;
+        grade.lut = Some(GradeLut { lut_id: "test".into(), strength: 101.0 });
+        assert_eq!(validate_grade(&grade).unwrap_err().code, ErrorCode::ValidationError);
+    }
+    #[test]
     fn rejects_grade_apply_request_without_schema_version() {
         let parsed = serde_json::from_value::<GradeApplyRequest>(json!({
             "projectId": "PRJ_X",
@@ -473,6 +550,12 @@ mod tests {
                 saturation: 8.0,
                 clarity: 12.0,
                 dehaze: 5.0,
+                texture: None,
+                vignette: None,
+                grain: None,
+                split_tone: None,
+                tone_curve: None,
+                lut: None,
                 look: None,
             },
         );

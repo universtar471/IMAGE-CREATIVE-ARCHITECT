@@ -843,6 +843,89 @@
           "minimum": -100,
           "maximum": 100
         },
+        "texture": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "vignette": {
+          "default": 0,
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "grain": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "splitTone": {
+          "type": "object",
+          "properties": {
+            "shadowsHue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "shadowsSat": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "highlightsHue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "highlightsSat": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "balance": {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "shadowsHue",
+            "shadowsSat",
+            "highlightsHue",
+            "highlightsSat",
+            "balance"
+          ],
+          "additionalProperties": false
+        },
+        "toneCurve": {
+          "type": "string",
+          "enum": [
+            "none",
+            "soft_s",
+            "strong_s",
+            "faded",
+            "matte"
+          ]
+        },
+        "lut": {
+          "type": "object",
+          "properties": {
+            "lutId": {
+              "type": "string"
+            },
+            "strength": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "lutId",
+            "strength"
+          ],
+          "additionalProperties": false
+        },
         "look": {
           "anyOf": [
             {

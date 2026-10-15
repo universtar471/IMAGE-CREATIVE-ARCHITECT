@@ -150,6 +150,20 @@ export const ColorGradeDNASchema = z.object({
   saturation: gradeSlider,
   clarity: gradeSlider,
   dehaze: gradeSlider,
+  texture: gradeSlider.optional(),
+  vignette: gradeSlider.optional(),
+  grain: z.number().min(0).max(100).optional(),
+  splitTone: z
+    .object({
+      shadowsHue: z.number().min(0).max(360),
+      shadowsSat: z.number().min(0).max(100),
+      highlightsHue: z.number().min(0).max(360),
+      highlightsSat: z.number().min(0).max(100),
+      balance: z.number().min(-100).max(100),
+    })
+    .optional(),
+  toneCurve: z.enum(["none", "soft_s", "strong_s", "faded", "matte"]).optional(),
+  lut: z.object({ lutId: z.string(), strength: z.number().min(0).max(100) }).optional(),
   look: GradeLookIdSchema.or(z.string()).optional(),
 });
 export type ColorGradeDNA = z.infer<typeof ColorGradeDNASchema>;
