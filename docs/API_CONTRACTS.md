@@ -1283,6 +1283,7 @@ luts(id TEXT PK, source_id TEXT FK, rel_path TEXT, pack TEXT, category TEXT, nam
   - Each file is parsed for its header and validated: a 3D size of 2..65 and exactly size³ rows.
   - `pack` is the first-level folder and `category` the folder holding the file. Release-group prefixes such as `[site.com]` are stripped from both.
   - Returns `{ source, added, invalid }`.
+- `lut_source_list` returns all LUT sources `{ id, path, addedAt, lastScanAt, lutCount }[]`, ordered by when they were added.
 - `lut_source_remove { sourceId }` removes the index and the cached previews, never the user files.
 - `lut_source_rescan { sourceId }`
 - `lut_list { query?, sourceId?, pack?, category?, favoritesOnly?, archOnly?, limit, offset }` returns `{ items, total }`.
