@@ -282,6 +282,11 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     let prompt = if conservative_prompt(&req, purpose) {
         PromptBundle {
             compiler_version: String::new(),
+            validator_version: None,
+            catalog_version: None,
+            source_hash: None,
+            config_hash: None,
+            resolved_warnings: None,
             positive_prompt: String::new(),
             negative_prompt: String::new(),
             reference_instructions: String::new(),
@@ -1165,6 +1170,11 @@ mod tests {
         let metadata = json!({ "moduleId": "generate", "dnaVersion": 1 });
         PromptBundle {
             compiler_version: "1.0.0".into(),
+            validator_version: None,
+            catalog_version: None,
+            source_hash: None,
+            config_hash: None,
+            resolved_warnings: None,
             positive_prompt: positive.into(),
             negative_prompt: "blurry".into(),
             reference_instructions: "Image 1 is the master.".into(),
@@ -1684,6 +1694,29 @@ mod tests {
 
         let failed = GenerationErrorDto { kind: "auth".into(), message: "m".into(), retryable: false };
         assert_eq!(keys(&serde_json::to_value(failed).unwrap()), ["kind", "message", "retryable"]);
+    }
+
+    /// ADR-034: the provenance fields of a compiled bundle survive the request snapshot.
+    #[test]
+    fn prompt_bundle_keeps_adr_034_provenance_verbatim() {
+        let raw = json!({
+            "compilerVersion": "pc-1.6.0", "validatorVersion": "cv-1.0.0", "catalogVersion": "none",
+            "sourceHash": "sha256:aa", "configHash": "sha256:bb",
+            "resolvedWarnings": ["UNVERIFIED_GEOMETRY"],
+            "positivePrompt": "p", "negativePrompt": "", "referenceInstructions": "",
+            "preservationInstructions": "", "metadata": { "cameraId": null }
+        });
+        let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
+        assert_eq!(bundle.validator_version.as_deref(), Some("cv-1.0.0"));
+        assert_eq!(bundle.resolved_warnings.as_deref(), Some(&["UNVERIFIED_GEOMETRY".to_string()][..]));
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), raw);
+
+        let legacy = json!({
+            "compilerVersion": "1", "positivePrompt": "p", "negativePrompt": "", "referenceInstructions": "",
+            "preservationInstructions": "", "metadata": {}
+        });
+        let bundle: PromptBundle = serde_json::from_value(legacy.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&bundle).unwrap(), legacy);
     }
 
     #[test]

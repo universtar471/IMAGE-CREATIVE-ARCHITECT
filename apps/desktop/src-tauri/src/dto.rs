@@ -95,6 +95,18 @@ pub struct AssetRemoveResult {
 #[serde(rename_all = "camelCase")]
 pub struct PromptBundle {
     pub compiler_version: String,
+    /// Provenance added by ADR-034 (P0). Optional so older snapshots still parse; kept
+    /// verbatim and omitted when absent so pre-P0 snapshots serialize unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validator_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub catalog_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub config_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_warnings: Option<Vec<String>>,
     pub positive_prompt: String,
     pub negative_prompt: String,
     pub reference_instructions: String,

@@ -430,6 +430,66 @@ pub(crate) mod tests {
         assert!(fields.get("interior.roomId").is_some(), "{fields}");
     }
 
+    /// Persisted v1 DNA from before ADR-034 (no extensions); shared with the TS AC-20 test.
+    pub(crate) const LEGACY_DNA: &str = include_str!("../../../tests/fixtures/nhapho-dna.json");
+    /// The same DNA with `spaceCatalog`, `site` and `architecturalDetails` (ADR-034).
+    pub(crate) const EXTENDED_DNA: &str =
+        include_str!("../../../../../packages/domain/test-vectors/dna-v1-extensions.json");
+
+    #[test]
+    fn accepts_legacy_dna_without_extensions_unchanged() {
+        let dna: Value = serde_json::from_str(LEGACY_DNA).unwrap();
+        let before = dna.clone();
+        validate_dna(&dna).unwrap();
+        assert_eq!(dna, before);
+        for key in ["spaceCatalog", "site", "architecturalDetails"] {
+            assert!(dna.get(key).is_none(), "{key}");
+        }
+    }
+
+    #[test]
+    fn accepts_adr_034_extensions() {
+        let dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        validate_dna(&dna).unwrap();
+        assert_eq!(dna["schemaVersion"], json!(1));
+        assert_eq!(dna["site"]["left"]["kind"], json!("attached_building"));
+    }
+
+    #[test]
+    fn rejects_invalid_extension_values() {
+        let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        type Mutation = fn(&mut Value);
+        let cases: [(&str, Mutation); 6] = [
+            ("site.version", |d| d["site"]["version"] = json!(2)),
+            ("site.left.kind", |d| d["site"]["left"]["kind"] = json!("cliff")),
+            ("site.coordinateConvention", |d| d["site"]["coordinateConvention"] = json!("north_up")),
+            ("spaceCatalog.spaces.0.facts.widthM.evidence.status", |d| {
+                d["spaceCatalog"]["spaces"][0]["facts"]["widthM"]["evidence"]["status"] = json!("guess")
+            }),
+            ("architecturalDetails.0.version", |d| d["architecturalDetails"][0]["version"] = json!(2)),
+            ("spaceCatalog.spaces.0.facts.ceilingHeightM.evidence.confidence", |d| {
+                d["spaceCatalog"]["spaces"][0]["facts"]["ceilingHeightM"]["evidence"]["confidence"] = json!(1.5)
+            }),
+        ];
+        for (field, mutate) in cases {
+            let mut dna = base.clone();
+            mutate(&mut dna);
+            let err = validate_dna(&dna).unwrap_err();
+            let fields = err.details.unwrap()["fieldErrors"].clone();
+            assert!(fields.get(field).is_some(), "{field}: {fields}");
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_extension_keys() {
+        let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        dna["futureExtension"] = json!({ "version": 1 });
+        assert!(validate_dna(&dna).is_err());
+        let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        dna["site"]["skyline"] = json!("tall");
+        assert!(validate_dna(&dna).is_err());
+    }
+
     #[test]
     fn dna_without_interior_remains_valid_and_unchanged() {
         let dna = minimal();

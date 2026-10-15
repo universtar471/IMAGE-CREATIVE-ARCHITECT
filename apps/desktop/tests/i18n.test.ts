@@ -1,5 +1,6 @@
 /** Dictionaries, translate(), the locale store and the domain-message translator. */
 import { afterEach, describe, expect, it } from "vitest";
+import { CONFLICT_CODES, CONFLICT_CODE_LIST } from "@arch/domain";
 import { en } from "../src/i18n/en";
 import { vi } from "../src/i18n/vi";
 import {
@@ -9,6 +10,7 @@ import {
   t,
   translate,
   useLocale,
+  type TKey,
 } from "../src/i18n";
 import { errorHeadline, errorKindLabel, translateDomainMessage } from "../src/i18n/domain";
 import { formatBytes, formatRelativeTime } from "../src/lib/format";
@@ -56,6 +58,19 @@ describe("dictionaries", () => {
       ["regions.result", vi.regions.result],
     ] as const;
     for (const [key, value] of keys) expect(value, `vi ${key}`).toMatch(/[À-ỹ]/);
+  });
+
+  it("has an accented message for every conflict code (ADR-034)", () => {
+    expect(Object.keys(en.conflicts).sort()).toEqual([...CONFLICT_CODE_LIST].sort());
+    expect(Object.keys(vi.conflicts).sort()).toEqual([...CONFLICT_CODE_LIST].sort());
+    for (const code of CONFLICT_CODE_LIST) {
+      expect(t(CONFLICT_CODES[code].messageKey as TKey), code).not.toBe(
+        CONFLICT_CODES[code].messageKey,
+      );
+      expect(vi.conflicts[code], `vi conflicts.${code}`).toMatch(/[À-ỹ]/);
+    }
+    expect(vi.conflictUi.fix).toBe("Sửa lựa chọn");
+    expect(vi.conflictUi.approveException).toBe("Duyệt ngoại lệ");
   });
 
   it("keeps sketch-mode Vietnamese labels accented", () => {

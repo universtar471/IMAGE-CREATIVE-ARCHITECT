@@ -302,9 +302,11 @@ describe("camera section (pc-1.1.0)", () => {
     a.dna.cameras = [corner, other];
     const b = structuredClone(a);
     b.dna.cameras = [other, corner];
-    expect(compilePrompt({ ...a, cameraId: corner.id })).toEqual(
-      compilePrompt({ ...b, cameraId: corner.id }),
-    );
+    const { sourceHash: hashA, ...bundleA } = compilePrompt({ ...a, cameraId: corner.id });
+    const { sourceHash: hashB, ...bundleB } = compilePrompt({ ...b, cameraId: corner.id });
+    expect(bundleA).toEqual(bundleB);
+    // The DNA itself differs (camera order), so its provenance hash does too.
+    expect(hashA).not.toBe(hashB);
   });
 });
 
