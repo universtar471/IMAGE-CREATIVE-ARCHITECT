@@ -8,6 +8,19 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
 const srgbToLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const linearToSrgb = (c: number) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
 
+/** Shared numeric defaults: adding looks never changes the persisted ColorGradeDNA schema. */
+const BASE_GRADE: ColorGradeDNA = {
+  schemaVersion: 1, exposure: 0, contrast: 0, highlights: 0, shadows: 0,
+  whites: 0, blacks: 0, temperature: 0, tint: 0, vibrance: 0,
+  saturation: 0, clarity: 0, dehaze: 0,
+};
+function presetGrade(
+  look: GradeLookId,
+  adjustments: Partial<Omit<ColorGradeDNA, "schemaVersion" | "look">>,
+): ColorGradeDNA {
+  return { ...BASE_GRADE, ...adjustments, look };
+}
+
 export const GRADE_LOOKS: Record<GradeLookId, ColorGradeDNA> = {
   neutral: {
     schemaVersion: 1,
@@ -105,6 +118,30 @@ export const GRADE_LOOKS: Record<GradeLookId, ColorGradeDNA> = {
     dehaze: 10,
     look: "bright_magazine",
   },
+  daylight_clean: presetGrade("daylight_clean", { exposure: 12, contrast: 6, highlights: -18, shadows: 14, whites: 4, blacks: -3, temperature: 3, vibrance: 8, clarity: 5 }), 
+  true_white: presetGrade("true_white", { exposure: 16, contrast: 2, highlights: -24, shadows: 10, whites: 8, blacks: -1, temperature: -3, saturation: -3, clarity: 5 }), 
+  balanced_realism: presetGrade("balanced_realism", { exposure: 5, contrast: 8, highlights: -17, shadows: 13, whites: 2, blacks: -5, temperature: 2, vibrance: 7, clarity: 7, dehaze: 3 }), 
+  clear_architecture: presetGrade("clear_architecture", { exposure: 8, contrast: 11, highlights: -21, shadows: 12, whites: 4, blacks: -7, temperature: -2, vibrance: 4, clarity: 14, dehaze: 10 }), 
+  golden_hour_soft: presetGrade("golden_hour_soft", { exposure: 10, contrast: 7, highlights: -21, shadows: 16, whites: 0, blacks: -4, temperature: 30, tint: 3, vibrance: 14, saturation: 4, clarity: 3 }), 
+  warm_minimal: presetGrade("warm_minimal", { exposure: 12, contrast: -7, highlights: -20, shadows: 16, whites: 2, blacks: 5, temperature: 17, saturation: -9, vibrance: 4, clarity: -4 }), 
+  amber_lifestyle: presetGrade("amber_lifestyle", { exposure: 6, contrast: 8, highlights: -15, shadows: 12, whites: 0, blacks: -5, temperature: 26, tint: 5, vibrance: 11, saturation: -1 }), 
+  earthy_residential: presetGrade("earthy_residential", { exposure: 6, contrast: 4, highlights: -12, shadows: 11, whites: -2, blacks: 1, temperature: 14, tint: 4, vibrance: -6, saturation: -8, clarity: 4 }), 
+  nordic_daylight: presetGrade("nordic_daylight", { exposure: 22, contrast: -6, highlights: -25, shadows: 19, whites: 8, blacks: 6, temperature: -13, tint: 2, vibrance: 3, saturation: -7, clarity: 4 }), 
+  steel_blue: presetGrade("steel_blue", { exposure: -4, contrast: 20, highlights: -18, shadows: 4, whites: -4, blacks: -13, temperature: -32, tint: 4, vibrance: 8, saturation: -8, clarity: 15, dehaze: 12 }), 
+  coastal_air: presetGrade("coastal_air", { exposure: 17, contrast: 3, highlights: -21, shadows: 16, whites: 8, blacks: 3, temperature: -8, vibrance: 12, saturation: 0, clarity: 1, dehaze: -3 }), 
+  clean_concrete: presetGrade("clean_concrete", { exposure: 8, contrast: 15, highlights: -23, shadows: 13, whites: 2, blacks: -8, temperature: -12, vibrance: -9, saturation: -16, clarity: 13, dehaze: 7 }), 
+  muted_luxury: presetGrade("muted_luxury", { exposure: 2, contrast: 9, highlights: -25, shadows: 13, whites: -8, blacks: 5, temperature: 8, vibrance: -12, saturation: -18, clarity: 5 }), 
+  matte_film: presetGrade("matte_film", { exposure: -2, contrast: -17, highlights: -28, shadows: 12, whites: -13, blacks: 18, temperature: 5, vibrance: -12, saturation: -15, clarity: -8, dehaze: -6 }), 
+  pastel_architecture: presetGrade("pastel_architecture", { exposure: 21, contrast: -14, highlights: -25, shadows: 18, whites: 3, blacks: 11, temperature: 7, vibrance: -1, saturation: -18, clarity: -8 }), 
+  gallery_white: presetGrade("gallery_white", { exposure: 27, contrast: 2, highlights: -32, shadows: 20, whites: 5, blacks: 4, temperature: -2, vibrance: 0, saturation: -12, clarity: 7 }), 
+  blue_hour_premium: presetGrade("blue_hour_premium", { exposure: -12, contrast: 17, highlights: -18, shadows: 7, whites: -7, blacks: -12, temperature: -29, tint: 8, vibrance: 12, saturation: -2, clarity: 12, dehaze: 8 }), 
+  moody_contrast: presetGrade("moody_contrast", { exposure: -18, contrast: 27, highlights: -29, shadows: -4, whites: -7, blacks: -20, temperature: -5, vibrance: 8, saturation: -9, clarity: 12, dehaze: 11 }), 
+  dusk_amber: presetGrade("dusk_amber", { exposure: -11, contrast: 14, highlights: -21, shadows: 7, whites: -5, blacks: -11, temperature: 22, tint: 8, vibrance: 13, saturation: 3, clarity: 7, dehaze: 5 }), 
+  urban_noir: presetGrade("urban_noir", { exposure: -24, contrast: 31, highlights: -23, shadows: -12, whites: -11, blacks: -24, temperature: -17, vibrance: -18, saturation: -25, clarity: 16, dehaze: 14 }), 
+  heritage_film: presetGrade("heritage_film", { exposure: 0, contrast: -8, highlights: -23, shadows: 13, whites: -8, blacks: 12, temperature: 13, tint: 5, vibrance: -14, saturation: -19, clarity: -6 }), 
+  mediterranean_sun: presetGrade("mediterranean_sun", { exposure: 21, contrast: 9, highlights: -25, shadows: 15, whites: 12, blacks: -4, temperature: 19, vibrance: 19, saturation: 6, clarity: 10, dehaze: 7 }), 
+  forest_retreat: presetGrade("forest_retreat", { exposure: 4, contrast: -4, highlights: -17, shadows: 20, whites: -3, blacks: 6, temperature: -5, tint: -5, vibrance: 9, saturation: -5, clarity: 3, dehaze: -3 }), 
+  hotel_premium: presetGrade("hotel_premium", { exposure: 4, contrast: 13, highlights: -26, shadows: 17, whites: -5, blacks: -11, temperature: 12, tint: 3, vibrance: 3, saturation: -8, clarity: 11, dehaze: 7 }), 
 };
 
 type PixelScratch = [number, number, number];

@@ -1445,6 +1445,7 @@ export const en = {
   },
 
   moodGrade: {
+    batchGrade: "Batch colour grade",
     section: "Mood / Grade",
     mood: "Mood",
     preset: "Mood preset",
@@ -1454,6 +1455,14 @@ export const en = {
     atmosphere: "Atmosphere",
     weatherPreset: "Weather preset",
     grade: "Colour grade",
+    gradeCategories: "Colour grade categories",
+    galleryNeedsImage: "Select a project image to preview each look on the real image.",
+    galleryLoading: "Preparing real image previews...",
+    galleryNotice: "Thumbnails apply the real non-generative colour pipeline. Compare Before/After before applying.",
+    gradeCategory: {
+      all: "All", natural: "Natural", warm: "Warm", cool: "Cool",
+      editorial: "Editorial", cinematic: "Cinematic", special: "Special",
+    },
     look: "Look",
     reset: "Reset grade",
     before: "Before",

@@ -89,12 +89,9 @@ export function GradeCanvas({ asset, grade }: { asset: AssetDTO | null; grade: C
         context.putImageData(new ImageData(graded, width, height), 0, 0);
         if (mode !== "split") return;
         const cut = Math.round((width * split) / 100);
-        context.save();
-        context.beginPath();
-        context.rect(0, 0, cut, height);
-        context.clip();
-        context.putImageData(original, 0, 0);
-        context.restore();
+        // putImageData ignores canvas clipping paths. Use its dirty-rectangle
+        // overload to restore exactly the left section of the original image.
+        context.putImageData(original, 0, 0, 0, 0, cut, height);
         context.fillStyle = "rgba(255,255,255,.8)";
         context.fillRect(Math.max(0, cut - 1), 0, 2, height);
       };

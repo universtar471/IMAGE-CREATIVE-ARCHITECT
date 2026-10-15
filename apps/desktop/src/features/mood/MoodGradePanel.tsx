@@ -1,4 +1,4 @@
-import { RotateCcw, Sparkles } from "lucide-react";
+import { Images, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   defaultGenerationParams,
@@ -14,6 +14,8 @@ import { FieldGroup, SelectField, TextAreaField, TextField } from "../../compone
 import { LockToggle } from "../dna/LockToggle";
 import { knowledge } from "../../lib/knowledge";
 import { GRADE_LOOKS, neutralGrade } from "../../lib/grade";
+import { GradeLookGallery } from "./GradeLookGallery";
+import { BatchGradeDialog } from "./BatchGradeDialog";
 import {
   adoptMoodPresetSections,
   buildMoodVariationItems,
@@ -80,6 +82,7 @@ export function MoodGradePanel() {
     [ws.project.projectType, ws.project.subtype],
   );
   const [variationOpen, setVariationOpen] = useState(false);
+  const [batchGradeOpen, setBatchGradeOpen] = useState(false);
   const [chosen, setChosen] = useState<string[]>(() => moodPresets.slice(0, 2).map((p) => p.id));
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState<string | undefined>();
@@ -125,10 +128,9 @@ export function MoodGradePanel() {
   };
   const setMood = (field: string, value: unknown) => editDna("mood", { ...mood, [field]: value });
   const setGrade = (field: string, value: unknown) =>
-    editDna("colorGrade", { ...grade, [field]: value });
+    editDna("colorGrade", { ...grade, [field]: value, look: undefined });
   const chooseLook = (id: string | undefined) => {
-    const looks = GRADE_LOOKS as Record<string, ColorGradeDNA>;
-    if (id && looks[id]) editDna("colorGrade", { ...looks[id] });
+    if (id && id in GRADE_LOOKS) editDna("colorGrade", { ...GRADE_LOOKS[id as keyof typeof GRADE_LOOKS] });
   };
   const adopt = (preset: Preset) => {
     if (workflowView?.steps.find((step) => step.id === "dna.lighting")?.status === "confirmed") {
@@ -258,6 +260,7 @@ export function MoodGradePanel() {
         )}
       </SectionPanel>
       <SectionPanel title={t("moodGrade.grade")} aside={<LockToggle section="colorGrade" />}>
+<<<<<<< ours
         <GradePreview asset={gradeSource} grade={grade} />
         <GradePresetCards
           asset={gradeSource}
@@ -269,12 +272,12 @@ export function MoodGradePanel() {
         />
         <SelectField
           label={t("moodGrade.look")}
+=======
+        <GradeLookGallery
+          asset={ws.assets.find((a) => a.id === sourceId) ?? null}
+>>>>>>> theirs
           value={grade.look}
           disabled={gradeLocked}
-          options={Object.keys(GRADE_LOOKS).map((id) => ({
-            value: id,
-            label: id.replaceAll("_", " "),
-          }))}
           onChange={chooseLook}
         />
         {SLIDERS.map((field) => (
@@ -282,9 +285,9 @@ export function MoodGradePanel() {
             <input
               className="input"
               type="range"
-              min={field === "exposure" ? -5 : -100}
-              max={field === "exposure" ? 5 : 100}
-              step={field === "exposure" ? 0.1 : 1}
+              min={-100}
+              max={100}
+              step={1}
               value={Number(grade[field] ?? 0)}
               disabled={gradeLocked}
               onChange={(e) => setGrade(field, Number(e.target.value))}
@@ -311,6 +314,16 @@ export function MoodGradePanel() {
           </button>
         </div>
       </SectionPanel>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        data-testid="open-batch-grade"
+        disabled={readOnly || ws.assets.every((asset) => asset.status !== "ready")}
+        onClick={() => setBatchGradeOpen(true)}
+      >
+        <Images size={14} /> {t("moodGrade.batchGrade")}
+      </button>
+      {batchGradeOpen && <BatchGradeDialog onClose={() => setBatchGradeOpen(false)} />}
       <button
         className="btn btn-sm"
         disabled={readOnly || !sourceId}

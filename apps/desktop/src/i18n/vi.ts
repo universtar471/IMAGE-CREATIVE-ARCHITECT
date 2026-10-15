@@ -1446,6 +1446,7 @@ export const vi: Dict = {
   },
 
   moodGrade: {
+    batchGrade: "Áp màu hàng loạt",
     section: "Không khí / Chỉnh màu",
     mood: "Mood",
     preset: "Dựng sẵn mood",
@@ -1455,6 +1456,14 @@ export const vi: Dict = {
     atmosphere: "Không khí",
     weatherPreset: "Dựng sẵn thời tiết",
     grade: "Chỉnh màu",
+    gradeCategories: "Nhóm phong cách màu",
+    galleryNeedsImage: "Chọn ảnh dự án để xem màu trên ảnh thật.",
+    galleryLoading: "Đang tạo ảnh xem trước từ dự án...",
+    galleryNotice: "Thumbnail dùng ảnh gốc và thuật toán chỉnh màu thực; không cần AI. Xem lớn hoặc so sánh trước/sau trước khi áp dụng.",
+    gradeCategory: {
+      all: "Tất cả", natural: "Tự nhiên", warm: "Ấm", cool: "Lạnh",
+      editorial: "Tạp chí", cinematic: "Điện ảnh", special: "Đặc biệt",
+    },
     look: "Look",
     reset: "Đặt lại chỉnh màu",
     before: "Trước",
