@@ -20,10 +20,12 @@ import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
 import { VALIDATOR_VERSION } from "../validation/codes";
 import { validateShot, warningCodes } from "../validation/validateShot";
+import { CATALOG_VERSION } from "../spaceCatalog/schemas";
+import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 
-export const COMPILER_VERSION = "pc-1.6.0";
+export const COMPILER_VERSION = "pc-1.7.0";
 
-/** `PromptBundle.catalogVersion` until the Space Catalog ships (P1, ADR-034). */
+/** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
 
 export type PromptReference = {
@@ -156,10 +158,12 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
 
-  // Positive section order is stable: subject, form, language, materials, furnishing,
-  // context, lighting, weather, mood, camera, quality. Furnishing is interior-only.
+  // Positive section order is stable: subject, spaceScope, form, language, materials,
+  // furnishing, context, lighting, weather, mood, camera, quality. Furnishing is interior-only;
+  // spaceScope appears only with an active catalog space.
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
+    ["spaceScope", spaceScopeSection(dna)],
     [
       "form",
       usesInteriorDna
@@ -176,7 +180,10 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
         ? interiorLine(interiorLines, "Materials and colors:")
         : materialsSection(dna),
     ],
-    ["furnishing", interiorLine(interiorLines, "Furnishing:")],
+    [
+      "furnishing",
+      allowsInteriorFurnishing(dna) ? interiorLine(interiorLines, "Furnishing:") : null,
+    ],
     ["context", contextSection(dna, isInterior)],
     [
       "lighting",
@@ -252,17 +259,18 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       })),
     },
   });
+  const catalogVersion = dna.spaceCatalog ? CATALOG_VERSION : NO_CATALOG_VERSION;
   const configHash = canonicalHash({
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
-    catalogVersion: NO_CATALOG_VERSION,
+    catalogVersion,
     knowledgePack: pack ?? null,
   });
 
   return {
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
-    catalogVersion: NO_CATALOG_VERSION,
+    catalogVersion,
     sourceHash,
     configHash,
     resolvedWarnings: warningCodes(validation),

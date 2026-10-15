@@ -18,6 +18,7 @@ import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
 import { revealedSide } from "../prompt/topology";
+import { resolveActiveSpace } from "../spaceCatalog/resolve";
 import {
   CONFLICT_CODES,
   VALIDATOR_VERSION,
@@ -238,10 +239,25 @@ const lockedLightingRule: ConflictRule = {
   },
 };
 
-/** P1 hook: needs the Space Catalog registry (preset ↔ archetype). No issues until then. */
+/**
+ * The target space (shot target, else the active space) must belong to the DNA archetype.
+ * - Its preset does not list the archetype: BLOCK (fixed only by editing the selection).
+ * - Its preset id is unknown to the catalog: WARN (data from a newer or older catalog).
+ * A custom space has no preset and is never checked.
+ */
 const spaceNotInBuildingRule: ConflictRule = {
   code: "SPACE_NOT_IN_BUILDING",
-  check: () => [],
+  check(ctx) {
+    const catalog = ctx.dna.spaceCatalog;
+    const active = resolveActiveSpace(ctx.dna, { targetSpaceId: ctx.shot.targetSpaceId });
+    if (!catalog || !active || active.custom) return [];
+    const index = catalog.spaces.indexOf(active.space);
+    const params = { presetId: active.space.presetId, archetype: catalog.buildingArchetype };
+    const path = `spaceCatalog.spaces[${index}]`;
+    if (!active.preset) return [{ code: "SPACE_NOT_IN_BUILDING", severity: "WARN", path, params }];
+    if (active.preset.buildingArchetypes.includes(catalog.buildingArchetype)) return [];
+    return [{ code: "SPACE_NOT_IN_BUILDING", path, params }];
+  },
 };
 
 /** P1 hook: needs the visibility resolver. No issues until then. */
