@@ -867,3 +867,71 @@ Status: accepted (2026-10-16). Basis: SRS §8–§9 (modules E and F), the upgra
 **Provenance:** every enhanced asset records `parentAssetId`, `inputHash`, `configHash`, provider/model, `preservationMode` and the `EnhanceCheck` id.
 
 **Out of scope:** ComfyUI and remote GPU providers (P6), LPIPS, and Vision QC.
+
+## ADR-036 — SRS P2: visual camera intent, detail shots, effects, scene objects
+
+Status: accepted (2026-10-16). Basis: SRS §5.1 and §5.3–§5.4 (module B), §6 (module C), §7 (module D), AC-05 to AC-09, and the conflict-avoidance rules in §3 of the upgrade plan.
+
+**Shared rules**
+- Per-shot choices live in a **ShotIntent snapshot**. They are never written into the DNA. These choices are:
+  - the visual intent
+  - `targetDetailId` / `detailShotCount`
+  - `effects`
+  - `sceneObjects`
+- `ShotIntent` (from `packages/domain/src/validation`) gains these fields as optional members, and a schema is added for it.
+- The desktop keeps the current ShotIntent per project in the workspace store. The generation request snapshot stores it in `PromptBundle.shotIntent`, an optional field that is also mirrored in the Rust DTO.
+- Every module registers its rules in the single validator, using the SRS §12.4 codes, and contributes one compiler section in `prompt/sections/<name>.ts`.
+- When a P2 module emits a section, `COMPILER_VERSION` becomes `pc-1.8.0` and `VALIDATOR_VERSION` becomes `cv-1.2.0`. The lead resolves the version conflicts at merge.
+- Absent choices change nothing: the prompt stays byte-identical apart from the version strings.
+
+**P2a — visual camera intent** (`camera/intent.ts`, `features/camera/VisualIntentSelector.tsx`)
+- A simple mode asks "Bạn muốn nhìn gì?", with the choices:
+  - front
+  - oblique from the street
+  - pedestrian eye level
+  - overview
+  - approach
+  - detail
+  - aerial, only where it makes sense
+- It then asks "Ảnh dùng để làm gì?": landscape, portrait or square.
+- `resolveVisualIntent` turns the answers into suggested `CameraDNA` fields. It never invents measured distances.
+- A custom mode offers near/far, high/low and wide/focused sliders. The expert mode is the existing `CameraDirector`.
+- Switching between the Simple and Expert modes keeps the original camera data.
+- Presets that make no sense for the space are hidden. For example, a bedroom never offers a drone or roof view.
+
+**P2b — architectural details** (`detail/`)
+- `ArchitecturalDetailRegistry` works over `dna.architecturalDetails` (P0 schema) and is its only writer.
+- `DetailShotPlanner(dna, count 1–10)`:
+  - picks verified details;
+  - spreads distinct cameras that the visibility resolver says can see the target;
+  - never invents details: with 5 shots and 3 details it plans more angles of the 3 or reports a shortfall (AC-05);
+  - a target the camera cannot see raises `OCCLUDED_TARGET`.
+- Compiler section `DETAIL TARGET`, following the SRS §5.3 example.
+- UI: "Khám phá chi tiết", which lists the confirmed details and the shot count, plus a detail editor.
+
+**P2c — optical and motion effects** (`effects/`)
+- A catalog of the six SRS effects, each with an intensity of light, medium or strong. All are off by default, and a shot has one primary effect.
+- `EffectsCompatibilityMatrix` returns `available | conditional | blocked` with a plain reason. It checks the space zone, the site, the camera, the weather and lighting, and the scene objects.
+- Codes:
+  - `EFFECT_SOURCE_MISSING`: for example clouds or sky in a closed interior (AC-09), or a sunstar without a light source.
+  - `EFFECT_MOTION_CONFLICT`: for example light trails while the only vehicle is parked (AC-08).
+- Compiler section `EFFECTS`, following the SRS §6.2 example.
+- It reads scene objects only through the P2d schema, so it starts after P2d is merged.
+
+**P2d — scene objects and car library** (`sceneObjects/`)
+- Object types: person, car, motorbike, bicycle, plant, pet.
+- Car presets, starting with:
+  - Mercedes-Benz 300 SL Gullwing coupe
+  - Shelby/AC Cobra 289 (1964)
+  - Jaguar E-Type Series 1 coupe and roadster
+  - generic groups: modern sedan, SUV, EV, Vietnamese city car, motorbike, bicycle
+- Cars are labelled "mô phỏng theo mẫu xe".
+- `SceneObjectRequest`: `presetId`, `quantity`, `targetSpaceId`, `placementZoneId`, `state` (static or moving), `appearanceOverrides`, `visibility`, `sourceReferenceIds`.
+- `ObjectPlacementValidator`:
+  - uses a per-space allowed table built from the space catalog zone and category, following the SRS §7.1 table;
+  - raises `OBJECT_NOT_ALLOWED_IN_SPACE` (BLOCK), for example a car in a bedroom (AC-06);
+  - raises `OBJECT_NO_PLACEMENT_ZONE` when there is no verified driveway or garage. A verified garage with a 300 SL is allowed (AC-07);
+  - never creates a driveway.
+- With no objects selected, nothing new is added.
+- Compiler section `SCENE OBJECTS`, following the SRS §7.2 example.
+- It owns `dna.scene` only for project-level object defaults, if any exist; per-shot objects live in ShotIntent.
