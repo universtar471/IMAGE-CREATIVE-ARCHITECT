@@ -7,3 +7,4 @@ package-lock.json
 packages/domain/schema
 apps/desktop/tests/fixtures/backend
 tools/space-catalog/source/
+tools/context-library/source/

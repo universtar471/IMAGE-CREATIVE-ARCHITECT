@@ -130,7 +130,7 @@ describe("conflict gate — single submit (AC-22)", () => {
     });
     expect(stored.prompt.validation).toEqual({
       verdict: "ALLOW",
-      validatorVersion: "cv-1.0.0",
+      validatorVersion: "cv-1.2.0",
       issueCodes: ["UNVERIFIED_GEOMETRY"],
       approvedExceptions: ["UNVERIFIED_GEOMETRY"],
     });
@@ -144,7 +144,7 @@ describe("conflict gate — single submit (AC-22)", () => {
     const queued = await useStudio.getState().submitGeneration(hero(project.id, masterId));
     expect(queued?.prompt.validation).toEqual({
       verdict: "ALLOW",
-      validatorVersion: "cv-1.0.0",
+      validatorVersion: "cv-1.2.0",
       issueCodes: [],
       approvedExceptions: [],
     });
@@ -222,7 +222,7 @@ describe("conflict gate — batch", () => {
           ...prompt,
           validation: {
             verdict: "BLOCK",
-            validatorVersion: "cv-1.0.0",
+            validatorVersion: "cv-1.2.0",
             issueCodes: ["ADJACENT_BUILDING_CONFLICT"],
             approvedExceptions: [],
           },

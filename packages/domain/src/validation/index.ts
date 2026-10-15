@@ -1,5 +1,6 @@
 export * from "./codes";
 export * from "./validateShot";
+export { ShotIntentSchema } from "./shotIntent";
 export {
   CORNER_PHRASES,
   EXACT_DIMENSION_PHRASES,

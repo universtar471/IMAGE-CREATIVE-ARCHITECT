@@ -867,3 +867,159 @@ Status: accepted (2026-10-16). Basis: SRS §8–§9 (modules E and F), the upgra
 **Provenance:** every enhanced asset records `parentAssetId`, `inputHash`, `configHash`, provider/model, `preservationMode` and the `EnhanceCheck` id.
 
 **Out of scope:** ComfyUI and remote GPU providers (P6), LPIPS, and Vision QC.
+
+## ADR-036 — SRS P2: visual camera intent, detail shots, effects, scene objects
+
+Status: accepted (2026-10-16). Basis: SRS §5.1 and §5.3–§5.4 (module B), §6 (module C), §7 (module D), AC-05 to AC-09, and the conflict-avoidance rules in §3 of the upgrade plan.
+
+**Shared rules**
+- Per-shot choices live in a **ShotIntent snapshot**. They are never written into the DNA. These choices are:
+  - the visual intent
+  - `targetDetailId` / `detailShotCount`
+  - `effects`
+  - `sceneObjects`
+- `ShotIntent` (from `packages/domain/src/validation`) gains these fields as optional members, and a schema is added for it.
+- The desktop keeps the current ShotIntent per project in the workspace store. The generation request snapshot stores it in `PromptBundle.shotIntent`, an optional field that is also mirrored in the Rust DTO.
+- Every module registers its rules in the single validator, using the SRS §12.4 codes, and contributes one compiler section in `prompt/sections/<name>.ts`.
+- When a P2 module emits a section, `COMPILER_VERSION` becomes `pc-1.8.0` and `VALIDATOR_VERSION` becomes `cv-1.2.0`. The lead resolves the version conflicts at merge.
+- Absent choices change nothing: the prompt stays byte-identical apart from the version strings.
+
+**P2a — visual camera intent** (`camera/intent.ts`, `features/camera/VisualIntentSelector.tsx`)
+- A simple mode asks "Bạn muốn nhìn gì?", with the choices:
+  - front
+  - oblique from the street
+  - pedestrian eye level
+  - overview
+  - approach
+  - detail
+  - aerial, only where it makes sense
+- It then asks "Ảnh dùng để làm gì?": landscape, portrait or square.
+- `resolveVisualIntent` turns the answers into suggested `CameraDNA` fields. It never invents measured distances.
+- A custom mode offers near/far, high/low and wide/focused sliders. The expert mode is the existing `CameraDirector`.
+- Switching between the Simple and Expert modes keeps the original camera data.
+- Presets that make no sense for the space are hidden. For example, a bedroom never offers a drone or roof view.
+
+**P2b — architectural details** (`detail/`)
+- `ArchitecturalDetailRegistry` works over `dna.architecturalDetails` (P0 schema) and is its only writer.
+- `DetailShotPlanner(dna, count 1–10)`:
+  - picks verified details;
+  - spreads distinct cameras that the visibility resolver says can see the target;
+  - never invents details: with 5 shots and 3 details it plans more angles of the 3 or reports a shortfall (AC-05);
+  - a target the camera cannot see raises `OCCLUDED_TARGET`.
+- Compiler section `DETAIL TARGET`, following the SRS §5.3 example.
+- UI: "Khám phá chi tiết", which lists the confirmed details and the shot count, plus a detail editor.
+
+**P2c — optical and motion effects** (`effects/`)
+- A catalog of the six SRS effects, each with an intensity of light, medium or strong. All are off by default, and a shot has one primary effect.
+- `EffectsCompatibilityMatrix` returns `available | conditional | blocked` with a plain reason. It checks the space zone, the site, the camera, the weather and lighting, and the scene objects.
+- Codes:
+  - `EFFECT_SOURCE_MISSING`: for example clouds or sky in a closed interior (AC-09), or a sunstar without a light source.
+  - `EFFECT_MOTION_CONFLICT`: for example light trails while the only vehicle is parked (AC-08).
+- Compiler section `EFFECTS`, following the SRS §6.2 example.
+- It reads scene objects only through the P2d schema, so it starts after P2d is merged.
+
+**P2d — scene objects and car library** (`sceneObjects/`)
+- Object types: person, car, motorbike, bicycle, plant, pet.
+- Car presets, starting with:
+  - Mercedes-Benz 300 SL Gullwing coupe
+  - Shelby/AC Cobra 289 (1964)
+  - Jaguar E-Type Series 1 coupe and roadster
+  - generic groups: modern sedan, SUV, EV, Vietnamese city car, motorbike, bicycle
+- Cars are labelled "mô phỏng theo mẫu xe".
+- `SceneObjectRequest`: `presetId`, `quantity`, `targetSpaceId`, `placementZoneId`, `state` (static or moving), `appearanceOverrides`, `visibility`, `sourceReferenceIds`.
+- `ObjectPlacementValidator`:
+  - uses a per-space allowed table built from the space catalog zone and category, following the SRS §7.1 table;
+  - raises `OBJECT_NOT_ALLOWED_IN_SPACE` (BLOCK), for example a car in a bedroom (AC-06);
+  - raises `OBJECT_NO_PLACEMENT_ZONE` when there is no verified driveway or garage. A verified garage with a 300 SL is allowed (AC-07);
+  - never creates a driveway.
+- With no objects selected, nothing new is added.
+- Compiler section `SCENE OBJECTS`, following the SRS §7.2 example.
+- It owns `dna.scene` only for project-level object defaults, if any exist; per-shot objects live in ShotIntent.
+
+## ADR-037 — SRS P4: Diagram Studio (MVP)
+
+Status: accepted (2026-10-16). Basis: SRS §10, AC-14 and AC-15.
+
+**Domain** (`packages/domain/src/diagram/`)
+- Diagram types: `concept_evolution`, `massing_voids`, `functional_zoning`, `circulation`, `sun_ventilation`, `facade_material`.
+- `DiagramStep`:
+  - `id`, `index`, `title { vi, en }`, `caption { vi, en }`
+  - `evidence`: `verified | inferred | illustrative`
+  - `annotations[]`: labels and arrows in normalized coordinates
+  - `frameAssetId?`
+- `planDiagram(dna, type, stepCount 4|6|8|custom)` builds steps from the DNA facts.
+  - Townhouses favour light well, depth, party walls and per-floor organisation. Villas favour massing split, approach, garden and indoor–outdoor.
+  - It is not the same Site → Extrude → Subtract sequence for every building.
+  - A step without verified facts gets `illustrative` and the label "sơ đồ diễn giải ý tưởng".
+  - Interior functions are never stated as verified without a plan or evidence (AC-14).
+- `layoutDiagramSheet(steps, layout: 2x2|2x3|2x4|linear, lang)` returns an SVG string.
+  - All text, arrows and labels are vector, never drawn by an AI model.
+  - Style, palette and frame geometry are fixed, so every panel matches (AC-15).
+  - The output is deterministic.
+
+**Frames**
+- An optional isometric frame per step is a paid image generation, run through the existing generate flow, the conflict gate and the SRS §10.3 prompt.
+- All steps use one fixed isometric camera preset and are submitted as one batch.
+- Without frames, the sheet uses the source render plus the vector overlay.
+
+**Export**
+- PNG 2K/4K: rasterize the SVG in the webview and save through the existing asset import path.
+- MP4: built only after the steps are approved, with FFmpeg from the static frames (pan, zoom and appear).
+  - FFmpeg is detected on PATH. When it is missing, the video export is disabled with a message; it is never bundled.
+- The module flag in `features/workspace/modules.ts` stays off until the UI is complete.
+
+## ADR-038 — SRS P5: Publishing Studio (MVP)
+
+Status: accepted (2026-10-16). Basis: SRS §11, AC-16 to AC-19.
+
+**Domain** (`packages/domain/src/publishing/`)
+- Publication types: `portfolio`, `catalog`, `concept_book`, `magazine`.
+- Sixteen styles, four per type, as named in SRS §11.2. Each style has:
+  - a palette
+  - font families and a type scale
+  - spacing and margins
+  - divider, caption and cover rules
+- Layout templates:
+  - hero full page
+  - hero plus secondary images
+  - 2×2, 2×3 and flexible grids
+  - split
+  - asymmetric editorial
+  - diagram sheet
+  - dense contact (one main frame plus grouped thumbnails)
+- `planPublication(input)`:
+  - **Input fields:**
+    - `selectedImageIds`
+    - `targetPageCount ≥ 1`
+    - `selectionMode`: `include_all | ai_select`
+    - `type`, `paper` (`A4 | A3 | 16:9`), `textDensity`, `styleId`, `layoutMode`
+    - `seed`, `lockedPageIds`
+  - **Page count:** returns exactly `targetPageCount` pages, without exception.
+  - **`include_all`:** places every selected image exactly once, unless repeating is enabled.
+  - **`ai_select`:** chooses a subset, records the reasons, and still keeps the exact page count.
+  - **More pages than images:** the extra pages are valid text, cover or diagram pages. Images are never invented.
+  - **Layout choice:** layouts differ by type. For example, 10 images on 1 page give a Concept layout grouped by context, massing, space and detail, while a Portfolio uses a hero layout (AC-16, AC-17).
+- **Randomising:** the whole-book style, the per-page layout, or smart random.
+  - Same seed → same result.
+  - Locked pages never change (AC-18).
+  - Content and facts are never reshuffled.
+- `ContentFitValidator`, codes:
+  - `PRINT_READABILITY_LOW` (WARN): effective PPI from the asset size and the printed slot size, minimum font size, overflow, safe crop.
+  - `PAGE_COUNT_MISMATCH`
+  - `REQUIRED_IMAGE_MISSING`
+- **Captions:**
+  - Every caption slot has `textKind: technical | editorial | commercial`.
+  - Every sentence that states a number, place, year, award, brand or author needs a `factRef`; without one it is `needs_review`.
+  - `UNVERIFIED_PUBLICATION_FACT` (BLOCK) prevents exporting unreviewed claims as facts (AC-19).
+  - AI-written captions, an optional paid text call, use the SRS §11.4 prompt and go through the same rule.
+- Publications pin images by `assetId` plus `sourceHash`, so a later render never changes an old publication.
+
+**Storage**
+- A Rust migration adds a `publications` table: `id`, `project_id`, `json`, `created_at`, `updated_at`.
+- Commands `publication_list`, `publication_get`, `publication_save` and `publication_delete` follow the `blocking()` pattern and are mirrored in contract fixtures.
+
+**Export (MVP)**
+- PNG/JPEG per page, rendered in the webview.
+- PDF: page images in a minimal pure-TS PDF writer that embeds JPEG (DCTDecode) at the paper size. Text is rasterised in this MVP.
+- No new npm or cargo dependency unless it is already in a lockfile.
+- Vector-text PDF, bleed, brand kit, flipbook and video are P6.

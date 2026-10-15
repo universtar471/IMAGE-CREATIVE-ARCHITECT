@@ -1,0 +1,131 @@
+{
+  "vn_north_urban": {
+    "name": "Bắc Bộ đô thị",
+    "climate": "humid subtropical with seasonal variation",
+    "details": [
+      "narrow urban plots where evidenced",
+      "regional street trees and local pavement conventions"
+    ],
+    "avoid": [
+      "generic tropical beach palms",
+      "invented heritage ornaments"
+    ]
+  },
+  "vn_red_river_rural": {
+    "name": "Đồng bằng Bắc Bộ nông thôn",
+    "climate": "humid subtropical",
+    "details": [
+      "village roads and agricultural parcels where documented",
+      "locally appropriate vegetation"
+    ],
+    "avoid": [
+      "desert vegetation",
+      "invented urban skyline"
+    ]
+  },
+  "vn_central_coast": {
+    "name": "Duyên hải miền Trung",
+    "climate": "tropical monsoon coastal conditions",
+    "details": [
+      "salt- and wind-tolerant vegetation near actual coast",
+      "coastal settlement patterns when evidenced"
+    ],
+    "avoid": [
+      "automatic beach on inland sites"
+    ]
+  },
+  "vn_highlands": {
+    "name": "Tây Nguyên",
+    "climate": "highland tropical conditions",
+    "details": [
+      "upland terrain where documented",
+      "region-appropriate planting"
+    ],
+    "avoid": [
+      "generic beach scenes"
+    ]
+  },
+  "vn_south_urban": {
+    "name": "Nam Bộ đô thị",
+    "climate": "tropical monsoon",
+    "details": [
+      "urban shophouse and townhouse patterns when evidenced",
+      "local street activity with restraint"
+    ],
+    "avoid": [
+      "automatic detached lawns"
+    ]
+  },
+  "vn_mekong": {
+    "name": "Đồng bằng sông Cửu Long",
+    "climate": "tropical monsoon and waterways",
+    "details": [
+      "waterways only where present",
+      "lowland vegetation and flood-aware ground conditions"
+    ],
+    "avoid": [
+      "invented canals at every plot"
+    ]
+  },
+  "sea_tropical": {
+    "name": "Đông Nam Á nhiệt đới",
+    "climate": "tropical",
+    "details": [
+      "regionally plausible tropical vegetation",
+      "climate-responsive shade"
+    ],
+    "avoid": [
+      "country-specific signage without location"
+    ]
+  },
+  "mediterranean": {
+    "name": "Địa Trung Hải",
+    "climate": "Mediterranean",
+    "details": [
+      "dry-summer vegetation and local materials where evidenced"
+    ],
+    "avoid": [
+      "tropical rainforest default"
+    ]
+  },
+  "continental_temperate": {
+    "name": "Ôn đới lục địa",
+    "climate": "temperate seasonal",
+    "details": [
+      "seasonally appropriate deciduous planting"
+    ],
+    "avoid": [
+      "year-round tropical palms"
+    ]
+  },
+  "arid": {
+    "name": "Khô hạn / sa mạc",
+    "climate": "arid",
+    "details": [
+      "xeric vegetation and mineral terrain"
+    ],
+    "avoid": [
+      "lush lawns without irrigation evidence"
+    ]
+  },
+  "alpine": {
+    "name": "Núi cao",
+    "climate": "alpine or mountain",
+    "details": [
+      "steep terrain and climate-appropriate vegetation"
+    ],
+    "avoid": [
+      "flat tropical coastal streets"
+    ]
+  },
+  "unspecified": {
+    "name": "Chưa rõ vùng",
+    "climate": "unknown",
+    "details": [
+      "minimal neutral details based on available site evidence"
+    ],
+    "avoid": [
+      "specific regional claims"
+    ]
+  }
+}

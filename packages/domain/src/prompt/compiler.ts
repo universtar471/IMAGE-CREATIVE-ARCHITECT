@@ -15,15 +15,18 @@ import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
-import { cameraSitePlan, resolveSiteTopology, viewTypeFraming } from "./topology";
+import { cameraSitePlan, viewTypeFraming } from "./topology";
+import { siteCameraText, siteOcclusionLines } from "./sections/siteOcclusion";
 import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
 import { VALIDATOR_VERSION } from "../validation/codes";
 import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
+import { sceneObjectsSection } from "./sections/sceneObjects";
+import type { ShotIntent } from "../validation/shotIntent";
 
-export const COMPILER_VERSION = "pc-1.7.0";
+export const COMPILER_VERSION = "pc-1.8.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -52,6 +55,11 @@ export type PromptCompileInput = {
   pack?: KnowledgePack | null;
   /** Camera this prompt renders (Phase 3). Unknown ids are ignored (no camera section). */
   cameraId?: string | null;
+  /**
+   * Per-shot choices (ADR-036), recorded in `PromptBundle.shotIntent`; never written into
+   * ProjectDNA. `projectType` and `cameraId` always come from the project and `cameraId`.
+   */
+  shotIntent?: ShotIntent;
 };
 
 export type PromptSectionOverrides = {
@@ -144,6 +152,32 @@ export function compileWithOverrides(
  * The bundle with more accepted WARN codes recorded (for example the extra prompt's, once
  * the gate has validated it); the list stays sorted and unique.
  */
+/**
+ * The shot intent as compiled and snapshotted: the project's type and the compiled camera
+ * win over the stored values, unset or empty choices are dropped, and no choice means `undefined`.
+ */
+export function normalizeShotIntent(
+  shotIntent: ShotIntent | undefined,
+  projectType: ProjectType,
+  cameraId: string | null,
+): ShotIntent | undefined {
+  if (!shotIntent) return undefined;
+  // Every choice is kept (later phases add their own fields); unset or empty ones are dropped.
+  const choices = Object.fromEntries(
+    Object.entries(shotIntent).filter(
+      ([key, value]) =>
+        key !== "projectType" &&
+        key !== "cameraId" &&
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        !(Array.isArray(value) && value.length === 0),
+    ),
+  );
+  if (!Object.keys(choices).length) return undefined;
+  return { ...choices, projectType, cameraId };
+}
+
 export function withResolvedWarnings(bundle: PromptBundle, codes: readonly string[]): PromptBundle {
   const merged = [...new Set([...(bundle.resolvedWarnings ?? []), ...codes])].sort(compareStrings);
   return { ...bundle, resolvedWarnings: merged };
@@ -157,10 +191,12 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const usesInteriorDna = isInterior && dna.interior !== undefined;
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
   const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
+  const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
-  // furnishing, context, lighting, weather, mood, camera, quality. Furnishing is interior-only;
-  // spaceScope appears only with an active catalog space.
+  // furnishing, context, lighting, weather, mood, camera, sceneObjects, quality. Furnishing is
+  // interior-only; spaceScope appears only with an active catalog space; sceneObjects only
+  // when the shot adds objects (SRS §12.2 item 7, after the camera).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -198,6 +234,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
         ? cameraSectionTextForPlan(camera, dna, project.projectType)
         : (interiorLine(interiorLines, "Camera:") ?? null),
     ],
+    ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -243,7 +280,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const cameraId = camera?.id ?? null;
   const validation = validateShot({
     dna,
-    shotIntent: { projectType: project.projectType, cameraId },
+    shotIntent: shotIntent ?? { projectType: project.projectType, cameraId },
   });
   const sourceHash = canonicalHash({
     dna,
@@ -252,6 +289,8 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       projectType: project.projectType,
       subtype: project.subtype ?? null,
       cameraId,
+      // Only present with per-shot choices, so a shot without them hashes as before.
+      ...(shotIntent ? { shotIntent } : {}),
       references: references.map((r) => ({
         assetId: r.assetId,
         role: r.role,
@@ -274,6 +313,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     sourceHash,
     configHash,
     resolvedWarnings: warningCodes(validation),
+    ...(shotIntent ? { shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),
     referenceInstructions: referenceSection(references),
@@ -560,37 +600,8 @@ function preservationSection(
   if (dna.locks.weather)
     lines.push("Weather DNA is LOCKED: preserve the weather exactly as described.");
   if (dna.locks.mood) lines.push("Mood DNA is LOCKED: preserve the mood exactly as described.");
-  if (camera && masterIndex >= 0) {
-    const plan = cameraSitePlan(camera, dna.context, projectType);
-    if (plan.mode === "oblique_street") {
-      const topology = resolveSiteTopology(dna.context);
-      const sideText =
-        topology.left === "attached" && topology.right === "attached"
-          ? "both sides"
-          : plan.side
-            ? `the ${plan.side} side`
-            : "both sides";
-      const hidden = plan.side === "left" ? "front-left" : "front-right";
-      lines.push(
-        `The building is attached to neighbouring buildings on ${sideText}. Keep the party walls hidden and attached to the same neighbours; do not expose a side facade or side windows. Do not create a side setback, side yard, gap, passage, alley, or detached corner condition.`,
-      );
-      lines.push(
-        `Camera viewpoint: ${hidden} oblique street view from eye level, about 30–35° off the facade axis, looking along the street. Composition: front facade dominant; the ${plan.side ?? "side"} side wall stays hidden behind the attached neighbour.`,
-      );
-    } else if (plan.mode === "aerial_block") {
-      lines.push(
-        `Keep the same continuous mid-block street and neighbourhood shown in Image ${masterIndex + 1}. The subject remains between the same left and right neighbours, at the same street frontage. Extend the existing block naturally into areas outside Image ${masterIndex + 1}; do not create a corner lot, street junction, side street, vacant plot, new boundary, or new access road. Keep the neighbours as separate buildings and preserve their visible footprints and roof forms.`,
-      );
-    } else if (plan.mode === "corner_side" && plan.side) {
-      lines.push(
-        `This is a corner plot: a side street runs along the ${plan.side} side; reveal that side facade consistently with Image ${masterIndex + 1}.`,
-      );
-    } else if (plan.mode === "unknown_side" && plan.side) {
-      lines.push(
-        `Do not invent a corner plot, side street or new neighbour arrangement; reveal the ${plan.side} side only as a plain continuation consistent with Image ${masterIndex + 1}.`,
-      );
-    }
-  }
+  // SITE & OCCLUSION (ADR-034) replaces the ADR-028 party-wall wording.
+  lines.push(...siteOcclusionLines(dna, camera, projectType, masterIndex));
   lines.push(...sceneObjectLines(dna));
   return lines.join("\n");
 }
@@ -609,7 +620,7 @@ function cameraSectionTextForPlan(
     });
   }
   if (plan.mode === "aerial_block") {
-    const base = cameraSectionText(camera);
+    const base = siteCameraText(camera, dna, projectType);
     const composition = base.match(/(?:^|; )composition: (.*?)(?:; camera notes:|\.$)/)?.[1];
     const blockComposition = composition
       ? composition.replace(
@@ -617,17 +628,18 @@ function cameraSectionTextForPlan(
           "same street block and surrounding rooftops",
         )
       : "same street block and surrounding rooftops";
-    return cameraSectionForPlan(camera, { composition: blockComposition });
+    return cameraSectionForPlan(camera, { composition: blockComposition }, base);
   }
-  return cameraSectionText(camera);
+  return siteCameraText(camera, dna, projectType);
 }
 
 /** Keep measured camera fields while applying the narrowly scoped plan-mode substitutions. */
 function cameraSectionForPlan(
   camera: CameraDNA,
   replacements: { viewpoint?: string; composition: string },
+  base: string = cameraSectionText(camera),
 ): string {
-  const parts = cameraSectionText(camera).slice("Camera: ".length, -1).split("; ");
+  const parts = base.slice("Camera: ".length, -1).split("; ");
   const viewType = parts[0]!;
   const measured = parts.filter(
     (part) =>
