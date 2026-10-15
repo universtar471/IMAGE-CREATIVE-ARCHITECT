@@ -110,11 +110,11 @@ Legend: ✅ done · 🟡 partial · ❌ missing · 🔧 needs fixing
 
 P1a and P1b run in parallel after P0 merges: they touch separate folders, and the compiler sections are owned per rule 3. P2 waits for P1 because objects, effects and details are validated against the space and the site.
 
-## 6. Decisions the user needs to make
+## 6. Decisions (user answers, 2026-10-15)
 
-1. **QC for enhance (P3):** Vision QC was removed. Use free local checks only (recommended), or skip QC for enhance.
-2. **Catalog curation:** the lead rewrites the 104 unaccented English labels and prompts. Specialist rooms (healthcare, education) need the user's review before production use, as the SRS notes.
-3. **Push:** main is far ahead of `origin/main` (`35f11c9`). Pushing needs explicit approval.
+1. **QC for enhance (P3):** Vision QC was removed. **Decided: free local checks only** (output size, registration against the source, SSIM on locked regions). No Vision QC, no paid calls.
+2. **Catalog curation:** the lead rewrites the 104 unaccented English labels and prompts. Specialist rooms (healthcare, education) need the user's review before production use, as the SRS notes. Open: the 13 healthcare and 13 education presets ship behind a "cần chuyên gia duyệt" badge until reviewed.
+3. **Push:** main is far ahead of `origin/main` (`35f11c9`). **Approved and pushed** on 2026-10-15.
 
 ## 7. Known risks
 
