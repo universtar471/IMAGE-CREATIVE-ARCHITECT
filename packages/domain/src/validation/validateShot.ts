@@ -13,7 +13,6 @@
  *   to WARN, so a guess never hard-blocks the user.
  */
 import type { ProjectDNA } from "../schemas/projectDna";
-import type { ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
@@ -41,17 +40,10 @@ import {
   prepareText,
   type PreparedText,
 } from "./phrases";
+import { validateObjectPlacement } from "../sceneObjects/placement";
+import type { ShotIntent } from "./shotIntent";
 
-/** What one generation request asks for (SRS §3.1 Shot Intent; P0 subset). */
-export type ShotIntent = {
-  projectType: ProjectType;
-  /** The DNA camera being rendered; unknown ids are ignored, as in the compiler. */
-  cameraId?: string | null;
-  /** P1: the target space of the Space Catalog. */
-  targetSpaceId?: string | null;
-  /** P2: the target architectural detail. */
-  targetDetailId?: string | null;
-};
+export type { ShotIntent } from "./shotIntent";
 
 export type ValidateShotInput = {
   dna: ProjectDNA;
@@ -336,11 +328,29 @@ const occludedTargetRule: ConflictRule = {
   },
 };
 
+/**
+ * ObjectPlacementValidator (P2d): scene objects the shot adds must belong in their target
+ * space and stand on a zone the project data records. Raises OBJECT_NOT_ALLOWED_IN_SPACE and
+ * OBJECT_NO_PLACEMENT_ZONE; no objects, no issues.
+ */
+const objectPlacementRule: ConflictRule = {
+  code: "OBJECT_NOT_ALLOWED_IN_SPACE",
+  check(ctx) {
+    return validateObjectPlacement(ctx.dna, ctx.shot).map(({ code, severity, path, params }) => ({
+      code,
+      severity,
+      path,
+      params,
+    }));
+  },
+};
+
 /** Rules in evaluation order. Later phases append theirs here. */
 export const SHOT_RULES: readonly ConflictRule[] = [
   spaceNotInBuildingRule,
   adjacentBuildingRule,
   occludedTargetRule,
+  objectPlacementRule,
   unverifiedGeometryRule,
   lockedLightingRule,
 ];
