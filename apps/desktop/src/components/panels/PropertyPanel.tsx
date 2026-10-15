@@ -15,6 +15,7 @@ import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { RegionPanel } from "../../features/regions/RegionPanel";
+import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
 
@@ -129,6 +130,7 @@ export function PropertyPanel() {
             <CameraPanel />
           </StepFrame>
         )}
+        {active === "scene_objects" && <SceneObjectsPanel />}
         {active === "lighting" && (
           <StepFrame stepId="dna.lighting">
             <LightingPanel />

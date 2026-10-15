@@ -2,6 +2,97 @@
   "command": "generation_list",
   "response": [
     {
+      "batchId": null,
+      "cameraId": null,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "durationMs": 1234,
+      "enhanceCheck": {
+        "actualSize": {
+          "height": 96,
+          "width": 96
+        },
+        "aspectDelta": 0.0,
+        "composited": false,
+        "content": {
+          "height": 72,
+          "width": 96,
+          "x": 0,
+          "y": 12
+        },
+        "edgeDelta": 0.0,
+        "expectedSize": {
+          "height": 96,
+          "width": 96
+        },
+        "id": "ECK_0000000000000000000000000Y",
+        "lockedPct": 100.0,
+        "lockedSsim": 1.0,
+        "preservationMode": "strict",
+        "reasons": [],
+        "registration": {
+          "dx": 0.0,
+          "dy": 0.0,
+          "shiftPx": 0.0
+        },
+        "sizeAction": "upscale",
+        "status": "pass",
+        "version": "ec-1.0.0"
+      },
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:00.000Z",
+      "id": "GEN_0000000000000000000000000Z",
+      "jobId": "JOB_00000000000000000000000010",
+      "modelId": "lanczos3",
+      "outputAssetIds": [
+        "AST_00000000000000000000000011"
+      ],
+      "params": {
+        "aspectRatio": null,
+        "enhance": {
+          "architecturePreserve": true,
+          "detailStrength": 40,
+          "locks": {
+            "camera": true,
+            "context": true,
+            "geometry": true,
+            "material": true
+          },
+          "mode": "conservative",
+          "preservationMode": "strict",
+          "targetLongEdge": null,
+          "upscale": {
+            "ifAlreadyLarger": "keep",
+            "target": {
+              "fit": "contain",
+              "height": 96,
+              "width": 96
+            }
+          }
+        },
+        "imageSize": null,
+        "outputCount": 1,
+        "quality": null,
+        "seed": null
+      },
+      "parentAssetId": "AST_00000000000000000000000003",
+      "projectId": "PRJ_00000000000000000000000001",
+      "prompt": {
+        "compilerVersion": "",
+        "metadata": {},
+        "negativePrompt": "",
+        "positivePrompt": "",
+        "preservationInstructions": "",
+        "referenceInstructions": ""
+      },
+      "providerId": "local_upscale",
+      "purpose": "enhance",
+      "referenceAssetIds": [
+        "AST_00000000000000000000000003"
+      ],
+      "startedAt": "2026-01-01T00:00:00.000Z",
+      "status": "completed"
+    },
+    {
       "batchId": "BAT_0000000000000000000000000H",
       "cameraId": "CAM_01J9ZZZZZZZZZZZZZZZZZZZZZB",
       "createdAt": "2026-01-01T00:00:00.000Z",

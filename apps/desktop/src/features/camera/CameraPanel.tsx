@@ -420,20 +420,23 @@ function CameraPromptPreview({ camera }: { camera: CameraDNA }) {
     (s) => s.workspace!.anchors.find((a) => a.cameraId === camera.id)?.assetId ?? null,
   );
   const revision = useStudio((s) => s.dataRevision);
+  const shotIntent = useStudio((s) => s.workspace!.shotIntent);
   const flushDna = useStudio((s) => s.flushDna);
   const [result, setResult] = useState<{ key: string; bundle?: PromptBundle; error?: string }>();
   const refs = [masterId, anchorId].filter((x): x is string => !!x).join(",");
-  const key = `${projectId}|${revision}|${camera.id}|${refs}`;
+  const key = `${projectId}|${revision}|${camera.id}|${refs}|${JSON.stringify(shotIntent ?? null)}`;
   const t = useT();
 
   useEffect(() => {
     let alive = true;
     void flushDna()
       .then(() =>
-        compilePromptPreview(projectId, refs ? refs.split(",") : [], {
-          cameraId: camera.id,
-          anchorAssetId: anchorId,
-        }),
+        compilePromptPreview(
+          projectId,
+          refs ? refs.split(",") : [],
+          { cameraId: camera.id, anchorAssetId: anchorId },
+          shotIntent,
+        ),
       )
       .then(
         (bundle) => alive && setResult({ key, bundle }),
@@ -442,7 +445,7 @@ function CameraPromptPreview({ camera }: { camera: CameraDNA }) {
     return () => {
       alive = false;
     };
-  }, [flushDna, projectId, camera.id, refs, anchorId, key]);
+  }, [flushDna, projectId, camera.id, refs, anchorId, key, shotIntent]);
 
   if (!result) return <span className="field-hint">{t("common.compiling")}</span>;
   if (result.error) return <span className="field-error">{result.error}</span>;

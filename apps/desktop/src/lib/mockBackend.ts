@@ -24,11 +24,14 @@ import {
   ProjectDNASchema,
   validateGenerationRequest,
   validateProjectDNA,
+  resolveUpscaleSize,
   type AppError,
   type AssetDTO,
   type AssetRole,
   type BatchDTO,
   type CameraAnchorDTO,
+  type EnhanceCheck,
+  type EnhanceParams,
   type GenerationDTO,
   type GenerationError,
   type GenerationParams,
@@ -627,9 +630,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const parentVersion = parent
       ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
       : undefined;
-    const enhance = (
-      req.params as GenerationParams & { enhance?: { targetLongEdge: number | null } }
-    ).enhance;
+    const enhance = (req.params as GenerationParams & { enhance?: EnhanceParams }).enhance;
     const region = (req.params as GenerationParams & { region?: RegionEditParams }).region;
     const regionMetadata = (() => {
       if (!region || !parent) return null;
@@ -645,8 +646,9 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       return { shapes, nativeMask, maskCoveragePct: maskCoveragePct(mask) };
     })();
     const [w, h] = enhance
-      ? enhanceOutputSize(enhance.targetLongEdge, parent)
+      ? enhanceOutputSize(enhance, parent)
       : outputSize(req.params.aspectRatio, parent);
+    if (enhance?.preservationMode) gen.enhanceCheck = mockEnhanceCheck(enhance, parent, [w, h]);
     const purpose = PURPOSE_TITLES[req.purpose] ?? "Generation";
     const camera = req.cameraId
       ? db.dna[req.projectId]?.cameras.find((c) => c.id === req.cameraId)
@@ -767,16 +769,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       if (a.status !== "ready")
         fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
     }
-    const enhance = (
-      req.params as GenerationParams & {
-        enhance?: {
-          mode: string;
-          targetLongEdge: number | null;
-          detailStrength: number;
-          architecturePreserve: boolean;
-        };
-      }
-    ).enhance;
+    const enhance = (req.params as GenerationParams & { enhance?: EnhanceParams }).enhance;
     if (req.purpose === "enhance") {
       const enhancement =
         enhance ??
@@ -793,12 +786,27 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         fail("VALIDATION_ERROR", "Conservative enhancement uses local_upscale.");
       const source = assets.find((item) => item.id === req.referenceAssetIds[0]);
       const sourceEdge = Math.max(source?.widthPx ?? 0, source?.heightPx ?? 0);
-      if (enhancement.mode === "conservative" && enhancement.targetLongEdge === null)
-        fail("VALIDATION_ERROR", "Conservative enhancement requires a target size.");
-      if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge < sourceEdge)
-        fail("VALIDATION_ERROR", "Enhancement never downsizes; pick a larger target.");
-      if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge > 8192)
-        fail("VALIDATION_ERROR", "Enhancement target cannot exceed 8192px.");
+      if (
+        enhancement.preservationMode === "strict" &&
+        (enhancement.mode !== "conservative" || req.providerId !== "local_upscale")
+      )
+        fail("VALIDATION_ERROR", "Strict enhancement is local only.");
+      if (enhancement.upscale) {
+        const size = resolveUpscaleSize(
+          { width: source?.widthPx ?? 1024, height: source?.heightPx ?? 768 },
+          enhancement.upscale.target,
+          enhancement.upscale.ifAlreadyLarger,
+        );
+        if (size.action === "skip")
+          fail("VALIDATION_ERROR", "The source already exceeds the size target; it is skipped.");
+      } else {
+        if (enhancement.mode === "conservative" && enhancement.targetLongEdge === null)
+          fail("VALIDATION_ERROR", "Conservative enhancement requires a target size.");
+        if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge < sourceEdge)
+          fail("VALIDATION_ERROR", "Enhancement never downsizes; pick a larger target.");
+        if (enhancement.targetLongEdge !== null && enhancement.targetLongEdge > 8192)
+          fail("VALIDATION_ERROR", "Enhancement target cannot exceed 8192px.");
+      }
     }
     if (req.purpose === "region_edit") {
       const region =
@@ -1720,14 +1728,64 @@ function outputSize(aspectRatio: string | null, parent: AssetDTO | undefined): [
 }
 
 function enhanceOutputSize(
-  targetLongEdge: number | null,
+  enhance: Pick<EnhanceParams, "targetLongEdge" | "upscale">,
   parent: AssetDTO | undefined,
 ): [number, number] {
   const sourceW = parent?.widthPx ?? 1024;
   const sourceH = parent?.heightPx ?? 768;
-  const target = targetLongEdge ?? Math.max(sourceW, sourceH);
+  if (enhance.upscale) {
+    const size = resolveUpscaleSize(
+      { width: sourceW, height: sourceH },
+      enhance.upscale.target,
+      enhance.upscale.ifAlreadyLarger,
+    );
+    return [size.canvasWidth, size.canvasHeight];
+  }
+  const target = enhance.targetLongEdge ?? Math.max(sourceW, sourceH);
   const scale = target / Math.max(sourceW, sourceH);
   return [Math.max(1, Math.round(sourceW * scale)), Math.max(1, Math.round(sourceH * scale))];
+}
+
+/**
+ * The mock's stand-in for the Rust local check (ADR-035): sizes are exact and nothing moves,
+ * so only the review reasons that depend on the request are reported.
+ */
+function mockEnhanceCheck(
+  enhance: EnhanceParams,
+  parent: AssetDTO | undefined,
+  [width, height]: [number, number],
+): EnhanceCheck {
+  const mode = enhance.preservationMode ?? "strict";
+  const source = { width: parent?.widthPx ?? 1024, height: parent?.heightPx ?? 768 };
+  const size = enhance.upscale
+    ? resolveUpscaleSize(source, enhance.upscale.target, enhance.upscale.ifAlreadyLarger)
+    : null;
+  const reasons: EnhanceCheck["reasons"] = [];
+  if (mode !== "strict" && !enhance.allowedRegionIds?.length) reasons.push("no_allowed_region");
+  if (mode === "creative") reasons.push("creative_review");
+  const masked = mode !== "strict" && !!enhance.allowedRegionIds?.length;
+  return {
+    id: newId("ECK"),
+    version: "ec-1.0.0",
+    preservationMode: mode,
+    status: reasons.length ? "warn" : "pass",
+    reasons,
+    expectedSize: { width, height },
+    actualSize: { width, height },
+    content: {
+      x: size?.offsetX ?? 0,
+      y: size?.offsetY ?? 0,
+      width: size?.width ?? width,
+      height: size?.height ?? height,
+    },
+    aspectDelta: 0,
+    registration: { dx: 0, dy: 0, shiftPx: 0 },
+    lockedSsim: mode === "strict" || masked ? 0.995 : null,
+    lockedPct: mode === "strict" ? 100 : masked ? 50 : 0,
+    edgeDelta: mode === "strict" ? 0 : null,
+    composited: masked,
+    sizeAction: size && size.action !== "skip" ? size.action : "upscale",
+  };
 }
 
 /** A tiny, displayable placeholder image (no canvas needed, so it also works under jsdom). */

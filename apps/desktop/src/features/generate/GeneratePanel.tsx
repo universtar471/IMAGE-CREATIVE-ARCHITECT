@@ -110,6 +110,7 @@ export function GeneratePanel() {
     cameraId: null,
     extraPrompt: draft.extraPrompt,
     approvedExceptions: draft.approvedExceptions,
+    shotIntent: ws.shotIntent,
   });
   const conflictReason = canSubmit(conflicts)
     ? null
@@ -153,6 +154,7 @@ export function GeneratePanel() {
       cameraId: null,
       extraPrompt: draft.extraPrompt,
       approvedExceptions: draft.approvedExceptions,
+      shotIntent: ws.shotIntent,
     });
   };
 

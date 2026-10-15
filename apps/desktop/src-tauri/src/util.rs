@@ -32,6 +32,7 @@ pub mod prefix {
     pub const JOB: &str = "JOB";
     pub const BATCH: &str = "BAT";
     pub const REGION: &str = "RGN";
+    pub const ENHANCE_CHECK: &str = "ECK";
 }
 
 #[cfg(test)]
