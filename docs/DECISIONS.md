@@ -802,3 +802,9 @@ The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally
 **Out of scope here:** P2–P6 (simple camera, detail planner, effects, objects, enhance and upscale, diagram, publishing).
 
 **Acceptance for this ADR:** AC-01, AC-02 (no bedroom furniture leaks into a garden scope), AC-03, AC-04, AC-20, AC-21, AC-22, plus the SRS §5.4 camera tests that apply without P2.
+
+**ADR-034 amendment (2026-10-15).** The user supplied `Building_Space_Catalog_V3.zip` (256 presets) and `Architectural_Context_Library_V4.zip` (131 presets, 12 regions) in the AI handoff package.
+- P1 imports V3 through a converter instead of the starter set.
+- The 104 records whose `labelEn` and `englishPrompt` use unaccented Vietnamese are curated first.
+- Context Library V4 becomes a suggestion layer that sits below site evidence.
+- The full gap analysis and ordering are in `docs/plans/SRS_V7_2_UPGRADE_PLAN.md`.
