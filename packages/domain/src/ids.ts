@@ -13,7 +13,6 @@ export const ID_PREFIX = {
   batch: "BAT",
   material: "MAT",
   light: "LGT",
-  qc: "QC",
 } as const;
 
 const ULID = "[0-9A-HJKMNP-TV-Z]{26}";

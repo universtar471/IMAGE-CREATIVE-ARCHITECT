@@ -27,7 +27,6 @@ export { ColorGradeV2Schema as ColorGradeDNASchema } from "./grade/schema";
 export type { ColorGradeV2 as ColorGradeDNA } from "./grade/schema";
 export * from "./workflow/schemas";
 export * from "./workflow/workflow";
-export * from "./qc";
 export * from "./regions";
 export * from "./interior";
 export * from "./jsonSchema";

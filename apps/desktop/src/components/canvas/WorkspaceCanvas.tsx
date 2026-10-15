@@ -1,6 +1,6 @@
 /**
  * Center workspace surface. Phase 1 shows the selected asset (or master) in the
- * ImageViewer; future modes (compare, contact sheet, mask, QC overlay) become
+ * ImageViewer; future modes (compare, contact sheet, mask) become
  * additional `mode`s here without changing the shell.
  */
 import { Images } from "lucide-react";

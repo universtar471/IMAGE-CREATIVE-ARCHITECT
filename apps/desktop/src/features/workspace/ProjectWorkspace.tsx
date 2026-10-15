@@ -16,7 +16,6 @@ import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
 import { resolveEnhancePair } from "../enhance/enhance";
-import { QcCanvas } from "../qc/QcCanvas";
 import { RegionCanvas } from "../regions/RegionCanvas";
 
 export function findSubmittedEnhanceResult(
@@ -223,8 +222,6 @@ function CenterArea() {
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (
           <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
-        ) : active === "qc" ? (
-          <QcCanvas />
         ) : active === "regions" ? (
           regionPair ? (
             <CompareCanvas source={regionPair.source} result={regionPair.result} />

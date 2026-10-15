@@ -19,7 +19,6 @@ const MASTER_APPROVED_STATUSES: readonly ProjectStatus[] = [
   "anchor_generation",
   "design_locked",
   "production",
-  "qc",
   "final",
 ];
 export const isMasterApproved = (s: ProjectStatus) => MASTER_APPROVED_STATUSES.includes(s);

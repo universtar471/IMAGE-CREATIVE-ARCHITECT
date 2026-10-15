@@ -35,8 +35,6 @@ export const ModelCapabilitiesSchema = z.object({
    * tier missing from the map has no published price.
    */
   priceHint: z.record(z.string(), z.number().int().nonnegative()).nullable(),
-  /** True when the model can be selected for optional vision QC. */
-  vision: z.boolean(),
   /** Native provider mask support; false for models that receive a second mask image. */
   supportsMask: z.boolean().default(false),
 });
@@ -87,8 +85,12 @@ export const EnhanceParamsSchema = z.object({
 });
 export type EnhanceParams = z.infer<typeof EnhanceParamsSchema>;
 
+/**
+ * Params of a legacy `repair` generation. Repairs were created only from QC reports; QC was
+ * removed (ADR-033), so this shape exists only so old history rows still parse.
+ */
 export const RepairParamsSchema = z.object({
-  qcReportId: z.string().regex(/^QC_[0-7][0-9A-HJKMNP-TV-Z]{25}$/),
+  qcReportId: z.string(),
 });
 export type RepairParams = z.infer<typeof RepairParamsSchema>;
 
@@ -201,7 +203,18 @@ export const GenerationSubmitRequestSchema = z
     /** Camera this render is for (Phase 3); must exist in the project's DNA. */
     cameraId: z.string().nullable().default(null),
   })
-  .superRefine((value, ctx) => addPurposeContractIssues(value, ctx));
+  .superRefine((value, ctx) => {
+    if (value.purpose === "repair") {
+      // Legacy purpose: kept for history display only (QC was removed, ADR-033).
+      ctx.addIssue({
+        code: "custom",
+        path: ["purpose"],
+        message: "Repair generations can no longer be submitted.",
+      });
+      return;
+    }
+    addPurposeContractIssues(value, ctx);
+  });
 export type GenerationSubmitRequest = z.infer<typeof GenerationSubmitRequestSchema>;
 
 export const GenerationErrorSchema = z.object({

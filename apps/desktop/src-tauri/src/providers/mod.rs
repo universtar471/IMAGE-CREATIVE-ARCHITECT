@@ -50,7 +50,6 @@ pub struct ModelCapabilities {
     /// Estimated price per image in VND by `image_sizes` tier (HHTECH catalog); `None` = no
     /// price known. A tier missing from the map has no published price.
     pub price_hint: Option<BTreeMap<String, u32>>,
-    pub vision: bool,
     pub supports_mask: bool,
 }
 
@@ -88,16 +87,12 @@ pub struct GenerationParams {
     /// Enhancement-only controls. Kept nested under `params.enhance` to match the bridge contract.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enhance: Option<EnhanceParams>,
+    /// `params.repair` of a legacy `repair` generation, kept verbatim so old rows round-trip.
+    /// Repairs came only from QC reports; QC was removed (ADR-033) and no new repair is made.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub repair: Option<RepairParams>,
+    pub repair: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<RegionEditParams>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RepairParams {
-    pub qc_report_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -277,30 +272,14 @@ pub trait ImageProvider: Send + Sync {
         None
     }
 
-    fn vision_model(&self) -> Option<String> {
-        None
-    }
-
     /// One chat completion (system + user message) returning the reply text.
     fn chat(&self, _system: &str, _user: &str, _api_key: Option<&str>) -> Result<String, ProviderError> {
         Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer prompt enhancement."))
     }
 
-    /// Chat completion with an explicit model and optional vision content.
+    /// Chat completion with an explicit model and optional image content.
     fn chat_with_model(&self, _request: &ChatRequest, _api_key: Option<&str>) -> Result<String, ProviderError> {
         Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer AI DNA assistance."))
-    }
-
-    /// Vision chat completion. Providers that do not accept image content keep the default.
-    fn vision(
-        &self,
-        _system: &str,
-        _user: &str,
-        _images: &[(&str, Vec<u8>)],
-        _model: Option<&str>,
-        _api_key: Option<&str>,
-    ) -> Result<String, ProviderError> {
-        Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "This provider does not offer vision QC."))
     }
 }
 

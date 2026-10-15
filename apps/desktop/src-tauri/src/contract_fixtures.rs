@@ -27,7 +27,6 @@ use crate::services::batches::{self, BatchCreateRequest};
 use crate::services::generations::{self, SubmitRequest};
 use crate::services::grade::{self, GradeApplyRequest};
 use crate::services::prompt_enhance::{self, EnhanceRequest};
-use crate::services::qc::{self, QcListRequest, QcRunRequest, QcSettingsSetRequest};
 use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
@@ -81,7 +80,7 @@ impl Normalizer {
         let mut i = 0;
         while i < bytes.len() {
             let candidate =
-                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "QC_"].iter().find(|p| text[i..].starts_with(**p));
+                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_"].iter().find(|p| text[i..].starts_with(**p));
             if let Some(prefix) = candidate {
                 let prefix_len = prefix.len();
                 let tail = &bytes[i + prefix_len..(i + prefix_len + 26).min(bytes.len())];
@@ -212,14 +211,6 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     )
     .unwrap();
     projects::approve_master(&core, &p.id, true).unwrap();
-    rec.record("qc_settings_get", "qc_settings_get", &qc::settings_get(&core, &p.id).unwrap());
-    let mut qc_settings = qc::settings_get(&core, &p.id).unwrap();
-    qc_settings.pass_min = 72.0;
-    rec.record(
-        "qc_settings_set",
-        "qc_settings_set",
-        &qc::settings_set(&core, QcSettingsSetRequest { project_id: p.id.clone(), settings: qc_settings }).unwrap(),
-    );
     set_cameras(&core, &p.id, &[(CAM_A, "Front corner", true), (CAM_B, "Rear garden", true), (CAM_C, "Detail", false)]);
 
     let graded = grade::apply(
@@ -238,16 +229,6 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     )
     .unwrap();
     rec.record("grade_apply", "grade_apply", &graded);
-    rec.record(
-        "qc_run",
-        "qc_run",
-        &qc::run(&core, QcRunRequest { project_id: p.id.clone(), asset_id: graded.id.clone(), vision: None }).unwrap(),
-    );
-    rec.record(
-        "qc_list",
-        "qc_list",
-        &qc::list(&core, QcListRequest { project_id: p.id.clone(), asset_id: None }).unwrap(),
-    );
 
     let enhance_request: SubmitRequest = serde_json::from_value(json!({
         "projectId": p.id,

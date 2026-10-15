@@ -248,8 +248,7 @@ mod tests {
                 "supportsMask",
                 "supportsNegativePrompt",
                 "supportsSeed",
-                "textToImage",
-                "vision"
+                "textToImage"
             ]
         );
     }

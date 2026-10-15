@@ -79,6 +79,15 @@ export const BatchCreateRequestSchema = z
     items: z.array(BatchItemSchema).min(1).max(50),
   })
   .superRefine((value, ctx) => {
+    if (value.purpose === "repair") {
+      // Legacy purpose: kept for history display only (QC was removed, ADR-033).
+      ctx.addIssue({
+        code: "custom",
+        path: ["purpose"],
+        message: "Repair generations can no longer be submitted.",
+      });
+      return;
+    }
     value.items.forEach((item, index) => {
       if (value.purpose === "enhance") {
         const enhance = item.params.enhance;
@@ -102,22 +111,6 @@ export const BatchCreateRequestSchema = z
             code: "custom",
             path: ["providerId"],
             message: 'Conservative enhancement requires providerId "local_upscale".',
-          });
-        }
-      }
-      if (value.purpose === "repair") {
-        if (!item.params.repair) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["items", index, "params", "repair"],
-            message: "params.repair is required when purpose is repair.",
-          });
-        }
-        if (item.referenceAssetIds.length !== 2) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["items", index, "referenceAssetIds"],
-            message: "Repair generation requires exactly two reference assets.",
           });
         }
       }

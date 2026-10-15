@@ -113,7 +113,6 @@ describe("failed generation card", () => {
               supportsMask: false,
               qualityOptions: [],
               priceHint: null,
-              vision: false,
             },
           ],
         },

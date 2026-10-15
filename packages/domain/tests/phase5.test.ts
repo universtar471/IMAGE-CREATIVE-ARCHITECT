@@ -146,7 +146,6 @@ describe("phase 5 enhancement domain", () => {
       supportsSeed: false,
       qualityOptions: [],
       priceHint: null,
-      vision: false,
     };
     const items = buildEnhanceItems({
       sources: [

@@ -597,6 +597,11 @@ ADR-022 §13.4 is extended: `enhance` needs an approved master, like `variation`
 
 ## 15. Phase 6 contracts — Vision QC (ADR-024)
 
+> **Removed by ADR-033.** The `qc_*` commands, the QC schemas and auto QC/repair no longer exist.
+> The `qc_reports` / `qc_settings` tables (migration 0005) stay so old databases open; the
+> `repair` generation purpose is kept only so old history displays, and new repairs are rejected.
+> This section is kept as history.
+
 ### 15.1 Shapes (Zod in `packages/domain/src/qc/`, Rust DTOs camelCase)
 
 ```ts
