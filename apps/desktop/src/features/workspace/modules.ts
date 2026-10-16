@@ -15,6 +15,7 @@ import {
   Palette,
   ScanSearch,
   ScanLine,
+  Shapes,
   Sparkles,
   SunMedium,
   Wand2,
@@ -34,6 +35,7 @@ export type ModuleId =
   | "generate"
   | "enhance"
   | "regions"
+  | "diagram"
   | "export";
 
 export type WorkspaceModule = {
@@ -127,6 +129,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "regions",
     label: "Region edit",
     icon: ScanSearch,
+    group: "post",
+    availableIn: null,
+  },
+  {
+    id: "diagram",
+    label: "Diagram",
+    icon: Shapes,
     group: "post",
     availableIn: null,
   },

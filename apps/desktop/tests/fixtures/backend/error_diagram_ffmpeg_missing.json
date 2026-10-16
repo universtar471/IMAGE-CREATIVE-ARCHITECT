@@ -1,0 +1,10 @@
+{
+  "command": "error",
+  "response": {
+    "code": "INVALID_STATE",
+    "details": {
+      "reason": "ffmpeg_missing"
+    },
+    "message": "FFmpeg is not installed or not on PATH. Install FFmpeg to export the video."
+  }
+}

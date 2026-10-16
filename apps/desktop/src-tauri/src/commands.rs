@@ -14,8 +14,8 @@ use crate::dto::{
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, dna, dna_assist, generations, grade, luts, projects, prompt_enhance, provider_settings,
-    queue, regions, workflow, AppCore,
+    anchors, assets, batches, diagram, dna, dna_assist, generations, grade, luts, projects, prompt_enhance,
+    provider_settings, queue, regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -459,6 +459,26 @@ pub async fn camera_anchor_clear(
     request: anchors::AnchorClearRequest,
 ) -> AppResult<Vec<CameraAnchorDto>> {
     blocking(&core, move |c| anchors::clear(c, request)).await
+}
+
+// ------------------------------------------------------------------ diagram (ADR-037)
+
+#[tauri::command]
+pub async fn diagram_image_save(core: Core<'_>, request: diagram::ImageSaveRequest) -> AppResult<AssetDto> {
+    blocking(&core, move |c| diagram::save_image(c, request)).await
+}
+
+#[tauri::command]
+pub async fn diagram_ffmpeg_status(core: Core<'_>) -> AppResult<diagram::FfmpegStatus> {
+    blocking(&core, |_| Ok(diagram::ffmpeg_status())).await
+}
+
+#[tauri::command]
+pub async fn diagram_video_export(
+    core: Core<'_>,
+    request: diagram::VideoExportRequest,
+) -> AppResult<diagram::VideoExportResult> {
+    blocking(&core, move |c| diagram::export_video(c, request)).await
 }
 
 // ------------------------------------------------------------------ app

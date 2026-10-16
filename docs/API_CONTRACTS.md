@@ -1362,3 +1362,29 @@ The fixtures are generated in the tests, never real third-party LUTs.
 - "Áp dụng" goes through `grade_apply`.
 - Manage sources: rescan, remove.
 - Missing files show a "Không tìm thấy file" state.
+
+## 22. Diagram Studio (ADR-037)
+
+### 22.1 Domain (`packages/domain/src/diagram/`)
+
+- `planDiagram(dna, type, stepCount, { projectType?, sources? })` → `DiagramPlan { version: 1, type, family, interiorVerifiable, steps }`. Step counts 4/6/8 or custom 2–12; the first and last step of a sequence are always kept. Townhouse, villa and generic families have different sequences.
+- `DiagramStep`: `id`, `index`, `title {vi,en}`, `caption {vi,en}`, `evidence` (`verified | inferred | illustrative`), `annotations[]` (label/arrow, normalized 0..1 inside the image frame), `frameAssetId?`, `interior`, `basis[]` (DNA paths), `approved`.
+- Evidence: `verified` only with the facts in `basis`; an `interior` step is never verified without confirmed space-catalog facts (AC-14); a floor-plan source makes it `inferred`. `editDiagramStep` refuses a forbidden evidence and clears the approval on any change.
+- `layoutDiagramSheet(steps, "2x2"|"2x3"|"2x4"|"linear", "vi"|"en", { type?, title?, sourceHref?, frameHrefs? })` → deterministic SVG string. Fixed palette, fonts and panel geometry (320 × 292 panel, 320 × 180 image frame); every non-verified step carries the badge "sơ đồ diễn giải ý tưởng" / "illustrative concept diagram". `layoutDiagramFrame` draws one step as a 1600 × 900 video frame.
+- `buildDiagramFrameItems(...)` → one `BatchItem` per step: SRS §10.3 prompt, the fixed `DIAGRAM_ISOMETRIC_CAMERA`, no text in the image, `prompt.metadata.diagram = { type, stepId, camera }`. `diagramFrameOutputs(plan, generations)` maps the newest frame batch back to steps by `stepId`.
+- `diagramVideoTimeline(plan, durationMs?)` throws `DiagramNotApprovedError` unless every step is approved; motions: first `appear`, then `zoom`/`pan` alternating.
+
+### 22.2 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `diagram_image_save` | `{ projectId, parentAssetId, pngBase64, label, kind: "sheet"\|"frame", meta? }` | `AssetDTO` (`parentAssetId` = source, `operation` = `diagram_sheet` \| `diagram_frame`, plus a version row) |
+| `diagram_ffmpeg_status` | `{}` | `{ available, version \| null }` (`ffmpeg -version` on PATH) |
+| `diagram_video_export` | `{ projectId, frames: [{ path, durationMs 500–20000, motion }], width, height (even), fps 12–60 }` | `{ path, durationMs, frameCount }`; the MP4 is written to `<project>/exports/` |
+
+- Frame paths must be managed files of the project. Missing FFmpeg → `INVALID_STATE` with `details.reason = "ffmpeg_missing"`; an FFmpeg failure → `IO_ERROR` with `details.reason = "ffmpeg_failed"` and the stderr tail. FFmpeg is never bundled.
+- Fixtures: `diagram_image_save`, `diagram_ffmpeg_status` (missing), `error_diagram_ffmpeg_missing`.
+
+### 22.3 UI
+
+Module `diagram` (after Region edit). PNG 2K/4K: the sheet is rasterized in the webview (images embedded as data URLs from `asset_preview`) and saved with `diagram_image_save`. MP4: each approved step is rasterized as a 1920 × 1080 frame, saved as a frame asset, then `diagram_video_export`. Both exports need every step approved. Optional frames go through `createBatch` (conflict gate, spend confirm).

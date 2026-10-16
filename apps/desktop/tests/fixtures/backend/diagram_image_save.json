@@ -1,0 +1,23 @@
+{
+  "command": "diagram_image_save",
+  "response": {
+    "absolutePath": "/data/projects/PRJ_00000000000000000000000001/assets/original/AST_0000000000000000000000001C.png",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "fileSizeBytes": 238,
+    "heightPx": 36,
+    "id": "AST_0000000000000000000000001C",
+    "managedRelPath": "assets/original/AST_0000000000000000000000001C.png",
+    "mimeType": "image/png",
+    "operation": "diagram_sheet",
+    "originalName": "Diagram sheet",
+    "parentAssetId": "AST_00000000000000000000000003",
+    "projectId": "PRJ_00000000000000000000000001",
+    "role": "regular_image",
+    "sha256": "d531d9d0e2e07ec1484c06afdc60dbdbfe83451d760c54bc5380ecbfbe86db0d",
+    "source": "external",
+    "status": "ready",
+    "thumbnailPath": "/data/projects/PRJ_00000000000000000000000001/previews/AST_0000000000000000000000001C_thumb.jpg",
+    "updatedAt": "2026-01-01T00:00:00.000Z",
+    "widthPx": 64
+  }
+}

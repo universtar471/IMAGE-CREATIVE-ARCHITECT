@@ -17,6 +17,7 @@ import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { RegionPanel } from "../../features/regions/RegionPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
+import { DiagramPanel } from "../../features/diagram/DiagramPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
 
@@ -150,6 +151,7 @@ export function PropertyPanel() {
         )}
         {active === "enhance" && <EnhancePanel />}
         {active === "regions" && <RegionPanel />}
+        {active === "diagram" && <DiagramPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

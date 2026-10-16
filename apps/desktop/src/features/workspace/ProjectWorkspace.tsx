@@ -18,6 +18,7 @@ import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
 import { resolveEnhancePair } from "../enhance/enhance";
 import { EnhanceCheckBadge } from "../enhance/EnhanceControls";
 import { RegionCanvas } from "../regions/RegionCanvas";
+import { DiagramCanvas } from "../diagram/DiagramCanvas";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -234,6 +235,8 @@ function CenterArea() {
             )}
             <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
           </>
+        ) : active === "diagram" ? (
+          <DiagramCanvas />
         ) : active === "regions" ? (
           regionPair ? (
             <CompareCanvas source={regionPair.source} result={regionPair.result} />

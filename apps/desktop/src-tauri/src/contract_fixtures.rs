@@ -31,7 +31,7 @@ use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
 };
-use crate::services::{projects, provider_settings, queue, workflow, AppCore};
+use crate::services::{diagram, projects, provider_settings, queue, workflow, AppCore};
 
 const ULID_CHARS: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -388,6 +388,32 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
 
     rec.record("generation_list", "generation_list", &generations::list(&core, &p.id).unwrap());
     rec.record("version_list", "version_list", &assets::list_versions(&core, &p.id).unwrap());
+
+    // Diagram Studio (ADR-037), recorded last so earlier fixtures keep their ids. FFmpeg is
+    // looked up under a name that never exists: the fixtures do not depend on the machine.
+    let sheet =
+        diagram::save_image(&core, diagram::tests::save_request(&p.id, &master.id, "sheet", [12, 34, 56])).unwrap();
+    rec.record("diagram_image_save", "diagram_image_save", &sheet);
+    rec.record(
+        "diagram_ffmpeg_status",
+        "diagram_ffmpeg_status",
+        &diagram::ffmpeg_status_of(diagram::tests::MISSING_PROGRAM),
+    );
+    let video = diagram::VideoExportRequest {
+        project_id: p.id.clone(),
+        frames: vec![diagram::VideoFrame {
+            path: sheet.absolute_path.clone(),
+            duration_ms: 3000,
+            motion: diagram::Motion::Appear,
+        }],
+        width: 1920,
+        height: 1080,
+        fps: 30,
+    };
+    rec.record_error(
+        "error_diagram_ffmpeg_missing",
+        &diagram::export_video_with(&core, video, diagram::tests::MISSING_PROGRAM).unwrap_err(),
+    );
     rec.out
 }
 
