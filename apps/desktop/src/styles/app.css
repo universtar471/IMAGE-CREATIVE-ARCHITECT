@@ -4069,13 +4069,6 @@ div.pub-slot {
 .pub-records,
 .pub-facts,
 .pub-issues {
-/* Optical and motion effects (ADR-036 P2c). */
-.effects-panel .section-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.effect-cards {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -4114,6 +4107,22 @@ div.pub-slot {
   max-width: 100%;
   max-height: 70vh;
   margin: 0 auto;
+}
+
+/* Optical and motion effects (ADR-036 P2c). */
+.effects-panel .section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.effect-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .effect-card {
   display: flex;
   flex-direction: column;
