@@ -1,50 +1,58 @@
-import { fitRects, layoutsForPublicationType, type LayoutTemplate } from "./layouts";
-import { PUBLICATION_STYLES, stylesForPublicationType } from "./styles";
+/**
+ * Seeded randomising of a planned publication (SRS §11.2, ADR-038, AC-18).
+ *
+ * - `style`: one style for the whole book, among the four of its type.
+ * - `layout`: a new image layout per page, among the templates that take its image count.
+ * - `smart`: both, preferring templates that fit the page's images without overflow.
+ *
+ * Every choice is drawn from `seed` and the page id only, never from the current state,
+ * so re-applying an earlier seed restores the earlier result. Pages in `lockedPageIds`
+ * are returned unchanged. Content and facts are never reshuffled: every slot keeps its id,
+ * asset, text and caption, and text slots keep their place; only image frames move.
+ */
+import { fitRects, getLayoutTemplate, layoutsForImageCount, type LayoutTemplate } from "./layouts";
+import { autoTemplate } from "./planner";
+import { pick, seededRandom, subSeed } from "./random";
 import { PublicationSchema, type Page, type Publication } from "./schemas";
+import { stylesForPublicationType } from "./styles";
 
-export type RandomizeLevel = "style" | "layout" | "smart";
+export const RANDOMIZE_LEVELS = ["style", "layout", "smart"] as const;
+export type RandomizeLevel = (typeof RANDOMIZE_LEVELS)[number];
 
-function seededRandom(seed: number) {
-  let state = (seed >>> 0) || 0x9e3779b9;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let value = Math.imul(state ^ (state >>> 15), 1 | state);
-    value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function clonePublication(publication: Publication): Publication {
-  return structuredClone(publication);
-}
-
-function randomStyleId(publication: Publication, random: () => number): string {
-  const styles = stylesForPublicationType(publication.type);
-  if (styles.length <= 1) return styles[0]?.id ?? publication.styleId;
-  const currentIndex = styles.findIndex((style) => style.id === publication.styleId);
-  const offset = 1 + Math.floor(random() * (styles.length - 1));
-  return styles[(Math.max(0, currentIndex) + offset) % styles.length]?.id ?? styles[0]!.id;
-}
-
-function randomTemplate(
-  page: Page,
+function candidateTemplates(
   publication: Publication,
-  random: () => number,
-): LayoutTemplate {
-  const templates = layoutsForPublicationType(publication.type);
-  if (templates.length <= 1) return templates[0]!;
-  const currentIndex = templates.findIndex((template) => template.id === page.layoutTemplateId);
-  const offset = 1 + Math.floor(random() * (templates.length - 1));
-  return templates[(Math.max(0, currentIndex) + offset) % templates.length] ?? templates[0]!;
+  imageCount: number,
+  smart: boolean,
+): readonly LayoutTemplate[] {
+  const all = layoutsForImageCount(publication.type, imageCount);
+  if (!smart) return all;
+  // Smart: templates whose fixed frames hold every image, plus the type's own choice.
+  const preferred = getLayoutTemplate(autoTemplate(publication.type, imageCount));
+  const fitting = all.filter(
+    (template) => template.flexible || template.slotRects[publication.paper].length >= imageCount,
+  );
+  return fitting.some((template) => template.id === preferred.id)
+    ? fitting
+    : [preferred, ...fitting];
 }
 
-function relayoutPage(page: Page, publication: Publication, random: () => number): Page {
-  const template = randomTemplate(page, publication, random);
-  const rects = fitRects(template, publication.paper, page.slots.length);
+function relayoutPage(page: Page, publication: Publication, seed: number, smart: boolean): Page {
+  if (page.kind !== "content") return structuredClone(page);
+  const imageSlots = page.slots.filter((slot) => slot.type === "image");
+  const templates = candidateTemplates(publication, imageSlots.length, smart);
+  if (templates.length === 0) return structuredClone(page);
+  const template = pick(templates, seededRandom(subSeed(seed, `layout:${page.id}`)));
+  const rects = fitRects(template, publication.paper, imageSlots.length);
+  let imageIndex = 0;
   return {
-    ...page,
+    ...structuredClone(page),
     layoutTemplateId: template.id,
-    slots: page.slots.map((slot, index) => ({ ...slot, rect: rects[index]! })),
+    slots: page.slots.map((slot) => {
+      if (slot.type !== "image") return structuredClone(slot);
+      const rect = rects[imageIndex]!;
+      imageIndex += 1;
+      return { ...slot, rect, bleed: template.bleed };
+    }),
   };
 }
 
@@ -54,21 +62,20 @@ export function randomize(
   seed: number,
 ): Publication {
   const source = PublicationSchema.parse(publication);
-  const result = clonePublication(source);
-  const random = seededRandom(seed);
+  const result = structuredClone(source);
   const locked = new Set(source.lockedPageIds);
 
   if (level === "style" || level === "smart") {
-    result.styleId = randomStyleId(source, random);
+    const styles = stylesForPublicationType(source.type);
+    result.styleId = pick(styles, seededRandom(subSeed(seed, "style"))).id;
   }
   if (level === "layout" || level === "smart") {
     result.pages = source.pages.map((page) =>
-      locked.has(page.id) ? structuredClone(page) : relayoutPage(page, source, random),
+      locked.has(page.id)
+        ? structuredClone(page)
+        : relayoutPage(page, source, seed, level === "smart"),
     );
   }
-
   result.seed = seed;
   return PublicationSchema.parse(result);
 }
-
-export const RANDOMIZABLE_STYLE_COUNT = PUBLICATION_STYLES.length;

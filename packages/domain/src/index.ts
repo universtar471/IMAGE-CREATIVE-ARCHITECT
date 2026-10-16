@@ -41,3 +41,4 @@ export * from "./jsonSchema";
 export * from "./assist";
 export * from "./sceneObjects";
 export * from "./contextLibrary";
+export * from "./publishing";

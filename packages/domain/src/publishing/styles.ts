@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { PublicationTypeSchema, type PublicationType } from "./schemas";
 
+/**
+ * Style library (SRS §11.2): four styles per publication type. Font sizes are in points;
+ * spacing and margins are in millimetres on the printed page.
+ */
 export const PublicationStyleSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
@@ -345,13 +349,16 @@ export const PUBLICATION_STYLES: readonly PublicationStyle[] = [
 
 export const PUBLICATION_STYLE_IDS = PUBLICATION_STYLES.map((item) => item.id);
 
-export function getPublicationStyle(styleId: string): PublicationStyle {
-  return (
-    PUBLICATION_STYLES.find((item) => item.id === styleId) ??
-    PUBLICATION_STYLES.find((item) => item.type === "portfolio")!
-  );
+export function getPublicationStyle(styleId: string): PublicationStyle | undefined {
+  return PUBLICATION_STYLES.find((item) => item.id === styleId);
 }
 
 export function stylesForPublicationType(type: PublicationType): readonly PublicationStyle[] {
   return PUBLICATION_STYLES.filter((item) => item.type === type);
+}
+
+/** The requested style when it belongs to `type`, otherwise the first style of `type`. */
+export function resolvePublicationStyle(type: PublicationType, styleId: string): PublicationStyle {
+  const style = getPublicationStyle(styleId);
+  return style && style.type === type ? style : stylesForPublicationType(type)[0]!;
 }
