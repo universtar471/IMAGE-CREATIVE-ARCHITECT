@@ -3797,6 +3797,40 @@ textarea {
   margin-top: 6px;
 }
 
+/* Diagram Studio (ADR-037) */
+.diagram-canvas {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.diagram-sheet {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  background: #f6f5f1;
+}
+
+.diagram-step {
+  border: 1px solid var(--border, #d5d2c8);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+
+.diagram-step legend {
+  font-weight: 600;
+  padding: 0 4px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 /* ------------------------------------------------------------ publishing studio (SRS P5b) */
 .pub-empty {
   height: 100%;

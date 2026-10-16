@@ -11,6 +11,8 @@ import {
   BatchDTOSchema,
   CameraAnchorDTOSchema,
   ColorGradeDNASchema,
+  DiagramVideoExportResultSchema,
+  FfmpegStatusSchema,
   GENERATION_UPDATED_EVENT,
   GenerationDTOSchema,
   JOB_UPDATED_EVENT,
@@ -36,6 +38,8 @@ import {
   type AssetRole,
   type AssetSource,
   type BatchCreateRequest,
+  type DiagramImageSaveRequestInput,
+  type DiagramVideoExportRequest,
   type GenerationDTO,
   type GenerationParams,
   type GenerationSubmitRequest,
@@ -267,6 +271,10 @@ export type Requests = {
     baseName: string;
     files: string[];
   };
+  /** ADR-037: a rasterized sheet/frame saved as a new asset derived from the source render. */
+  diagram_image_save: DiagramImageSaveRequestInput;
+  diagram_ffmpeg_status: Record<string, never>;
+  diagram_video_export: DiagramVideoExportRequest;
 };
 
 /** Response schemas per command. */
@@ -332,6 +340,9 @@ export const responses = {
   publication_delete: PublicationDeleteResultSchema,
   publication_caption_draft: PublicationCaptionDraftResultSchema,
   publication_export_save: PublicationExportSaveResultSchema,
+  diagram_image_save: AssetDTOSchema,
+  diagram_ffmpeg_status: FfmpegStatusSchema,
+  diagram_video_export: DiagramVideoExportResultSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

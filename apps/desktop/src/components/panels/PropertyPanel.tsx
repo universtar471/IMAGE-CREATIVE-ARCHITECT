@@ -18,6 +18,7 @@ import { RegionPanel } from "../../features/regions/RegionPanel";
 import { PublishingPanel } from "../../features/publishing/PublishingPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
+import { DiagramPanel } from "../../features/diagram/DiagramPanel";
 import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
@@ -153,6 +154,7 @@ export function PropertyPanel() {
         )}
         {active === "enhance" && <EnhancePanel />}
         {active === "regions" && <RegionPanel />}
+        {active === "diagram" && <DiagramPanel />}
         {active === "export" && <PublishingPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
