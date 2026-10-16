@@ -152,6 +152,19 @@ describe("workspace navigation", () => {
     expect(await screen.findByTestId("quick-generate")).toBeTruthy();
   });
 
+  it("shows the AI reading card for a source image in Tạo ảnh tự động", async () => {
+    await openProject();
+    const ws = useStudio.getState().workspace!;
+    const source = asset(ws.project.id, "src-1", { role: "master_architecture", status: "ready" });
+    act(() => {
+      useStudio.setState({ workspace: { ...ws, assets: [...ws.assets, source] } });
+      useStudio.getState().selectAsset("src-1");
+    });
+    render(<CreateSectionView />);
+    await screen.findByTestId("quick-generate");
+    expect(document.querySelector(".source-analysis")).toBeTruthy();
+  });
+
   it("keeps the interior label for design_dna", async () => {
     const project = await createProject({
       name: "Interior",

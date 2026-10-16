@@ -23,6 +23,7 @@ import { RegionCanvas } from "../regions/RegionCanvas";
 import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
 import { QuickGenerateView } from "../generate/quick";
+import { SourceAnalysisCard } from "../assist/SourceAnalysisCard";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -120,13 +121,20 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
 /**
  * The single mount point of "Tạo ảnh tự động" (ADR-040): the quick-generate screen. The
  * selected image (for example one sent from Ảnh của tôi) seeds its source; a new selection
- * remounts the screen so it starts from that image.
+ * remounts the screen so it starts from that image. The source image gets the AI reading
+ * card (ADR-040, UI-5).
  */
 export function CreateSectionView() {
   const selectedId = useStudio((s) => s.selectedAssetId);
   return (
     <main className="center create-section" aria-label={moduleById("generate").label}>
-      <QuickGenerateView key={selectedId ?? "none"} initialSourceAssetId={selectedId} />
+      <QuickGenerateView
+        key={selectedId ?? "none"}
+        initialSourceAssetId={selectedId}
+        analysisSlot={({ asset, wish }) =>
+          asset ? <SourceAnalysisCard assetId={asset.id} wish={wish} /> : null
+        }
+      />
     </main>
   );
 }
