@@ -1236,6 +1236,78 @@ export const en = {
     qualityDefault: "Default",
   },
 
+  quick: {
+    sourceLabel: "Source",
+    requestLabel: "Request",
+    sources: {
+      existing: {
+        title: "From an existing image",
+        hint: "The project's master architecture image",
+      },
+      sketch: { title: "From a sketch", hint: "Sketch, massing model or 3D view" },
+      text: { title: "From a description", hint: "Design DNA and your wish" },
+    },
+    sourcesHidden:
+      "{model} takes no reference images, so only a description can be used. Pick another model under Advanced options.",
+    empty: {
+      existing: {
+        title: "No architecture image yet",
+        step: "Click here to import a photo or render of the building. It is saved as a master architecture image and the AI keeps its design.",
+      },
+      sketch: {
+        title: "No sketch yet",
+        step: "Click here to import a sketch, massing model or 3D screenshot. The AI keeps its geometry and viewpoint and adds real materials and light.",
+      },
+    },
+    textStageTitle: "Generate from a description",
+    textStageHint: "The image is built from the Design DNA and the wish you write on the right.",
+    importing: "Importing {done}/{total}…",
+    importOther: "Import another image",
+    pickSource: "Choose the source image",
+    wish: "Your wish",
+    wishPlaceholder: "E.g. warm late-afternoon sun, more trees in front of the house",
+    wishHint:
+      "Appended to the prompt compiled from the DNA, and checked for conflicts before anything is sent.",
+    faithfulness: "Faithfulness to the source",
+    faith: { keep: "Keep source", balanced: "Balanced", creative: "Creative" },
+    faithHint: {
+      keep: "Only the source image is sent.",
+      balanced:
+        "Also sends the material, context, landscape, lighting, mood and camera references.",
+      creative: "Also sends the architecture references; the AI may borrow their design language.",
+    },
+    imageCount: "Images",
+    imageCountHint: "One test image by default, to keep the cost low.",
+    keepTitle: "Design to keep",
+    keepEmpty: "The DNA does not state anything to keep yet.",
+    keepEdit: "Edit DNA",
+    keepStyle: "Style: {value}",
+    keepRoof: "Roof: {value}",
+    keepLocked: "Locked: {list}",
+    lockNames: {
+      building: "building",
+      context: "context",
+      camera: "camera",
+      lighting: "lighting",
+      weather: "weather",
+      mood: "mood",
+    },
+    advanced: "Advanced options",
+    openFull: "Full settings",
+    backToQuick: "Back to quick generate",
+    viewPlan: "View the generation plan",
+    planTitle: "Generation plan",
+    planWhat: "Will create",
+    planWhatValue: "{count} Hero image(s)",
+    planSource: "Source",
+    planSourceImage: "Source image",
+    planReferences: "Images sent",
+    planNone: "(none)",
+    planConfirm: "Create images",
+    planSpendHint: "The cost is confirmed once more before anything is sent.",
+    reasonNoSource: "Choose or import a source image first.",
+  },
+
   enhance: {
     title: "Enhance",
     source: "Source",
