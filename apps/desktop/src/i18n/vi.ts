@@ -87,6 +87,19 @@ export const vi: Dict = {
       other: "Không thể chạy AI gợi ý lúc này.",
     },
     primary: "chính",
+    source: {
+      title: "AI nhận diện từ ảnh",
+      run: "AI đọc ảnh",
+      observed: "Thấy trong ảnh",
+      inferred: "Suy luận",
+      inferredHint: "Phỏng đoán, chưa phải dữ kiện đã kiểm chứng. Không bao giờ được ghi vào DNA.",
+      request: "Yêu cầu thay đổi",
+      keep: "Giữ nguyên",
+      use: "Dùng mô tả này",
+      empty: "AI không tìm thấy thông tin dùng được trong ảnh này.",
+      noAsset: "Hãy chọn ảnh nguồn trước.",
+      written: "Đã ghi vào prompt bổ sung.",
+    },
   },
 
   format: {

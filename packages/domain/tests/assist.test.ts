@@ -8,6 +8,10 @@ import {
   createInitialDNA,
   defaultInteriorDNA,
   parseAssistReply,
+  parseSourceAnalysisReply,
+  SOURCE_ITEM_CHARS,
+  SOURCE_MAX_ITEMS,
+  sourceAnalysisExtraPrompt,
 } from "../src";
 
 describe("DNA assist domain", () => {
@@ -174,5 +178,90 @@ describe("DNA assist domain", () => {
     expect(prompt).toContain("japandi");
     expect(prompt).toContain("Answer with JSON");
     expect(prompt).toContain("only");
+  });
+});
+
+describe("source-image analysis (ADR-040)", () => {
+  const catalog = assistCatalog("interior", "interior");
+  const reply = (body: Record<string, unknown>) => JSON.stringify(body);
+
+  it("asks for observed, inferred, fields, requestEn and keepEn without unverifiable sizes", () => {
+    const prompt = assistSystemPrompt("source", catalog);
+    for (const key of ["observed", "inferred", "fields", "requestEn", "keepEn"]) {
+      expect(prompt).toContain(key);
+    }
+    expect(prompt).toContain("interior.styleId");
+    expect(prompt).not.toContain("interior.areaM2");
+    expect(prompt).not.toContain("interior.ceilingHeightM");
+  });
+
+  it("keeps observed and inferred apart, drops unknown ids and clips text", () => {
+    const long = "x".repeat(SOURCE_ITEM_CHARS + 50);
+    const analysis = parseSourceAnalysisReply(
+      "```json\n" +
+        reply({
+          observed: ["Oak floor", long, 42, ""],
+          inferred: [
+            { text: "Hidden storage wall", confidence: 1.7 },
+            { text: "Ceiling about 3 m", confidence: 0.3 },
+            "bare guess",
+          ],
+          fields: [
+            { path: "interior.styleId", value: "japandi", confidence: 0.9, reason: "Calm" },
+            { path: "interior.styleId", value: "spaceship", confidence: 0.9, reason: "?" },
+            { path: "interior.unknownPath", value: "x", confidence: 1, reason: "?" },
+            { path: "interior.ceilingHeightM", value: 3, confidence: 0.4, reason: "Guess" },
+          ],
+          requestEn: "Make it warmer at golden hour",
+          keepEn: ["window layout", "giữ nguyên mái"],
+        }) +
+        "\n```",
+      catalog,
+    );
+    expect(analysis.observed).toEqual(["Oak floor", "x".repeat(SOURCE_ITEM_CHARS)]);
+    expect(analysis.inferred).toEqual([
+      { text: "Hidden storage wall", confidence: 1 },
+      { text: "Ceiling about 3 m", confidence: 0.3 },
+      { text: "bare guess", confidence: 0 },
+    ]);
+    // Inferred items never become fields; unknown ids and unverifiable sizes are dropped.
+    expect(analysis.fields).toEqual([
+      { path: "interior.styleId", value: "japandi", confidence: 0.9, reason: "Calm" },
+    ]);
+    expect(analysis.dropped.map((d) => d.path)).toEqual(
+      expect.arrayContaining([
+        "interior.styleId",
+        "interior.unknownPath",
+        "interior.ceilingHeightM",
+        "keepEn",
+      ]),
+    );
+    expect(analysis.requestEn).toBe("Make it warmer at golden hour");
+    expect(analysis.keepEn).toEqual(["window layout"]);
+    expect(sourceAnalysisExtraPrompt(analysis)).toBe(
+      "Make it warmer at golden hour\nKeep: window layout.",
+    );
+  });
+
+  it("requires English for requestEn and caps the lists", () => {
+    const analysis = parseSourceAnalysisReply(
+      reply({
+        observed: Array.from({ length: 30 }, (_, i) => `item ${i}`),
+        requestEn: "Làm ấm hơn",
+        keepEn: "not a list",
+      }),
+      catalog,
+    );
+    expect(analysis.observed).toHaveLength(SOURCE_MAX_ITEMS);
+    expect(analysis.requestEn).toBe("");
+    expect(analysis.keepEn).toEqual([]);
+    expect(analysis.dropped.map((d) => d.path)).toContain("requestEn");
+    expect(sourceAnalysisExtraPrompt(analysis)).toBe("");
+  });
+
+  it("returns an empty analysis for invalid JSON", () => {
+    const analysis = parseSourceAnalysisReply("not json", catalog);
+    expect(analysis).toMatchObject({ observed: [], inferred: [], fields: [], requestEn: "" });
+    expect(analysis.dropped).toHaveLength(1);
   });
 });

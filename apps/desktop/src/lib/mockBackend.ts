@@ -342,6 +342,37 @@ const MOCK_PROVIDER_REGISTRY: readonly MockProvider[] = MOCK_PROVIDERS_BASE.map(
 /** Legacy fixture comparison keeps this export provider-neutral; runtime descriptors carry §16.3. */
 export const MOCK_PROVIDERS: readonly MockProvider[] = MOCK_PROVIDER_REGISTRY;
 
+/** Canned `dna_assist` reply of mode `source` (ADR-040): no live call in the preview or tests. */
+export function mockSourceAnalysis(scope: string) {
+  const fields =
+    scope === "interior"
+      ? [
+          {
+            path: "interior.styleId",
+            value: "japandi",
+            confidence: 0.8,
+            reason: "Light oak, low furniture.",
+          },
+        ]
+      : scope === "building"
+        ? [
+            {
+              path: "building.architecturalStyle",
+              value: "modern tropical",
+              confidence: 0.8,
+              reason: "Deep overhangs and timber louvres.",
+            },
+          ]
+        : [];
+  return {
+    observed: ["Two-storey building seen from the front corner", "Flat roof with deep overhangs"],
+    inferred: [{ text: "Rear terrace facing the garden", confidence: 0.4 }],
+    fields,
+    requestEn: "Render the same design at golden hour with warmer light.",
+    keepEn: ["massing", "window layout", "roof shape"],
+  };
+}
+
 const STORAGE_KEY = "arch-studio-mock-db-v1";
 const browserFiles = new Map<string, File>();
 
@@ -1119,6 +1150,20 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         fail("PROVIDER_NOT_CONFIGURED", `${provider.label} needs an API key.`, {
           providerId: provider.id,
         });
+      if (req.mode === "source") {
+        // Source-image analysis (ADR-040): exactly one image of this project; a canned reply.
+        const ids = req.referenceAssetIds ?? [];
+        if (ids.length !== 1)
+          fail("VALIDATION_ERROR", "Source-image analysis takes exactly one image.");
+        const asset = db.assets[ids[0]!] ?? fail("NOT_FOUND", `Asset '${ids[0]}' was not found.`);
+        if (asset.projectId !== req.projectId)
+          fail("VALIDATION_ERROR", "Reference image must belong to this project.");
+        return {
+          raw: JSON.stringify(mockSourceAnalysis(req.scope)),
+          modelId: "mock-assist",
+          generationId: newId("GEN"),
+        };
+      }
       return {
         raw: JSON.stringify({ fields: [] }),
         modelId: "mock-assist",

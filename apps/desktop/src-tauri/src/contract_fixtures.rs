@@ -450,6 +450,45 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
         "error_diagram_ffmpeg_missing",
         &diagram::export_video_with(&core, video, diagram::tests::MISSING_PROGRAM).unwrap_err(),
     );
+
+    // Source-image analysis (ADR-040, UI-5), recorded last. One image only; HHTECH without a
+    // key is not configured (refused before any generation row or call).
+    use crate::services::dna_assist::{self, tests::FakeGateway};
+    rec.record_error(
+        "error_dna_assist_source_count",
+        &dna_assist::run(&core, dna_assist::tests::source_request(&p.id, &[&master.id, &master.id], None)).unwrap_err(),
+    );
+    rec.record_error(
+        "error_dna_assist_not_configured",
+        &dna_assist::run(&core, dna_assist::tests::source_request(&p.id, &[&master.id], Some("warmer"))).unwrap_err(),
+    );
+    // A successful reply comes from a local stand-in for the gateway on a separate core.
+    let gateway_root = tmp.path().join("gateway");
+    let gateway_core = AppCore::open_with(
+        &gateway_root,
+        ProviderRegistry::new(vec![Arc::new(FakeGateway::default())]),
+        Arc::new(MemorySecretStore::default()),
+    )
+    .unwrap();
+    let gp = test_create_villa(&gateway_core, "Gateway villa");
+    let source = assets::import(
+        &gateway_core,
+        ImportRequest {
+            project_id: gp.id.clone(),
+            source_path: write_png(tmp.path(), "source.png", 32, 24, [40, 120, 80]).to_string_lossy().into_owned(),
+            source: "external".into(),
+            role: "architecture_reference".into(),
+            allow_duplicate: false,
+        },
+    )
+    .unwrap();
+    provider_settings::set_api_key(&gateway_core, hhtech::ID, "fake-gateway-key").unwrap();
+    rec.record(
+        "dna_assist_source",
+        "dna_assist",
+        &dna_assist::run(&gateway_core, dna_assist::tests::source_request(&gp.id, &[&source.id], Some("warmer")))
+            .unwrap(),
+    );
     rec.out
 }
 

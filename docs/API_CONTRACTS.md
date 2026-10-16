@@ -1160,12 +1160,12 @@ Contextual negatives are deduped and placed after the pack and DNA negatives.
 The batch dialog lists unresolved `unknown_side` cameras above the spend confirmation. The list is not blocking.
 
 
-## 20. AI DNA assist and preset photos (ADR-030)
+## 20. AI DNA assist, source-image analysis and preset photos (ADR-030, ADR-040)
 
 ### 20.1 Domain (`packages/domain/src/assist/`)
 
 ```ts
-AssistMode  = "brief" | "images" | "master" | "translate"
+AssistMode  = "brief" | "images" | "master" | "translate" | "source"
 AssistScope = "interior" | "building" | "context" | "lighting"
 AssistCatalog = { scope: AssistScope; fields: Array<{ path: string; kind: "id" | "ids" | "number" | "text";
                   options?: Array<{ id: string; en: string }>; min?: number; max?: number }> }
@@ -1188,6 +1188,24 @@ applyAssistFields(dna: ProjectDNA, fields: AssistField[]): ProjectDNA
 
 For `translate`, it asks for English translations of the given free-text paths and nothing else.
 
+**Mode `source` (ADR-040, UI-5).** Analysis of one source image with the user's wish.
+
+```ts
+SOURCE_UNVERIFIABLE_PATHS = ["interior.areaM2", "interior.ceilingHeightM"]
+sourceCatalog(catalog): AssistCatalog          // the catalogue without those paths
+SourceInference = { text: string; confidence: number /*0..1*/ }
+SourceAnalysis  = AssistSuggestion & { observed: string[]; inferred: SourceInference[];
+                                       requestEn: string; keepEn: string[] }
+parseSourceAnalysisReply(raw: string, catalog: AssistCatalog): SourceAnalysis
+sourceAnalysisExtraPrompt({ requestEn, keepEn }): string   // request, a newline, then "Keep: a; b."
+```
+
+- `assistSystemPrompt("source", catalog)` asks for JSON `{ observed[], inferred[{ text, confidence }], fields[], requestEn, keepEn[] }`: visible things in `observed`, every guess in `inferred`, fields from `sourceCatalog(catalog)` only.
+- `parseSourceAnalysisReply` applies the `parseAssistReply` rules to `fields`, and also drops the `SOURCE_UNVERIFIABLE_PATHS` (sizes cannot be verified from one image).
+- `observed` and `inferred` stay apart. Each list keeps at most 12 items of at most 160 chars; a confidence is clamped to 0..1 (missing = 0).
+- `requestEn` (≤ 600 chars) and each `keepEn` item must be English: text with Vietnamese diacritics is dropped and recorded in `dropped` (`path: "requestEn"` / `"keepEn"`).
+- Inferred items are display only. They are never turned into fields or verified facts.
+
 **`parseAssistReply(raw, catalog)`.** Tolerates fenced JSON. It drops a field, with the reason recorded in `dropped`, when:
 - the path is unknown
 - an id is not in the catalogue
@@ -1209,6 +1227,8 @@ response: { raw: string, modelId: string, usage?: { inputTokens, outputTokens },
 ```
 
 - **Mode `master`** uses the project's approved master. It fails with `INVALID_STATE` when there is none.
+- **Mode `source`** takes exactly one `referenceAssetIds` entry, otherwise `VALIDATION_ERROR`; the asset must belong to the project. The optional `brief` holds the user's wish (sent as "User wish:"). Image handling and the HHTECH call are the same as for `images`.
+- **`usage`** is omitted (not `null`) when the gateway reports none.
 - **Images.** Images are read from managed files, downscaled to a 1024 px long edge as JPEG, and sent as `image_url` data URLs. The webview never sends pixels or paths.
 - **Call.** `POST {HHTECH_BASE_URL}/chat/completions` with:
   - `model = HHTECH_ASSIST_MODEL` (default `gemini-3.8-flash`)
@@ -1217,7 +1237,8 @@ response: { raw: string, modelId: string, usage?: { inputTokens, outputTokens },
   - a 60 s timeout
 - **Errors.** No key or base URL gives `PROVIDER_NOT_CONFIGURED`. A 401/402 or a credit message gives `PROVIDER_QUOTA` with a user hint. The key is redacted from every message.
 - **Logging.** A `generations` row is recorded with `purpose = "assist"`, the provider and model, `status`, and the duration, with no outputs. Logs never contain the key, the image bytes or the full brief.
-- **Mock backend.** It returns a deterministic reply per mode and scope for tests. Tests never make live calls.
+- **Mock backend.** It returns a deterministic reply per mode and scope for tests (`mockSourceAnalysis(scope)` for `source`, with the same one-image rule). Tests never make live calls.
+- **Contract fixtures.** `dna_assist_source` (a local stand-in for the gateway), `error_dna_assist_source_count`, `error_dna_assist_not_configured`.
 
 ### 20.3 UI
 
@@ -1243,6 +1264,12 @@ It shows the spend confirmation, using the existing threshold logic, then runs.
 **Translate chip.** A free-text field containing Vietnamese shows "Dịch sang tiếng Anh cho prompt". It runs mode `translate` for that field and shows the same diff.
 
 **MasterDnaCheck** gains "Đồng bộ DNA từ Master": mode `master`, scope `building`, then the diff sheet.
+
+**SourceAnalysisCard** (`features/assist/SourceAnalysisCard.tsx`, ADR-040): "AI nhận diện từ ảnh".
+- Props `{ assetId: string | null; wish: string; scope?: AssistScope }`; the scope defaults to `interior` for interior projects, otherwise `building`. It reads the open project from the store, so it plugs into the quick-generate `analysisSlot` or stands alone.
+- "AI đọc ảnh" (disabled without an asset or on an archived project) shows the same spend confirmation as the other modes and only then calls `dna_assist` in mode `source`. Nothing is called before the click.
+- The result lists "Thấy trong ảnh" (observed) and "Suy luận" (inferred, with confidence and a "not verified" hint), then the English request and the items to keep.
+- "Dùng mô tả này" appends `sourceAnalysisExtraPrompt(...)` once to `generateDraft.extraPrompt` (≤ 4000 chars) and opens the proposal diff for `fields`. DNA fields are written only when the diff is applied, through the DNA edit path, reopening a confirmed step first. The prompt is still built by the compiler and passes the gate.
 
 ### 20.4 Preset photos
 

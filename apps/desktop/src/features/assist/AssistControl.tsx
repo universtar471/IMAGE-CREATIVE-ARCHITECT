@@ -10,11 +10,176 @@ import {
   parseAssistReply,
   runDnaAssist,
   shouldOfferTranslation,
+  type AssistCatalog,
   type AssistField,
   type AssistMode,
   type AssistScope,
+  type AssistSuggestion,
 } from "../../lib/assist";
 import { getIn } from "../../lib/path";
+
+export type AssistErrorKind = "notConfigured" | "quota" | "invalid" | "other";
+
+/** Maps a failed `dna_assist` call to the message shown under the assist controls. */
+export function assistErrorKind(err: unknown): AssistErrorKind {
+  const message = err instanceof Error ? err.message.toLowerCase() : "";
+  const code = err instanceof BridgeError ? err.code : null;
+  return code === "PROVIDER_NOT_CONFIGURED"
+    ? "notConfigured"
+    : /credit|quota/.test(message)
+      ? "quota"
+      : code === "VALIDATION_ERROR" || err instanceof SyntaxError
+        ? "invalid"
+        : "other";
+}
+
+/** The spend confirmation every assist mode shows before its paid call (ADR-030). */
+export function useAssistSpend() {
+  const t = useT();
+  const spend = useSpendConfirm();
+  const confirm = () =>
+    spend.request({
+      providerId: "hhtech",
+      provider: "HHTECH",
+      model: "AI gợi ý",
+      imageCount: 0,
+      costText: t("assist.estimate"),
+      estimatedTotal: null,
+    });
+  return { confirm, dialog: spend.dialog };
+}
+
+export type AssistStepId = "dna.building" | "dna.context" | "dna.lighting";
+
+/**
+ * Runs `apply` at once on an open step. On a confirmed step it first asks to reopen it
+ * (ADR-029: no cascade) and skips `apply` when the user declines or the reopen fails.
+ */
+export function useApplyAfterReopen(stepId: AssistStepId) {
+  const t = useT();
+  const reopenStep = useStudio((state) => state.reopenWorkflowStep);
+  const workflow = useStudio((state) => state.workflowView);
+  return (apply: () => void): void => {
+    const step = workflow?.steps.find((item) => item.id === stepId);
+    if (step?.status !== "confirmed" && step?.status !== "needs_review") return apply();
+    if (!window.confirm(t("assist.reopenConfirm"))) return;
+    void reopenStep(stepId).then((reopened) => {
+      if (reopened) apply();
+    });
+  };
+}
+
+export function AssistErrorCallout({ error }: { error: AssistErrorKind | null }) {
+  const t = useT();
+  const openProviderDialog = useStudio((state) => state.openProviderDialog);
+  if (!error) return null;
+  return (
+    <div className="callout callout-warning" role="alert">
+      {error === "notConfigured" ? (
+        <>
+          {t("assist.notConfigured")}{" "}
+          <button className="link-btn" onClick={() => openProviderDialog("hhtech")}>
+            {t("assist.providerSettings")}
+          </button>
+        </>
+      ) : (
+        t(`assist.error.${error}`)
+      )}
+    </div>
+  );
+}
+
+/**
+ * The ADR-030 proposal diff (current → AI proposal): one checkbox per field (default on), the
+ * confidence and the reason. Nothing is written until "Apply" hands over the checked fields.
+ */
+export function AssistProposalDiff({
+  proposal,
+  catalog,
+  dna,
+  busy = false,
+  onApply,
+  onTranslate,
+}: {
+  proposal: AssistSuggestion;
+  catalog: AssistCatalog;
+  dna: ProjectDNA;
+  busy?: boolean;
+  onApply: (fields: AssistField[]) => void;
+  onTranslate?: (path: string, text: string) => void;
+}) {
+  const t = useT();
+  const [checked, setChecked] = useState<string[]>(() =>
+    proposal.fields.map((field) => field.path),
+  );
+  const displayValue = (path: string, value: unknown) => {
+    if (Array.isArray(value)) return value.join(", ");
+    const definition = catalog.fields.find((field) => field.path === path);
+    if (definition?.options)
+      return definition.options.find((option) => option.id === value)?.en ?? String(value ?? "—");
+    return String(value ?? "—");
+  };
+  return (
+    <>
+      <div className="assist-diff-list">
+        {proposal.fields.map((field) => (
+          <div key={field.path} className="assist-diff-row">
+            <input
+              type="checkbox"
+              aria-label={field.path}
+              checked={checked.includes(field.path)}
+              onChange={(event) =>
+                setChecked(
+                  event.target.checked
+                    ? [...checked, field.path]
+                    : checked.filter((path) => path !== field.path),
+                )
+              }
+            />
+            <span className="assist-diff-content">
+              <strong>{t(("assist.field." + field.path.replaceAll(".", "_")) as never)}</strong>
+              <span className="assist-values">
+                {displayValue(field.path, getIn(dna, field.path))} →{" "}
+                {displayValue(field.path, field.value)}
+              </span>
+              <small>{field.reason}</small>
+            </span>
+            <span className="badge">{Math.round(field.confidence * 100)}%</span>
+            {onTranslate &&
+              catalog.fields.find((definition) => definition.path === field.path)?.kind ===
+                "text" && (
+                <TranslateChip
+                  text={String(getIn(dna, field.path) ?? "")}
+                  disabled={busy}
+                  onClick={() => onTranslate(field.path, String(getIn(dna, field.path) ?? ""))}
+                />
+              )}
+          </div>
+        ))}
+      </div>
+      {proposal.dropped.length > 0 && (
+        <details>
+          <summary>{t("assist.dropped", { count: proposal.dropped.length })}</summary>
+          <ul>
+            {proposal.dropped.map((item, index) => (
+              <li key={`${item.path}-${index}`}>
+                {item.path}: {item.why}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        disabled={!checked.length}
+        onClick={() => onApply(proposal.fields.filter((field) => checked.includes(field.path)))}
+      >
+        {t("assist.apply", { count: checked.length })}
+      </button>
+    </>
+  );
+}
 
 export function TranslateChip({
   text,
@@ -52,7 +217,7 @@ export function AssistControl({
   initialMode,
 }: {
   scope: AssistScope;
-  stepId: "dna.building" | "dna.context" | "dna.lighting";
+  stepId: AssistStepId;
   projectType: string;
   projectId: string;
   dna: ProjectDNA;
@@ -63,18 +228,17 @@ export function AssistControl({
   initialMode?: AssistMode;
 }) {
   const t = useT();
-  const spend = useSpendConfirm();
-  const openProviderDialog = useStudio((state) => state.openProviderDialog);
-  const reopenStep = useStudio((state) => state.reopenWorkflowStep);
-  const workflow = useStudio((state) => state.workflowView);
+  const spend = useAssistSpend();
+  const applyAfterReopen = useApplyAfterReopen(stepId);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AssistMode | null>(initialMode ?? null);
   const [brief, setBrief] = useState("");
   const [referenceAssetIds, setReferenceAssetIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<"notConfigured" | "quota" | "invalid" | "other" | null>(null);
-  const [proposal, setProposal] = useState<ReturnType<typeof parseAssistReply> | null>(null);
-  const [checked, setChecked] = useState<string[]>([]);
+  const [error, setError] = useState<AssistErrorKind | null>(null);
+  const [proposal, setProposal] = useState<AssistSuggestion | null>(null);
+  // Remounts the diff (all fields checked again) for every new reply.
+  const [proposalRun, setProposalRun] = useState(0);
   const catalog = useMemo(() => assistCatalog(scope, projectType), [scope, projectType]);
   const references = assets.filter(
     (asset) => asset.role.endsWith("_reference") && asset.status === "ready",
@@ -94,21 +258,10 @@ export function AssistControl({
         catalog,
         systemPrompt: assistSystemPrompt(selectedMode, catalog),
       });
-      const parsed = parseAssistReply(result.raw, catalog);
-      setProposal(parsed);
-      setChecked(parsed.fields.map((field) => field.path));
+      setProposal(parseAssistReply(result.raw, catalog));
+      setProposalRun((count) => count + 1);
     } catch (err) {
-      const message = err instanceof Error ? err.message.toLowerCase() : "";
-      const code = err instanceof BridgeError ? err.code : null;
-      setError(
-        code === "PROVIDER_NOT_CONFIGURED"
-          ? "notConfigured"
-          : /credit|quota/.test(message)
-            ? "quota"
-            : code === "VALIDATION_ERROR" || err instanceof SyntaxError
-              ? "invalid"
-              : "other",
-      );
+      setError(assistErrorKind(err));
     } finally {
       setBusy(false);
     }
@@ -126,57 +279,26 @@ export function AssistControl({
         catalog,
         systemPrompt: assistSystemPrompt("translate", catalog),
       });
-      const parsed = parseAssistReply(result.raw, catalog);
-      setProposal(parsed);
-      setChecked(parsed.fields.map((field) => field.path));
+      setProposal(parseAssistReply(result.raw, catalog));
+      setProposalRun((count) => count + 1);
     } catch (err) {
-      const message = err instanceof Error ? err.message.toLowerCase() : "";
-      const code = err instanceof BridgeError ? err.code : null;
-      setError(
-        code === "PROVIDER_NOT_CONFIGURED"
-          ? "notConfigured"
-          : /credit|quota/.test(message)
-            ? "quota"
-            : code === "VALIDATION_ERROR" || err instanceof SyntaxError
-              ? "invalid"
-              : "other",
-      );
+      setError(assistErrorKind(err));
     } finally {
       setBusy(false);
     }
   };
 
-  const displayValue = (path: string, value: unknown) => {
-    if (Array.isArray(value)) return value.join(", ");
-    const definition = catalog.fields.find((field) => field.path === path);
-    if (definition?.options)
-      return definition.options.find((option) => option.id === value)?.en ?? String(value ?? "—");
-    return String(value ?? "—");
-  };
-
   const continueToCall = async (selectedMode: AssistMode | null = mode) => {
     if (!selectedMode) return;
-    const confirmed = await spend.request({
-      providerId: "hhtech",
-      provider: "HHTECH",
-      model: "AI gợi ý",
-      imageCount: 0,
-      costText: t("assist.estimate"),
-      estimatedTotal: null,
-    });
-    if (confirmed) await run(selectedMode);
+    if (await spend.confirm()) await run(selectedMode);
   };
 
-  const apply = async () => {
-    const step = workflow?.steps.find((item) => item.id === stepId);
-    if (step?.status === "confirmed" || step?.status === "needs_review") {
-      if (!window.confirm(t("assist.reopenConfirm"))) return;
-      if (!(await reopenStep(stepId))) return;
-    }
-    onApply(proposal?.fields.filter((field) => checked.includes(field.path)) ?? []);
-    setProposal(null);
-    setOpen(false);
-  };
+  const apply = (fields: AssistField[]) =>
+    applyAfterReopen(() => {
+      onApply(fields);
+      setProposal(null);
+      setOpen(false);
+    });
 
   return (
     <>
@@ -274,83 +396,18 @@ export function AssistControl({
                   {busy ? t("common.loading") : t("assist.continue")}
                 </button>
               )}
-              {error && (
-                <div className="callout callout-warning" role="alert">
-                  {error === "notConfigured" ? (
-                    <>
-                      {t("assist.notConfigured")}{" "}
-                      <button className="link-btn" onClick={() => openProviderDialog("hhtech")}>
-                        {t("assist.providerSettings")}
-                      </button>
-                    </>
-                  ) : (
-                    t(`assist.error.${error}`)
-                  )}
-                </div>
-              )}
+              <AssistErrorCallout error={error} />
             </>
           ) : (
-            <>
-              <div className="assist-diff-list">
-                {proposal.fields.map((field) => (
-                  <div key={field.path} className="assist-diff-row">
-                    <input
-                      type="checkbox"
-                      aria-label={field.path}
-                      checked={checked.includes(field.path)}
-                      onChange={(event) =>
-                        setChecked(
-                          event.target.checked
-                            ? [...checked, field.path]
-                            : checked.filter((path) => path !== field.path),
-                        )
-                      }
-                    />
-                    <span className="assist-diff-content">
-                      <strong>
-                        {t(("assist.field." + field.path.replaceAll(".", "_")) as never)}
-                      </strong>
-                      <span className="assist-values">
-                        {displayValue(field.path, getIn(dna, field.path))} →{" "}
-                        {displayValue(field.path, field.value)}
-                      </span>
-                      <small>{field.reason}</small>
-                    </span>
-                    <span className="badge">{Math.round(field.confidence * 100)}%</span>
-                    {catalog.fields.find((definition) => definition.path === field.path)?.kind ===
-                      "text" && (
-                      <TranslateChip
-                        text={String(getIn(dna, field.path) ?? "")}
-                        disabled={busy}
-                        onClick={() =>
-                          void translate(field.path, String(getIn(dna, field.path) ?? ""))
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              {proposal.dropped.length > 0 && (
-                <details>
-                  <summary>{t("assist.dropped", { count: proposal.dropped.length })}</summary>
-                  <ul>
-                    {proposal.dropped.map((item, index) => (
-                      <li key={`${item.path}-${index}`}>
-                        {item.path}: {item.why}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={!checked.length}
-                onClick={() => void apply()}
-              >
-                {t("assist.apply", { count: checked.length })}
-              </button>
-            </>
+            <AssistProposalDiff
+              key={proposalRun}
+              proposal={proposal}
+              catalog={catalog}
+              dna={dna}
+              busy={busy}
+              onApply={apply}
+              onTranslate={(path, text) => void translate(path, text)}
+            />
           )}
           {spend.dialog}
         </div>

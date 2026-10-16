@@ -1,0 +1,7 @@
+{
+  "command": "error",
+  "response": {
+    "code": "VALIDATION_ERROR",
+    "message": "Source-image analysis takes exactly one image."
+  }
+}
