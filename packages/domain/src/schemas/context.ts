@@ -32,6 +32,19 @@ export const SiteTopologySchema = z
   });
 export type SiteTopology = z.infer<typeof SiteTopologySchema>;
 
+/**
+ * Context Library V4 selection (ADR-034 amendment 1, SRS P1d). Written only by the context
+ * panel; a suggestion layer below site evidence. `regionId` may be "unspecified".
+ * `approvedOptional` holds the optional cue lines the user approved for the prompt.
+ */
+export const ContextLibrarySelectionSchema = z.object({
+  version: z.literal(1),
+  presetId: z.string().trim().min(1),
+  regionId: z.string().trim().min(1),
+  approvedOptional: z.array(z.string().trim().min(1)).default([]),
+});
+export type ContextLibrarySelection = z.infer<typeof ContextLibrarySelectionSchema>;
+
 export const ContextZoneSchema = z.object({
   spaceType: optionalText,
   roadType: optionalText,
@@ -62,6 +75,7 @@ export const ContextDNASchema = z.object({
   left: ContextZoneSchema.default(emptyContextZone),
   right: ContextZoneSchema.default(emptyContextZone),
   siteTopology: SiteTopologySchema.optional(),
+  library: ContextLibrarySelectionSchema.optional(),
   distantBackground: textList,
   atmosphereNotes: z.string().default(""),
   negativeConstraints: textList,

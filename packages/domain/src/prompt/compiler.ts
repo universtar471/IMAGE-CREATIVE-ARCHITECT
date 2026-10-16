@@ -25,7 +25,9 @@ import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
 import { detailTargetSection } from "./sections/detailTarget";
+import { contextSuggestionsSection, usedContextLibrary } from "./sections/contextSuggestions";
 import type { ShotIntent } from "../validation/shotIntent";
+import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
 
 export const COMPILER_VERSION = "pc-1.8.0";
 
@@ -195,9 +197,10 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
-  // furnishing, context, lighting, weather, mood, camera, sceneObjects, quality. Furnishing is
-  // interior-only; spaceScope appears only with an active catalog space; sceneObjects only
-  // when the shot adds objects (SRS §12.2 item 7, after the camera).
+  // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects,
+  // contextSuggestions, quality. Furnishing is interior-only; spaceScope appears only with an
+  // active catalog space; sceneObjects only when the shot adds objects (SRS §12.2 item 7,
+  // after the camera); contextSuggestions only with `context.library` (lowest priority).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -237,6 +240,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ],
     ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
+    ["contextSuggestions", contextSuggestionsSection(dna, project.projectType)],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -301,10 +305,15 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     },
   });
   const catalogVersion = dna.spaceCatalog ? CATALOG_VERSION : NO_CATALOG_VERSION;
+  // Only present when the Context Library section is compiled, so other DNA hashes as before.
+  const contextLibraryVersion = usedContextLibrary(dna, project.projectType)
+    ? CONTEXT_LIBRARY_VERSION
+    : undefined;
   const configHash = canonicalHash({
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
     catalogVersion,
+    ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
     knowledgePack: pack ?? null,
   });
 
@@ -326,6 +335,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       subtype: project.subtype ?? null,
       dnaSchemaVersion: dna.schemaVersion,
       knowledgePack: pack ? `${pack.projectType}/${pack.subtype}@${pack.packVersion}` : null,
+      ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
       sections: included.map(([name]) => name),
       referenceCount: references.length,
       referenceRoles: roleCounts,
