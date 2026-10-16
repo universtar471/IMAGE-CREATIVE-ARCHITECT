@@ -44,3 +44,4 @@ export * from "./assist";
 export * from "./detail";
 export * from "./sceneObjects";
 export * from "./contextLibrary";
+export * from "./publishing";
