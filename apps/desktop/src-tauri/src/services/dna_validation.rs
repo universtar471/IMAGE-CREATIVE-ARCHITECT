@@ -544,6 +544,33 @@ pub(crate) mod tests {
         validate_dna(&no_active).unwrap();
     }
 
+    /// SRS P1d: the Context Library V4 selection in `context.library` (shared fixture).
+    #[test]
+    fn validates_context_library_selection() {
+        let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        assert_eq!(base["context"]["library"]["presetId"], json!("townhouse.urban_infill"));
+        validate_dna(&base).unwrap();
+        let mut unspecified = base.clone();
+        unspecified["context"]["library"]["regionId"] = json!("unspecified");
+        unspecified["context"]["library"]["approvedOptional"] = json!([]);
+        validate_dna(&unspecified).unwrap();
+
+        type Mutation = fn(&mut Value);
+        let cases: [(&str, Mutation); 4] = [
+            ("context.library.version", |d| d["context"]["library"]["version"] = json!(2)),
+            ("context.library.presetId", |d| d["context"]["library"]["presetId"] = json!("")),
+            ("context.library.approvedOptional.0", |d| d["context"]["library"]["approvedOptional"] = json!([7])),
+            ("context.library", |d| d["context"]["library"]["extra"] = json!(true)),
+        ];
+        for (field, mutate) in cases {
+            let mut dna = base.clone();
+            mutate(&mut dna);
+            let err = validate_dna(&dna).unwrap_err();
+            let fields = err.details.unwrap()["fieldErrors"].clone();
+            assert!(fields.get(field).is_some(), "{field}: {fields}");
+        }
+    }
+
     #[test]
     fn rejects_unknown_extension_keys() {
         let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();

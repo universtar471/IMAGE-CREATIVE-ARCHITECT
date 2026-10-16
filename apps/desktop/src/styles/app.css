@@ -2320,6 +2320,33 @@ textarea {
     max-width: 200px;
   }
 }
+.context-library {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.context-library-cues,
+.context-library-dropped {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.context-library-cues legend {
+  padding: 0;
+  font-weight: 600;
+}
+.context-library-cues ul,
+.context-library-dropped ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.context-library-dropped {
+  color: var(--c-warning);
+}
 .camera-thumb {
   flex: 0 0 auto;
   width: 34px;

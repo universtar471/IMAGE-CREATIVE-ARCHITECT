@@ -958,6 +958,25 @@ export const en = {
     },
   },
 
+  contextLibrary: {
+    title: "Context suggestions (library V4)",
+    evidenceWins:
+      "Suggestions only: verified site evidence, the master image and the lot position above always win. Cues that contradict them are dropped automatically.",
+    archetype: "Building type",
+    preset: "Context preset",
+    region: "Region",
+    unknownPreset: "The saved preset {id} is not in this library version; it is ignored.",
+    required: "Required cues",
+    requiredHint: "Used only when consistent with verified site evidence.",
+    optional: "Optional cues (tick to add to the prompt)",
+    forbidden: "Not introduced",
+    regionDetails: "Regional details",
+    regionAvoid: "Regional avoids",
+    dropped: "Dropped cues",
+    droppedReason: "contradicts the site data",
+    englishCues: "Cues are shown as the English prompt text.",
+  },
+
   assets: {
     noneSelected: "No asset selected",
     noneSelectedHint: "Select an image in the Assets tray to see its metadata and role.",

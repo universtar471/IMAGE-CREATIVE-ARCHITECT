@@ -958,6 +958,25 @@ export const vi: Dict = {
     },
   },
 
+  contextLibrary: {
+    title: "Gợi ý bối cảnh (thư viện V4)",
+    evidenceWins:
+      "Chỉ là gợi ý: dữ liệu khu đất đã xác minh, ảnh master và vị trí lô đất ở trên luôn được ưu tiên. Gợi ý nào mâu thuẫn sẽ tự động bị loại.",
+    archetype: "Loại công trình",
+    preset: "Mẫu bối cảnh",
+    region: "Vùng miền",
+    unknownPreset: "Mẫu đã lưu {id} không có trong phiên bản thư viện này nên bị bỏ qua.",
+    required: "Gợi ý bắt buộc",
+    requiredHint: "Chỉ dùng khi phù hợp với dữ liệu khu đất đã xác minh.",
+    optional: "Gợi ý tùy chọn (đánh dấu để thêm vào prompt)",
+    forbidden: "Không đưa vào",
+    regionDetails: "Chi tiết theo vùng",
+    regionAvoid: "Tránh theo vùng",
+    dropped: "Gợi ý bị loại",
+    droppedReason: "mâu thuẫn với dữ liệu khu đất",
+    englishCues: "Các gợi ý hiển thị đúng câu tiếng Anh đưa vào prompt.",
+  },
+
   assets: {
     noneSelected: "Chưa chọn ảnh",
     noneSelectedHint: "Chọn một ảnh trong khay Ảnh để xem thông tin và vai trò của nó.",
