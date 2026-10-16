@@ -85,6 +85,19 @@ export const en = {
       other: "AI assist could not run right now.",
     },
     primary: "primary",
+    source: {
+      title: "AI reads the source image",
+      run: "AI reads the image",
+      observed: "Seen in the image",
+      inferred: "Inferred",
+      inferredHint: "Guesses, not verified facts. They are never written to the DNA.",
+      request: "Change request",
+      keep: "Keep",
+      use: "Use this description",
+      empty: "The AI found nothing it could use in this image.",
+      noAsset: "Choose a source image first.",
+      written: "Written to the extra prompt.",
+    },
   },
 
   format: {

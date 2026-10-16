@@ -4,10 +4,13 @@ import {
   assistSystemPrompt as buildAssistSystemPrompt,
   containsVietnamese as domainContainsVietnamese,
   parseAssistReply as parseDomainAssistReply,
+  parseSourceAnalysisReply as parseDomainSourceAnalysisReply,
+  sourceAnalysisExtraPrompt as domainSourceAnalysisExtraPrompt,
   type AssistCatalog as DomainAssistCatalog,
   type AssistField as DomainAssistField,
   type AssistMode as DomainAssistMode,
   type AssistScope as DomainAssistScope,
+  type SourceAnalysis as DomainSourceAnalysis,
   type ProjectDNA,
   type ProjectType,
 } from "@arch/domain";
@@ -18,6 +21,7 @@ export type AssistScope = DomainAssistScope;
 export type AssistCatalog = DomainAssistCatalog;
 export type AssistField = DomainAssistField;
 export type AssistSuggestion = ReturnType<typeof parseDomainAssistReply>;
+export type SourceAnalysis = DomainSourceAnalysis;
 
 export type AssistRequest = Requests["dna_assist"];
 
@@ -36,6 +40,12 @@ export function assistSystemPrompt(mode: AssistMode, catalog: AssistCatalog): st
 export function parseAssistReply(raw: string, catalog: AssistCatalog): AssistSuggestion {
   return parseDomainAssistReply(raw, catalog);
 }
+
+export function parseSourceAnalysisReply(raw: string, catalog: AssistCatalog): SourceAnalysis {
+  return parseDomainSourceAnalysisReply(raw, catalog);
+}
+
+export const sourceAnalysisExtraPrompt = domainSourceAnalysisExtraPrompt;
 
 export function applyAssistFields(dna: ProjectDNA, fields: AssistField[]): ProjectDNA {
   return applyDomainAssistFields(dna, fields);

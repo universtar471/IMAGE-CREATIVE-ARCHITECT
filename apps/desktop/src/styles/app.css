@@ -3328,6 +3328,28 @@ textarea {
   font-size: 0.75rem;
 }
 
+/* ADR-040 (UI-5): source-image analysis card. */
+.source-analysis {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.source-analysis-group {
+  display: grid;
+  gap: 4px;
+}
+.source-analysis-group ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.source-analysis-group p {
+  margin: 0;
+  color: var(--c-text-2);
+}
+
 /* ---- grade-ui block (ADR-032): colour grade gallery and batch dialog ---- */
 /* V5.2 — photo-accurate colour look thumbnail gallery */
 .grade-look-gallery {

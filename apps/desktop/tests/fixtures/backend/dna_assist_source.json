@@ -1,0 +1,8 @@
+{
+  "command": "dna_assist",
+  "response": {
+    "generationId": "GEN_0000000000000000000000001F",
+    "modelId": "gemini-3.8-flash",
+    "raw": "{\"observed\":[\"two-storey villa\"],\"inferred\":[{\"text\":\"rear terrace\",\"confidence\":0.4}],\"fields\":[],\"requestEn\":\"Make it warmer\",\"keepEn\":[\"massing\"]}"
+  }
+}

@@ -18,7 +18,7 @@ import {
 import { ProjectDNASchema, type ProjectDNA } from "../schemas/projectDna";
 import type { ProjectType } from "../schemas/enums";
 
-export type AssistMode = "brief" | "images" | "master" | "translate";
+export type AssistMode = "brief" | "images" | "master" | "translate" | "source";
 export type AssistScope = "interior" | "building" | "context" | "lighting";
 
 export type AssistCatalogField = {
@@ -167,18 +167,50 @@ export function assistCatalog(scope: AssistScope, _projectType: ProjectType): As
   return { scope, fields };
 }
 
-export function assistSystemPrompt(mode: AssistMode, catalog: AssistCatalog): string {
-  const allowed = catalog.fields
+const allowedList = (catalog: AssistCatalog): string =>
+  catalog.fields
     .map((field) => {
       const choices = field.options?.map((option) => `${option.id} = ${option.en}`).join(", ");
       return `${field.path} (${field.kind})${choices ? `: ${choices}` : ""}`;
     })
     .join("\n");
+
+export function assistSystemPrompt(mode: AssistMode, catalog: AssistCatalog): string {
+  if (mode === "source") return sourceSystemPrompt(catalog);
+  const allowed = allowedList(catalog);
   const role =
     mode === "translate"
       ? "Translate only the supplied free-text DNA values into concise English. Return those paths and nothing else."
       : "You propose structured architectural project DNA from the supplied brief or images. Use English for free text.";
   return `${role}\nAllowed paths and ids:\n${allowed}\nAnswer with JSON {fields:[{path,value,confidence,reason}]} only. Pick only listed ids. Free text in English. Omit fields you cannot infer.`;
+}
+
+/**
+ * Sizes cannot be measured from one photo: in mode `source` these paths are neither offered
+ * nor accepted (ADR-040: hidden sizes never become facts).
+ */
+export const SOURCE_UNVERIFIABLE_PATHS: readonly string[] = [
+  "interior.areaM2",
+  "interior.ceilingHeightM",
+];
+
+/** The catalogue offered in mode `source`: the scope's catalogue without unverifiable sizes. */
+export function sourceCatalog(catalog: AssistCatalog): AssistCatalog {
+  return {
+    scope: catalog.scope,
+    fields: catalog.fields.filter((field) => !SOURCE_UNVERIFIABLE_PATHS.includes(field.path)),
+  };
+}
+
+function sourceSystemPrompt(catalog: AssistCatalog): string {
+  return [
+    "You analyse one source image of an architectural or interior project together with the user's wish.",
+    "List in `observed` only what is clearly visible. Put every guess (hidden parts, sizes, materials you cannot see clearly) in `inferred` with a confidence from 0 to 1; never state a guess as observed.",
+    "Propose structured DNA in `fields` only from these allowed paths and ids:",
+    allowedList(sourceCatalog(catalog)),
+    "Rewrite the wish as one English change request in `requestEn`, and list in `keepEn`, in English, what must be preserved from the image.",
+    "Answer with JSON {observed:[string],inferred:[{text,confidence}],fields:[{path,value,confidence,reason}],requestEn:string,keepEn:[string]} only. Pick only listed ids. Free text in English. Omit fields you cannot infer.",
+  ].join("\n");
 }
 
 const unwrapJson = (raw: string): string => {
@@ -268,24 +300,38 @@ const normalizeCatalogValue = (
   return { ok: true, value: normalized.slice(0, 240) };
 };
 
-export function parseAssistReply(raw: string, catalog: AssistCatalog): AssistSuggestion {
-  let data: unknown;
+const parseJson = (raw: string): { ok: true; data: unknown } | { ok: false } => {
   try {
-    data = JSON.parse(unwrapJson(raw));
+    return { ok: true, data: JSON.parse(unwrapJson(raw)) };
   } catch {
+    return { ok: false };
+  }
+};
+
+export function parseAssistReply(raw: string, catalog: AssistCatalog): AssistSuggestion {
+  const parsed = parseJson(raw);
+  if (!parsed.ok) {
     return {
       scope: catalog.scope,
       fields: [],
       dropped: [{ path: "", why: "Reply is not valid JSON." }],
     };
   }
-
+  const data = parsed.data;
   const dropped: AssistSuggestion["dropped"] = [];
   const rawFields = isRecord(data) && Array.isArray(data.fields) ? data.fields : [];
   if (!isRecord(data) || !Array.isArray(data.fields)) {
     dropped.push({ path: "", why: "Reply must contain a fields array." });
   }
+  return { scope: catalog.scope, fields: parseFields(rawFields, catalog, dropped), dropped };
+}
 
+/** Validates reply fields against the catalogue; rejected ones are pushed to `dropped`. */
+function parseFields(
+  rawFields: unknown[],
+  catalog: AssistCatalog,
+  dropped: AssistSuggestion["dropped"],
+): AssistField[] {
   const acceptedUse = rawFields.find(
     (item): item is Record<string, unknown> =>
       isRecord(item) &&
@@ -330,8 +376,105 @@ export function parseAssistReply(raw: string, catalog: AssistCatalog): AssistSug
     const reason = typeof rawField.reason === "string" ? rawField.reason.slice(0, 140) : "";
     fields.push({ path, value: normalized.value, confidence, reason });
   }
+  return fields;
+}
 
-  return { scope: catalog.scope, fields, dropped };
+/** One guess about the source image: shown with its confidence, never written as a fact. */
+export type SourceInference = { text: string; confidence: number };
+
+/** The validated reply of mode `source` (ADR-040, UI-5). */
+export type SourceAnalysis = AssistSuggestion & {
+  /** What is visible in the image. */
+  observed: string[];
+  /** Guesses with a confidence; display only, never DNA. */
+  inferred: SourceInference[];
+  /** The wish as an English change request ("" when missing or not English). */
+  requestEn: string;
+  /** What must be preserved, in English. */
+  keepEn: string[];
+};
+
+export const SOURCE_MAX_ITEMS = 12;
+export const SOURCE_ITEM_CHARS = 160;
+export const SOURCE_REQUEST_CHARS = 600;
+
+const clipText = (value: unknown, max: number): string | null =>
+  typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;
+
+const clamp01 = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+
+/**
+ * Parses the reply of mode `source`. Fields follow the catalogue rules of the other modes, and
+ * sizes in {@link SOURCE_UNVERIFIABLE_PATHS} are dropped. Observed and inferred items stay
+ * apart and are clipped. `requestEn` and `keepEn` must be English, otherwise they are dropped.
+ */
+export function parseSourceAnalysisReply(raw: string, catalog: AssistCatalog): SourceAnalysis {
+  const empty = (why: string): SourceAnalysis => ({
+    scope: catalog.scope,
+    fields: [],
+    dropped: [{ path: "", why }],
+    observed: [],
+    inferred: [],
+    requestEn: "",
+    keepEn: [],
+  });
+  const parsed = parseJson(raw);
+  if (!parsed.ok) return empty("Reply is not valid JSON.");
+  const data = parsed.data;
+  if (!isRecord(data)) return empty("Reply must be a JSON object.");
+
+  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const dropped: SourceAnalysis["dropped"] = [];
+  const offered = list(data.fields).filter((item) => {
+    const path = isRecord(item) && typeof item.path === "string" ? item.path : "";
+    if (!SOURCE_UNVERIFIABLE_PATHS.includes(path)) return true;
+    dropped.push({ path, why: "Sizes cannot be verified from one image." });
+    return false;
+  });
+  const fields = parseFields(offered, sourceCatalog(catalog), dropped);
+
+  const observed = list(data.observed)
+    .map((item) => clipText(item, SOURCE_ITEM_CHARS))
+    .filter((item): item is string => item !== null)
+    .slice(0, SOURCE_MAX_ITEMS);
+  const inferred = list(data.inferred)
+    .map((item): SourceInference | null => {
+      const text = clipText(isRecord(item) ? item.text : item, SOURCE_ITEM_CHARS);
+      return text ? { text, confidence: isRecord(item) ? clamp01(item.confidence) : 0 } : null;
+    })
+    .filter((item): item is SourceInference => item !== null)
+    .slice(0, SOURCE_MAX_ITEMS);
+
+  let requestEn = clipText(data.requestEn, SOURCE_REQUEST_CHARS) ?? "";
+  if (requestEn && containsVietnamese(requestEn)) {
+    dropped.push({ path: "requestEn", why: "The change request must be English." });
+    requestEn = "";
+  }
+  const keepEn: string[] = [];
+  for (const item of list(data.keepEn)) {
+    const text = clipText(item, SOURCE_ITEM_CHARS);
+    if (!text) continue;
+    if (containsVietnamese(text)) {
+      dropped.push({ path: "keepEn", why: "Preserved items must be English." });
+    } else if (keepEn.length < SOURCE_MAX_ITEMS) {
+      keepEn.push(text);
+    }
+  }
+
+  return { scope: catalog.scope, fields, dropped, observed, inferred, requestEn, keepEn };
+}
+
+/** The extra-prompt text written by "use this description": the change request, then what to keep. */
+export function sourceAnalysisExtraPrompt(
+  analysis: Pick<SourceAnalysis, "requestEn" | "keepEn">,
+): string {
+  return [
+    analysis.requestEn.trim(),
+    analysis.keepEn.length ? `Keep: ${analysis.keepEn.join("; ")}.` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 const normalizeAppliedValue = (path: string, value: unknown): unknown => {

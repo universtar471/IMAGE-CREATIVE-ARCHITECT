@@ -177,7 +177,7 @@ export type AssetPreviewRequest = z.infer<typeof AssetPreviewRequestSchema>;
 export type Requests = {
   dna_assist: {
     projectId: string;
-    mode: "brief" | "images" | "master" | "translate";
+    mode: "brief" | "images" | "master" | "translate" | "source";
     scope: "interior" | "building" | "context" | "lighting";
     brief?: string;
     referenceAssetIds?: string[];

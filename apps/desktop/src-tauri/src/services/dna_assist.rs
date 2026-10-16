@@ -1,4 +1,5 @@
-//! Proposal-only AI DNA assistance through the HHTECH chat gateway (ADR-030).
+//! Proposal-only AI DNA assistance through the HHTECH chat gateway (ADR-030), including the
+//! source-image analysis of mode `source` (ADR-040, UI-5).
 use std::io::Cursor;
 use std::time::Instant;
 
@@ -15,6 +16,7 @@ use crate::util::{self, prefix};
 
 pub const MAX_BRIEF_CHARS: usize = 1_000;
 pub const MAX_REFERENCES: usize = 3;
+pub const MODES: [&str; 5] = ["brief", "images", "master", "translate", "source"];
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,16 +40,18 @@ pub struct TranslateItem {
     pub text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssistResult {
     pub raw: String,
     pub model_id: String,
+    /// Omitted when the gateway reports none: the webview schema has `usage?`, not `null`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<AssistUsage>,
     pub generation_id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssistUsage {
     pub input_tokens: u64,
@@ -168,7 +172,7 @@ pub fn run(core: &AppCore, request: AssistRequest) -> AppResult<AssistResult> {
 }
 
 fn validate_request(request: &AssistRequest) -> AppResult<()> {
-    if !["brief", "images", "master", "translate"].contains(&request.mode.as_str())
+    if !MODES.contains(&request.mode.as_str())
         || !["interior", "building", "context", "lighting"].contains(&request.scope.as_str())
     {
         return Err(AppError::validation("Unknown AI assist mode or scope."));
@@ -178,6 +182,9 @@ fn validate_request(request: &AssistRequest) -> AppResult<()> {
     }
     if request.reference_asset_ids.len() > MAX_REFERENCES {
         return Err(AppError::validation("Choose no more than 3 reference images."));
+    }
+    if request.mode == "source" && request.reference_asset_ids.len() != 1 {
+        return Err(AppError::validation("Source-image analysis takes exactly one image."));
     }
     if request.system_prompt.chars().count() > 20_000
         || request.translate.iter().any(|t| t.text.chars().count() > 2_000)
@@ -231,9 +238,16 @@ fn map_provider_error(error: ProviderError) -> AppError {
 }
 
 fn user_text(request: &AssistRequest) -> String {
+    let brief = request.brief.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    if request.mode == "source" {
+        return match brief {
+            Some(wish) => format!("Analyse the attached source image.\n\nUser wish:\n{wish}"),
+            None => "Analyse the attached source image. The user gave no wish: keep the design as it is.".into(),
+        };
+    }
     let mut parts = Vec::new();
-    if let Some(brief) = request.brief.as_deref().filter(|s| !s.trim().is_empty()) {
-        parts.push(format!("Brief:\n{}", brief.trim()));
+    if let Some(brief) = brief {
+        parts.push(format!("Brief:\n{brief}"));
     }
     if !request.translate.is_empty() {
         parts.push(format!(
@@ -245,5 +259,109 @@ fn user_text(request: &AssistRequest) -> String {
         "Infer suggestions from the attached reference images.".into()
     } else {
         parts.join("\n\n")
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use super::*;
+    use crate::providers::{
+        ModelCapabilities, ProviderInfo, ProviderKind, ProviderOutput, ProviderRegistry, ProviderRequest,
+    };
+    use crate::secrets::MemorySecretStore;
+    use crate::services::tests_support::{test_create_villa, test_import};
+
+    pub(crate) const SOURCE_REPLY: &str = r#"{"observed":["two-storey villa"],"inferred":[{"text":"rear terrace","confidence":0.4}],"fields":[],"requestEn":"Make it warmer","keepEn":["massing"]}"#;
+
+    /// Stands in for the HHTECH gateway: records the chat request, answers a canned reply.
+    #[derive(Default)]
+    pub(crate) struct FakeGateway {
+        last: Mutex<Option<(String, String, usize, bool)>>,
+    }
+
+    impl crate::providers::ImageProvider for FakeGateway {
+        fn info(&self) -> ProviderInfo {
+            ProviderInfo {
+                id: hhtech::ID,
+                label: "HHTECH (test)",
+                kind: ProviderKind::Remote,
+                requires_api_key: true,
+                models: Vec::<ModelCapabilities>::new(),
+            }
+        }
+
+        fn generate(&self, _request: &ProviderRequest) -> Result<ProviderOutput, ProviderError> {
+            Err(ProviderError::new(ProviderErrorKind::InvalidRequest, "not used"))
+        }
+
+        fn test_connection(&self, _api_key: Option<&str>) -> Result<String, ProviderError> {
+            Ok("ok".into())
+        }
+
+        fn chat_with_model(&self, request: &ChatRequest, api_key: Option<&str>) -> Result<String, ProviderError> {
+            assert_eq!(api_key, Some("fake-gateway-key"));
+            *self.last.lock().unwrap() =
+                Some((request.system.clone(), request.user.clone(), request.images.len(), request.json_object));
+            Ok(SOURCE_REPLY.into())
+        }
+    }
+
+    pub(crate) fn source_request(project_id: &str, ids: &[&str], brief: Option<&str>) -> AssistRequest {
+        serde_json::from_value(json!({
+            "projectId": project_id, "mode": "source", "scope": "building", "brief": brief,
+            "referenceAssetIds": ids, "catalog": { "scope": "building", "fields": [] },
+            "systemPrompt": "Analyse the source image."
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn source_mode_takes_exactly_one_image() {
+        for ids in [vec![], vec!["AST_1", "AST_2"]] {
+            let err = validate_request(&source_request("PRJ_1", &ids, Some("warmer"))).unwrap_err();
+            assert_eq!(err.code, ErrorCode::ValidationError, "{ids:?}");
+        }
+        assert!(validate_request(&source_request("PRJ_1", &["AST_1"], Some("warmer"))).is_ok());
+        assert!(validate_request(&source_request("PRJ_1", &["AST_1"], None)).is_ok());
+    }
+
+    #[test]
+    fn source_user_text_carries_the_wish() {
+        let text = user_text(&source_request("PRJ_1", &["AST_1"], Some("  Ấm hơn  ")));
+        assert!(text.contains("source image") && text.ends_with("User wish:\nẤm hơn"), "{text}");
+        assert!(user_text(&source_request("PRJ_1", &["AST_1"], None)).contains("no wish"));
+    }
+
+    #[test]
+    fn source_request_roundtrips_through_the_gateway() {
+        let tmp = tempfile::tempdir().unwrap();
+        let gateway = Arc::new(FakeGateway::default());
+        let registry = ProviderRegistry::new(vec![gateway.clone()]);
+        let core =
+            AppCore::open_with(&tmp.path().join("data"), registry, Arc::new(MemorySecretStore::default())).unwrap();
+        let project = test_create_villa(&core, "Source villa");
+        let asset = test_import(&core, tmp.path(), &project.id, "source.png", "master_architecture");
+        provider_settings::set_api_key(&core, hhtech::ID, "fake-gateway-key").unwrap();
+
+        let result = run(&core, source_request(&project.id, &[&asset.id], Some("Make it warmer"))).unwrap();
+        assert_eq!(result.raw, SOURCE_REPLY);
+        let (system, user, images, json_object) = gateway.last.lock().unwrap().clone().unwrap();
+        assert_eq!(system, "Analyse the source image.");
+        assert!(user.ends_with("User wish:\nMake it warmer"));
+        assert_eq!((images, json_object), (1, true));
+
+        let rows = repo::list_generations(&core.conn().unwrap(), &project.id).unwrap();
+        let row = rows.into_iter().find(|g| g.id == result.generation_id).unwrap();
+        assert_eq!(row.purpose, GenerationPurpose::Assist);
+        assert_eq!(row.status, GenerationStatus::Completed);
+        assert!(!row.request_json.contains("fake-gateway-key") && !row.request_json.contains("warmer"));
+        assert!(row.request_json.contains(r#""mode":"source""#));
+
+        // An asset of another project is refused before any call.
+        let other = test_create_villa(&core, "Other villa");
+        let err = run(&core, source_request(&other.id, &[&asset.id], None)).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
     }
 }
