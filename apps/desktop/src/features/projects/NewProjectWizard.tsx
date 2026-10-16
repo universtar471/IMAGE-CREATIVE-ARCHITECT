@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Building2, Check, Sofa } from "lucide-react";
 import {
   createInitialDNA,
   DEFAULT_SUBTYPE,
-  ProjectTypeSchema,
   type ProjectDTO,
   type ProjectType,
   type WizardStarter,
@@ -11,6 +10,7 @@ import {
 import { createProject } from "../../app/services";
 import { Dialog } from "../../components/common/Dialog";
 import { NumberField, SelectField, TextField } from "../../components/panels/fields";
+import { SectionPanel } from "../../components/panels/SectionPanel";
 import { toBridgeError } from "../../lib/bridge";
 import { knowledge } from "../../lib/knowledge";
 import { useT, type TFunction } from "../../i18n";
@@ -30,10 +30,23 @@ import {
 } from "../../lib/interior";
 import { useLocale } from "../../i18n";
 
-const STEPS = ["stepBasics", "stepArchitecture", "stepContext", "stepCreate"] as const;
+const STEPS = ["stepBasics", "stepClassify"] as const;
 
-type Draft = {
-  name: string;
+export type WizardTheme = "architecture" | "interior";
+
+/** Building types the wizard offers for "Công trình" (ADR-034 amendment 2, ADR-039). */
+export const ARCHITECTURE_TYPES = [
+  "townhouse",
+  "single_storey_house",
+  "villa",
+  "urban_villa",
+  "prefab_modular",
+  "hotel",
+  "resort",
+  "custom",
+] as const satisfies readonly ProjectType[];
+
+type Classification = {
   projectType: ProjectType;
   subtype: string;
   style?: string;
@@ -48,7 +61,27 @@ type Draft = {
   interiorStyleId: InteriorStyleId;
 };
 
-/** Short wizard: nothing beyond a name is mandatory; everything is editable later. */
+type Draft = Classification & { name: string; theme?: WizardTheme };
+
+/** Step-2 values a theme starts from; picking a theme resets step 2 to these. */
+function themeDefaults(theme: WizardTheme): Classification {
+  return {
+    projectType: theme === "interior" ? "interior" : "villa",
+    subtype: DEFAULT_SUBTYPE,
+    style: undefined,
+    floors: undefined,
+    widthM: undefined,
+    depthM: undefined,
+    siteWidthM: undefined,
+    siteDepthM: undefined,
+    contextPresetId: undefined,
+    buildingUseId: "apartment",
+    roomId: "living_room",
+    interiorStyleId: "japandi",
+  };
+}
+
+/** Short wizard (ADR-039): name and theme, then the theme's classification; create from step 2. */
 export function NewProjectWizard({
   onClose,
   onCreated,
@@ -57,27 +90,18 @@ export function NewProjectWizard({
   onCreated: (p: ProjectDTO) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [d, setD] = useState<Draft>({
-    name: "",
-    projectType: "villa",
-    subtype: DEFAULT_SUBTYPE,
-    buildingUseId: "apartment",
-    roomId: "living_room",
-    interiorStyleId: "japandi",
-  });
+  const [d, setD] = useState<Draft>({ name: "", ...themeDefaults("architecture") });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
   const locale = useLocale((state) => state.locale);
-  const typeOptions = ProjectTypeSchema.options.map((type) => ({
-    value: type,
-    label: t(`labels.projectType.${type}`),
-  }));
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((prev) => ({ ...prev, [k]: v }));
+  const pickTheme = (theme: WizardTheme) =>
+    setD((prev) => ({ ...prev, ...themeDefaults(theme), theme }));
 
   const subtypes = knowledge.listSubtypes(d.projectType);
   const { pack, match } = knowledge.resolve(d.projectType, d.subtype);
-  const isInterior = d.projectType === "interior";
+  const isInterior = d.theme === "interior";
 
   const numberError = (v: number | undefined, integer = false) =>
     v === undefined
@@ -97,18 +121,12 @@ export function NewProjectWizard({
     siteDepthM: numberError(d.siteDepthM),
   };
   const nameError = d.name.trim() ? undefined : t("wizard.nameRequired");
+  const basicsValid = !nameError && !!d.theme;
   const interiorStepValid =
     BUILDING_USES.some(({ id }) => id === d.buildingUseId) &&
     roomsForUse(d.buildingUseId).includes(d.roomId) &&
     INTERIOR_STYLES.some(({ id }) => id === d.interiorStyleId);
-  const stepValid =
-    step === 0
-      ? !nameError
-      : step === 1
-        ? isInterior
-          ? interiorStepValid
-          : Object.values(archErrors).every((e) => !e)
-        : true;
+  const classifyValid = isInterior ? interiorStepValid : Object.values(archErrors).every((e) => !e);
 
   const starter: WizardStarter = useMemo(
     () => ({
@@ -126,7 +144,7 @@ export function NewProjectWizard({
   );
 
   const preview = useMemo(() => {
-    if (step !== 3) return null;
+    if (step !== 1) return null;
     try {
       return createInitialDNA({ projectType: d.projectType, subtype: d.subtype, pack, starter });
     } catch {
@@ -158,6 +176,45 @@ export function NewProjectWizard({
     }
   };
 
+  const contextPicker = (
+    <>
+      <p className="field-hint" style={{ margin: 0 }}>
+        {t("wizard.pickContext", {
+          type: t(`labels.projectType.${d.projectType}`).toLowerCase(),
+        })}
+      </p>
+      <div className="choice-grid">
+        <button
+          className="choice"
+          aria-pressed={!d.contextPresetId}
+          onClick={() => set("contextPresetId", undefined)}
+        >
+          <strong>{t("wizard.packDefaults")}</strong>
+          <small>{pack?.defaults.context.macroContext ?? t("wizard.noContext")}</small>
+        </button>
+        {(pack?.contextPresets ?? []).map((preset) => (
+          <button
+            key={preset.id}
+            className="choice"
+            aria-pressed={d.contextPresetId === preset.id}
+            onClick={() => set("contextPresetId", preset.id)}
+          >
+            <strong>{pack ? contextPresetLabel(pack, preset) : preset.label}</strong>
+            <small>
+              {[
+                preset.context.front?.spaceType,
+                preset.context.rear?.spaceType,
+                ...(preset.context.distantBackground ?? []),
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </small>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <Dialog
       title={t("wizard.title")}
@@ -175,19 +232,15 @@ export function NewProjectWizard({
               <ArrowLeft size={14} /> {t("wizard.back")}
             </button>
           )}
-          {step < STEPS.length - 1 ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => setStep(step + 1)}
-              disabled={!stepValid}
-            >
+          {step === 0 ? (
+            <button className="btn btn-primary" onClick={() => setStep(1)} disabled={!basicsValid}>
               {t("wizard.next")} <ArrowRight size={14} />
             </button>
           ) : (
             <button
               className="btn btn-primary"
               onClick={() => void create()}
-              disabled={busy || !!nameError}
+              disabled={busy || !basicsValid || !classifyValid}
             >
               <Check size={14} /> {busy ? t("wizard.creating") : t("wizard.create")}
             </button>
@@ -216,52 +269,29 @@ export function NewProjectWizard({
             placeholder={t("wizard.namePlaceholder")}
             onChange={(v) => set("name", v ?? "")}
           />
-          <SelectField
-            label={t("wizard.type")}
-            options={typeOptions}
-            allowEmpty={false}
-            value={d.projectType}
-            onChange={(v) =>
-              setD((prev) => ({
-                ...prev,
-                projectType: v ?? "custom",
-                subtype: DEFAULT_SUBTYPE,
-                contextPresetId: undefined,
-              }))
-            }
-          />
-          <SelectField
-            label={t("wizard.subtype")}
-            hint={
-              match === "custom_fallback"
-                ? t("wizard.noPack")
-                : pack
-                  ? packDescription(pack)
-                  : undefined
-            }
-            options={
-              subtypes.length
-                ? subtypes.map((p) => ({ value: p.subtype, label: packLabel(p) }))
-                : [{ value: DEFAULT_SUBTYPE, label: t("wizard.generic") }]
-            }
-            allowEmpty={false}
-            value={d.subtype}
-            onChange={(v) =>
-              setD((prev) => ({
-                ...prev,
-                subtype: v ?? DEFAULT_SUBTYPE,
-                contextPresetId: undefined,
-              }))
-            }
-          />
+          <CardGroup legend={t("wizard.theme")} className="theme-grid">
+            <RadioCard
+              name="wizard-theme"
+              checked={d.theme === "architecture"}
+              onSelect={() => pickTheme("architecture")}
+              icon={<Building2 size={28} />}
+              label={t("wizard.themeArchitecture")}
+              description={t("wizard.themeArchitectureHint")}
+            />
+            <RadioCard
+              name="wizard-theme"
+              checked={d.theme === "interior"}
+              onSelect={() => pickTheme("interior")}
+              icon={<Sofa size={28} />}
+              label={t("wizard.themeInterior")}
+              description={t("wizard.themeInteriorHint")}
+            />
+          </CardGroup>
         </>
       )}
 
       {step === 1 && (
         <>
-          <p className="field-hint" style={{ margin: 0 }}>
-            {t("wizard.optional")} {t("dna.englishHint")}
-          </p>
           {isInterior ? (
             <>
               <SelectField
@@ -300,9 +330,56 @@ export function NewProjectWizard({
                 options={INTERIOR_STYLES.map((item) => ({ value: item.id, label: item[locale] }))}
                 onChange={(value) => value && set("interiorStyleId", value)}
               />
+              <SectionPanel title={t("wizard.paramsSection")} defaultOpen={false}>
+                {contextPicker}
+              </SectionPanel>
             </>
           ) : (
             <>
+              <CardGroup legend={t("wizard.type")} className="choice-grid">
+                {ARCHITECTURE_TYPES.map((type) => (
+                  <RadioCard
+                    key={type}
+                    name="wizard-project-type"
+                    checked={d.projectType === type}
+                    onSelect={() =>
+                      setD((prev) => ({
+                        ...prev,
+                        projectType: type,
+                        subtype: DEFAULT_SUBTYPE,
+                        contextPresetId: undefined,
+                      }))
+                    }
+                    label={
+                      type === "custom" ? t("wizard.typeOther") : t(`labels.projectType.${type}`)
+                    }
+                  />
+                ))}
+              </CardGroup>
+              <SelectField
+                label={t("wizard.subtype")}
+                hint={
+                  match === "custom_fallback"
+                    ? t("wizard.noPack")
+                    : pack
+                      ? packDescription(pack)
+                      : undefined
+                }
+                options={
+                  subtypes.length
+                    ? subtypes.map((p) => ({ value: p.subtype, label: packLabel(p) }))
+                    : [{ value: DEFAULT_SUBTYPE, label: t("wizard.generic") }]
+                }
+                allowEmpty={false}
+                value={d.subtype}
+                onChange={(v) =>
+                  setD((prev) => ({
+                    ...prev,
+                    subtype: v ?? DEFAULT_SUBTYPE,
+                    contextPresetId: undefined,
+                  }))
+                }
+              />
               <TextField
                 label={t("wizard.style")}
                 value={d.style}
@@ -313,165 +390,166 @@ export function NewProjectWizard({
                 }
                 onChange={(v) => set("style", v)}
               />
-              <div className="field-row">
-                <NumberField
-                  label={t("wizard.floors")}
-                  value={d.floors}
-                  error={archErrors.floors}
-                  hint={
-                    pack?.defaults.building.floors
-                      ? t("wizard.defaultValue", { value: pack.defaults.building.floors })
-                      : undefined
-                  }
-                  onChange={(v) => set("floors", v)}
-                />
-                <span />
-              </div>
-              <div className="field-row">
-                <NumberField
-                  label={t("wizard.buildingWidth")}
-                  suffix="m"
-                  value={d.widthM}
-                  error={archErrors.widthM}
-                  onChange={(v) => set("widthM", v)}
-                />
-                <NumberField
-                  label={t("wizard.buildingDepth")}
-                  suffix="m"
-                  value={d.depthM}
-                  error={archErrors.depthM}
-                  onChange={(v) => set("depthM", v)}
-                />
-              </div>
-              <div className="field-row">
-                <NumberField
-                  label={t("wizard.siteWidth")}
-                  suffix="m"
-                  value={d.siteWidthM}
-                  error={archErrors.siteWidthM}
-                  onChange={(v) => set("siteWidthM", v)}
-                />
-                <NumberField
-                  label={t("wizard.siteDepth")}
-                  suffix="m"
-                  value={d.siteDepthM}
-                  error={archErrors.siteDepthM}
-                  onChange={(v) => set("siteDepthM", v)}
-                />
-              </div>
+              <SectionPanel title={t("wizard.paramsSection")} defaultOpen={false}>
+                <p className="field-hint" style={{ margin: 0 }}>
+                  {t("wizard.optional")} {t("dna.englishHint")}
+                </p>
+                <div className="field-row">
+                  <NumberField
+                    label={t("wizard.floors")}
+                    value={d.floors}
+                    error={archErrors.floors}
+                    hint={
+                      pack?.defaults.building.floors
+                        ? t("wizard.defaultValue", { value: pack.defaults.building.floors })
+                        : undefined
+                    }
+                    onChange={(v) => set("floors", v)}
+                  />
+                  <span />
+                </div>
+                <div className="field-row">
+                  <NumberField
+                    label={t("wizard.buildingWidth")}
+                    suffix="m"
+                    value={d.widthM}
+                    error={archErrors.widthM}
+                    onChange={(v) => set("widthM", v)}
+                  />
+                  <NumberField
+                    label={t("wizard.buildingDepth")}
+                    suffix="m"
+                    value={d.depthM}
+                    error={archErrors.depthM}
+                    onChange={(v) => set("depthM", v)}
+                  />
+                </div>
+                <div className="field-row">
+                  <NumberField
+                    label={t("wizard.siteWidth")}
+                    suffix="m"
+                    value={d.siteWidthM}
+                    error={archErrors.siteWidthM}
+                    onChange={(v) => set("siteWidthM", v)}
+                  />
+                  <NumberField
+                    label={t("wizard.siteDepth")}
+                    suffix="m"
+                    value={d.siteDepthM}
+                    error={archErrors.siteDepthM}
+                    onChange={(v) => set("siteDepthM", v)}
+                  />
+                </div>
+                {contextPicker}
+              </SectionPanel>
             </>
           )}
-        </>
-      )}
 
-      {step === 2 && (
-        <>
-          <p className="field-hint" style={{ margin: 0 }}>
-            {t("wizard.pickContext", {
-              type: t(`labels.projectType.${d.projectType}`).toLowerCase(),
-            })}
-          </p>
-          <div className="choice-grid">
-            <button
-              className="choice"
-              aria-pressed={!d.contextPresetId}
-              onClick={() => set("contextPresetId", undefined)}
-            >
-              <strong>{t("wizard.packDefaults")}</strong>
-              <small>{pack?.defaults.context.macroContext ?? t("wizard.noContext")}</small>
-            </button>
-            {(pack?.contextPresets ?? []).map((preset) => (
-              <button
-                key={preset.id}
-                className="choice"
-                aria-pressed={d.contextPresetId === preset.id}
-                onClick={() => set("contextPresetId", preset.id)}
-              >
-                <strong>{pack ? contextPresetLabel(pack, preset) : preset.label}</strong>
-                <small>
-                  {[
-                    preset.context.front?.spaceType,
-                    preset.context.rear?.spaceType,
-                    ...(preset.context.distantBackground ?? []),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </small>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {step === 3 && (
-        <table className="summary-table">
-          <tbody>
-            <tr>
-              <th>{t("wizard.sumName")}</th>
-              <td>{d.name.trim()}</td>
-            </tr>
-            <tr>
-              <th>{t("wizard.sumType")}</th>
-              <td>
-                {t(`labels.projectType.${d.projectType}`)} · {pack ? packLabel(pack) : d.subtype}
-              </td>
-            </tr>
-            {preview ? (
-              <>
-                {isInterior && (
-                  <tr>
-                    <th>{t("interior.space")}</th>
-                    <td>
-                      {catalogLabel(BUILDING_USES, d.buildingUseId, locale)} ·{" "}
-                      {catalogLabel(ROOMS, d.roomId, locale)} ·{" "}
-                      {catalogLabel(INTERIOR_STYLES, d.interiorStyleId, locale)}
-                    </td>
-                  </tr>
-                )}
-                <tr>
-                  <th>{t("wizard.sumStyle")}</th>
-                  <td>{preview.building.architecturalStyle ?? t("wizard.setLater")}</td>
-                </tr>
-                <tr>
-                  <th>{isInterior ? t("wizard.levels") : t("wizard.floors")}</th>
-                  <td>{preview.building.floors ?? "—"}</td>
-                </tr>
-                <tr>
-                  <th>{t("wizard.sumDimensions")}</th>
-                  <td>{dimText(preview.building.dimensions, t)}</td>
-                </tr>
-                <tr>
-                  <th>{t("wizard.sumContext")}</th>
-                  <td>
-                    {[preview.context.macroContext, preview.context.climateContext]
-                      .filter(Boolean)
-                      .join(", ") || "—"}
-                  </td>
-                </tr>
-                <tr>
-                  <th>{t("wizard.sumFrontRear")}</th>
-                  <td>
-                    {[preview.context.front.spaceType, preview.context.rear.spaceType]
-                      .filter(Boolean)
-                      .join(" / ") || "—"}
-                  </td>
-                </tr>
-                <tr>
-                  <th>{t("wizard.sumNegative")}</th>
-                  <td>{preview.context.negativeConstraints.join(", ") || "—"}</td>
-                </tr>
-              </>
-            ) : (
+          <table className="summary-table wizard-summary" aria-label={t("wizard.summary")}>
+            <tbody>
               <tr>
-                <td colSpan={2} className="field-error">
-                  {t("wizard.invalidStart")}
+                <th>{t("wizard.sumType")}</th>
+                <td>
+                  {t(`labels.projectType.${d.projectType}`)} · {pack ? packLabel(pack) : d.subtype}
                 </td>
               </tr>
-            )}
-          </tbody>
-        </table>
+              {preview ? (
+                <>
+                  {isInterior ? (
+                    <tr>
+                      <th>{t("interior.space")}</th>
+                      <td>
+                        {catalogLabel(BUILDING_USES, d.buildingUseId, locale)} ·{" "}
+                        {catalogLabel(ROOMS, d.roomId, locale)} ·{" "}
+                        {catalogLabel(INTERIOR_STYLES, d.interiorStyleId, locale)}
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      <tr>
+                        <th>{t("wizard.sumStyle")}</th>
+                        <td>{preview.building.architecturalStyle ?? t("wizard.setLater")}</td>
+                      </tr>
+                      <tr>
+                        <th>{t("wizard.floors")}</th>
+                        <td>{preview.building.floors ?? "—"}</td>
+                      </tr>
+                      <tr>
+                        <th>{t("wizard.sumDimensions")}</th>
+                        <td>{dimText(preview.building.dimensions, t)}</td>
+                      </tr>
+                    </>
+                  )}
+                  <tr>
+                    <th>{t("wizard.sumContext")}</th>
+                    <td>
+                      {[preview.context.macroContext, preview.context.climateContext]
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </td>
+                  </tr>
+                </>
+              ) : (
+                <tr>
+                  <td colSpan={2} className="field-error">
+                    {t("wizard.invalidStart")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </>
       )}
     </Dialog>
+  );
+}
+
+/** A labelled group of radio cards (native radios: arrow keys move, Space selects). */
+function CardGroup({
+  legend,
+  className,
+  children,
+}: {
+  legend: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="card-group" role="radiogroup" aria-label={legend}>
+      <legend className="field-label">{legend}</legend>
+      <div className={className}>{children}</div>
+    </fieldset>
+  );
+}
+
+function RadioCard({
+  name,
+  checked,
+  onSelect,
+  icon,
+  label,
+  description,
+}: {
+  name: string;
+  checked: boolean;
+  onSelect: () => void;
+  icon?: ReactNode;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <label className={`choice radio-card ${checked ? "is-selected" : ""}`}>
+      <input
+        type="radio"
+        className="choice-radio"
+        name={name}
+        checked={checked}
+        onChange={onSelect}
+      />
+      {icon && <span className="radio-card-icon">{icon}</span>}
+      <strong>{label}</strong>
+      {description && <small>{description}</small>}
+    </label>
   );
 }
 

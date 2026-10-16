@@ -79,13 +79,11 @@ describe("interior project UI", () => {
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "New interior" },
     });
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
+    fireEvent.click(screen.getByRole("radio", { name: /^Interior/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
     fireEvent.change(screen.getByLabelText("Room"), { target: { value: "meeting_room" } });
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     fireEvent.click(screen.getByRole("button", { name: /Create/ }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(created).toBeTruthy();
@@ -106,13 +104,11 @@ describe("interior project UI", () => {
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "Prompt interior" },
     });
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
+    fireEvent.click(screen.getByRole("radio", { name: /^Interior/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
     fireEvent.change(screen.getByLabelText("Room"), { target: { value: "meeting_room" } });
     fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     fireEvent.click(screen.getByRole("button", { name: /Create/ }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -132,14 +128,15 @@ describe("interior project UI", () => {
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "Interior with hidden errors" },
     });
+    fireEvent.click(screen.getByRole("radio", { name: /^Architecture/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
     fireEvent.change(screen.getByLabelText("Floors"), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: /Back/ }));
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
+    fireEvent.click(screen.getByRole("radio", { name: /^Interior/ }));
     fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    expect((screen.getByRole("button", { name: /Next/ }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
+    expect(
+      (screen.getByRole("button", { name: /Create project/ }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it("makes the mock backend reject an invalid interior room and surface id", async () => {
