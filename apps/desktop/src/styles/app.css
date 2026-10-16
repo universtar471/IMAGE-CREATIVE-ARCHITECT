@@ -622,9 +622,56 @@ textarea {
 .choice small {
   color: var(--c-text-3);
 }
-.choice[aria-pressed="true"] {
+.choice[aria-pressed="true"],
+.choice.is-selected {
   border-color: var(--c-primary);
   background: #0e2142;
+}
+.card-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.card-group > legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+}
+.theme-grid .choice {
+  gap: 6px;
+  padding: 18px 16px;
+  min-height: 120px;
+}
+.theme-grid .choice strong {
+  font-size: 15px;
+}
+.radio-card {
+  position: relative;
+}
+.radio-card-icon {
+  color: var(--c-primary);
+}
+.choice-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.radio-card:has(.choice-radio:focus-visible) {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+.wizard-summary {
+  font-size: 12px;
 }
 .interior-layout {
   display: grid;
