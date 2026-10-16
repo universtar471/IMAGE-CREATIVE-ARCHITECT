@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createProject } from "../src/app/services";
 import { selectSection, useStudio } from "../src/app/store";
 import { WorkspaceNav } from "../src/components/shell/WorkspaceNav";
-import { SectionTabs } from "../src/features/workspace/ProjectWorkspace";
+import { CreateSectionView, SectionTabs } from "../src/features/workspace/ProjectWorkspace";
 import {
   sectionOfModule,
   WORKSPACE_MODULES,
@@ -109,6 +109,9 @@ describe("section registry", () => {
 describe("workspace navigation", () => {
   it("renders five sections with Studio separated at the bottom and its nine modules", async () => {
     await openProject();
+    // A project opens in Tạo ảnh tự động; the Studio list shows once Studio is open.
+    expect(useStudio.getState().activeModule).toBe("generate");
+    act(() => useStudio.getState().setSection("studio"));
     render(<WorkspaceNav />);
     const sections = [...document.querySelectorAll("[data-section]")].map((el) =>
       el.getAttribute("data-section"),
@@ -142,6 +145,13 @@ describe("workspace navigation", () => {
     expect(screen.queryByRole("group", { name: "Advanced studio modules" })).toBeNull();
   });
 
+  it("mounts the quick-generate screen in Tạo ảnh tự động", async () => {
+    await openProject();
+    expect(useStudio.getState().activeSection).toBe("create");
+    render(<CreateSectionView />);
+    expect(await screen.findByTestId("quick-generate")).toBeTruthy();
+  });
+
   it("keeps the interior label for design_dna", async () => {
     const project = await createProject({
       name: "Interior",
@@ -150,6 +160,7 @@ describe("workspace navigation", () => {
       starter: {},
     });
     await useStudio.getState().openProject(project.id);
+    act(() => useStudio.getState().setSection("studio"));
     render(<WorkspaceNav />);
     const group = screen.getByRole("group", { name: "Advanced studio modules" });
     expect(group.querySelector('[data-module="design_dna"] .nav-label')?.textContent).toBe("Space");

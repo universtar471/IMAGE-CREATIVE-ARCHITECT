@@ -4495,3 +4495,9 @@ div.pub-slot {
   max-height: 360px;
   overflow: auto;
 }
+
+/* ADR-040: the quick-generate screen spans the center and panel columns. */
+.center.create-section {
+  grid-column: 2 / 4;
+  overflow: auto;
+}

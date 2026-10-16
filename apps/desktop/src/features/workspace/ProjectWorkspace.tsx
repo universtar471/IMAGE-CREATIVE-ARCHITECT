@@ -22,6 +22,7 @@ import { EnhanceCheckBadge } from "../enhance/EnhanceControls";
 import { RegionCanvas } from "../regions/RegionCanvas";
 import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
+import { QuickGenerateView } from "../generate/quick";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -117,15 +118,16 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
 }
 
 /**
- * The single mount point of "Tạo ảnh tự động" (ADR-040). For now it renders the existing
- * generate module (center + Generate panel); the quick-generate screen replaces it here.
+ * The single mount point of "Tạo ảnh tự động" (ADR-040): the quick-generate screen. The
+ * selected image (for example one sent from Ảnh của tôi) seeds its source; a new selection
+ * remounts the screen so it starts from that image.
  */
 export function CreateSectionView() {
+  const selectedId = useStudio((s) => s.selectedAssetId);
   return (
-    <>
-      <CenterArea section="create" />
-      <PropertyPanel />
-    </>
+    <main className="center create-section" aria-label={moduleById("generate").label}>
+      <QuickGenerateView key={selectedId ?? "none"} initialSourceAssetId={selectedId} />
+    </main>
   );
 }
 
