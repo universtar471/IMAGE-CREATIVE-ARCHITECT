@@ -15,6 +15,7 @@ import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { RegionPanel } from "../../features/regions/RegionPanel";
+import { PublishingPanel } from "../../features/publishing/PublishingPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
@@ -150,6 +151,7 @@ export function PropertyPanel() {
         )}
         {active === "enhance" && <EnhancePanel />}
         {active === "regions" && <RegionPanel />}
+        {active === "export" && <PublishingPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

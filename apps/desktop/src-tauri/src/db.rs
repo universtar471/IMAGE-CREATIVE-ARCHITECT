@@ -19,6 +19,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (6, include_str!("../migrations/0006_regions.sql")),
     (7, include_str!("../migrations/0007_luts.sql")),
     (8, include_str!("../migrations/0008_enhance_check.sql")),
+    (9, include_str!("../migrations/0009_publications.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -112,6 +113,7 @@ mod tests {
                 "luts",
                 "project_dna",
                 "projects",
+                "publications",
                 "qc_reports",
                 "qc_settings",
                 "regions",
@@ -208,6 +210,62 @@ mod tests {
         conn.execute("DELETE FROM assets WHERE id='AST_R'", []).unwrap();
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM regions WHERE id='RGN_R'", [], |r| r.get(0)).unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn migration_0009_adds_publications_to_a_v8_database() {
+        use crate::services::publications::{self, SaveRequest, TEST_VECTOR};
+        use crate::services::tests_support::open_test_core;
+        use crate::services::DB_FILE;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        std::fs::create_dir_all(&root).unwrap();
+        {
+            // A database as SRS P3 left it: migrations 1–8, one project with history.
+            let conn = Connection::open(root.join(DB_FILE)).unwrap();
+            configure(&conn).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+            )
+            .unwrap();
+            for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v <= 8) {
+                conn.execute_batch(sql).unwrap();
+                conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version])
+                    .unwrap();
+            }
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, project_type, status, created_at, updated_at)
+                   VALUES ('PRJ_V8', 'P3 villa', 'villa', 'draft', 't1', 't1');
+                 INSERT INTO project_dna (project_id, schema_version, dna_json, created_at, updated_at)
+                   VALUES ('PRJ_V8', 1, '{}', 't1', 't1');",
+            )
+            .unwrap();
+            assert!(!tables(&conn).contains(&"publications".to_string()));
+        }
+
+        let (core, _) = open_test_core(&root);
+        {
+            let conn = core.conn().unwrap();
+            assert_eq!(schema_version(&conn).unwrap(), 9);
+            assert!(tables(&conn).contains(&"publications".to_string()));
+            let name: String =
+                conn.query_row("SELECT name FROM projects WHERE id = 'PRJ_V8'", [], |r| r.get(0)).unwrap();
+            assert_eq!(name, "P3 villa");
+        }
+        assert!(publications::list(&core, "PRJ_V8").unwrap().is_empty());
+        let document: serde_json::Value = serde_json::from_str(TEST_VECTOR).unwrap();
+        let saved = publications::save(
+            &core,
+            SaveRequest {
+                project_id: "PRJ_V8".into(),
+                publication_id: None,
+                publication: document["publication"].clone(),
+                facts: document["facts"].clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(publications::list(&core, "PRJ_V8").unwrap()[0].id, saved.id);
     }
 
     #[test]

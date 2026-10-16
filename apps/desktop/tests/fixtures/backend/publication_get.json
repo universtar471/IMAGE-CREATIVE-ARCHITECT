@@ -1,0 +1,164 @@
+{
+  "command": "publication_get",
+  "response": {
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "facts": [
+      {
+        "id": "F1",
+        "sourceAssetIds": [],
+        "status": "user_declared",
+        "text": "Hoàn thành năm 2024"
+      }
+    ],
+    "id": "PUB_0000000000000000000000001C",
+    "projectId": "PRJ_00000000000000000000000001",
+    "publication": {
+      "allowImageRepeat": false,
+      "assetPins": [
+        {
+          "assetId": "AST_1",
+          "sourceHash": "sha1"
+        },
+        {
+          "assetId": "AST_2",
+          "sourceHash": "sha2"
+        },
+        {
+          "assetId": "AST_3",
+          "sourceHash": "sha3"
+        }
+      ],
+      "layoutMode": "auto",
+      "lockedPageIds": [],
+      "pages": [
+        {
+          "id": "PAGE_1",
+          "index": 0,
+          "kind": "content",
+          "layoutTemplateId": "hero_plus_secondary",
+          "slots": [
+            {
+              "assetId": "AST_1",
+              "bleed": false,
+              "fit": "cover",
+              "group": "general",
+              "id": "P1_img_1",
+              "primary": true,
+              "rect": {
+                "h": 0.5184,
+                "w": 0.92,
+                "x": 0.04,
+                "y": 0.095
+              },
+              "sourceHash": "sha1",
+              "type": "image"
+            },
+            {
+              "assetId": "AST_2",
+              "bleed": false,
+              "fit": "cover",
+              "group": "general",
+              "id": "P1_img_2",
+              "primary": false,
+              "rect": {
+                "h": 0.2754,
+                "w": 0.92,
+                "x": 0.04,
+                "y": 0.6296
+              },
+              "sourceHash": "sha2",
+              "type": "image"
+            },
+            {
+              "caption": {
+                "imageAssetIds": [
+                  "AST_1",
+                  "AST_2"
+                ],
+                "needs_review": false,
+                "sentences": [],
+                "textKind": "editorial",
+                "wordLimit": 15
+              },
+              "fontSizePt": 8,
+              "id": "P1_caption_all",
+              "rect": {
+                "h": 0.07,
+                "w": 0.92,
+                "x": 0.04,
+                "y": 0.915
+              },
+              "type": "caption"
+            }
+          ],
+          "warnings": []
+        },
+        {
+          "id": "PAGE_2",
+          "index": 1,
+          "kind": "content",
+          "layoutTemplateId": "hero_full_page",
+          "slots": [
+            {
+              "assetId": "AST_3",
+              "bleed": true,
+              "fit": "cover",
+              "group": "general",
+              "id": "P2_img_1",
+              "primary": true,
+              "rect": {
+                "h": 1,
+                "w": 1,
+                "x": 0,
+                "y": 0
+              },
+              "sourceHash": "sha3",
+              "type": "image"
+            },
+            {
+              "caption": {
+                "imageAssetIds": [
+                  "AST_3"
+                ],
+                "needs_review": false,
+                "sentences": [],
+                "textKind": "editorial",
+                "wordLimit": 15
+              },
+              "fontSizePt": 8,
+              "id": "P2_caption_all",
+              "rect": {
+                "h": 0.07,
+                "w": 0.92,
+                "x": 0.04,
+                "y": 0.915
+              },
+              "type": "caption"
+            }
+          ],
+          "warnings": []
+        }
+      ],
+      "paper": "A4",
+      "schemaVersion": 1,
+      "seed": 7,
+      "selectedImageIds": [
+        "AST_1",
+        "AST_2",
+        "AST_3"
+      ],
+      "selectionMode": "include_all",
+      "selectionReasons": {
+        "AST_1": "include_all: placed once on PAGE_1.",
+        "AST_2": "include_all: placed once on PAGE_1.",
+        "AST_3": "include_all: placed once on PAGE_2."
+      },
+      "styleId": "portfolio_minimal_white",
+      "targetPageCount": 2,
+      "textDensity": "balanced",
+      "title": "Villa",
+      "type": "portfolio"
+    },
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  }
+}

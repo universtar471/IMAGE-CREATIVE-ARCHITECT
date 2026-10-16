@@ -1,0 +1,12 @@
+{
+  "command": "error",
+  "response": {
+    "code": "VALIDATION_ERROR",
+    "details": {
+      "fieldErrors": {
+        "publication.targetPageCount": "0 is less than the minimum of 1"
+      }
+    },
+    "message": "The publication has invalid values and was not saved."
+  }
+}

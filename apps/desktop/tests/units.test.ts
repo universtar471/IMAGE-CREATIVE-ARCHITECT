@@ -22,7 +22,7 @@ describe("workspace information architecture", () => {
       "Mood / Grade",
       "Enhance",
       "Region edit",
-      "Export",
+      "Publishing Studio",
     ]);
   });
 
@@ -40,6 +40,7 @@ describe("workspace information architecture", () => {
       "mood_grade",
       "enhance",
       "regions",
+      "export",
     ]);
   });
 

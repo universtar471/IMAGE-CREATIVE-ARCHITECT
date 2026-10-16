@@ -1,0 +1,25 @@
+{
+  "command": "publication_list",
+  "response": [
+    {
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "id": "PUB_0000000000000000000000001D",
+      "paper": "A4",
+      "projectId": "PRJ_00000000000000000000000001",
+      "targetPageCount": 2,
+      "title": "Villa",
+      "type": "portfolio",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "id": "PUB_0000000000000000000000001C",
+      "paper": "A4",
+      "projectId": "PRJ_00000000000000000000000001",
+      "targetPageCount": 2,
+      "title": "Villa",
+      "type": "portfolio",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

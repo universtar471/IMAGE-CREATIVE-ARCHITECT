@@ -6,3 +6,4 @@ export * from "./randomize";
 export * from "./factClaims";
 export * from "./validate";
 export * from "./captions";
+export * from "./document";
