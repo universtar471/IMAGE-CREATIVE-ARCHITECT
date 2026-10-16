@@ -9,6 +9,7 @@ mod contract_fixtures;
 pub mod db;
 pub mod domain;
 pub mod dto;
+pub mod enhance;
 pub mod env_file;
 pub mod error;
 pub mod imaging;

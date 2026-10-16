@@ -16,6 +16,7 @@ import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
 import { resolveEnhancePair } from "../enhance/enhance";
+import { EnhanceCheckBadge } from "../enhance/EnhanceControls";
 import { RegionCanvas } from "../regions/RegionCanvas";
 
 export function findSubmittedEnhanceResult(
@@ -137,6 +138,10 @@ function CenterArea() {
     : null;
   const enhanceSourceForView = selectedEnhancePair?.source ?? enhanceSource;
   const enhanceResult = selectedEnhancePair?.result ?? submittedResult;
+  // ADR-035 local check of the shown result (absent for legacy enhance rows).
+  const enhanceCheck =
+    (selectedEnhancePair?.generation ?? (submittedResult ? enhanceGeneration : undefined))
+      ?.enhanceCheck ?? null;
   const regionPair =
     active === "regions"
       ? findSubmittedRegionResult(projectId, selectedId, generations, assets)
@@ -221,7 +226,14 @@ function CenterArea() {
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (
-          <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
+          <>
+            {enhanceCheck && enhanceResult && (
+              <div className="enhance-check-overlay">
+                <EnhanceCheckBadge check={enhanceCheck} />
+              </div>
+            )}
+            <CompareCanvas source={enhanceSourceForView ?? asset} result={enhanceResult} />
+          </>
         ) : active === "regions" ? (
           regionPair ? (
             <CompareCanvas source={regionPair.source} result={regionPair.result} />

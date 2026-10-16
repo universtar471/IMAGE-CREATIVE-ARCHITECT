@@ -24,8 +24,8 @@ use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle, ShotVerdict};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
-    EnhanceMode, GenerationParams, ImageProvider, MaskImage, ModelCapabilities, PromptText, ProviderOutput,
-    ProviderRequest, ReferenceImage,
+    EnhanceMode, GenerationParams, ImageProvider, MaskImage, ModelCapabilities, PreservationMode, PromptText,
+    ProviderOutput, ProviderRequest, ReferenceImage, UpscaleTarget,
 };
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
@@ -108,6 +108,8 @@ struct CheckedOutput {
     info: Inspection,
     decoded: DynamicImage,
     provider_long_edge: u32,
+    /// ADR-035 local check of a P3 enhance output.
+    check: Option<crate::enhance::EnhanceCheck>,
 }
 
 /// Why a job attempt ended without outputs.
@@ -216,40 +218,71 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         let params = enhance
             .as_ref()
             .ok_or_else(|| AppError::validation("Enhancement parameters are required at params.enhance."))?;
-        let target_long_edge = params.target_long_edge;
         if assets.len() != 1 {
             return Err(AppError::validation("Enhancement requires exactly one ready reference image."));
         }
-        let source_long_edge = source_long_edge(core, &assets[0])?;
+        let (source_width, source_height) = source_size(core, &assets[0])?;
+        let source_long_edge = source_width.max(source_height);
         if let Some(target) = params.target_long_edge {
             if !matches!(target, 2048 | 3072 | 4096) {
                 return Err(AppError::validation("Enhancement target must be 2048, 3072 or 4096 pixels."));
             }
         }
-        let effective = params.target_long_edge.map(|target| target as u32).unwrap_or(source_long_edge);
-        if effective > 8192 {
-            return Err(AppError::validation("Enhancement target cannot exceed 8192 pixels on the long edge."));
-        }
-        if let Some(target) = params.target_long_edge {
-            if (target as u32) < source_long_edge {
-                return Err(AppError::validation("Enhancement never downsizes; pick a larger target."));
+        validate_preservation(params, &req.provider_id)?;
+        // The long edge the provider is asked for (HHTECH picks its tier from it).
+        let tier_long_edge = if let Some(upscale) = params.upscale {
+            if let UpscaleTarget::Custom { width, height, .. } = upscale.target {
+                if !(1..=8192).contains(&width) || !(1..=8192).contains(&height) {
+                    return Err(AppError::validation("A custom size target must be 1 to 8192 pixels per side."));
+                }
             }
-        } else if params.mode == EnhanceMode::Conservative {
-            return Err(AppError::validation("Conservative enhancement requires a target long edge."));
-        }
+            let layout = crate::enhance::resolve_upscale_size(
+                source_width,
+                source_height,
+                upscale.target,
+                upscale.if_already_larger,
+            );
+            if layout.action == crate::enhance::SizeAction::Skip {
+                return Err(AppError::validation(
+                    "The source already exceeds the size target and was set to be skipped.",
+                ));
+            }
+            if layout.canvas_width.max(layout.canvas_height) > 8192 {
+                return Err(AppError::validation("Enhancement target cannot exceed 8192 pixels on the long edge."));
+            }
+            Some(layout.width.max(layout.height))
+        } else {
+            let effective = params.target_long_edge.map(|target| target as u32).unwrap_or(source_long_edge);
+            if effective > 8192 {
+                return Err(AppError::validation("Enhancement target cannot exceed 8192 pixels on the long edge."));
+            }
+            if let Some(target) = params.target_long_edge {
+                if (target as u32) < source_long_edge {
+                    return Err(AppError::validation("Enhancement never downsizes; pick a larger target."));
+                }
+            } else if params.mode == EnhanceMode::Conservative {
+                return Err(AppError::validation("Conservative enhancement requires a target long edge."));
+            }
+            params.target_long_edge.map(|target| target as u32)
+        };
         if params.mode == EnhanceMode::Conservative && req.provider_id != crate::providers::local_upscale::ID {
             return Err(AppError::validation("Conservative enhancement must use provider 'local_upscale'."));
         }
         if !(0..=100).contains(&params.detail_strength) {
             return Err(AppError::validation("Enhancement detail strength must be an integer from 0 to 100."));
         }
+        if let Some(ids) = &params.allowed_region_ids {
+            if ids.is_empty() {
+                return Err(AppError::validation("allowedRegionIds must list at least one region."));
+            }
+            let conn = core.conn()?;
+            crate::services::regions::get_for_asset(&conn, &project.id, &assets[0].id, ids)?;
+        }
         if req.provider_id == crate::providers::hhtech::ID
             && req.model_id == "gemini-3-pro-image"
             && req.params.image_size.is_none()
         {
-            req.params.image_size = Some(
-                crate::providers::hhtech::catalog::enhance_tier(target_long_edge.map(|target| target as u32)).into(),
-            );
+            req.params.image_size = Some(crate::providers::hhtech::catalog::enhance_tier(tier_long_edge).into());
         }
     } else if enhance.is_some() {
         return Err(AppError::validation("params.enhance is only valid when purpose is 'enhance'."));
@@ -439,14 +472,41 @@ fn conservative_prompt(req: &SubmitRequest, purpose: GenerationPurpose) -> bool 
         && req.params.enhance.as_ref().is_some_and(|params| params.mode == EnhanceMode::Conservative)
 }
 
-fn source_long_edge(core: &AppCore, asset: &AssetRow) -> AppResult<u32> {
+fn source_size(core: &AppCore, asset: &AssetRow) -> AppResult<(u32, u32)> {
     if let (Some(width), Some(height)) = (asset.width_px, asset.height_px) {
-        return Ok(width.max(height).max(1) as u32);
+        return Ok((width.max(1) as u32, height.max(1) as u32));
     }
     let path = core.storage.resolve(&asset.project_id, &asset.managed_rel_path)?;
     let bytes = fs::read(path).map_err(|_| missing_reference(asset))?;
     let info = imaging::inspect(&bytes, "source image").map_err(|e| AppError::invalid_state(e.message))?;
-    Ok(info.width.max(info.height))
+    Ok((info.width, info.height))
+}
+
+/// ADR-035: strict is local and non-generative; balanced and creative are generative.
+fn validate_preservation(params: &crate::providers::EnhanceParams, provider_id: &str) -> AppResult<()> {
+    match params.preservation_mode {
+        Some(PreservationMode::Strict) => {
+            if params.mode != EnhanceMode::Conservative || provider_id != crate::providers::local_upscale::ID {
+                return Err(AppError::validation(
+                    "Strict enhancement is local only: use mode 'conservative' with provider 'local_upscale'.",
+                ));
+            }
+            if params.allowed_region_ids.is_some() {
+                return Err(AppError::validation("Strict enhancement does not use an allowed region."));
+            }
+        }
+        Some(PreservationMode::Balanced | PreservationMode::Creative) => {
+            if params.mode != EnhanceMode::Generative {
+                return Err(AppError::validation("Balanced and creative enhancement need a generative provider."));
+            }
+        }
+        None => {
+            if params.allowed_region_ids.is_some() {
+                return Err(AppError::validation("allowedRegionIds requires a preservationMode."));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn missing_reference(a: &AssetRow) -> AppError {
@@ -556,6 +616,7 @@ pub(crate) fn insert_queued(
         batch_id: options.batch_id.clone(),
         job_id: None,
         job_started_at: None,
+        enhance_check_json: None,
     };
     repo::insert_generation(conn, &generation)?;
     let job = JobRow {
@@ -651,21 +712,28 @@ fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
             .map(|id| check_reference(core, &conn, &generation.project_id, id))
             .collect::<AppResult<Vec<_>>>()
             .map_err(|e| not_runnable(e.message))?;
-        let region_shapes = if generation.purpose == GenerationPurpose::RegionEdit {
+        // Region edit: the edited regions. Enhance (ADR-035): the allowed regions, if any.
+        let region_ids = if generation.purpose == GenerationPurpose::RegionEdit {
             let params =
                 snapshot.params.region.as_ref().ok_or_else(|| not_runnable("Region edit parameters are missing."))?;
-            crate::services::regions::get_for_asset(
+            Some(&params.region_ids)
+        } else if generation.purpose == GenerationPurpose::Enhance {
+            snapshot.params.enhance.as_ref().and_then(|params| params.allowed_region_ids.as_ref())
+        } else {
+            None
+        };
+        let region_shapes = match region_ids {
+            Some(ids) => crate::services::regions::get_for_asset(
                 &conn,
                 &generation.project_id,
                 assets.first().map(|a| a.id.as_str()).unwrap_or_default(),
-                &params.region_ids,
+                ids,
             )
             .map_err(|e| not_runnable(e.message))?
             .into_iter()
             .map(|r| r.shape)
-            .collect()
-        } else {
-            Vec::new()
+            .collect(),
+            None => Vec::new(),
         };
         (job, generation, assets, region_shapes)
     };
@@ -793,6 +861,23 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
     } else {
         None
     };
+    // SRS P3 (ADR-035): a preservation mode or a size target takes the new path (layout,
+    // locked-region composite, local check). Legacy enhance params keep the old resize.
+    let p3_enhance = match prepared.snapshot.params.enhance.as_ref() {
+        Some(params)
+            if prepared.purpose == GenerationPurpose::Enhance
+                && (params.preservation_mode.is_some() || params.upscale.is_some()) =>
+        {
+            let source_ref = prepared
+                .references
+                .first()
+                .ok_or_else(|| Failure::new("invalid_request", "Enhancement has no source image.", false))?;
+            let unreadable = || Failure::new("invalid_request", "The enhancement source image is unreadable.", false);
+            let info = imaging::inspect(&source_ref.bytes, "source image").map_err(|_| unreadable())?;
+            Some((imaging::decode(&source_ref.bytes, info.format).map_err(|_| unreadable())?, params.clone()))
+        }
+        _ => None,
+    };
     let checked = images
         .iter()
         .enumerate()
@@ -808,12 +893,25 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             let provider_decoded = imaging::decode(&img.bytes, provider_info.format).map_err(|_| unreadable())?;
             let provider_long_edge = provider_info.width.max(provider_info.height);
             let mut bytes = img.bytes.clone();
+            let mut check = None;
             if prepared.purpose == GenerationPurpose::RegionEdit {
                 let (source, mask, width, height, _) = region_composite.as_ref().expect("region composite is prepared");
                 let composited =
                     crate::services::regions::mask::composite(source, &provider_decoded, mask, *width, *height);
                 bytes.clear();
                 composited.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).map_err(|_| unreadable())?;
+            } else if let Some((source, params)) = &p3_enhance {
+                let raster = |width: u32, height: u32| {
+                    crate::services::regions::mask::rasterize_mask(&prepared.region_shapes, width, height)
+                };
+                let allowed: Option<&dyn Fn(u32, u32) -> Vec<u8>> =
+                    if prepared.region_shapes.is_empty() { None } else { Some(&raster) };
+                let finished = crate::enhance::finish_output(source, &provider_decoded, params, allowed);
+                check = finished.check;
+                bytes.clear();
+                DynamicImage::ImageRgba8(finished.image)
+                    .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+                    .map_err(|_| unreadable())?;
             } else if prepared.purpose == GenerationPurpose::Enhance {
                 let source_long_edge = prepared.references.first().and_then(|reference| {
                     imaging::inspect(&reference.bytes, "source image").ok().map(|info| info.width.max(info.height))
@@ -836,7 +934,7 @@ fn store_outputs(core: &AppCore, prepared: &Prepared, output: ProviderOutput, cl
             }
             let info = imaging::inspect(&bytes, &format!("output {}", i + 1)).map_err(|_| unreadable())?;
             let decoded = imaging::decode(&bytes, info.format).map_err(|_| unreadable())?;
-            Ok(CheckedOutput { bytes, info, decoded, provider_long_edge })
+            Ok(CheckedOutput { bytes, info, decoded, provider_long_edge, check })
         })
         .collect::<Result<Vec<_>, Failure>>()?;
 
@@ -925,6 +1023,16 @@ fn commit_outputs(
         .first()
         .and_then(|reference| imaging::inspect(&reference.bytes, "source image").ok())
         .map(|info| info.width.max(info.height));
+    let source_sha256 = prepared
+        .references
+        .first()
+        .and_then(|reference| imaging::inspect(&reference.bytes, "source image").ok())
+        .map(|info| info.sha256);
+    // The generation shows the check of its first output (enhance makes one output).
+    if let Some(check) = checked.first().and_then(|output| output.check.as_ref()) {
+        let json = serde_json::to_string(check).map_err(|e| AppError::validation(e.to_string()))?;
+        repo::set_generation_enhance_check(&tx, &generation.id, &json)?;
+    }
     for (index, (files, checked)) in stored.iter().zip(checked).enumerate() {
         let asset_id = &files.asset_id;
         let index = index as u32;
@@ -943,7 +1051,7 @@ fn commit_outputs(
                 "model": generation.model_id,
             })
         } else if prepared.purpose == GenerationPurpose::Enhance {
-            json!({
+            let mut operation = json!({
                 "params": prepared.snapshot.params,
                 "generationId": generation.id,
                 "providerId": generation.provider_id,
@@ -952,7 +1060,19 @@ fn commit_outputs(
                 "providerLongEdge": checked.provider_long_edge,
                 "finalLongEdge": checked.info.width.max(checked.info.height),
                 "outputIndex": index,
-            })
+            });
+            // Provenance of a P3 enhance (ADR-035): parent, input/config hashes, mode, check id.
+            if let Some(check) = &checked.check {
+                if let Some(map) = operation.as_object_mut() {
+                    map.insert("parentAssetId".into(), json!(parent_asset_id));
+                    map.insert("inputHash".into(), json!(source_sha256));
+                    map.insert("configHash".into(), json!(prepared.snapshot.prompt.config_hash));
+                    map.insert("preservationMode".into(), json!(check.preservation_mode));
+                    map.insert("enhanceCheckId".into(), json!(check.id));
+                    map.insert("enhanceCheckStatus".into(), json!(check.status));
+                }
+            }
+            operation
         } else if prepared.purpose == GenerationPurpose::Repair {
             let repair_of = prepared.references.first().map(|reference| reference.asset_id.clone());
             let parent_depth = repair_of
@@ -1074,6 +1194,7 @@ fn to_dto(conn: &Connection, row: GenerationRow) -> AppResult<GenerationDto> {
         started_at,
         finished_at: row.finished_at,
         duration_ms: row.duration_ms,
+        enhance_check: row.enhance_check_json.as_deref().and_then(|json| serde_json::from_str(json).ok()),
     })
 }
 
@@ -1801,7 +1922,7 @@ mod tests {
                     "placementZoneId": "garage_bay", "state": "static",
                     "appearanceOverrides": { "color": "silver" }, "sourceReferenceIds": []
                 }],
-                "visualIntent": "front"
+                "visualIntent": { "view": "front", "purpose": "landscape", "focus": 55 }
             }
         });
         let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
@@ -1810,7 +1931,8 @@ mod tests {
         assert_eq!(intent.detail_shot_count, Some(2));
         let objects = intent.scene_objects.as_ref().unwrap();
         assert_eq!((objects[0].quantity, objects[0].state), (1, SceneObjectState::Static));
-        assert_eq!(intent.extra["visualIntent"], json!("front"));
+        assert_eq!(intent.visual_intent.as_ref().unwrap().view, "front");
+        assert_eq!(intent.visual_intent.as_ref().unwrap().focus, Some(55));
         // `cameraId: null` is written back as absent, which the domain schema reads the same.
         let mut expected = raw.clone();
         expected["shotIntent"].as_object_mut().unwrap().remove("cameraId");
@@ -2019,6 +2141,10 @@ mod tests {
             target_long_edge: target,
             detail_strength: 40,
             architecture_preserve: true,
+            preservation_mode: None,
+            locks: None,
+            allowed_region_ids: None,
+            upscale: None,
         });
         req
     }
@@ -2182,5 +2308,227 @@ mod tests {
         });
         let err = serde_json::from_value::<SubmitRequest>(raw).unwrap_err();
         assert!(err.to_string().contains("invalid type"));
+    }
+
+    // ------------------------------------------------------------------ SRS P3 (ADR-035)
+
+    fn p3_request(
+        project_id: &str,
+        provider: &str,
+        model: &str,
+        source_id: &str,
+        mode: crate::providers::PreservationMode,
+        width: u32,
+        height: u32,
+    ) -> SubmitRequest {
+        use crate::providers::{ContainFit, EnhanceMode, IfAlreadyLarger, PreservationMode, UpscaleParams};
+        let strict = mode == PreservationMode::Strict;
+        let mut req = enhance_request(
+            project_id,
+            provider,
+            model,
+            source_id,
+            if strict { EnhanceMode::Conservative } else { EnhanceMode::Generative },
+            None,
+        );
+        let enhance = req.params.enhance.as_mut().unwrap();
+        enhance.preservation_mode = Some(mode);
+        enhance.upscale = Some(UpscaleParams {
+            target: UpscaleTarget::Custom { width, height, fit: ContainFit::Contain },
+            if_already_larger: IfAlreadyLarger::Keep,
+        });
+        req
+    }
+
+    fn operation_of(core: &AppCore, asset_id: &str) -> Value {
+        core.conn()
+            .unwrap()
+            .query_row("SELECT operation_json FROM assets WHERE id = ?1", [asset_id], |row| row.get::<_, String>(0))
+            .map(|s| serde_json::from_str(&s).unwrap())
+            .unwrap()
+    }
+
+    #[test]
+    fn strict_enhance_letterboxes_locally_and_stores_a_passing_check_with_provenance() {
+        let (tmp, core, double) = core_with_double();
+        let project = test_create_villa(&core, "Strict");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let req = p3_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            crate::providers::PreservationMode::Strict,
+            128,
+            128,
+        );
+        let generation = submit(&core, req).unwrap();
+        assert_eq!(double.calls(), 0, "strict never calls a remote provider");
+        assert_eq!(generation.status, GenerationStatus::Completed);
+        let check = get(&core, &project.id, &generation.id).unwrap().enhance_check.expect("check stored");
+        assert_eq!(check["status"], "pass", "{check}");
+        assert_eq!(check["preservationMode"], "strict");
+        assert_eq!(check["expectedSize"], json!({ "width": 128, "height": 128 }));
+        assert_eq!(check["content"], json!({ "x": 0, "y": 16, "width": 128, "height": 96 }));
+        assert_eq!(check["lockedPct"], 100.0);
+        let output = &generation.output_asset_ids[0];
+        let operation = operation_of(&core, output);
+        assert_eq!(operation["preservationMode"], "strict");
+        assert_eq!(operation["enhanceCheckId"], check["id"]);
+        assert_eq!(operation["parentAssetId"], json!(source.id));
+        assert!(operation["inputHash"].as_str().is_some_and(|h| h.len() == 64));
+        let asset = assets::list(&core, &project.id).unwrap().into_iter().find(|a| &a.id == output).unwrap();
+        assert_eq!((asset.width_px, asset.height_px), (Some(128), Some(128)));
+        let listed = list(&core, &project.id).unwrap();
+        assert_eq!(listed.iter().find(|g| g.id == generation.id).unwrap().enhance_check, Some(check));
+    }
+
+    #[test]
+    fn strict_enhance_refuses_a_paid_provider_before_any_row_or_call() {
+        let (tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let project = test_create_villa(&core, "Strict paid");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [1, 2, 3]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let mut req = p3_request(
+            &project.id,
+            TEST_PROVIDER,
+            "full",
+            &source.id,
+            crate::providers::PreservationMode::Strict,
+            64,
+            64,
+        );
+        req.params.enhance.as_mut().unwrap().mode = crate::providers::EnhanceMode::Generative;
+        let err = validate(&core, req).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert!(err.message.contains("Strict enhancement is local only"), "{}", err.message);
+        assert_eq!(double.calls(), 0);
+        assert_eq!(count(&core, "generations"), 0);
+    }
+
+    #[test]
+    fn skip_when_already_larger_is_refused_and_balanced_needs_generative() {
+        use crate::providers::{IfAlreadyLarger, NamedUpscaleTarget, PreservationMode, UpscaleParams};
+        let (tmp, core, _) = core_with_double();
+        let project = test_create_villa(&core, "Skip");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [1, 2, 3]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let mut req = p3_request(
+            &project.id,
+            local_upscale::ID,
+            local_upscale::MODEL_ID,
+            &source.id,
+            PreservationMode::Strict,
+            16,
+            16,
+        );
+        req.params.enhance.as_mut().unwrap().upscale.as_mut().unwrap().if_already_larger = IfAlreadyLarger::Skip;
+        assert!(validate(&core, req.clone()).unwrap_err().message.contains("skipped"));
+        // Keep: the 32 px source stays 32 px, never downscaled to the 16 px target.
+        req.params.enhance.as_mut().unwrap().upscale.as_mut().unwrap().if_already_larger = IfAlreadyLarger::Keep;
+        let generation = submit(&core, req.clone()).unwrap();
+        let asset = assets::list(&core, &project.id)
+            .unwrap()
+            .into_iter()
+            .find(|a| a.id == generation.output_asset_ids[0])
+            .unwrap();
+        assert_eq!((asset.width_px, asset.height_px), (Some(32), Some(24)));
+        assert_eq!(generation.enhance_check.as_ref().unwrap()["sizeAction"], "keep");
+        // A UHD target needs no targetLongEdge.
+        req.params.enhance.as_mut().unwrap().upscale = Some(UpscaleParams {
+            target: UpscaleTarget::Named(NamedUpscaleTarget::Uhd3840x2160Contain),
+            if_already_larger: IfAlreadyLarger::Keep,
+        });
+        assert!(validate(&core, req.clone()).is_ok());
+        req.params.enhance.as_mut().unwrap().preservation_mode = Some(PreservationMode::Balanced);
+        assert!(validate(&core, req).unwrap_err().message.contains("generative"));
+    }
+
+    #[test]
+    fn balanced_enhance_restores_locked_pixels_from_the_source() {
+        let (tmp, core, _) = core_with_double();
+        set_key(&core, "k");
+        let project = test_create_villa(&core, "Balanced");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let region = crate::services::regions::save(
+            &core,
+            &project.id,
+            &source.id,
+            crate::services::regions::RegionInput {
+                id: None,
+                label: "Sky".into(),
+                kind: "zone".into(),
+                object_id: None,
+                shape: crate::services::regions::RegionShape::Rect { x: 0.5, y: 0.0, w: 0.5, h: 1.0 },
+            },
+        )
+        .unwrap();
+        let mut req = p3_request(
+            &project.id,
+            TEST_PROVIDER,
+            "full",
+            &source.id,
+            crate::providers::PreservationMode::Balanced,
+            64,
+            48,
+        );
+        req.params.enhance.as_mut().unwrap().allowed_region_ids = Some(vec![region.id]);
+        let generation = submit(&core, req).unwrap();
+        assert_eq!(generation.status, GenerationStatus::Completed);
+        let output = assets::list(&core, &project.id)
+            .unwrap()
+            .into_iter()
+            .find(|a| a.id == generation.output_asset_ids[0])
+            .unwrap();
+        let image = image::open(&output.absolute_path).unwrap().to_rgba8();
+        assert_eq!(image.dimensions(), (64, 48));
+        // Locked (left) pixels are the source; allowed pixels past the feather are the AI's.
+        assert!((0..32).all(|x| image.get_pixel(x, 20).0 == [32, 64, 96, 255]));
+        assert_eq!(image.get_pixel(60, 20).0, [0, 100, 200, 255]);
+        let check = generation.enhance_check.unwrap();
+        assert_eq!(check["status"], "pass", "{check}");
+        assert_eq!(check["composited"], true);
+        assert!(check["lockedSsim"].as_f64().unwrap() >= crate::enhance::MIN_LOCKED_SSIM);
+    }
+
+    #[test]
+    fn balanced_without_a_mask_is_marked_for_review_and_legacy_rows_have_no_check() {
+        let (tmp, core, _) = core_with_double();
+        set_key(&core, "k");
+        let project = test_create_villa(&core, "Review");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        projects::approve_master(&core, &project.id, true).unwrap();
+        let req = p3_request(
+            &project.id,
+            TEST_PROVIDER,
+            "full",
+            &source.id,
+            crate::providers::PreservationMode::Balanced,
+            64,
+            48,
+        );
+        let generation = submit(&core, req).unwrap();
+        let check = generation.enhance_check.unwrap();
+        assert_eq!(check["status"], "warn");
+        assert_eq!(check["reasons"], json!(["no_allowed_region"]));
+        assert_eq!(check["composited"], false);
+        let legacy = submit(
+            &core,
+            enhance_request(
+                &project.id,
+                local_upscale::ID,
+                local_upscale::MODEL_ID,
+                &source.id,
+                crate::providers::EnhanceMode::Conservative,
+                Some(2048),
+            ),
+        )
+        .unwrap();
+        assert!(legacy.enhance_check.is_none());
+        let json = serde_json::to_value(&legacy).unwrap();
+        assert!(json.get("enhanceCheck").is_none(), "absent, not null, for legacy rows");
     }
 }

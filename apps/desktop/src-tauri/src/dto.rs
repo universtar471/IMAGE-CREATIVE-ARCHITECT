@@ -137,8 +137,23 @@ pub struct ShotIntent {
     pub detail_shot_count: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene_objects: Option<Vec<SceneObjectRequest>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_intent: Option<VisualIntent>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualIntent {
+    pub view: String,
+    pub purpose: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distance: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus: Option<u8>,
 }
 
 /// Mirrors `SceneObjectRequestSchema` (ADR-036 P2d). The domain validator owns the rules;
@@ -242,6 +257,9 @@ pub struct GenerationDto {
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
     pub duration_ms: Option<i64>,
+    /// Deterministic local preservation check; absent for legacy/non-enhance rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enhance_check: Option<serde_json::Value>,
 }
 
 // ------------------------------------------------------------------ Phase 3: jobs, batches, anchors

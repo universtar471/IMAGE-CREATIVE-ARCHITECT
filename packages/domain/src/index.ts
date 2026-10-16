@@ -25,6 +25,7 @@ export * from "./prompt/hash";
 export * from "./prompt/stylePhrases";
 export * from "./generation/helpers";
 export * from "./camera/cameras";
+export * from "./camera/intent";
 export * from "./labels";
 export * from "./ids";
 export type * from "./providers";

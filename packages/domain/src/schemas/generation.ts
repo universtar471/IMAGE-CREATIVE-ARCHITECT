@@ -77,13 +77,164 @@ export const GenerationPurposeSchema = z.enum([
 ]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 
+/** SRS P3 (ADR-035) preservation modes; absent = the legacy conservative/generative contract. */
+export const PreservationModeSchema = z.enum(["strict", "balanced", "creative"]);
+export type PreservationMode = z.infer<typeof PreservationModeSchema>;
+
+/** Facts the generative prompt must keep. All on by default; the camera lock forbids crops. */
+export const EnhanceLocksSchema = z.object({
+  geometry: z.boolean().default(true),
+  material: z.boolean().default(true),
+  context: z.boolean().default(true),
+  camera: z.boolean().default(true),
+});
+export type EnhanceLocks = z.infer<typeof EnhanceLocksSchema>;
+
+export const UpscaleTargetSchema = z.union([
+  z.literal("long_edge_2048"),
+  z.literal("long_edge_4096"),
+  /** Contain inside 3840 x 2160 with letterbox padding; never a crop. */
+  z.literal("uhd_3840x2160_contain"),
+  z.object({
+    width: z.number().int().min(1).max(8192),
+    height: z.number().int().min(1).max(8192),
+    fit: z.literal("contain"),
+  }),
+]);
+export type UpscaleTarget = z.infer<typeof UpscaleTargetSchema>;
+
+export const IfAlreadyLargerSchema = z.enum(["keep", "quality_only", "skip"]);
+export type IfAlreadyLarger = z.infer<typeof IfAlreadyLargerSchema>;
+
+export const UpscaleParamsSchema = z.object({
+  target: UpscaleTargetSchema,
+  /** What to do when the source already exceeds the target. Nothing is ever downscaled. */
+  ifAlreadyLarger: IfAlreadyLargerSchema.default("keep"),
+});
+export type UpscaleParams = z.infer<typeof UpscaleParamsSchema>;
+
 export const EnhanceParamsSchema = z.object({
   mode: z.enum(["conservative", "generative"]),
   targetLongEdge: z.union([z.literal(2048), z.literal(3072), z.literal(4096), z.null()]),
   detailStrength: z.number().int().min(0).max(100).default(40),
   architecturePreserve: z.boolean().default(true),
+  /** SRS P3 mode; optional so legacy rows parse and behave unchanged. */
+  preservationMode: PreservationModeSchema.optional(),
+  /** Written by the P3 UI only; omitted means the legacy contract. */
+  locks: EnhanceLocksSchema.optional(),
+  /** Regions of the source asset the AI may change (balanced/creative); the rest is locked. */
+  allowedRegionIds: z.array(z.string()).min(1).optional(),
+  /** Size target (ADR-035); when set it decides the output size instead of `targetLongEdge`. */
+  upscale: UpscaleParamsSchema.optional(),
 });
 export type EnhanceParams = z.infer<typeof EnhanceParamsSchema>;
+
+/**
+ * Why a local enhance check asks for review. These are checks, not a score: they never
+ * block saving (ADR-035).
+ */
+export const EnhanceCheckReasonSchema = z.enum([
+  "size_mismatch",
+  "aspect_changed",
+  "registration_shift",
+  "locked_ssim_low",
+  "edge_structure_changed",
+  "no_allowed_region",
+  "creative_review",
+]);
+export type EnhanceCheckReason = z.infer<typeof EnhanceCheckReasonSchema>;
+
+const PixelSizeSchema = z.object({
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
+/** Deterministic local check run in Rust after an enhance job (ADR-035; no Vision QC). */
+export const EnhanceCheckSchema = z.object({
+  /** `ECK_...`; also recorded on the enhanced asset for provenance. */
+  id: z.string(),
+  /** Version of the check rules, e.g. "ec-1.0.0". */
+  version: z.string(),
+  preservationMode: PreservationModeSchema,
+  status: z.enum(["pass", "warn"]),
+  reasons: z.array(EnhanceCheckReasonSchema),
+  expectedSize: PixelSizeSchema,
+  actualSize: PixelSizeSchema,
+  /** Where the image sits inside the canvas (letterbox padding around it). */
+  content: z.object({
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  /** Relative aspect change of the provider output against the source; 0 = identical. */
+  aspectDelta: z.number().nonnegative(),
+  /** Global offset estimate on downscaled luma, in source pixels. */
+  registration: z.object({ dx: z.number(), dy: z.number(), shiftPx: z.number().nonnegative() }),
+  /** Mean SSIM of locked pixels; null when nothing is locked. */
+  lockedSsim: z.number().min(-1).max(1).nullable(),
+  /** Share of the frame that is locked, 0-100. */
+  lockedPct: z.number().min(0).max(100),
+  /** Strict only: share of output edges that do not exist in the source; null otherwise. */
+  edgeDelta: z.number().min(0).max(1).nullable(),
+  /** True when locked pixels were restored from the source. */
+  composited: z.boolean(),
+  /** What the size step did. */
+  sizeAction: z.enum(["upscale", "keep", "quality_only"]),
+});
+export type EnhanceCheck = z.infer<typeof EnhanceCheckSchema>;
+
+type EnhanceIssue = { path: (string | number)[]; message: string };
+
+/**
+ * Purpose contract of `params.enhance`, shared by single submits and batches. A path that
+ * starts with `providerId` is relative to the request, any other to `params.enhance`.
+ */
+export function enhanceContractIssues(enhance: EnhanceParams, providerId: string): EnhanceIssue[] {
+  const issues: EnhanceIssue[] = [];
+  if (enhance.mode === "conservative" && enhance.targetLongEdge === null && !enhance.upscale) {
+    issues.push({
+      path: ["targetLongEdge"],
+      message: "Conservative enhancement requires targetLongEdge.",
+    });
+  }
+  if (enhance.mode === "conservative" && providerId !== "local_upscale") {
+    issues.push({
+      path: ["providerId"],
+      message: 'Conservative enhancement requires providerId "local_upscale".',
+    });
+  }
+  if (enhance.preservationMode === "strict") {
+    if (providerId !== "local_upscale")
+      issues.push({
+        path: ["providerId"],
+        message: 'Strict enhancement requires providerId "local_upscale".',
+      });
+    if (enhance.mode !== "conservative")
+      issues.push({ path: ["mode"], message: "Strict enhancement is local and non-generative." });
+    if (enhance.allowedRegionIds)
+      issues.push({
+        path: ["allowedRegionIds"],
+        message: "Strict enhancement does not use an allowed region.",
+      });
+  }
+  if (
+    (enhance.preservationMode === "balanced" || enhance.preservationMode === "creative") &&
+    enhance.mode !== "generative"
+  ) {
+    issues.push({
+      path: ["mode"],
+      message: "Balanced and creative enhancement need a generative provider.",
+    });
+  }
+  if (enhance.allowedRegionIds && !enhance.preservationMode) {
+    issues.push({
+      path: ["allowedRegionIds"],
+      message: "allowedRegionIds requires a preservationMode.",
+    });
+  }
+  return issues;
+}
 
 /**
  * Params of a legacy `repair` generation. Repairs were created only from QC reports; QC was
@@ -140,18 +291,11 @@ function addPurposeContractIssues(
       });
       return;
     }
-    if (enhance.mode === "conservative" && enhance.targetLongEdge === null) {
+    for (const issue of enhanceContractIssues(enhance, value.providerId)) {
       ctx.addIssue({
         code: "custom",
-        path: ["params", "enhance", "targetLongEdge"],
-        message: "Conservative enhancement requires targetLongEdge.",
-      });
-    }
-    if (enhance.mode === "conservative" && value.providerId !== "local_upscale") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["providerId"],
-        message: 'Conservative enhancement requires providerId "local_upscale".',
+        path: issue.path[0] === "providerId" ? issue.path : ["params", "enhance", ...issue.path],
+        message: issue.message,
       });
     }
   }
@@ -250,6 +394,7 @@ export const GenerationDTOSchema = z
     startedAt: z.string().nullable(),
     finishedAt: z.string().nullable(),
     durationMs: z.number().int().nonnegative().nullable(),
+    enhanceCheck: EnhanceCheckSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => addPurposeContractIssues(value, ctx));
 export type GenerationDTO = z.infer<typeof GenerationDTOSchema>;

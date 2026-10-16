@@ -5,6 +5,7 @@
  * the workspace store, and the generation snapshot records it in `PromptBundle.shotIntent`.
  */
 import { z } from "zod";
+import { VisualIntentSchema, type VisualIntent } from "../camera/intent";
 import { ProjectTypeSchema, type ProjectType } from "../schemas/enums";
 import { SceneObjectRequestSchema, type SceneObjectRequest } from "../sceneObjects/schemas";
 
@@ -20,6 +21,8 @@ export type ShotIntent = {
   detailShotCount?: number;
   /** P2d: objects added to this shot. Absent or empty adds nothing. */
   sceneObjects?: SceneObjectRequest[];
+  /** P2a: the visual camera choice, kept in the shot snapshot and never in DNA. */
+  visualIntent?: VisualIntent;
 };
 
 /** Runtime contract of the snapshot (mirrored by the Rust `ShotIntent` DTO). */
@@ -30,4 +33,5 @@ export const ShotIntentSchema = z.object({
   targetDetailId: z.string().nullable().optional(),
   detailShotCount: z.number().int().min(1).max(10).optional(),
   sceneObjects: z.array(SceneObjectRequestSchema).optional(),
+  visualIntent: VisualIntentSchema.optional(),
 });

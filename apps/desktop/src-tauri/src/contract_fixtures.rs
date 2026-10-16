@@ -73,14 +73,14 @@ impl Normalizer {
         }
     }
 
-    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_` + 26 ULID chars → counters in order of first appearance.
+    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_/ECK_` + 26 ULID chars → counters in order of first appearance.
     fn stable_ids(&mut self, text: &str) -> String {
         let bytes = text.as_bytes();
         let mut out = String::with_capacity(text.len());
         let mut i = 0;
         while i < bytes.len() {
             let candidate =
-                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_"].iter().find(|p| text[i..].starts_with(**p));
+                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "ECK_"].iter().find(|p| text[i..].starts_with(**p));
             if let Some(prefix) = candidate {
                 let prefix_len = prefix.len();
                 let tail = &bytes[i + prefix_len..(i + prefix_len + 26).min(bytes.len())];
@@ -366,6 +366,25 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     let failed = prompt_enhance::enhance(&core, enhance(hhtech::ID)).unwrap_err();
     rec.record_error("error_prompt_enhance_provider", &failed);
     provider_settings::clear_api_key(&core, hhtech::ID).unwrap();
+
+    // SRS P3 (ADR-035): strict enhance with a contain target stores the local check.
+    let p3_request: SubmitRequest = serde_json::from_value(json!({
+        "projectId": p.id,
+        "providerId": local_upscale::ID,
+        "modelId": local_upscale::MODEL_ID,
+        "purpose": "enhance",
+        "prompt": { "compilerVersion": "", "positivePrompt": "", "negativePrompt": "", "referenceInstructions": "", "preservationInstructions": "", "metadata": {} },
+        "referenceAssetIds": [master.id],
+        "params": { "aspectRatio": null, "imageSize": null, "outputCount": 1, "seed": null,
+                    "enhance": { "mode": "conservative", "targetLongEdge": null, "detailStrength": 40, "architecturePreserve": true,
+                                 "preservationMode": "strict",
+                                 "locks": { "geometry": true, "material": true, "context": true, "camera": true },
+                                 "upscale": { "target": { "width": 96, "height": 96, "fit": "contain" }, "ifAlreadyLarger": "keep" } } }
+    }))
+    .unwrap();
+    let p3_queued = generations::submit(&core, p3_request).unwrap();
+    run_queue(&core);
+    rec.record("enhance_p3_generation_get", "generation_get", &generations::get(&core, &p.id, &p3_queued.id).unwrap());
 
     rec.record("generation_list", "generation_list", &generations::list(&core, &p.id).unwrap());
     rec.record("version_list", "version_list", &assets::list_versions(&core, &p.id).unwrap());
