@@ -24,6 +24,7 @@ import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
+import { detailTargetSection } from "./sections/detailTarget";
 import type { ShotIntent } from "../validation/shotIntent";
 
 export const COMPILER_VERSION = "pc-1.8.0";
@@ -234,6 +235,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
         ? cameraSectionTextForPlan(camera, dna, project.projectType)
         : (interiorLine(interiorLines, "Camera:") ?? null),
     ],
+    ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
     [
       "quality",

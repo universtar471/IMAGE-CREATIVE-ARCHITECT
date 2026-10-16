@@ -54,6 +54,15 @@ describe("prompt compiler", () => {
     expect(a.compilerVersion).toBe(COMPILER_VERSION);
   });
 
+  it("keeps the legacy bundle byte-identical when no visual intent is chosen", () => {
+    const withoutIntent = compilePrompt(input("villa"));
+    const withEmptyShotIntent = compilePrompt(
+      input("villa", { shotIntent: { projectType: "villa", cameraId: null } }),
+    );
+    expect(withEmptyShotIntent).toEqual(withoutIntent);
+    expect(withoutIntent.shotIntent).toBeUndefined();
+  });
+
   it("is independent of reference input order", () => {
     const refs = [
       { assetId: "AST_2", role: "material_reference" as const },

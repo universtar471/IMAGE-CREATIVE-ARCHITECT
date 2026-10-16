@@ -17,6 +17,7 @@ import {
   type GenerationDTO,
   type GenerationParams,
   type ProviderDescriptorDTO,
+  type ShotIntent,
 } from "@arch/domain";
 import type { ProjectBundle } from "../../app/services";
 import { knowledge } from "../../lib/knowledge";
@@ -38,6 +39,7 @@ export type BatchChoices = {
   /** Production only: references beyond master + anchor. */
   extraReferenceIds: readonly string[];
   name?: string;
+  shotIntent?: ShotIntent;
 };
 
 export type BatchPlan = {
@@ -158,6 +160,7 @@ export function planBatch(
     model,
     params: choices.params,
     extraReferenceIds: choices.extraReferenceIds,
+    shotIntent: choices.shotIntent,
   };
 
   let items: BatchItem[];
