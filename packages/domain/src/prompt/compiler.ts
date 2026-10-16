@@ -20,7 +20,6 @@ import { siteCameraText, siteOcclusionLines } from "./sections/siteOcclusion";
 import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
 import { VALIDATOR_VERSION } from "../validation/codes";
-import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
@@ -285,14 +284,9 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   for (const r of references) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
   const anchorIndex = references.findIndex(isAnchorRef);
 
-  // Provenance (ADR-034): the warnings the validator raises for this DNA + shot, and hashes
-  // of exactly what was compiled. Display-only fields (project name, reference labels) are
-  // left out so they do not change the hashes.
+  // Provenance (ADR-034): hashes of exactly what was compiled. Display-only fields (project
+  // name, reference labels) are left out so they do not change the hashes.
   const cameraId = camera?.id ?? null;
-  const validation = validateShot({
-    dna,
-    shotIntent: shotIntent ?? { projectType: project.projectType, cameraId },
-  });
   const sourceHash = canonicalHash({
     dna,
     shot: {
@@ -328,7 +322,9 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     catalogVersion,
     sourceHash,
     configHash,
-    resolvedWarnings: warningCodes(validation),
+    // Only WARN codes the user ACCEPTED belong here; the desktop gate sets them through
+    // `withValidation`. Codes found but not accepted live in `validation.issueCodes`.
+    resolvedWarnings: [],
     ...(shotIntent ? { shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),

@@ -40,6 +40,8 @@ import {
 } from "./contactGroups";
 import { anchorRerunRequest } from "./batch";
 import { spendRequestForGeneration } from "../../lib/spend";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { useBatchGate } from "../validation/useBatchGate";
 
 export function adoptContactMood(dna: ProjectDNA, preset: MoodVariationPreset) {
   return adoptMoodPresetSections(dna, preset);
@@ -287,9 +289,28 @@ function CameraGroup({
   const createBatch = useStudio((s) => s.createBatch);
   const readOnly = useStudio(selectReadOnly);
   const spend = useSpendConfirm();
+  const source = group.entries[0]?.generation ?? null;
+  const cameraName = cam?.name ?? group.cameraId ?? "";
+  const rerunRequest =
+    source && group.cameraId && cam?.isAnchorView
+      ? anchorRerunRequest(
+          source,
+          group.cameraId,
+          cameraName,
+          `${t("contact.rerunAnchor")} · ${cameraName}`,
+        )
+      : null;
+  // The re-run resends the source snapshot: it passes the conflict gate on the current DNA
+  // first (ADR-034), and a WARN is accepted here with "Duyệt ngoại lệ".
+  const conflicts = useBatchGate(rerunRequest);
+  const [checked, setChecked] = useState(false);
+  const fixConflict = useConflictFix();
   const rerun = async () => {
-    if (!group.cameraId || readOnly || !group.entries.length) return;
-    const source = group.entries[0]!.generation;
+    if (!group.cameraId || readOnly || !source || !rerunRequest) return;
+    if (conflicts.gate && !conflicts.gate.request) {
+      setChecked(true); // show what blocks it; nothing is sent
+      return;
+    }
     const provider = useStudio.getState().providers?.find((item) => item.id === source.providerId);
     const model = provider?.models.find((item) => item.id === source.modelId);
     const count = source.params.outputCount;
@@ -307,15 +328,7 @@ function CameraGroup({
       }))
     )
       return;
-    const cameraName = cam?.name ?? group.cameraId;
-    await createBatch(
-      anchorRerunRequest(
-        source,
-        group.cameraId,
-        cameraName,
-        `${t("contact.rerunAnchor")} · ${cameraName}`,
-      ),
-    );
+    await createBatch(rerunRequest, { approvedExceptions: conflicts.approvedExceptions });
   };
   return (
     <section className="contact-group" aria-label={cam?.name ?? t("contact.noCamera")}>
@@ -329,11 +342,23 @@ function CameraGroup({
           </span>
         )}
         {cam?.isAnchorView && group.entries.length > 0 && (
-          <button className="btn btn-sm" disabled={readOnly} onClick={() => void rerun()}>
+          <button
+            className="btn btn-sm"
+            disabled={readOnly}
+            onClick={() => void rerun()}
+            data-testid="contact-rerun"
+          >
             {t("contact.rerunAnchor")}
           </button>
         )}
       </header>
+      {checked && conflicts.gate && (
+        <ConflictPanel
+          entries={conflicts.gate.entries}
+          onFix={fixConflict}
+          onApprove={conflicts.approve}
+        />
+      )}
       <div className="contact-cards">
         {group.entries.map((e) => (
           <EntryCards

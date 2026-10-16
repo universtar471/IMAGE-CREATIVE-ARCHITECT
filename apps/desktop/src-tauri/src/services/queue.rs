@@ -24,7 +24,7 @@ use rusqlite::Connection;
 use serde::Deserialize;
 
 use crate::domain::{GenerationStatus, JobStatus};
-use crate::dto::{GenerationDto, JobDto};
+use crate::dto::{GenerationDto, JobDto, ShotValidationSnapshot};
 use crate::error::{AppError, AppResult};
 use crate::providers::{ProviderErrorKind, ProviderKind};
 use crate::repositories::{self as repo, GenerationErrorRow, JobRow};
@@ -440,7 +440,16 @@ pub fn cancel(core: &AppCore, job_id: &str) -> AppResult<JobDto> {
 /// Run a finished job's request again as a new generation + job (same label, priority,
 /// batch and camera). The request is validated again like a new submit.
 pub fn retry(core: &AppCore, job_id: &str) -> AppResult<JobDto> {
-    let (job, request) = {
+    retry_with(core, job_id, None)
+}
+
+/// `retry` with the desktop conflict gate's fresh verdict (ADR-034). The gate re-runs
+/// `validateShot` on the stored snapshot against the CURRENT DNA; its verdict replaces the
+/// snapshot's own, and `resolvedWarnings` becomes the codes accepted now. The request is then
+/// validated like a new submit, so a verdict that is now BLOCK is refused (`VALIDATION_ERROR`)
+/// before any row is written. Without a verdict (older clients) the stored one is checked.
+pub fn retry_with(core: &AppCore, job_id: &str, validation: Option<ShotValidationSnapshot>) -> AppResult<JobDto> {
+    let (job, mut request) = {
         let conn = core.conn()?;
         let job = repo::get_job(&conn, job_id)?;
         if !matches!(job.status, JobStatus::Failed | JobStatus::Cancelled | JobStatus::Interrupted) {
@@ -452,6 +461,13 @@ pub fn retry(core: &AppCore, job_id: &str) -> AppResult<JobDto> {
         let request = generations::request_of(&conn, &job.generation_id)?;
         (job, request)
     };
+    if let Some(validation) = validation {
+        let prompt = &mut request.prompt;
+        if !validation.approved_exceptions.is_empty() || prompt.resolved_warnings.is_some() {
+            prompt.resolved_warnings = Some(validation.approved_exceptions.clone());
+        }
+        prompt.validation = Some(validation);
+    }
     let validated = generations::validate(core, request)?;
     let options = JobOptions { label: job.label, priority: job.priority, batch_id: job.batch_id };
     let new_job_id = {
@@ -961,6 +977,33 @@ mod tests {
         assert_eq!(job(&h, &again.id).status, JobStatus::Completed);
         assert_eq!(retry(&h.core, &again.id).unwrap_err().code, ErrorCode::InvalidState, "completed");
         assert_eq!(job(&h, &id).status, JobStatus::Failed, "the old job keeps its history");
+    }
+
+    #[test]
+    fn retry_with_a_fresh_verdict_refuses_block_and_records_the_accepted_codes() {
+        use crate::dto::{ShotValidationSnapshot, ShotVerdict};
+        let verdict = |verdict, approved: &[&str]| ShotValidationSnapshot {
+            verdict,
+            validator_version: "cv-1.2.0".into(),
+            issue_codes: vec!["ADJACENT_BUILDING_CONFLICT".into(), "UNVERIFIED_GEOMETRY".into()],
+            approved_exceptions: approved.iter().map(|c| c.to_string()).collect(),
+        };
+        let (h, pid) = setup();
+        h.remote.set_behavior(TestBehavior::Fail(ProviderErrorKind::Auth));
+        let id = remote(&h, &pid);
+        tick_now(&h);
+        assert_eq!(job(&h, &id).status, JobStatus::Failed);
+        let jobs_before = count(&h, "jobs");
+
+        // The stored snapshot would pass, but against the current DNA the shot is now BLOCK.
+        let err = retry_with(&h.core, &id, Some(verdict(ShotVerdict::Block, &[]))).unwrap_err();
+        assert_eq!(err.code, ErrorCode::ValidationError);
+        assert_eq!(count(&h, "jobs"), jobs_before, "a refused retry writes no row");
+
+        let again = retry_with(&h.core, &id, Some(verdict(ShotVerdict::Allow, &["UNVERIFIED_GEOMETRY"]))).unwrap();
+        let prompt = generation(&h, &again).prompt;
+        assert_eq!(prompt.validation.map(|v| v.verdict), Some(ShotVerdict::Allow));
+        assert_eq!(prompt.resolved_warnings, Some(vec!["UNVERIFIED_GEOMETRY".to_string()]));
     }
 
     #[test]

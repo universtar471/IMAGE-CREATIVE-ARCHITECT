@@ -357,7 +357,7 @@ New commands:
 | `batch_list` | `{ projectId }` | `BatchDTO[]`, newest first |
 | `job_list` | `{ projectId: string \| null }` (null = all projects) | `JobDTO[]`: all non-terminal + the 100 most recent terminal, newest first |
 | `job_cancel` | `{ jobId }` | `JobDTO` (`INVALID_STATE` if already terminal) |
-| `job_retry` | `{ jobId }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`) |
+| `job_retry` | `{ jobId, validation? }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`). `validation` is the desktop gate's fresh `ShotValidationSnapshot` for the stored snapshot against the current DNA (ADR-034); it replaces the stored one and sets `resolvedWarnings` to its `approvedExceptions`. A `BLOCK` verdict is refused with `VALIDATION_ERROR`. |
 | `camera_anchor_list` | `{ projectId }` | `CameraAnchorDTO[]` |
 | `camera_anchor_set` | `{ projectId, cameraId, assetId }` | `CameraAnchorDTO[]` (camera must be an anchor view in the DNA; asset ready, same project) |
 | `camera_anchor_clear` | `{ projectId, cameraId }` | `CameraAnchorDTO[]` |

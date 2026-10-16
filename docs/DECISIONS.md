@@ -826,6 +826,11 @@ The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally
   - The "cần chuyên gia duyệt" badge for specialist rooms is dropped, because no specialist rooms remain.
 - `ProjectTypeSchema` is unchanged. A project type with no in-scope archetype gets no default archetype suggestion, and the space selector stays optional for it.
 
+**ADR-034 amendment 3 (2026-10-16): gate follow-ups (SRS debts 1).**
+- `PromptBundle.resolvedWarnings` holds only the WARN codes the user accepted. The compiler emits `[]`; the desktop gate's `withValidation` sets the accepted codes and replaces any older list. Codes that were found stay in `validation.issueCodes`. Prompt text is unchanged, so `pc-1.8.0` and `cv-1.2.0` stay.
+- Every retry re-runs `validateShot` on the stored snapshot against the current DNA, with the shot intent the snapshot was compiled with. WARN codes accepted for the original submit stay accepted; a new WARN asks again in a retry dialog, and a BLOCK is refused. `job_retry` takes the fresh verdict as `validation`; Rust replaces the stored verdict with it and refuses BLOCK, as for a new submit. The free text appended to a stored prompt cannot be separated from it, so it is not re-checked on retry.
+- The batch gate validates each item with the shot intent in its own prompt snapshot. ContactSheet re-run, mood variations and enhance batches show the same exception panel as the generate and batch dialogs.
+
 ## ADR-035 — SRS P3: enhance preservation modes with local checks, upscale size targets
 
 Status: accepted (2026-10-16). Basis: SRS §8–§9 (modules E and F), the upgrade plan §5 P3, and the user's decision of 2026-10-15 to use local checks only, with no Vision QC (ADR-033).
@@ -935,6 +940,10 @@ Status: accepted (2026-10-16). Basis: SRS §5.1 and §5.3–§5.4 (module B), §
 - With no objects selected, nothing new is added.
 - Compiler section `SCENE OBJECTS`, following the SRS §7.2 example.
 - It owns `dna.scene` only for project-level object defaults, if any exist; per-shot objects live in ShotIntent.
+
+**ADR-036 amendment (2026-10-16): SRS debts 1.**
+- The per-project ShotIntent survives restarts. It is kept in `localStorage` under `arch.shotIntent.<projectId>`, never in the DNA, and a stored value that fails `ShotIntentSchema` is dropped on load.
+- "Khám phá chi tiết" queues one item per planned shot (`buildDetailBatchItems`). Each item compiles with its own ShotIntent: the shot's `targetDetailId`, its camera and the shot count. Two details seen by the same camera are therefore two items.
 
 ## ADR-037 — SRS P4: Diagram Studio (MVP)
 

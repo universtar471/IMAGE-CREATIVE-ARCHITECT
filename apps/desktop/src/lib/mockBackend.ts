@@ -706,7 +706,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         assetId: id,
         parentVersionId: parentVersion?.id ?? null,
         label: region
-          ? `Region edit Â· ${region.regionIds.length} region(s)`
+          ? `Region edit · ${region.regionIds.length} region(s)`
           : `${purpose} ${i + 1}/${req.params.outputCount}`,
         operation: region ? "region_edit" : enhance ? "enhance" : "generate",
         generationId: gen.id,
@@ -1644,8 +1644,22 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const j = getJob(req.jobId);
       if (!["failed", "cancelled", "interrupted"].includes(j.status))
         fail("INVALID_STATE", "Only failed, cancelled or interrupted jobs can be retried.");
-      validateRequest(j.request);
-      const copy = enqueue(j.request, { batchId: j.batchId, label: j.label, priority: j.priority });
+      // Like Rust: the gate's fresh verdict replaces the stored one before validation.
+      const v = req.validation;
+      const request = v
+        ? {
+            ...j.request,
+            prompt: {
+              ...j.request.prompt,
+              validation: v,
+              ...(v.approvedExceptions.length || j.request.prompt.resolvedWarnings !== undefined
+                ? { resolvedWarnings: [...v.approvedExceptions] }
+                : {}),
+            },
+          }
+        : j.request;
+      validateRequest(request);
+      const copy = enqueue(request, { batchId: j.batchId, label: j.label, priority: j.priority });
       if (copy.batchId) batches.find((b) => b.id === copy.batchId)?.jobIds.push(copy.id);
       save();
       schedulePump();
