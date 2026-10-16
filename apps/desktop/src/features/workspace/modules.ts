@@ -6,6 +6,7 @@
  */
 import {
   Camera,
+  Car,
   Download,
   Dna,
   Images,
@@ -25,6 +26,7 @@ export type ModuleId =
   | "context"
   | "references"
   | "camera"
+  | "scene_objects"
   | "lighting"
   | "mood_grade"
   | "generate"
@@ -74,6 +76,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "camera",
     label: "Camera",
     icon: Camera,
+    group: "dna",
+    availableIn: null,
+  },
+  {
+    id: "scene_objects",
+    label: "Scene objects",
+    icon: Car,
     group: "dna",
     availableIn: null,
   },

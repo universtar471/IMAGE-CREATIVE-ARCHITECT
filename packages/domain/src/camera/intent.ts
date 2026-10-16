@@ -72,7 +72,8 @@ const VIEW_SUGGESTIONS: Record<
     viewType: "exterior_corner",
     presetId: "visual_intent_street_oblique",
     lensMm: 35,
-    composition: "front facade dominant, oblique street view; attached side walls remain hidden behind neighbouring buildings",
+    composition:
+      "front facade dominant, oblique street view; attached side walls remain hidden behind neighbouring buildings",
   },
   pedestrian: {
     viewType: "street_level",

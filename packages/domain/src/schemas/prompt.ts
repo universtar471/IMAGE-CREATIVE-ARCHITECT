@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ShotIntentSchema } from "../validation";
+import { ShotIntentSchema } from "../validation/shotIntent";
 
 /**
  * The conflict check of the shot as it was submitted (ADR-034 P0-B). The desktop gate runs
@@ -33,7 +33,7 @@ export const PromptBundleSchema = z.object({
   resolvedWarnings: z.array(z.string()).optional(),
   /** Set by the desktop gate at submit (P0-B); absent on older snapshots and previews. */
   validation: ShotValidationSnapshotSchema.optional(),
-  /** Per-shot choices; absent on legacy snapshots and when no visual intent was selected. */
+  /** Per-shot choices; absent on legacy bundles and previews without P2 intent. */
   shotIntent: ShotIntentSchema.optional(),
   positivePrompt: z.string(),
   negativePrompt: z.string(),

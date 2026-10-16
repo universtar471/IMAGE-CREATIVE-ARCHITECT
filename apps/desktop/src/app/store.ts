@@ -36,6 +36,7 @@ import {
   type ProviderDescriptorDTO,
   type ColorGradeDNA,
   type ShotValidation,
+  type ShotIntent,
 } from "@arch/domain";
 import {
   BridgeError,
@@ -94,6 +95,11 @@ export type WorkspaceData = {
   /** Batches of this project, newest first. */
   batches: BatchDTO[];
   workflow?: WorkflowDTO;
+  /**
+   * The project's current per-shot choices (ADR-036: scene objects, …). Never part of the
+   * DNA; kept per project for the session and snapshotted into each submitted prompt.
+   */
+  shotIntent?: ShotIntent;
 };
 
 /**
@@ -150,6 +156,7 @@ export type GenerationInput = Omit<GenerationSubmitRequest, "prompt" | "cameraId
   extraPrompt?: string;
   /** WARN conflict codes the user accepted for this shot (ADR-034). */
   approvedExceptions?: readonly ConflictCode[];
+  shotIntent?: ShotIntent;
 };
 
 type State = {
@@ -193,6 +200,8 @@ type State = {
   editDna: (path: string, value: unknown) => void;
   /** Replace the camera list (add / delete / duplicate / reorder). */
   setCameras: (cameras: CameraDNA[]) => void;
+  /** Replace the open project's shot intent (`undefined` clears it). Never touches the DNA. */
+  setShotIntent: (shotIntent: ShotIntent | undefined) => void;
   flushDna: () => Promise<boolean>;
   adoptProject: (p: ProjectDTO) => void;
   /**
@@ -334,6 +343,8 @@ function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]
 
 export const useStudio = create<State>((set, get) => {
   const isOpen = (projectId: string) => get().workspace?.project.id === projectId;
+  /** Per-project shot intents of this session; reopening a project restores its choices. */
+  const shotIntents = new Map<string, ShotIntent>();
 
   /** The saved DNA + type the conflict gate checks (the open project's, else loaded). */
   const persistedProject = async (projectId: string) => {
@@ -448,6 +459,7 @@ export const useStudio = create<State>((set, get) => {
               anchors,
               batches,
               workflow,
+              shotIntent: shotIntents.get(projectId),
             },
             selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
             selectedCameraId: bundle.dna.cameras[0]?.id ?? null,
@@ -521,6 +533,20 @@ export const useStudio = create<State>((set, get) => {
     },
 
     setCameras: (cameras) => get().editDna("cameras", cameras),
+    setShotIntent: (shotIntent) => {
+      const ws = get().workspace;
+      if (!ws) return;
+      const id = ws.project.id;
+      const empty =
+        !shotIntent ||
+        (!shotIntent.sceneObjects?.length &&
+          !shotIntent.targetSpaceId &&
+          !shotIntent.targetDetailId &&
+          !shotIntent.visualIntent);
+      if (empty) shotIntents.delete(id);
+      else shotIntents.set(id, shotIntent);
+      set({ workspace: { ...ws, shotIntent: empty ? undefined : shotIntent } });
+    },
 
     /** Save pending DNA now. Resolves true when nothing is left unsaved. */
     flushDna: async () => {
@@ -687,7 +713,7 @@ export const useStudio = create<State>((set, get) => {
 
     submitGeneration: async (input, prompt) => {
       if (get().run?.status === "submitting") return undefined;
-      const { extraPrompt, approvedExceptions, ...submitInput } = input;
+      const { extraPrompt, approvedExceptions, shotIntent, ...submitInput } = input;
       const { projectId } = submitInput;
       // Everything below is bound to this project; never read another project's data.
       if (!prompt && !isOpen(projectId)) return undefined;
@@ -705,7 +731,14 @@ export const useStudio = create<State>((set, get) => {
         if (prompt) {
           // A resent or hand-built snapshot (enhance, retry): gated on the persisted DNA.
           const project = await persistedProject(projectId);
-          const validation = checkShot({ ...project, cameraId, extraPrompt, approvedExceptions });
+          // The snapshot's own shot intent is what its prompt was compiled with.
+          const validation = checkShot({
+            ...project,
+            cameraId,
+            extraPrompt,
+            approvedExceptions,
+            shotIntent: shotIntent ?? prompt.shotIntent,
+          });
           if (!canSubmit(validation)) throw conflictError(validation);
           request = { ...submitInput, cameraId, prompt: withValidation(prompt, validation) };
         } else {
@@ -725,17 +758,23 @@ export const useStudio = create<State>((set, get) => {
           );
           // AC-22: the extra prompt is checked BEFORE it is appended; a refused shot is
           // never sent to the bridge or a provider.
+          const selectedShotIntent = shotIntent ?? get().workspace?.shotIntent;
           const validation = checkShot({
             dna: bundle.dna,
             projectType: bundle.project.projectType,
             cameraId,
             extraPrompt,
             approvedExceptions,
+            shotIntent: selectedShotIntent,
           });
           if (!canSubmit(validation)) throw conflictError(validation);
           const compiled = withExtraPrompt(
             withValidation(
-              compileFromBundle(bundle, { referenceAssetIds: ids, cameraId }),
+              compileFromBundle(bundle, {
+                referenceAssetIds: ids,
+                cameraId,
+                shotIntent: selectedShotIntent,
+              }),
               validation,
             ),
             extraPrompt,
