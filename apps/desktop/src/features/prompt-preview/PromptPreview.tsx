@@ -14,6 +14,7 @@ import { useT } from "../../i18n";
 export function PromptPreview() {
   const projectId = useStudio((s) => s.workspace!.project.id);
   const revision = useStudio((s) => s.dataRevision);
+  const shotIntent = useStudio((s) => s.workspace!.shotIntent);
   const saveStatus = useStudio((s) => s.save.status);
   const [bundle, setBundle] = useState<PromptBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,13 +23,13 @@ export function PromptPreview() {
 
   useEffect(() => {
     let alive = true;
-    compilePromptPreview(projectId)
+    compilePromptPreview(projectId, undefined, undefined, shotIntent)
       .then((b) => alive && (setBundle(b), setError(null)))
       .catch((e) => alive && setError(toBridgeError(e).message));
     return () => {
       alive = false;
     };
-  }, [projectId, revision, nonce]);
+  }, [projectId, revision, nonce, shotIntent]);
 
   if (error)
     return (

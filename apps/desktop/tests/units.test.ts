@@ -15,6 +15,7 @@ describe("workspace information architecture", () => {
       "Context",
       "References",
       "Camera",
+      "Scene objects",
       "Lighting",
       "Generate",
       "Mood / Grade",
@@ -31,6 +32,7 @@ describe("workspace information architecture", () => {
       "context",
       "references",
       "camera",
+      "scene_objects",
       "lighting",
       "generate",
       "mood_grade",
@@ -42,6 +44,7 @@ describe("workspace information architecture", () => {
   it("keeps navigation groups explicit", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
       "overview",
+      "dna",
       "dna",
       "dna",
       "dna",

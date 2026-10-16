@@ -1,0 +1,337 @@
+[
+  {
+    "name": "3:2 to 4096 (AC-12)",
+    "source": {
+      "width": 3000,
+      "height": 2000
+    },
+    "target": "long_edge_4096",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 4096,
+      "height": 2731,
+      "canvasWidth": 4096,
+      "canvasHeight": 2731,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "3:2 to 2048",
+    "source": {
+      "width": 3000,
+      "height": 2000
+    },
+    "target": "long_edge_2048",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 3000,
+      "height": 2000,
+      "canvasWidth": 3000,
+      "canvasHeight": 2000,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "keep"
+    }
+  },
+  {
+    "name": "portrait to 2048",
+    "source": {
+      "width": 1000,
+      "height": 1500
+    },
+    "target": "long_edge_2048",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 1365,
+      "height": 2048,
+      "canvasWidth": 1365,
+      "canvasHeight": 2048,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "square to 4096",
+    "source": {
+      "width": 1024,
+      "height": 1024
+    },
+    "target": "long_edge_4096",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 4096,
+      "height": 4096,
+      "canvasWidth": 4096,
+      "canvasHeight": 4096,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "exactly 2048 stays 2048",
+    "source": {
+      "width": 2048,
+      "height": 1365
+    },
+    "target": "long_edge_2048",
+    "ifAlreadyLarger": "skip",
+    "expected": {
+      "width": 2048,
+      "height": 1365,
+      "canvasWidth": 2048,
+      "canvasHeight": 1365,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "larger than 2048 keeps",
+    "source": {
+      "width": 4000,
+      "height": 2000
+    },
+    "target": "long_edge_2048",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 4000,
+      "height": 2000,
+      "canvasWidth": 4000,
+      "canvasHeight": 2000,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "keep"
+    }
+  },
+  {
+    "name": "larger than 2048 quality only",
+    "source": {
+      "width": 4000,
+      "height": 2000
+    },
+    "target": "long_edge_2048",
+    "ifAlreadyLarger": "quality_only",
+    "expected": {
+      "width": 4000,
+      "height": 2000,
+      "canvasWidth": 4000,
+      "canvasHeight": 2000,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "quality_only"
+    }
+  },
+  {
+    "name": "larger than 4096 skips",
+    "source": {
+      "width": 5000,
+      "height": 3000
+    },
+    "target": "long_edge_4096",
+    "ifAlreadyLarger": "skip",
+    "expected": {
+      "width": 5000,
+      "height": 3000,
+      "canvasWidth": 5000,
+      "canvasHeight": 3000,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "skip"
+    }
+  },
+  {
+    "name": "16:9 fills UHD",
+    "source": {
+      "width": 1920,
+      "height": 1080
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 3840,
+      "height": 2160,
+      "canvasWidth": 3840,
+      "canvasHeight": 2160,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "3:2 UHD letterbox (pillarbox)",
+    "source": {
+      "width": 3000,
+      "height": 2000
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 3240,
+      "height": 2160,
+      "canvasWidth": 3840,
+      "canvasHeight": 2160,
+      "offsetX": 300,
+      "offsetY": 0,
+      "letterbox": true,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "21:9 UHD letterbox",
+    "source": {
+      "width": 2100,
+      "height": 900
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 3840,
+      "height": 1646,
+      "canvasWidth": 3840,
+      "canvasHeight": 2160,
+      "offsetX": 0,
+      "offsetY": 257,
+      "letterbox": true,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "portrait UHD pillarbox",
+    "source": {
+      "width": 1080,
+      "height": 1920
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 1215,
+      "height": 2160,
+      "canvasWidth": 3840,
+      "canvasHeight": 2160,
+      "offsetX": 1312,
+      "offsetY": 0,
+      "letterbox": true,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "wider than UHD keeps",
+    "source": {
+      "width": 4000,
+      "height": 1000
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 4000,
+      "height": 1000,
+      "canvasWidth": 4000,
+      "canvasHeight": 1000,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "keep"
+    }
+  },
+  {
+    "name": "taller than UHD skips",
+    "source": {
+      "width": 1000,
+      "height": 2400
+    },
+    "target": "uhd_3840x2160_contain",
+    "ifAlreadyLarger": "skip",
+    "expected": {
+      "width": 1000,
+      "height": 2400,
+      "canvasWidth": 1000,
+      "canvasHeight": 2400,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "skip"
+    }
+  },
+  {
+    "name": "custom contain square",
+    "source": {
+      "width": 300,
+      "height": 200
+    },
+    "target": {
+      "width": 1000,
+      "height": 1000,
+      "fit": "contain"
+    },
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 1000,
+      "height": 667,
+      "canvasWidth": 1000,
+      "canvasHeight": 1000,
+      "offsetX": 0,
+      "offsetY": 166,
+      "letterbox": true,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "custom contain odd padding",
+    "source": {
+      "width": 7,
+      "height": 5
+    },
+    "target": {
+      "width": 30,
+      "height": 31,
+      "fit": "contain"
+    },
+    "ifAlreadyLarger": "keep",
+    "expected": {
+      "width": 30,
+      "height": 21,
+      "canvasWidth": 30,
+      "canvasHeight": 31,
+      "offsetX": 0,
+      "offsetY": 5,
+      "letterbox": true,
+      "action": "upscale"
+    }
+  },
+  {
+    "name": "custom larger quality only",
+    "source": {
+      "width": 1200,
+      "height": 800
+    },
+    "target": {
+      "width": 1000,
+      "height": 1000,
+      "fit": "contain"
+    },
+    "ifAlreadyLarger": "quality_only",
+    "expected": {
+      "width": 1200,
+      "height": 800,
+      "canvasWidth": 1200,
+      "canvasHeight": 800,
+      "offsetX": 0,
+      "offsetY": 0,
+      "letterbox": false,
+      "action": "quality_only"
+    }
+  }
+]
