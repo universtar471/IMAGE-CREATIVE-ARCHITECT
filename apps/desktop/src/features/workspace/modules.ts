@@ -14,6 +14,7 @@ import {
   MapPinned,
   Palette,
   ScanSearch,
+  ScanLine,
   Sparkles,
   SunMedium,
   Wand2,
@@ -26,6 +27,7 @@ export type ModuleId =
   | "context"
   | "references"
   | "camera"
+  | "detail"
   | "scene_objects"
   | "lighting"
   | "mood_grade"
@@ -76,6 +78,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "camera",
     label: "Camera",
     icon: Camera,
+    group: "dna",
+    availableIn: null,
+  },
+  {
+    id: "detail",
+    label: "Architectural detail",
+    icon: ScanLine,
     group: "dna",
     availableIn: null,
   },

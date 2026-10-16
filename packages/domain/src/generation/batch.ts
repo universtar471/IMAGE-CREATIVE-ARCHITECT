@@ -229,6 +229,7 @@ function buildItem(
       pack: input.pack,
       references,
       cameraId: camera.id,
+      shotIntent: input.shotIntent,
     }),
     referenceAssetIds: references.map((r) => r.assetId),
     params: paramsForCamera(input.params, camera, input.model),
