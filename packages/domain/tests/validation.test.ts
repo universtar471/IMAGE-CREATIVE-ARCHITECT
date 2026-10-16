@@ -102,14 +102,14 @@ describe("conflict code table (SRS §12.4)", () => {
   });
 
   it("is versioned", () => {
-    expect(VALIDATOR_VERSION).toBe("cv-1.1.0");
-    expect(run(midBlock()).validatorVersion).toBe("cv-1.1.0");
+    expect(VALIDATOR_VERSION).toBe("cv-1.2.0");
+    expect(run(midBlock()).validatorVersion).toBe("cv-1.2.0");
   });
 });
 
 describe("validateShot — ALLOW", () => {
   it("allows a plain shot with no extra prompt", () => {
-    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.1.0" });
+    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.2.0" });
   });
 
   it("AC-03: allows an oblique corner camera on an attached townhouse (compiled as oblique street)", () => {
@@ -374,7 +374,7 @@ describe("LOCKED_LIGHTING_CONFLICT", () => {
 });
 
 describe("P1 hooks and determinism", () => {
-  it("OCCLUDED_TARGET returns nothing until P1b (SPACE_NOT_IN_BUILDING: space-catalog.test)", () => {
+  it("blocks a detail target that does not exist", () => {
     const dna = midBlock();
     dna.spaceCatalog = {
       version: 1,
@@ -394,7 +394,59 @@ describe("P1 hooks and determinism", () => {
       dna,
       shotIntent: { ...exterior(), targetSpaceId: "SPC_pool", targetDetailId: "DTL_missing" },
     });
-    expect(result.issues).toEqual([]);
+    expect(result.issues).toMatchObject([
+      {
+        code: "OCCLUDED_TARGET",
+        severity: "BLOCK",
+        path: "shotIntent.targetDetailId",
+        params: { source: "detail", targetDetailId: "DTL_missing" },
+      },
+    ]);
+  });
+
+  it("keeps a second-floor front balcony target and warns when the camera cannot see it", () => {
+    const dna = midBlock();
+    dna.context.siteTopology = { left: "open", right: "attached", cornerLot: false };
+    dna.architecturalDetails = [
+      {
+        version: 1,
+        id: "DTL_balcony",
+        spaceId: "SPC_living",
+        name: "balcony",
+        facade: "front",
+        floorId: "F2",
+        verifiedLocation: true,
+        existence: true,
+        materialIds: [],
+        locked: false,
+      },
+    ];
+    dna.cameras = [
+      {
+        ...dna.cameras[0]!,
+        id: "CAM_side_only",
+        viewType: "exterior_side",
+        azimuthDeg: 90,
+      },
+    ];
+    const result = run(dna, undefined, {
+      ...exterior("CAM_side_only"),
+      targetDetailId: "DTL_balcony",
+    });
+    expect(result.verdict).toBe("WARN");
+    expect(result.issues).toMatchObject([
+      {
+        code: "OCCLUDED_TARGET",
+        severity: "WARN",
+        params: {
+          source: "detail",
+          targetDetailId: "DTL_balcony",
+          facade: "front",
+          floorId: "F2",
+          action: "reselect",
+        },
+      },
+    ]);
   });
 
   it("orders BLOCK before WARN and is byte-stable", () => {

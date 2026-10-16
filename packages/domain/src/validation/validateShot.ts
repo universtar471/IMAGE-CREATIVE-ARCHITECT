@@ -13,7 +13,6 @@
  *   to WARN, so a guess never hard-blocks the user.
  */
 import type { ProjectDNA } from "../schemas/projectDna";
-import type { ProjectType } from "../schemas/enums";
 import type { SiteSide } from "../schemas/extensions";
 import { isConfirmed } from "../facts/evidence";
 import { resolveSiteAdjacency, type ResolvedSiteAdjacency } from "../site/adjacency";
@@ -41,17 +40,11 @@ import {
   prepareText,
   type PreparedText,
 } from "./phrases";
+import { validateObjectPlacement } from "../sceneObjects/placement";
+import type { ShotIntent } from "./shotIntent";
+import type { DetailRecord } from "../schemas/extensions";
 
-/** What one generation request asks for (SRS §3.1 Shot Intent; P0 subset). */
-export type ShotIntent = {
-  projectType: ProjectType;
-  /** The DNA camera being rendered; unknown ids are ignored, as in the compiler. */
-  cameraId?: string | null;
-  /** P1: the target space of the Space Catalog. */
-  targetSpaceId?: string | null;
-  /** P2: the target architectural detail. */
-  targetDetailId?: string | null;
-};
+export type { ShotIntent } from "./shotIntent";
 
 export type ValidateShotInput = {
   dna: ProjectDNA;
@@ -275,11 +268,25 @@ const spaceNotInBuildingRule: ConflictRule = {
 const occludedTargetRule: ConflictRule = {
   code: "OCCLUDED_TARGET",
   check(ctx) {
+    const targetDetail = ctx.shot.targetDetailId
+      ? ctx.dna.architecturalDetails?.find((detail) => detail.id === ctx.shot.targetDetailId)
+      : undefined;
+    if (ctx.shot.targetDetailId && !targetDetail) {
+      return [
+        {
+          code: "OCCLUDED_TARGET",
+          severity: "BLOCK",
+          path: "shotIntent.targetDetailId",
+          params: { source: "detail", targetDetailId: ctx.shot.targetDetailId },
+        },
+      ];
+    }
+    const detailIssue = targetDetail ? detailTargetIssue(ctx, targetDetail) : null;
     if (!isExterior(ctx.shot)) return [];
     const { adjacency } = ctx;
     const hidden = (f: Facade) =>
       !isFacadeExposable(adjacency, f) && !(f !== "roof" && attached(adjacency, f));
-    const issues: IssueDraft[] = [];
+    const issues: IssueDraft[] = detailIssue ? [detailIssue] : [];
     const found = shotCamera(ctx);
     const cameraSide = found ? revealedSide(found.camera) : null;
     if (found) {
@@ -336,11 +343,49 @@ const occludedTargetRule: ConflictRule = {
   },
 };
 
+function detailTargetIssue(ctx: RuleContext, detail: DetailRecord): IssueDraft | null {
+  const facade = detail.facade ?? detail.location?.facade;
+  if (!facade || facade === "roof") return null;
+  const found = shotCamera(ctx);
+  if (!found) return null;
+  const visibility = resolveVisibility(ctx.adjacency, found.camera);
+  if (visibility.visibleFacades.includes(facade)) return null;
+  return {
+    code: "OCCLUDED_TARGET",
+    path: "shotIntent.targetDetailId",
+    params: {
+      source: "detail",
+      targetDetailId: detail.id,
+      facade,
+      floorId: detail.floorId ?? detail.location?.floorId ?? "",
+      action: "reselect",
+    },
+  };
+}
+
+/**
+ * ObjectPlacementValidator (P2d): scene objects the shot adds must belong in their target
+ * space and stand on a zone the project data records. Raises OBJECT_NOT_ALLOWED_IN_SPACE and
+ * OBJECT_NO_PLACEMENT_ZONE; no objects, no issues.
+ */
+const objectPlacementRule: ConflictRule = {
+  code: "OBJECT_NOT_ALLOWED_IN_SPACE",
+  check(ctx) {
+    return validateObjectPlacement(ctx.dna, ctx.shot).map(({ code, severity, path, params }) => ({
+      code,
+      severity,
+      path,
+      params,
+    }));
+  },
+};
+
 /** Rules in evaluation order. Later phases append theirs here. */
 export const SHOT_RULES: readonly ConflictRule[] = [
   spaceNotInBuildingRule,
   adjacentBuildingRule,
   occludedTargetRule,
+  objectPlacementRule,
   unverifiedGeometryRule,
   lockedLightingRule,
 ];

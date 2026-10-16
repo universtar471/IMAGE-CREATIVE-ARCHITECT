@@ -95,23 +95,35 @@ export type SpaceCatalogExtension = z.infer<typeof SpaceCatalogExtensionSchema>;
 
 // ---------------------------------------------------------------- architectural details
 
+export const DETAIL_FACADES = ["front", "rear", "left", "right", "roof"] as const;
+export const DetailFacadeSchema = z.enum(DETAIL_FACADES);
+export type DetailFacade = z.infer<typeof DetailFacadeSchema>;
+
+/** A P2 detail may use either the original evidence record or the SRS names. */
+const DetailVerificationSchema = z.union([EvidenceRefSchema, z.boolean()]);
+
 /**
- * Schema only in P0; the detail planner, prompts and UI arrive in P2. The extension is a
- * plain array (ADR-034), so each record carries the extension version.
+ * Architectural details started as a P0 record with `location` and `evidence`. P2 adds the
+ * flat SRS fields while keeping the old shape readable and writable without migration.
  */
 export const DetailRecordSchema = z.object({
   version: z.literal(1),
   id,
   spaceId: id,
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  facade: DetailFacadeSchema.optional(),
+  floorId: id.optional(),
+  verifiedLocation: DetailVerificationSchema.optional(),
+  existence: DetailVerificationSchema.optional(),
+  sourceAssetIds: z.array(id).optional(),
   location: z
     .object({
-      facade: z.enum(["front", "rear", "left", "right"]).optional(),
+      facade: DetailFacadeSchema.optional(),
       floorId: id.optional(),
       elementId: id.optional(),
     })
     .optional(),
-  evidence: EvidenceRefSchema,
+  evidence: EvidenceRefSchema.optional(),
   materialIds: z.array(id).default([]),
   locked: z.boolean().default(false),
 });

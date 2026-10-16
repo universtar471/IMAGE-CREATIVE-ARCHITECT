@@ -18,6 +18,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (5, include_str!("../migrations/0005_qc.sql")),
     (6, include_str!("../migrations/0006_regions.sql")),
     (7, include_str!("../migrations/0007_luts.sql")),
+    (8, include_str!("../migrations/0008_enhance_check.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {

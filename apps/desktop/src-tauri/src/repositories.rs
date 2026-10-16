@@ -345,6 +345,8 @@ pub struct GenerationRow {
     pub job_id: Option<String>,
     /// Read-only: when the job's latest attempt started (`None` if it never started).
     pub job_started_at: Option<String>,
+    /// Read-only: the ADR-035 local enhance check as JSON (migration 0008); `None` otherwise.
+    pub enhance_check_json: Option<String>,
 }
 
 const GENERATION_COLS: &str = "id, project_id, provider_id, model_id, purpose, status, request_json, \
@@ -353,8 +355,8 @@ const GENERATION_COLS: &str = "id, project_id, provider_id, model_id, purpose, s
 
 const GENERATION_SELECT: &str = "SELECT g.id, g.project_id, g.provider_id, g.model_id, g.purpose, g.status, \
      g.request_json, g.parent_asset_id, g.error_kind, g.error_message, g.error_retryable, g.started_at, \
-     g.finished_at, g.duration_ms, g.created_at, g.updated_at, g.camera_id, g.batch_id, j.id, j.started_at \
-     FROM generations g LEFT JOIN jobs j ON j.generation_id = g.id";
+     g.finished_at, g.duration_ms, g.created_at, g.updated_at, g.camera_id, g.batch_id, j.id, j.started_at, \
+     g.enhance_check_json FROM generations g LEFT JOIN jobs j ON j.generation_id = g.id";
 
 fn map_generation(r: &Row<'_>) -> rusqlite::Result<GenerationRow> {
     Ok(GenerationRow {
@@ -378,7 +380,14 @@ fn map_generation(r: &Row<'_>) -> rusqlite::Result<GenerationRow> {
         batch_id: r.get(17)?,
         job_id: r.get(18)?,
         job_started_at: r.get(19)?,
+        enhance_check_json: r.get(20)?,
     })
+}
+
+/// Store the ADR-035 local check of an enhance generation (JSON of `EnhanceCheckSchema`).
+pub fn set_generation_enhance_check(conn: &Connection, id: &str, json: &str) -> AppResult<()> {
+    conn.execute("UPDATE generations SET enhance_check_json = ?2 WHERE id = ?1", params![id, json])?;
+    Ok(())
 }
 
 pub fn insert_generation(conn: &Connection, g: &GenerationRow) -> AppResult<()> {

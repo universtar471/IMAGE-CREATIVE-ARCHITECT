@@ -477,6 +477,24 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn accepts_p2b_flat_architectural_detail_fields() {
+        let mut dna: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        dna["architecturalDetails"][0] = json!({
+            "version": 1,
+            "id": "DTL_balcony_flat",
+            "spaceId": "SPC_living",
+            "facade": "front",
+            "floorId": "F2",
+            "verifiedLocation": true,
+            "existence": { "status": "verified", "sourceAssetIds": ["AST_master"] },
+            "materialIds": ["MAT_steel"],
+            "sourceAssetIds": ["AST_master"],
+            "locked": true
+        });
+        validate_dna(&dna).unwrap();
+    }
+
+    #[test]
     fn rejects_invalid_extension_values() {
         let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
         type Mutation = fn(&mut Value);
@@ -524,6 +542,33 @@ pub(crate) mod tests {
         let mut no_active = base.clone();
         no_active["spaceCatalog"].as_object_mut().unwrap().remove("activeSpaceId");
         validate_dna(&no_active).unwrap();
+    }
+
+    /// SRS P1d: the Context Library V4 selection in `context.library` (shared fixture).
+    #[test]
+    fn validates_context_library_selection() {
+        let base: Value = serde_json::from_str(EXTENDED_DNA).unwrap();
+        assert_eq!(base["context"]["library"]["presetId"], json!("townhouse.urban_infill"));
+        validate_dna(&base).unwrap();
+        let mut unspecified = base.clone();
+        unspecified["context"]["library"]["regionId"] = json!("unspecified");
+        unspecified["context"]["library"]["approvedOptional"] = json!([]);
+        validate_dna(&unspecified).unwrap();
+
+        type Mutation = fn(&mut Value);
+        let cases: [(&str, Mutation); 4] = [
+            ("context.library.version", |d| d["context"]["library"]["version"] = json!(2)),
+            ("context.library.presetId", |d| d["context"]["library"]["presetId"] = json!("")),
+            ("context.library.approvedOptional.0", |d| d["context"]["library"]["approvedOptional"] = json!([7])),
+            ("context.library", |d| d["context"]["library"]["extra"] = json!(true)),
+        ];
+        for (field, mutate) in cases {
+            let mut dna = base.clone();
+            mutate(&mut dna);
+            let err = validate_dna(&dna).unwrap_err();
+            let fields = err.details.unwrap()["fieldErrors"].clone();
+            assert!(fields.get(field).is_some(), "{field}: {fields}");
+        }
     }
 
     #[test]

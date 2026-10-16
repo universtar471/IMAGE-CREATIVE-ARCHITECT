@@ -6,6 +6,7 @@
  */
 import {
   Camera,
+  Car,
   Download,
   Dna,
   Images,
@@ -13,6 +14,7 @@ import {
   MapPinned,
   Palette,
   ScanSearch,
+  ScanLine,
   Sparkles,
   SunMedium,
   Wand2,
@@ -25,6 +27,8 @@ export type ModuleId =
   | "context"
   | "references"
   | "camera"
+  | "detail"
+  | "scene_objects"
   | "lighting"
   | "mood_grade"
   | "generate"
@@ -74,6 +78,20 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "camera",
     label: "Camera",
     icon: Camera,
+    group: "dna",
+    availableIn: null,
+  },
+  {
+    id: "detail",
+    label: "Architectural detail",
+    icon: ScanLine,
+    group: "dna",
+    availableIn: null,
+  },
+  {
+    id: "scene_objects",
+    label: "Scene objects",
+    icon: Car,
     group: "dna",
     availableIn: null,
   },

@@ -17,6 +17,7 @@
     "test": "vitest run",
     "schema:export": "npm run schema:export -w @arch/domain",
     "catalog:build": "tsx tools/space-catalog/convert.ts",
+    "context:build": "node --experimental-strip-types tools/context-library/convert.ts",
     "check:rust": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "test:rust": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "verify": "npm run typecheck && npm run lint && npm test && npm run test:rust"

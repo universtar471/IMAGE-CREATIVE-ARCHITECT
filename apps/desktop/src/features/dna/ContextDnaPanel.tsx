@@ -15,6 +15,7 @@ import { knowledge } from "../../lib/knowledge";
 import { ContextPresetCards, ContextPreview } from "../previews/ContextPreview";
 import { AssistControl } from "../assist/AssistControl";
 import { SiteAdjacencyEditor } from "../site/SiteAdjacencyEditor";
+import { ContextLibraryPanel } from "../contextLibrary/ContextLibraryPanel";
 
 export function ContextDnaPanel() {
   const t = useT();
@@ -77,6 +78,8 @@ export function ContextDnaPanel() {
       </SectionPanel>
 
       <SiteAdjacencyEditor />
+
+      <ContextLibraryPanel />
 
       {CONTEXT_DIRECTIONS.map((dir) => (
         <SectionPanel

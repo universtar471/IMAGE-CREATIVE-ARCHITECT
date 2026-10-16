@@ -481,6 +481,38 @@
           ],
           "additionalProperties": false
         },
+        "library": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "number",
+              "const": 1
+            },
+            "presetId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "regionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "approvedOptional": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "version",
+            "presetId",
+            "regionId",
+            "approvedOptional"
+          ],
+          "additionalProperties": false
+        },
         "distantBackground": {
           "default": [],
           "type": "array",
@@ -1939,6 +1971,111 @@
             "type": "string",
             "minLength": 1
           },
+          "facade": {
+            "type": "string",
+            "enum": [
+              "front",
+              "rear",
+              "left",
+              "right",
+              "roof"
+            ]
+          },
+          "floorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verifiedLocation": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "verified",
+                      "user_declared",
+                      "inferred",
+                      "unknown"
+                    ]
+                  },
+                  "sourceAssetIds": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "approvedByUser": {
+                    "type": "boolean"
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "status",
+                  "sourceAssetIds"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "existence": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "verified",
+                      "user_declared",
+                      "inferred",
+                      "unknown"
+                    ]
+                  },
+                  "sourceAssetIds": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "approvedByUser": {
+                    "type": "boolean"
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "status",
+                  "sourceAssetIds"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "sourceAssetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
           "location": {
             "type": "object",
             "properties": {
@@ -1948,7 +2085,8 @@
                   "front",
                   "rear",
                   "left",
-                  "right"
+                  "right",
+                  "roof"
                 ]
               },
               "floorId": {
@@ -2014,8 +2152,6 @@
           "version",
           "id",
           "spaceId",
-          "name",
-          "evidence",
           "materialIds",
           "locked"
         ],

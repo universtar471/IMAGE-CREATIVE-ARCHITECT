@@ -91,6 +91,12 @@
       "notes": "",
       "vegetation": []
     },
+    "library": {
+      "version": 1,
+      "presetId": "townhouse.urban_infill",
+      "regionId": "vn_south_urban",
+      "approvedOptional": ["site-appropriate vegetation"]
+    },
     "macroContext": "dense Vietnamese urban street",
     "negativeConstraints": ["detached side walls with windows", "wide front lawn", "extra floors"],
     "rear": {

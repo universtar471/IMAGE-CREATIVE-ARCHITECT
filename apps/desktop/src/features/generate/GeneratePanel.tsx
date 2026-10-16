@@ -45,6 +45,7 @@ import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { canSubmit, checkShot } from "../validation/gate";
+import { VisualIntentSelector } from "../camera/VisualIntentSelector";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -110,6 +111,7 @@ export function GeneratePanel() {
     cameraId: null,
     extraPrompt: draft.extraPrompt,
     approvedExceptions: draft.approvedExceptions,
+    shotIntent: ws.shotIntent,
   });
   const conflictReason = canSubmit(conflicts)
     ? null
@@ -153,6 +155,7 @@ export function GeneratePanel() {
       cameraId: null,
       extraPrompt: draft.extraPrompt,
       approvedExceptions: draft.approvedExceptions,
+      shotIntent: ws.shotIntent,
     });
   };
 
@@ -160,6 +163,7 @@ export function GeneratePanel() {
     <div className="generate-panel">
       <GenerationStepper />
       <GenerationActions onOpen={setBatchMode} />
+      <VisualIntentSelector />
       <ProviderSection form={form} disabled={running} />
       {form.model && (
         <OutputSection

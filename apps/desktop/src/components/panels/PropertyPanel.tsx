@@ -15,6 +15,8 @@ import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { RegionPanel } from "../../features/regions/RegionPanel";
+import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
+import { DetailPanel } from "../../features/detail/DetailPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
 
@@ -27,9 +29,14 @@ export function PropertyPanel() {
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
   const label =
     isInterior && mod.id === "design_dna" ? t("interior.space") : t(`modules.${mod.id}.label`);
-  const activeIsStep = ["design_dna", "context", "references", "camera", "lighting"].includes(
-    active,
-  );
+  const activeIsStep = [
+    "design_dna",
+    "context",
+    "references",
+    "camera",
+    "detail",
+    "lighting",
+  ].includes(active);
   const panelBody = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
@@ -129,6 +136,8 @@ export function PropertyPanel() {
             <CameraPanel />
           </StepFrame>
         )}
+        {active === "detail" && <DetailPanel />}
+        {active === "scene_objects" && <SceneObjectsPanel />}
         {active === "lighting" && (
           <StepFrame stepId="dna.lighting">
             <LightingPanel />

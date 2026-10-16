@@ -122,6 +122,19 @@ pub struct EnhanceParams {
     pub detail_strength: i32,
     #[serde(default = "default_architecture_preserve")]
     pub architecture_preserve: bool,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preservation_mode: Option<PreservationMode>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locks: Option<EnhanceLocks>,
+    /// Regions of the source asset the AI may change (balanced/creative); the rest is locked.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_region_ids: Option<Vec<String>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upscale: Option<UpscaleParams>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -129,6 +142,72 @@ pub struct EnhanceParams {
 pub enum EnhanceMode {
     Conservative,
     Generative,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PreservationMode {
+    Strict,
+    Balanced,
+    Creative,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct EnhanceLocks {
+    #[serde(default = "default_true")]
+    pub geometry: bool,
+    #[serde(default = "default_true")]
+    pub material: bool,
+    #[serde(default = "default_true")]
+    pub context: bool,
+    #[serde(default = "default_true")]
+    pub camera: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct UpscaleParams {
+    pub target: UpscaleTarget,
+    #[serde(default)]
+    pub if_already_larger: IfAlreadyLarger,
+}
+
+/// `"long_edge_2048" | "long_edge_4096" | "uhd_3840x2160_contain" | {width, height, fit: "contain"}`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum UpscaleTarget {
+    Named(NamedUpscaleTarget),
+    Custom { width: u32, height: u32, fit: ContainFit },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum NamedUpscaleTarget {
+    #[serde(rename = "long_edge_2048")]
+    LongEdge2048,
+    #[serde(rename = "long_edge_4096")]
+    LongEdge4096,
+    #[serde(rename = "uhd_3840x2160_contain")]
+    Uhd3840x2160Contain,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContainFit {
+    Contain,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum IfAlreadyLarger {
+    #[default]
+    Keep,
+    QualityOnly,
+    Skip,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_detail_strength() -> i32 {
