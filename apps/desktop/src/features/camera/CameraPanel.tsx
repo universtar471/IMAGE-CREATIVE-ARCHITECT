@@ -25,6 +25,7 @@ import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
 import { SiteTopologyChip } from "./SiteTopologyChip";
+import { VisualIntentSelector } from "./VisualIntentSelector";
 
 const INTERIOR_CAMERA_NAME_KEYS = {
   wide_entrance: "wideEntrance",
@@ -52,6 +53,7 @@ export function CameraPanel() {
 
   return (
     <div className="camera-panel">
+      <VisualIntentSelector />
       <CameraListSection />
       {selected ? (
         <>
