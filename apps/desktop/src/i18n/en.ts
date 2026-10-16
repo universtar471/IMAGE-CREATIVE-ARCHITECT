@@ -384,6 +384,10 @@ export const en = {
       label: "Scene objects",
       description: "Add people, vehicles, plants and pets to one shot with placement checks.",
     },
+    effects: {
+      label: "Effects",
+      description: "Optical and motion effects for one shot, checked against the real scene.",
+    },
     lighting: { label: "Lighting", description: "Sun, sky and artificial lighting systems." },
     mood_grade: { label: "Mood / Grade", description: "Weather, mood presets and color grading." },
     generate: {
@@ -1217,6 +1221,58 @@ export const en = {
     previewError: "The image preview could not be loaded.",
   },
 
+  /** Optical and motion effects (ADR-036 P2c, SRS §6.2). */
+  effects: {
+    title: "Optical and motion effects",
+    intro:
+      "All effects are off. Choose one primary effect; secondary effects can be added only when they are compatible. Each effect applies only to its real source in the scene.",
+    primary: "Primary",
+    secondary: "Secondary",
+    intensity: "Intensity",
+    intensities: { light: "Light", medium: "Medium", strong: "Strong" },
+    status: { available: "Available", conditional: "Conditional", blocked: "Blocked" },
+    secondaryNeedsPrimary: "Choose a primary effect first.",
+    alreadyPrimary: "This is already the primary effect.",
+    incompatible: "Cannot be combined with the effects already chosen.",
+    secondaryLimit: "At most {max} secondary effects.",
+    preview: "Effects in this shot",
+    off: "No effect: the prompt stays unchanged.",
+    blockedSelected:
+      "A chosen effect is blocked by the project data; it is not compiled and generation will be blocked. Edit the project data or turn the effect off.",
+    promptLines: "Prompt lines",
+    clear: "Turn all effects off",
+    reasons: {
+      available: "Available for this shot.",
+      no_road: "There is no road in the project data, so there is no traffic to trail.",
+      no_moving_vehicle: "Add a moving car or motorbike on the existing road in Scene objects.",
+      vehicles_parked:
+        "The only vehicles are parked: a parked car cannot leave light trails. Set one to moving or turn the effect off.",
+      needs_dark: "Light trails need dusk or night; the lighting is set to daytime.",
+      people_static: "The people in the shot are standing still, so they cannot be motion-blurred.",
+      no_sky: "A closed interior has no sky, so there are no clouds to soften.",
+      no_water: "There is no water (pool, lake, river or sea) in the project data.",
+      no_light_source: "There is no light source: no sun in view and no lamps switched on.",
+      sun_hidden: "The weather hides the sun and no lamps are switched on.",
+      needs_sunlight: "Light rays need sunlight; the lighting is set to dusk or night.",
+      no_opening: "The room has no window or opening for light to come through.",
+      road_unverified:
+        "The road is only assumed; trails are applied only if it is in the references.",
+      time_unknown:
+        "The time of day is not set; the effect is applied only if its source is visible.",
+      needs_dusk:
+        "Golden hour may be too bright for strong light trails; dusk or night works best.",
+      needs_moving_people:
+        "Works on people walking in the references; you can add moving people in Scene objects.",
+      sky_out_of_frame: "A detail camera may leave the sky out of frame.",
+      sky_partial: "A semi-outdoor space shows only part of the sky.",
+      water_unverified: "Water is only mentioned in the context notes; it is not confirmed.",
+      sun_through_window: "Only possible when the sun is visible through a window.",
+      opening_unverified:
+        "The windows of this room are not recorded; rays appear only through real openings.",
+      depends_on_glass: "Depends on the glass and the camera angle in this room.",
+      camera_angle: "A steep, high camera weakens glass reflection control.",
+    },
+  },
   sceneObjects: {
     title: "Scene objects",
     intro:

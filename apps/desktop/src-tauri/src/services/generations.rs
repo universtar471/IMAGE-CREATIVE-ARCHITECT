@@ -1237,7 +1237,7 @@ mod tests {
 
     use super::*;
     use crate::domain::ProjectType;
-    use crate::dto::{AssetDto, SceneObjectState};
+    use crate::dto::{AssetDto, EffectIntensity, SceneObjectState};
     use crate::providers::local_preview;
     use crate::providers::local_upscale;
     use crate::providers::ProviderErrorKind;
@@ -1922,7 +1922,11 @@ mod tests {
                     "placementZoneId": "garage_bay", "state": "static",
                     "appearanceOverrides": { "color": "silver" }, "sourceReferenceIds": []
                 }],
-                "visualIntent": { "view": "front", "purpose": "landscape", "focus": 55 }
+                "visualIntent": { "view": "front", "purpose": "landscape", "focus": 55 },
+                "effects": {
+                    "primary": { "id": "vehicle_light_trails", "intensity": "light" },
+                    "secondary": [{ "id": "sunstar", "intensity": "strong" }]
+                }
             }
         });
         let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
@@ -1933,6 +1937,12 @@ mod tests {
         assert_eq!((objects[0].quantity, objects[0].state), (1, SceneObjectState::Static));
         assert_eq!(intent.visual_intent.as_ref().unwrap().view, "front");
         assert_eq!(intent.visual_intent.as_ref().unwrap().focus, Some(55));
+        let effects = intent.effects.as_ref().unwrap();
+        assert_eq!(
+            effects.primary.as_ref().map(|p| (p.id.as_str(), p.intensity)),
+            Some(("vehicle_light_trails", EffectIntensity::Light))
+        );
+        assert_eq!(effects.secondary[0].intensity, EffectIntensity::Strong);
         // `cameraId: null` is written back as absent, which the domain schema reads the same.
         let mut expected = raw.clone();
         expected["shotIntent"].as_object_mut().unwrap().remove("cameraId");
@@ -1941,6 +1951,10 @@ mod tests {
         let mut moving = raw.clone();
         moving["shotIntent"]["sceneObjects"][0]["state"] = json!("flying");
         assert!(serde_json::from_value::<PromptBundle>(moving).is_err());
+
+        let mut harsh = raw.clone();
+        harsh["shotIntent"]["effects"]["primary"]["intensity"] = json!("extreme");
+        assert!(serde_json::from_value::<PromptBundle>(harsh).is_err());
     }
 
     #[test]

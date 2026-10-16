@@ -13,6 +13,7 @@
 import { create } from "zustand";
 import {
   GENERATION_UPDATED_EVENT,
+  hasEffects,
   JOB_UPDATED_EVENT,
   orderReferenceIds,
   TERMINAL_JOB_STATUSES,
@@ -543,7 +544,8 @@ export const useStudio = create<State>((set, get) => {
           !shotIntent.targetSpaceId &&
           !shotIntent.targetDetailId &&
           !shotIntent.detailShotCount &&
-          !shotIntent.visualIntent);
+          !shotIntent.visualIntent &&
+          !hasEffects(shotIntent.effects));
       if (empty) shotIntents.delete(id);
       else shotIntents.set(id, shotIntent);
       set({ workspace: { ...ws, shotIntent: empty ? undefined : shotIntent } });
