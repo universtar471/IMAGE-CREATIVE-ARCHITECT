@@ -1708,6 +1708,7 @@ export const en = {
     shortfall: "{count} planned shot(s) could not be assigned without inventing a detail angle.",
     camera: "Camera",
     angle: "Angle {index}",
+    shotLabel: "{detail} — {camera} · angle {index}",
     shotType: "Shot type",
     approach: "Approach",
     architectural_detail: "Architectural detail",
@@ -1972,6 +1973,7 @@ export const en = {
     nothing: "Nothing to render.",
     queuing: "Queuing…",
     queue: { one: "Queue {count} item", other: "Queue {count} items" },
+    detailShots: { one: "Detail shot ({count})", other: "Detail shots ({count})" },
     anchorIntro:
       "One render per anchor view, with the approved master as the only reference. Approve the best result of each camera on the Contact Sheet.",
     productionIntro:
@@ -2071,6 +2073,9 @@ export const en = {
     refusedWarn: "Approve the exception or fix the selection before generating.",
     batchSkipHint: "Blocked items are skipped; the rest are queued.",
     batchSkipped: "Skipped (constraint check): {list}",
+    retryTitle: "Constraint check before retrying",
+    retryIntro:
+      "The project data may have changed since the original submit. A retry is sent only when it passes the constraint check against the current data.",
     batchAllBlocked: "Every item failed the constraint check; nothing was queued.",
   },
 

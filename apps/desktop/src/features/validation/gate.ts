@@ -14,7 +14,6 @@
  */
 import {
   validateShot,
-  withResolvedWarnings,
   type BatchCreateRequest,
   type ConflictCode,
   type ProjectDNA,
@@ -78,11 +77,18 @@ export function validationSnapshot(v: ShotValidation): ShotValidationSnapshot {
   };
 }
 
-/** The bundle carrying the gate's outcome: snapshot + accepted codes in `resolvedWarnings`. */
+/**
+ * The bundle carrying the gate's outcome: the snapshot, and in `resolvedWarnings` exactly
+ * the WARN codes the user accepted for this shot (never codes that were only found; those
+ * are in `validation.issueCodes`). A resent snapshot's older list is replaced, not merged.
+ */
 export function withValidation<B extends PromptBundle>(bundle: B, v: ShotValidation): B {
   const accepted = acceptedWarnings(v);
-  const merged = accepted.length ? (withResolvedWarnings(bundle, accepted) as B) : bundle;
-  return { ...merged, validation: validationSnapshot(v) };
+  const resolved =
+    accepted.length || bundle.resolvedWarnings !== undefined
+      ? { ...bundle, resolvedWarnings: accepted }
+      : bundle;
+  return { ...resolved, validation: validationSnapshot(v) };
 }
 
 /** Thrown by the store when the gate refuses a submit; `details.validation` has the issues. */
@@ -110,7 +116,10 @@ export type BatchGate = {
   skipped: BatchGateEntry[];
 };
 
-/** Validate every batch item; items that are not ALLOW are dropped from the request. */
+/**
+ * Validate every batch item with its OWN shot intent (the one its prompt was compiled with,
+ * e.g. a per-item `targetDetailId`); items that are not ALLOW are dropped from the request.
+ */
 export function gateBatch(
   request: BatchCreateRequest,
   dna: ProjectDNA,
@@ -121,7 +130,13 @@ export function gateBatch(
   const skipped: BatchGateEntry[] = [];
   const items: BatchCreateRequest["items"] = [];
   for (const item of request.items) {
-    const validation = checkShot({ dna, projectType, cameraId: item.cameraId, approvedExceptions });
+    const validation = checkShot({
+      dna,
+      projectType,
+      cameraId: item.cameraId,
+      approvedExceptions,
+      shotIntent: item.prompt.shotIntent,
+    });
     const entry = { label: item.label, validation };
     entries.push(entry);
     if (canSubmit(validation))

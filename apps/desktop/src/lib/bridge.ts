@@ -46,6 +46,7 @@ import {
   type ProjectType,
   type RegionEditParams,
   type RegionSaveRequest,
+  type ShotValidationSnapshot,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
@@ -229,7 +230,11 @@ export type Requests = {
   /** null = every project. */
   job_list: { projectId: string | null };
   job_cancel: { jobId: string };
-  job_retry: { jobId: string };
+  /**
+   * `validation`: the desktop gate's fresh verdict for the stored snapshot against the
+   * current DNA (ADR-034); it replaces the snapshot's own. A BLOCK verdict is refused.
+   */
+  job_retry: { jobId: string; validation?: ShotValidationSnapshot };
   camera_anchor_list: { projectId: string };
   camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
   camera_anchor_clear: { projectId: string; cameraId: string };

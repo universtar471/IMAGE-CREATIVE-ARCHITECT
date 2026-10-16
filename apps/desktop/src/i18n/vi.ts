@@ -1708,6 +1708,7 @@ export const vi: Dict = {
     shortfall: "Không thể gán {count} ảnh theo kế hoạch nếu không bịa thêm góc chi tiết.",
     camera: "Góc máy",
     angle: "Góc {index}",
+    shotLabel: "{detail} — {camera} · góc {index}",
     shotType: "Loại ảnh",
     approach: "Tiệm cận",
     architectural_detail: "Chi tiết kiến trúc",
@@ -1972,6 +1973,7 @@ export const vi: Dict = {
     nothing: "Không có gì để render.",
     queuing: "Đang đưa vào hàng đợi…",
     queue: { one: "Đưa {count} mục vào hàng đợi", other: "Đưa {count} mục vào hàng đợi" },
+    detailShots: { one: "Ảnh chi tiết ({count})", other: "Ảnh chi tiết ({count})" },
     anchorIntro:
       "Mỗi góc Anchor render một lần, chỉ dùng ảnh Master đã duyệt làm tham chiếu. Duyệt kết quả đẹp nhất của từng góc trên Bảng ảnh.",
     productionIntro:
@@ -2070,6 +2072,9 @@ export const vi: Dict = {
     refusedWarn: "Hãy duyệt ngoại lệ hoặc sửa lựa chọn trước khi tạo ảnh.",
     batchSkipHint: "Các mục bị chặn sẽ được bỏ qua; các mục còn lại vẫn vào hàng đợi.",
     batchSkipped: "Đã bỏ qua (kiểm tra ràng buộc): {list}",
+    retryTitle: "Kiểm tra ràng buộc trước khi thử lại",
+    retryIntro:
+      "Dữ liệu dự án có thể đã thay đổi từ lần gửi trước. Ảnh chỉ được gửi lại khi qua kiểm tra ràng buộc với dữ liệu hiện tại.",
     batchAllBlocked: "Mọi mục đều không qua kiểm tra ràng buộc; không có gì được đưa vào hàng đợi.",
   },
 

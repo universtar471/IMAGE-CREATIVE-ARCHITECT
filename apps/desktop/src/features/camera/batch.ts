@@ -7,6 +7,7 @@ import {
   anchorViews,
   BatchReferenceLimitError,
   buildAnchorBatchItems,
+  buildDetailBatchItems,
   buildProductionBatchItems,
   costHintText,
   MAX_BATCH_ITEMS,
@@ -14,6 +15,7 @@ import {
   type BatchCreateRequest,
   type BatchItem,
   type CameraAnchorDTO,
+  type DetailBatchShot,
   type GenerationDTO,
   type GenerationParams,
   type ProviderDescriptorDTO,
@@ -40,6 +42,11 @@ export type BatchChoices = {
   extraReferenceIds: readonly string[];
   name?: string;
   shotIntent?: ShotIntent;
+  /**
+   * Production only, from "Khám phá chi tiết": one item per planned detail shot, each with its
+   * own `targetDetailId` (replaces `cameraIds`).
+   */
+  detailShots?: readonly DetailBatchShot[];
 };
 
 export type BatchPlan = {
@@ -173,9 +180,12 @@ export function planBatch(
       (item) => !choices.cameraSelectionExplicit || (item.cameraId && chosen.has(item.cameraId)),
     );
   } else {
-    if (!choices.cameraIds.length) issues.push(t("batch.needsCamera"));
+    const detailShots = choices.detailShots?.length ? choices.detailShots : null;
+    if (!detailShots && !choices.cameraIds.length) issues.push(t("batch.needsCamera"));
     try {
-      items = buildProductionBatchItems(input, choices.cameraIds, anchors);
+      items = detailShots
+        ? buildDetailBatchItems(input, detailShots, anchors)
+        : buildProductionBatchItems(input, choices.cameraIds, anchors);
     } catch (err) {
       // Master + anchor do not fit this model: never queue a batch without them.
       if (!(err instanceof BatchReferenceLimitError)) throw err;

@@ -594,8 +594,9 @@ describe("OCCLUDED_TARGET", () => {
     expect(mixed.issues[0]!.params).toMatchObject({ facade: "right" });
   });
 
-  it("records the warning in the compiled bundle's resolvedWarnings", () => {
-    expect(compile(withTopology(null), SIDE_LEFT).resolvedWarnings).toEqual(["OCCLUDED_TARGET"]);
+  it("finds the warning without recording it as accepted in resolvedWarnings", () => {
+    expect(codes(run(withTopology(null), SIDE_LEFT))).toEqual(["WARN:OCCLUDED_TARGET"]);
+    expect(compile(withTopology(null), SIDE_LEFT).resolvedWarnings).toEqual([]);
     expect(compile(withTopology(MID_BLOCK), FRONT_LEFT).resolvedWarnings).toEqual([]);
   });
 });

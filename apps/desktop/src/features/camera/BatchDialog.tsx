@@ -5,6 +5,7 @@ import {
   defaultGenerationParams,
   orderReferences,
   type ConflictCode,
+  type DetailBatchShot,
   type GenerationParams,
 } from "@arch/domain";
 import { useStudio } from "../../app/store";
@@ -31,10 +32,13 @@ export function BatchDialog({
   mode,
   onClose,
   initialCameraIds,
+  detailShots,
 }: {
   mode: BatchMode;
   onClose: () => void;
   initialCameraIds?: readonly string[];
+  /** "Khám phá chi tiết": one item per planned shot, each with its own target detail. */
+  detailShots?: readonly DetailBatchShot[];
 }) {
   const ws = useStudio((s) => s.workspace!);
   const providers = useStudio((s) => s.providers ?? []);
@@ -92,6 +96,7 @@ export function BatchDialog({
     extraReferenceIds: extraIds.filter((id) => !anchorAssetIds.has(id)),
     name,
     shotIntent: ws.shotIntent,
+    detailShots: mode === "production" ? detailShots : undefined,
   };
   // Preview from what is saved (the DNA is flushed before the real build).
   const plan = planBatch(
@@ -286,6 +291,20 @@ export function BatchDialog({
                   <SiteTopologyChip camera={c} />
                 </li>
               ))}
+            </ul>
+          </FieldGroup>
+        ) : detailShots?.length ? (
+          <FieldGroup label={t("batch.detailShots", { count: plan.items.length })}>
+            <ul className="batch-cams" data-testid="batch-detail-shots">
+              {plan.items.map((item, index) => {
+                const camera = cameras.find((c) => c.id === item.cameraId);
+                return (
+                  <li key={`${item.cameraId ?? ""}:${index}`}>
+                    <span>{item.label}</span>
+                    {camera && <SiteTopologyChip camera={camera} />}
+                  </li>
+                );
+              })}
             </ul>
           </FieldGroup>
         ) : (

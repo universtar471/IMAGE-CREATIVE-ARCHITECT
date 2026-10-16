@@ -9,7 +9,7 @@ use tauri::State;
 
 use crate::dto::{
     AssetDto, AssetRemoveResult, BatchDto, CameraAnchorDto, GenerationDto, JobDto, ProjectBundleDto, ProjectDto,
-    ProjectSummaryDto, ProviderDescriptorDto, ProviderTestResult, VersionDto,
+    ProjectSummaryDto, ProviderDescriptorDto, ProviderTestResult, ShotValidationSnapshot, VersionDto,
 };
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
@@ -517,9 +517,18 @@ pub async fn job_cancel(core: Core<'_>, request: JobRef) -> AppResult<JobDto> {
     blocking(&core, move |c| queue::cancel(c, &request.job_id)).await
 }
 
+/// `job_retry`: the job, plus the desktop gate's fresh verdict for its stored snapshot.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobRetryRequest {
+    job_id: String,
+    #[serde(default)]
+    validation: Option<ShotValidationSnapshot>,
+}
+
 #[tauri::command]
-pub async fn job_retry(core: Core<'_>, request: JobRef) -> AppResult<JobDto> {
-    blocking(&core, move |c| queue::retry(c, &request.job_id)).await
+pub async fn job_retry(core: Core<'_>, request: JobRetryRequest) -> AppResult<JobDto> {
+    blocking(&core, move |c| queue::retry_with(c, &request.job_id, request.validation)).await
 }
 
 #[tauri::command]

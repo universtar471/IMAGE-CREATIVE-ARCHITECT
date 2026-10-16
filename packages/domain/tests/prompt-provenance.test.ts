@@ -12,6 +12,7 @@ import {
   compilePrompt,
   compileWithOverrides,
   sha256Hex,
+  validateShot,
   withResolvedWarnings,
   type CameraDNA,
   type ProjectDNA,
@@ -176,7 +177,7 @@ describe("PromptBundle provenance (ADR-034)", () => {
     );
   });
 
-  it("lists the WARN codes the validator raises for the shot (BLOCKs are not resolved warnings)", () => {
+  it("never pre-fills resolvedWarnings with the WARN codes it finds (only accepted ones belong there)", () => {
     const side: CameraDNA = {
       schemaVersion: 1,
       id: "CAM_01M4K1QS1DEVEZ9ZMEPFT1E7X0",
@@ -188,9 +189,15 @@ describe("PromptBundle provenance (ADR-034)", () => {
     };
     const inferred = nhapho(); // attached only from neighbour notes → WARN
     inferred.cameras.push(side);
-    expect(compilePrompt(input({ dna: inferred, cameraId: side.id })).resolvedWarnings).toEqual([
-      "ADJACENT_BUILDING_CONFLICT",
+    // The validator finds the WARN; the compiled bundle does not claim it was accepted.
+    const found = validateShot({
+      dna: inferred,
+      shotIntent: { projectType: "townhouse", cameraId: side.id },
+    });
+    expect(found.issues.map((i) => `${i.severity}:${i.code}`)).toEqual([
+      "WARN:ADJACENT_BUILDING_CONFLICT",
     ]);
+    expect(compilePrompt(input({ dna: inferred, cameraId: side.id })).resolvedWarnings).toEqual([]);
     const declared = structuredClone(inferred);
     declared.context.siteTopology = { left: "attached", right: "attached", cornerLot: false };
     expect(compilePrompt(input({ dna: declared, cameraId: side.id })).resolvedWarnings).toEqual([]);

@@ -28,6 +28,8 @@ import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { MoodPreview, MoodPresetCards } from "../previews/MoodPreview";
 import { GradePreview } from "../previews/GradePreview";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { useBatchGate } from "../validation/useBatchGate";
 
 type Preset = MoodVariationPreset;
 
@@ -131,6 +133,35 @@ export function MoodGradePanel() {
       if (value) editDna(section, value);
     }
   };
+  // Preview of the per-item conflict gate (ADR-034) on the saved DNA; the store re-runs it.
+  const variationPreview = (() => {
+    if (!variationOpen || !provider || !model || !sourceId || chosen.length < 2) return null;
+    try {
+      const items = buildMoodVariationItems({
+        dna: ws.persistedDna,
+        project: ws.project,
+        pack: knowledge.resolve(ws.project.projectType, ws.project.subtype).pack,
+        assets: ws.assets,
+        sourceAssetId: sourceId,
+        presets: moodPresets.filter((p) => chosen.includes(p.id)),
+        model,
+        params,
+      });
+      return {
+        projectId: ws.project.id,
+        name: "Mood variations",
+        providerId: provider.id,
+        modelId: model.id,
+        purpose: "variation" as const,
+        priority: 0,
+        items,
+      };
+    } catch {
+      return null; // the submit reports why (e.g. no reference slot)
+    }
+  })();
+  const variationGate = useBatchGate(variationPreview);
+  const fixConflict = useConflictFix(undefined, () => setVariationOpen(false));
   const queueVariations = async () => {
     if (!model || !sourceId || chosen.length < 2) return;
     try {
@@ -161,15 +192,18 @@ export function MoodGradePanel() {
         }))
       )
         return;
-      await createBatch({
-        projectId: current.project.id,
-        name: "Mood variations",
-        providerId: provider!.id,
-        modelId: model.id,
-        purpose: "variation",
-        priority: 0,
-        items,
-      });
+      await createBatch(
+        {
+          projectId: current.project.id,
+          name: "Mood variations",
+          providerId: provider!.id,
+          modelId: model.id,
+          purpose: "variation",
+          priority: 0,
+          items,
+        },
+        { approvedExceptions: variationGate.approvedExceptions },
+      );
       setVariationOpen(false);
     } catch (err) {
       notify("error", err instanceof Error ? err.message : String(err));
@@ -321,7 +355,12 @@ export function MoodGradePanel() {
               </button>
               <button
                 className="btn btn-primary"
-                disabled={!model || chosen.length < 2}
+                disabled={
+                  !model ||
+                  chosen.length < 2 ||
+                  (variationGate.gate !== null && !variationGate.gate.request)
+                }
+                data-testid="mood-variations-submit"
                 onClick={() => void queueVariations()}
               >
                 {t("batch.queue", { count: chosen.length })}
@@ -333,6 +372,14 @@ export function MoodGradePanel() {
           <p className="field-hint" data-testid="mood-cost-hint">
             {costHint}
           </p>
+          {variationGate.gate && (
+            <ConflictPanel
+              batch
+              entries={variationGate.gate.entries}
+              onFix={fixConflict}
+              onApprove={variationGate.approve}
+            />
+          )}
           <SelectField
             label={t("generate.provider")}
             value={provider?.id}
