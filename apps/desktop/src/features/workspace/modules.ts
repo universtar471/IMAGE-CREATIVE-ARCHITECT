@@ -10,6 +10,7 @@ import {
   Camera,
   Car,
   Dna,
+  GalleryVerticalEnd,
   Images,
   LayoutDashboard,
   MapPinned,
@@ -17,6 +18,7 @@ import {
   ScanSearch,
   ScanLine,
   Shapes,
+  SlidersHorizontal,
   Sparkles,
   SunMedium,
   Wand2,
@@ -172,3 +174,61 @@ export const TRAY_TABS: readonly {
   { id: "jobs", label: "Jobs", availableIn: null },
   { id: "history", label: "History", availableIn: null },
 ];
+
+/**
+ * ADR-040 sections: the five entries of the left navigation. A section is a grouping over
+ * modules (`library` has none: it is its own center view). `ModuleId`/`activeModule` stay
+ * the source of truth; each section remembers its last module in the store (never the DNA).
+ */
+export type SectionId = "create" | "library" | "edit" | "present" | "studio";
+
+export type WorkspaceSection = {
+  id: SectionId;
+  icon: LucideIcon;
+  /** Modules of the section in ADR-040 order; the first is the default. */
+  modules: readonly ModuleId[];
+};
+
+export const WORKSPACE_SECTIONS: readonly WorkspaceSection[] = [
+  { id: "create", icon: Sparkles, modules: ["generate"] },
+  { id: "library", icon: GalleryVerticalEnd, modules: [] },
+  { id: "edit", icon: Wand2, modules: ["mood_grade", "enhance", "regions"] },
+  { id: "present", icon: BookOpen, modules: ["export", "diagram"] },
+  {
+    id: "studio",
+    icon: SlidersHorizontal,
+    modules: [
+      "overview",
+      "design_dna",
+      "context",
+      "references",
+      "camera",
+      "detail",
+      "scene_objects",
+      "effects",
+      "lighting",
+    ],
+  },
+];
+
+/** Sections whose modules are switched by a tab strip above the center area. */
+export const TABBED_SECTIONS: readonly SectionId[] = ["edit", "present"];
+
+export type ModuleSectionId = Exclude<SectionId, "library">;
+
+export const sectionById = (id: SectionId) => WORKSPACE_SECTIONS.find((s) => s.id === id)!;
+
+/** The section that owns a module (every module belongs to exactly one). */
+export function sectionOfModule(id: ModuleId): ModuleSectionId {
+  return WORKSPACE_SECTIONS.find((s) => s.modules.includes(id))!.id as ModuleSectionId;
+}
+
+/** Last module per section; starts at each section's first module. */
+export type SectionModules = Record<ModuleSectionId, ModuleId>;
+
+export const defaultSectionModules = (): SectionModules => ({
+  create: "generate",
+  edit: "mood_grade",
+  present: "export",
+  studio: "overview",
+});

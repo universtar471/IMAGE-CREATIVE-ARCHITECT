@@ -1,6 +1,6 @@
 import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
 import { useEffect } from "react";
-import { useStudio } from "../../app/store";
+import { selectSection, useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { ErrorState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
@@ -11,7 +11,9 @@ import { BottomTray } from "../assets/BottomTray";
 import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
-import { moduleById } from "./modules";
+import { moduleById, sectionById, TABBED_SECTIONS, type SectionId } from "./modules";
+import { LibraryView } from "../library/LibraryView";
+import { LibraryPanel } from "../library/LibraryPanel";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
@@ -69,6 +71,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const error = useStudio((s) => s.workspaceError);
   const openProject = useStudio((s) => s.openProject);
   const goToHub = useStudio((s) => s.goToHub);
+  const section = useStudio(selectSection);
   const t = useT();
 
   if (loading) return <LoadingState label={t("workspace.opening")} />;
@@ -95,14 +98,67 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     <div className="workspace" data-testid="workspace">
       <WorkspaceTopBar />
       <WorkspaceNav />
-      <CenterArea />
-      <PropertyPanel />
+      {section === "library" ? (
+        <>
+          <LibraryView />
+          <LibraryPanel />
+        </>
+      ) : section === "create" ? (
+        <CreateSectionView />
+      ) : (
+        <>
+          <CenterArea section={section} />
+          <PropertyPanel />
+        </>
+      )}
       <BottomTray />
     </div>
   );
 }
 
-function CenterArea() {
+/**
+ * The single mount point of "Tạo ảnh tự động" (ADR-040). For now it renders the existing
+ * generate module (center + Generate panel); the quick-generate screen replaces it here.
+ */
+export function CreateSectionView() {
+  return (
+    <>
+      <CenterArea section="create" />
+      <PropertyPanel />
+    </>
+  );
+}
+
+/** Tab strip of the `edit` and `present` sections: one tab per module of the section. */
+export function SectionTabs({ section }: { section: SectionId }) {
+  const active = useStudio((s) => s.activeModule);
+  const setModule = useStudio((s) => s.setModule);
+  const t = useT();
+  if (!TABBED_SECTIONS.includes(section)) return null;
+  return (
+    <div className="section-tabs" role="tablist" aria-label={t("sections.tabsLabel")}>
+      {sectionById(section).modules.map((id) => {
+        const Icon = moduleById(id).icon;
+        return (
+          <button
+            key={id}
+            className="center-tab"
+            role="tab"
+            aria-selected={active === id}
+            data-module={id}
+            onClick={() => setModule(id)}
+          >
+            <Icon size={14} /> {t(`sections.tab.${id as SectionTabModule}`)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type SectionTabModule = "mood_grade" | "enhance" | "regions" | "export" | "diagram";
+
+function CenterArea({ section }: { section: SectionId }) {
   const active = useStudio((s) => s.activeModule);
   const centerView = useStudio((s) => s.centerView);
   const setCenterView = useStudio((s) => s.setCenterView);
@@ -173,6 +229,7 @@ function CenterArea() {
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
+      <SectionTabs section={section} />
       <div className="center-tabs" role="tablist" hidden={active === "export"}>
         {isCamera && (
           <button

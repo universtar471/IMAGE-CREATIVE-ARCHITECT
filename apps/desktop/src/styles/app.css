@@ -4279,3 +4279,85 @@ div.pub-slot {
   align-items: center;
   gap: 6px;
 }
+
+/* ADR-040 navigation sections, section tabs and "Ảnh của tôi". */
+.nav-studio {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-section {
+  font-weight: 600;
+}
+.nav-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--s-2);
+}
+.section-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 38px;
+  padding: 0 var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+}
+.library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--c-border);
+  background: var(--c-surface);
+}
+.library-toolbar .select {
+  width: auto;
+}
+.library-toolbar .spacer {
+  flex: 1;
+}
+.library-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 220px;
+  color: var(--c-text-3);
+}
+.library-body {
+  overflow: auto;
+}
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-3);
+}
+.library-tile {
+  position: relative;
+  height: 210px;
+}
+.library-tile .asset-thumb {
+  width: 100%;
+}
+.library-tile.is-checked .asset-thumb {
+  border-color: var(--c-primary);
+}
+.library-check {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  right: 8px;
+}
+.library-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.library-panel-tray {
+  max-height: 360px;
+  overflow: auto;
+}

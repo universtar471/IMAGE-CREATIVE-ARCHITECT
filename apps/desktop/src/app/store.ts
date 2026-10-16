@@ -52,7 +52,14 @@ import { deriveWorkflow, type DerivedWorkflow } from "../lib/workflow";
 import { setIn } from "../lib/path";
 import { t } from "../i18n";
 import { errorHeadline } from "../i18n/domain";
-import type { ModuleId, TrayTabId } from "../features/workspace/modules";
+import {
+  defaultSectionModules,
+  sectionOfModule,
+  type ModuleId,
+  type SectionId,
+  type SectionModules,
+  type TrayTabId,
+} from "../features/workspace/modules";
 import { isActiveGeneration } from "../features/generate/labels";
 import { withExtraPrompt } from "../features/generate/extraPrompt";
 import { compileFromBundle } from "./services";
@@ -176,6 +183,15 @@ type State = {
   workspaceLoading: boolean;
   workspaceError: string | null;
   activeModule: ModuleId;
+  /**
+   * ADR-040 navigation section. `library` is its own view; for the other sections the shown
+   * section follows `activeModule` (see `selectSection`).
+   */
+  activeSection: SectionId;
+  /** Last module opened in each section (UI state only, never part of the DNA). */
+  sectionModules: SectionModules;
+  /** Tray state to restore when leaving `library` (the tray starts collapsed there). */
+  trayCollapsedOutsideLibrary: boolean | null;
   centerView: CenterView;
   selectedAssetId: string | null;
   selectedCameraId: string | null;
@@ -205,6 +221,8 @@ type State = {
   openProject: (projectId: string) => Promise<void>;
   goToHub: () => Promise<void>;
   setModule: (id: ModuleId) => void;
+  /** Open a section: `library` shows My images; others restore their last module. */
+  setSection: (id: SectionId) => void;
   setCenterView: (v: CenterView) => void;
   selectAsset: (id: string | null) => void;
   selectCamera: (id: string | null) => void;
@@ -452,6 +470,9 @@ export const useStudio = create<State>((set, get) => {
     workspaceLoading: false,
     workspaceError: null,
     activeModule: "overview",
+    activeSection: "studio",
+    sectionModules: defaultSectionModules(),
+    trayCollapsedOutsideLibrary: null,
     centerView: "canvas",
     selectedAssetId: null,
     selectedCameraId: null,
@@ -478,6 +499,9 @@ export const useStudio = create<State>((set, get) => {
         workspaceLoading: true,
         workspaceError: null,
         activeModule: "overview",
+        activeSection: "studio",
+        sectionModules: defaultSectionModules(),
+        ...leaveLibrary(get()),
         centerView: "canvas",
         selectedAssetId: null,
         selectedCameraId: null,
@@ -570,7 +594,31 @@ export const useStudio = create<State>((set, get) => {
           : id !== "camera" && view === "director"
             ? "canvas"
             : view;
-      set({ activeModule: id, centerView });
+      const section = sectionOfModule(id);
+      set((s) => ({
+        activeModule: id,
+        activeSection: section,
+        sectionModules: { ...s.sectionModules, [section]: id },
+        centerView,
+        ...leaveLibrary(s),
+      }));
+    },
+    setSection: (id) => {
+      if (id !== "library") {
+        get().setModule(get().sectionModules[id]);
+        return;
+      }
+      void get().flushDna();
+      set((s) =>
+        s.activeSection === "library"
+          ? {}
+          : {
+              activeSection: "library",
+              trayCollapsedOutsideLibrary: s.trayCollapsed,
+              trayCollapsed: true,
+              centerView: "canvas",
+            },
+      );
     },
     setCenterView: (v) => {
       if (v === "prompt") void get().flushDna();
@@ -1224,6 +1272,17 @@ export async function attempt<T>(fn: () => Promise<T>): Promise<T | undefined> {
 }
 
 export const selectReadOnly = (s: State) => !!s.workspace?.project.archivedAt;
+
+/** Tray state to restore when leaving the library section (no change otherwise). */
+function leaveLibrary(s: Pick<State, "activeSection" | "trayCollapsedOutsideLibrary">) {
+  return s.activeSection === "library"
+    ? { trayCollapsed: s.trayCollapsedOutsideLibrary ?? false, trayCollapsedOutsideLibrary: null }
+    : {};
+}
+
+/** The section shown in the navigation: `library`, or the owner of the active module. */
+export const selectSection = (s: Pick<State, "activeSection" | "activeModule">): SectionId =>
+  s.activeSection === "library" ? "library" : sectionOfModule(s.activeModule);
 
 /** Running and waiting jobs of every project (top-bar queue indicator). */
 export const selectQueueCounts = (s: State) => {
