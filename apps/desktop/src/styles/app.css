@@ -2323,6 +2323,33 @@ textarea {
     max-width: 200px;
   }
 }
+.context-library {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.context-library-cues,
+.context-library-dropped {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.context-library-cues legend {
+  padding: 0;
+  font-weight: 600;
+}
+.context-library-cues ul,
+.context-library-dropped ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.context-library-dropped {
+  color: var(--c-warning);
+}
 .camera-thumb {
   flex: 0 0 auto;
   width: 34px;
@@ -4042,6 +4069,13 @@ div.pub-slot {
 .pub-records,
 .pub-facts,
 .pub-issues {
+/* Optical and motion effects (ADR-036 P2c). */
+.effects-panel .section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.effect-cards {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -4080,4 +4114,63 @@ div.pub-slot {
   max-width: 100%;
   max-height: 70vh;
   margin: 0 auto;
+.effect-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+}
+.effect-card[data-status="blocked"] {
+  opacity: 0.7;
+}
+.effect-card-head,
+.effect-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.effect-card-head {
+  justify-content: space-between;
+}
+.effect-card-name {
+  font-weight: 600;
+  font-size: 12px;
+}
+.effect-reason {
+  margin: 0;
+}
+.effects-panel .chip {
+  border: 1px solid var(--c-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-2);
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.effects-panel .chip[aria-pressed="true"] {
+  background: var(--c-primary);
+  color: white;
+}
+.effects-panel .chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.effect-intensity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.effect-intensity input {
+  width: 100%;
+}
+.effects-prompt {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

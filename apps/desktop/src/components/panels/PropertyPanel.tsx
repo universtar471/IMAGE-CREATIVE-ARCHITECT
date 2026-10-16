@@ -18,6 +18,7 @@ import { RegionPanel } from "../../features/regions/RegionPanel";
 import { PublishingPanel } from "../../features/publishing/PublishingPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
+import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
 
@@ -139,6 +140,7 @@ export function PropertyPanel() {
         )}
         {active === "detail" && <DetailPanel />}
         {active === "scene_objects" && <SceneObjectsPanel />}
+        {active === "effects" && <EffectsPanel />}
         {active === "lighting" && (
           <StepFrame stepId="dna.lighting">
             <LightingPanel />

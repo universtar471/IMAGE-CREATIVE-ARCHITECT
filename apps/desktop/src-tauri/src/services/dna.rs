@@ -92,6 +92,7 @@ mod tests {
         }
         let reopened = get(&core, &p.id).unwrap();
         assert!(reopened.get("site").is_some());
+        assert_eq!(reopened["context"]["library"]["regionId"], json!("vn_south_urban"));
         let legacy: Value = serde_json::from_str(LEGACY_DNA).unwrap();
         update(&core, &p.id, legacy).unwrap();
         assert!(get(&core, &p.id).unwrap().get("site").is_none());

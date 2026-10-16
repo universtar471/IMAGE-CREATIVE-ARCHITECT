@@ -41,6 +41,7 @@ import {
   type PreparedText,
 } from "./phrases";
 import { validateObjectPlacement } from "../sceneObjects/placement";
+import { validateEffects } from "../effects/validate";
 import type { ShotIntent } from "./shotIntent";
 import type { DetailRecord } from "../schemas/extensions";
 
@@ -380,12 +381,30 @@ const objectPlacementRule: ConflictRule = {
   },
 };
 
+/**
+ * EffectsCompatibilityMatrix (P2c): every effect the shot turns on needs its real source
+ * (EFFECT_SOURCE_MISSING) and a moving subject for a motion effect (EFFECT_MOTION_CONFLICT).
+ * No effect, no issues.
+ */
+const effectsRule: ConflictRule = {
+  code: "EFFECT_SOURCE_MISSING",
+  check(ctx) {
+    return validateEffects(ctx.dna, ctx.shot).map(({ code, severity, path, params }) => ({
+      code,
+      severity,
+      path,
+      params,
+    }));
+  },
+};
+
 /** Rules in evaluation order. Later phases append theirs here. */
 export const SHOT_RULES: readonly ConflictRule[] = [
   spaceNotInBuildingRule,
   adjacentBuildingRule,
   occludedTargetRule,
   objectPlacementRule,
+  effectsRule,
   unverifiedGeometryRule,
   lockedLightingRule,
 ];
