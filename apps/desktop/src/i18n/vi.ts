@@ -382,6 +382,10 @@ export const vi: Dict = {
       label: "Đối tượng cảnh",
       description: "Thêm người, phương tiện, cây và thú cưng cho từng cảnh, có kiểm tra vị trí.",
     },
+    effects: {
+      label: "Hiệu ứng",
+      description: "Hiệu ứng quang học và chuyển động cho từng cảnh, kiểm tra theo cảnh thật.",
+    },
     lighting: { label: "Ánh sáng", description: "Mặt trời, bầu trời và hệ chiếu sáng nhân tạo." },
     mood_grade: {
       label: "Mood / Chỉnh màu",
@@ -1239,6 +1243,55 @@ export const vi: Dict = {
     howToUsePreserve: "Architecture Preserve giữ nguyên công trình, ô cửa, tỷ lệ và góc máy.",
   },
 
+  /** Hiệu ứng quang học và chuyển động (ADR-036 P2c, SRS §6.2). */
+  effects: {
+    title: "Hiệu ứng quang học và chuyển động",
+    intro:
+      "Mọi hiệu ứng đều tắt. Chọn một hiệu ứng chính; hiệu ứng phụ chỉ thêm được khi tương thích. Mỗi hiệu ứng chỉ áp lên nguồn thật có trong cảnh.",
+    primary: "Chính",
+    secondary: "Phụ",
+    intensity: "Mức độ",
+    intensities: { light: "Nhẹ", medium: "Vừa", strong: "Mạnh" },
+    status: { available: "Dùng được", conditional: "Có điều kiện", blocked: "Bị chặn" },
+    secondaryNeedsPrimary: "Hãy chọn hiệu ứng chính trước.",
+    alreadyPrimary: "Đây đã là hiệu ứng chính.",
+    incompatible: "Không kết hợp được với các hiệu ứng đã chọn.",
+    secondaryLimit: "Tối đa {max} hiệu ứng phụ.",
+    preview: "Hiệu ứng trong cảnh này",
+    off: "Không có hiệu ứng: Prompt giữ nguyên.",
+    blockedSelected:
+      "Một hiệu ứng đã chọn bị chặn theo dữ liệu dự án; hiệu ứng đó không được đưa vào Prompt và lệnh tạo ảnh sẽ bị chặn. Hãy sửa dữ liệu dự án hoặc tắt hiệu ứng.",
+    promptLines: "Dòng Prompt",
+    clear: "Tắt mọi hiệu ứng",
+    reasons: {
+      available: "Dùng được cho cảnh này.",
+      no_road: "Dữ liệu dự án không có đường, nên không có xe chạy để tạo vệt sáng.",
+      no_moving_vehicle:
+        "Hãy thêm ô tô hoặc xe máy đang chạy trên đường hiện có ở mục Đối tượng cảnh.",
+      vehicles_parked:
+        "Xe trong cảnh đều đang đỗ: xe đỗ không thể tạo vệt sáng. Hãy đặt một xe ở trạng thái đang chạy hoặc tắt hiệu ứng.",
+      needs_dark: "Vệt sáng xe cần lúc chạng vạng hoặc ban đêm; ánh sáng đang đặt là ban ngày.",
+      people_static: "Người trong cảnh đang đứng yên, nên không thể làm mờ chuyển động.",
+      no_sky: "Nội thất kín không có bầu trời, nên không có mây để làm mềm.",
+      no_water: "Dữ liệu dự án không có mặt nước (hồ bơi, hồ, sông hay biển).",
+      no_light_source: "Không có nguồn sáng: không thấy mặt trời và không có đèn nào bật.",
+      sun_hidden: "Thời tiết che mặt trời và không có đèn nào bật.",
+      needs_sunlight: "Luồng sáng cần ánh nắng; ánh sáng đang đặt là chạng vạng hoặc ban đêm.",
+      no_opening: "Phòng không có cửa sổ hay khe mở để ánh sáng đi qua.",
+      road_unverified: "Đường chỉ là giả định; vệt sáng chỉ áp khi đường có trong ảnh tham chiếu.",
+      time_unknown: "Chưa đặt thời điểm trong ngày; hiệu ứng chỉ áp khi nguồn của nó hiện rõ.",
+      needs_dusk: "Giờ vàng có thể quá sáng cho vệt sáng mạnh; chạng vạng hoặc ban đêm hợp nhất.",
+      needs_moving_people:
+        "Áp lên người đang đi trong ảnh tham chiếu; bạn có thể thêm người đang đi ở mục Đối tượng cảnh.",
+      sky_out_of_frame: "Camera chi tiết có thể không thấy bầu trời.",
+      sky_partial: "Không gian bán ngoài trời chỉ thấy một phần bầu trời.",
+      water_unverified: "Mặt nước chỉ được nhắc trong ghi chú bối cảnh, chưa được xác nhận.",
+      sun_through_window: "Chỉ có khi thấy mặt trời qua cửa sổ.",
+      opening_unverified: "Chưa ghi nhận cửa sổ của phòng; luồng sáng chỉ đi qua khe mở thật.",
+      depends_on_glass: "Phụ thuộc vào kính và góc camera trong phòng.",
+      camera_angle: "Camera cao và dốc làm giảm tác dụng kiểm soát phản xạ kính.",
+    },
+  },
   sceneObjects: {
     title: "Đối tượng trong cảnh",
     intro:

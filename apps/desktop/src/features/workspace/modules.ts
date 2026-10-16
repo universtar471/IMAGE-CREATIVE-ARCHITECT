@@ -5,6 +5,7 @@
  * shows `modules.<id>.label` / `.description` from the i18n dictionaries.
  */
 import {
+  Aperture,
   Camera,
   Car,
   Download,
@@ -29,6 +30,7 @@ export type ModuleId =
   | "camera"
   | "detail"
   | "scene_objects"
+  | "effects"
   | "lighting"
   | "mood_grade"
   | "generate"
@@ -92,6 +94,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "scene_objects",
     label: "Scene objects",
     icon: Car,
+    group: "dna",
+    availableIn: null,
+  },
+  {
+    id: "effects",
+    label: "Effects",
+    icon: Aperture,
     group: "dna",
     availableIn: null,
   },

@@ -25,6 +25,8 @@ import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
 import { detailTargetSection } from "./sections/detailTarget";
+import { effectsSection } from "./sections/effects";
+import { hasEffects } from "../effects/schemas";
 import { contextSuggestionsSection, usedContextLibrary } from "./sections/contextSuggestions";
 import type { ShotIntent } from "../validation/shotIntent";
 import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
@@ -174,7 +176,8 @@ export function normalizeShotIntent(
         value !== undefined &&
         value !== null &&
         value !== "" &&
-        !(Array.isArray(value) && value.length === 0),
+        !(Array.isArray(value) && value.length === 0) &&
+        !(key === "effects" && !hasEffects(value as ShotIntent["effects"])),
     ),
   );
   if (!Object.keys(choices).length) return undefined;
@@ -197,10 +200,11 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
-  // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects,
+  // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects, effects,
   // contextSuggestions, quality. Furnishing is interior-only; spaceScope appears only with an
   // active catalog space; sceneObjects only when the shot adds objects (SRS §12.2 item 7,
-  // after the camera); contextSuggestions only with `context.library` (lowest priority).
+  // after the camera); effects only when the shot turns one on (SRS §6.2); contextSuggestions
+  // only with `context.library` (lowest priority).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -240,6 +244,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ],
     ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
+    ["effects", shotIntent ? effectsSection(dna, shotIntent) : null],
     ["contextSuggestions", contextSuggestionsSection(dna, project.projectType)],
     [
       "quality",
