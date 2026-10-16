@@ -255,6 +255,9 @@ pub struct GenerationDto {
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
     pub duration_ms: Option<i64>,
+    /// Deterministic local preservation check; absent for legacy/non-enhance rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enhance_check: Option<serde_json::Value>,
 }
 
 // ------------------------------------------------------------------ Phase 3: jobs, batches, anchors
