@@ -1795,6 +1795,7 @@ mod tests {
             "referenceInstructions": "", "preservationInstructions": "", "metadata": {},
             "shotIntent": {
                 "projectType": "villa", "cameraId": null,
+                "detailShotCount": 2,
                 "sceneObjects": [{
                     "presetId": "car.mercedes_300sl.gullwing", "quantity": 1, "targetSpaceId": "SPC_gara",
                     "placementZoneId": "garage_bay", "state": "static",
@@ -1806,6 +1807,7 @@ mod tests {
         let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
         let intent = bundle.shot_intent.as_ref().unwrap();
         assert_eq!(intent.project_type, ProjectType::Villa);
+        assert_eq!(intent.detail_shot_count, Some(2));
         let objects = intent.scene_objects.as_ref().unwrap();
         assert_eq!((objects[0].quantity, objects[0].state), (1, SceneObjectState::Static));
         assert_eq!(intent.extra["visualIntent"], json!("front"));

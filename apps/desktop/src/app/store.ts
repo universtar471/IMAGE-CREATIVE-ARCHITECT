@@ -541,7 +541,8 @@ export const useStudio = create<State>((set, get) => {
         !shotIntent ||
         (!shotIntent.sceneObjects?.length &&
           !shotIntent.targetSpaceId &&
-          !shotIntent.targetDetailId);
+          !shotIntent.targetDetailId &&
+          !shotIntent.detailShotCount);
       if (empty) shotIntents.delete(id);
       else shotIntents.set(id, shotIntent);
       set({ workspace: { ...ws, shotIntent: empty ? undefined : shotIntent } });

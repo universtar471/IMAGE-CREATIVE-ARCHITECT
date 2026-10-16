@@ -59,19 +59,18 @@ function cameraCandidates(dna: ProjectDNA, detail: DetailRecord): string[] {
 }
 
 /** Plan only verified details and cameras whose visibility includes the detail facade. */
-export function planDetailShots(
-  dna: ProjectDNA,
-  options: DetailShotPlanOptions,
-): DetailShotPlan {
+export function planDetailShots(dna: ProjectDNA, options: DetailShotPlanOptions): DetailShotPlan {
   const count = Math.max(1, Math.min(10, Math.trunc(options.count)));
   const all = (dna.architecturalDetails ?? []).filter(isVerified);
-  const wanted = options.mode === "manual" && options.detailIds?.length
-    ? new Set(options.detailIds)
-    : null;
+  const wanted = options.mode === "manual" ? new Set(options.detailIds ?? []) : null;
   const details = all.filter((detail) => !wanted || wanted.has(detail.id));
   const warnings: string[] = [];
   if (!details.length) {
-    return { shots: [], shortfall: count, warnings: ["NO_VERIFIED_DETAILS"] };
+    return {
+      shots: [],
+      shortfall: count,
+      warnings: [options.mode === "manual" ? "NO_SELECTED_DETAILS" : "NO_VERIFIED_DETAILS"],
+    };
   }
 
   const candidates = new Map(details.map((detail) => [detail.id, cameraCandidates(dna, detail)]));
