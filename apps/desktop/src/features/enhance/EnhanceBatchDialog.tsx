@@ -28,6 +28,8 @@ import {
 } from "./enhance";
 import { LockToggles, PreservationModeSelector, SizeTargetSelector } from "./EnhanceControls";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
+import { useBatchGate } from "../validation/useBatchGate";
 
 export function EnhanceBatchDialog({
   sources,
@@ -128,7 +130,35 @@ export function EnhanceBatchDialog({
       : cost.kind === "unknown"
         ? t("enhance.batchCostUnknown", { count: cost.count })
         : t("enhance.batchCost", { amount: cost.amount, tier: cost.tier });
+  const buildItems = () =>
+    buildEnhanceItems({
+      sources: selectedSources,
+      params,
+      providerId: provider!.id,
+      model: model!,
+      dna: ws.draftDna,
+    });
+  // Preview of the per-item conflict gate (ADR-034); the store re-runs it on submit.
+  const preview = (() => {
+    if (!provider || !model || validation || runnable.length < 1) return null;
+    try {
+      return {
+        projectId: ws.project.id,
+        providerId: provider.id,
+        modelId: model.id,
+        purpose: "enhance" as const,
+        name: `${t("enhance.batch")} · ${runnable.length}`,
+        priority: 0,
+        items: buildItems(),
+      };
+    } catch {
+      return null;
+    }
+  })();
+  const conflicts = useBatchGate(preview);
+  const fixConflict = useConflictFix(undefined, onClose);
   const disabled =
+    (conflicts.gate !== null && !conflicts.gate.request) ||
     selectedSources.length < 2 ||
     runnable.length < 1 ||
     !!validation ||
@@ -150,13 +180,7 @@ export function EnhanceBatchDialog({
     if (strict && provider.id !== "local_upscale") return;
     setBusy(true);
     try {
-      const items = buildEnhanceItems({
-        sources: selectedSources,
-        params,
-        providerId: provider.id,
-        model,
-        dna: ws.draftDna,
-      });
+      const items = buildItems();
       // A paid submit is confirmed first; a known price is shown, else "Chưa xác định chi phí".
       if (
         !(await spend.request({
@@ -169,15 +193,18 @@ export function EnhanceBatchDialog({
         }))
       )
         return;
-      const created = await createBatch({
-        projectId: ws.project.id,
-        providerId: provider.id,
-        modelId: model.id,
-        purpose: "enhance",
-        name: `${t("enhance.batch")} · ${items.length}`,
-        priority: 0,
-        items,
-      });
+      const created = await createBatch(
+        {
+          projectId: ws.project.id,
+          providerId: provider.id,
+          modelId: model.id,
+          purpose: "enhance",
+          name: `${t("enhance.batch")} · ${items.length}`,
+          priority: 0,
+          items,
+        },
+        { approvedExceptions: conflicts.approvedExceptions },
+      );
       if (created) setBatch(created);
     } finally {
       setBusy(false);
@@ -320,6 +347,14 @@ export function EnhanceBatchDialog({
           <div className="callout callout-warning" role="alert">
             {t("enhance.batchTargetBlocked")}
           </div>
+        )}
+        {conflicts.gate && (
+          <ConflictPanel
+            batch
+            entries={conflicts.gate.entries}
+            onFix={fixConflict}
+            onApprove={conflicts.approve}
+          />
         )}
         <button
           type="button"

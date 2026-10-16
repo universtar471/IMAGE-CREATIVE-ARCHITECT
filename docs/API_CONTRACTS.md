@@ -357,7 +357,7 @@ New commands:
 | `batch_list` | `{ projectId }` | `BatchDTO[]`, newest first |
 | `job_list` | `{ projectId: string \| null }` (null = all projects) | `JobDTO[]`: all non-terminal + the 100 most recent terminal, newest first |
 | `job_cancel` | `{ jobId }` | `JobDTO` (`INVALID_STATE` if already terminal) |
-| `job_retry` | `{ jobId }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`) |
+| `job_retry` | `{ jobId, validation? }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`). `validation` is the desktop gate's fresh `ShotValidationSnapshot` for the stored snapshot against the current DNA (ADR-034); it replaces the stored one and sets `resolvedWarnings` to its `approvedExceptions`. A `BLOCK` verdict is refused with `VALIDATION_ERROR`. |
 | `camera_anchor_list` | `{ projectId }` | `CameraAnchorDTO[]` |
 | `camera_anchor_set` | `{ projectId, cameraId, assetId }` | `CameraAnchorDTO[]` (camera must be an anchor view in the DNA; asset ready, same project) |
 | `camera_anchor_clear` | `{ projectId, cameraId }` | `CameraAnchorDTO[]` |
@@ -1363,9 +1363,68 @@ The fixtures are generated in the tests, never real third-party LUTs.
 - Manage sources: rescan, remove.
 - Missing files show a "Không tìm thấy file" state.
 
-## 22. Diagram Studio (ADR-037)
+## 22. Publishing Studio storage and export (ADR-038, SRS P5b)
 
-### 22.1 Domain (`packages/domain/src/diagram/`)
+### 22.1 Stored document
+
+`PublicationDocumentSchema` (`packages/domain/src/publishing/document.ts`):
+`{ publication: Publication, facts: PublicationFact[] }`. The facts are the ones the user
+declared in the studio (there is no project-wide fact store yet); captions cite them by id.
+The JSON Schema `packages/domain/schema/publication-document.schema.json` is exported from
+the Zod schema (`npm run schema:export`; a test fails when it drifts) and embedded by Rust.
+
+### 22.2 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `publication_list` | `{ projectId }` | `PublicationSummaryDTO[]` — `{ id, projectId, title, type, paper, targetPageCount, createdAt, updatedAt }`, newest first |
+| `publication_get` | `{ projectId, publicationId }` | `PublicationRecordDTO` — `{ id, projectId, publication, facts, createdAt, updatedAt }` |
+| `publication_save` | `{ projectId, publicationId: string \| null, publication, facts }` | `PublicationRecordDTO` (null id creates `PUB_…`, an id updates that record) |
+| `publication_delete` | `{ projectId, publicationId }` | `{ deleted: true }` |
+| `publication_caption_draft` | `{ projectId, providerId, prompt }` | `{ raw }` |
+| `publication_export_save` | `{ projectId, format: "pdf" \| "png" \| "jpeg", baseName, files: base64[] }` | `{ saved, paths }` |
+
+- All commands use `blocking()`. Fixtures: `publication_*.json`, `error_publication_invalid.json`.
+- `publication_save` validates the document against the embedded JSON Schema plus "at least one
+  page"; errors are `VALIDATION_ERROR` with `details.fieldErrors` keyed by dotted path
+  (`publication.targetPageCount`). Documents above 4 MB are refused. Archived projects are
+  read-only (`INVALID_STATE`); list/get stay available. Records of another project are `NOT_FOUND`.
+- `publication_caption_draft` is the optional paid text call. It runs only on an explicit click,
+  after the spend confirmation, through the provider's `chat` (same checks as `prompt_enhance`:
+  chat model required, key required, `PROVIDER_NOT_CONFIGURED` otherwise). `prompt` is
+  `buildCaptionPrompt(...).prompt` (SRS §11.4 editorial prompt + confirmed facts + open slots).
+  Nothing is stored; the UI parses `raw` with `CaptionDraftResponseSchema` and every drafted
+  sentence lands as `needs_review`.
+- `publication_export_save` checks every file (base64, at most 500 files, signature `%PDF-` /
+  PNG / JPEG, PDF = exactly one file) before a native dialog opens: a save-file dialog for PDF,
+  a folder picker for page images (`<title>-p01.png`, …; existing files are never replaced,
+  `name (2).png` is used instead). The webview never names a path. Closing the dialog returns
+  `{ saved: false, paths: [] }`.
+
+### 22.3 Storage
+
+Migration `0009_publications.sql` creates `publications(id, project_id, json, created_at, updated_at)`
+with an index on `(project_id, updated_at)` and cascade on project delete. There is no asset
+foreign key: images are pinned inside the JSON by `assetId` + `sourceHash`, and a removed or
+re-rendered asset is reported by the validator (`REQUIRED_IMAGE_MISSING`) instead of rewriting
+the book.
+
+### 22.4 Export (webview)
+
+- Pages are drawn on a canvas from the page layout and the pinned source files, read through
+  `asset_preview` at the resolution the frame needs (≤ 4096 px). Print papers render at 150 dpi
+  (A4 1240 × 1754, A3 1754 × 2480), 16:9 at 1920 × 1080. Text is rasterised (MVP).
+- PNG/JPEG: one file per page. PDF: `buildPdf` in `apps/desktop/src/features/publishing/pdf.ts`
+  embeds each page JPEG unchanged (`/DCTDecode`) on a page of the paper size in points
+  (A4 595.28 × 841.89, A3 841.89 × 1190.55, 16:9 960 × 540).
+- Export is refused while any BLOCK issue is present (`UNVERIFIED_PUBLICATION_FACT`,
+  `PAGE_COUNT_MISMATCH`, `REQUIRED_IMAGE_MISSING`); an unapproved AI caption counts as
+  `UNVERIFIED_PUBLICATION_FACT` (`reason: "needs_review"`). Pending `PRINT_READABILITY_LOW`
+  warnings ask for confirmation first.
+
+## 23. Diagram Studio (ADR-037)
+
+### 23.1 Domain (`packages/domain/src/diagram/`)
 
 - `planDiagram(dna, type, stepCount, { projectType?, sources? })` → `DiagramPlan { version: 1, type, family, interiorVerifiable, steps }`. Step counts 4/6/8 or custom 2–12; the first and last step of a sequence are always kept. Townhouse, villa and generic families have different sequences.
 - `DiagramStep`: `id`, `index`, `title {vi,en}`, `caption {vi,en}`, `evidence` (`verified | inferred | illustrative`), `annotations[]` (label/arrow, normalized 0..1 inside the image frame), `frameAssetId?`, `interior`, `basis[]` (DNA paths), `approved`.
@@ -1374,7 +1433,7 @@ The fixtures are generated in the tests, never real third-party LUTs.
 - `buildDiagramFrameItems(...)` → one `BatchItem` per step: SRS §10.3 prompt, the fixed `DIAGRAM_ISOMETRIC_CAMERA`, no text in the image, `prompt.metadata.diagram = { type, stepId, camera }`. `diagramFrameOutputs(plan, generations)` maps the newest frame batch back to steps by `stepId`.
 - `diagramVideoTimeline(plan, durationMs?)` throws `DiagramNotApprovedError` unless every step is approved; motions: first `appear`, then `zoom`/`pan` alternating.
 
-### 22.2 Commands
+### 23.2 Commands
 
 | Command | Request | Response |
 |---|---|---|
@@ -1385,6 +1444,6 @@ The fixtures are generated in the tests, never real third-party LUTs.
 - Frame paths must be managed files of the project. Missing FFmpeg → `INVALID_STATE` with `details.reason = "ffmpeg_missing"`; an FFmpeg failure → `IO_ERROR` with `details.reason = "ffmpeg_failed"` and the stderr tail. FFmpeg is never bundled.
 - Fixtures: `diagram_image_save`, `diagram_ffmpeg_status` (missing), `error_diagram_ffmpeg_missing`.
 
-### 22.3 UI
+### 23.3 UI
 
 Module `diagram` (after Region edit). PNG 2K/4K: the sheet is rasterized in the webview (images embedded as data URLs from `asset_preview`) and saved with `diagram_image_save`. MP4: each approved step is rasterized as a 1920 × 1080 frame, saved as a frame asset, then `diagram_video_export`. Both exports need every step approved. Optional frames go through `createBatch` (conflict gate, spend confirm).

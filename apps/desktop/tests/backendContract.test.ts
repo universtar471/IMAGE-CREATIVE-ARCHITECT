@@ -19,7 +19,7 @@ const fixtures = Object.entries(modules).map(([path, f]) => ({
 }));
 
 describe("backend contract fixtures", () => {
-  it("cover every Phase 2 and Phase 3 (§10) command", () => {
+  it("cover every Phase 2, Phase 3 (§10) and publishing (§22) command", () => {
     const commands = new Set(fixtures.map((f) => f.command));
     for (const c of [
       "provider_list",
@@ -40,6 +40,12 @@ describe("backend contract fixtures", () => {
       "camera_anchor_list",
       "camera_anchor_set",
       "camera_anchor_clear",
+      "publication_list",
+      "publication_get",
+      "publication_save",
+      "publication_delete",
+      "publication_caption_draft",
+      "publication_export_save",
       "error",
     ]) {
       expect(commands, c).toContain(c);

@@ -13,6 +13,7 @@
 import { create } from "zustand";
 import {
   GENERATION_UPDATED_EVENT,
+  hasEffects,
   JOB_UPDATED_EVENT,
   orderReferenceIds,
   TERMINAL_JOB_STATUSES,
@@ -61,8 +62,10 @@ import {
   conflictError,
   conflictOf,
   gateBatch,
+  validationSnapshot,
   withValidation,
 } from "../features/validation/gate";
+import { clearShotIntent, loadShotIntent, saveShotIntent } from "../lib/shotIntentStorage";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
@@ -97,7 +100,8 @@ export type WorkspaceData = {
   workflow?: WorkflowDTO;
   /**
    * The project's current per-shot choices (ADR-036: scene objects, …). Never part of the
-   * DNA; kept per project for the session and snapshotted into each submitted prompt.
+   * DNA; kept per project (also across restarts, in `localStorage`) and snapshotted into
+   * each submitted prompt.
    */
   shotIntent?: ShotIntent;
 };
@@ -159,6 +163,13 @@ export type GenerationInput = Omit<GenerationSubmitRequest, "prompt" | "cameraId
   shotIntent?: ShotIntent;
 };
 
+/**
+ * A retry the conflict gate refused (ADR-034): the stored snapshot, checked against the
+ * CURRENT DNA, is now BLOCK, or raises a WARN that was not accepted before. Nothing was sent;
+ * the retry dialog shows the issues and resends with the newly accepted codes.
+ */
+export type RetryConflict = { jobId: string; label: string; validation: ShotValidation };
+
 type State = {
   route: Route;
   workspace: WorkspaceData | null;
@@ -188,6 +199,8 @@ type State = {
   /** Jobs of every project (job_list(null) + events), newest first. */
   jobs: JobDTO[];
   workflowView: DerivedWorkflow | null;
+  /** Retries refused by the conflict gate, waiting for "Duyệt ngoại lệ" or a fix. */
+  retryConflicts: RetryConflict[];
 
   openProject: (projectId: string) => Promise<void>;
   goToHub: () => Promise<void>;
@@ -235,7 +248,16 @@ type State = {
   retryGeneration: (g: GenerationDTO) => Promise<GenerationDTO | undefined>;
   refreshJobs: () => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
-  retryJob: (jobId: string) => Promise<JobDTO | undefined>;
+  /**
+   * Retry a finished job. The stored snapshot is re-validated against the current DNA first:
+   * BLOCK is refused, a WARN not accepted before (nor in `approvedExceptions`) asks again
+   * through `retryConflicts`. The fresh verdict goes to `job_retry` with the request.
+   */
+  retryJob: (
+    jobId: string,
+    options?: { approvedExceptions?: readonly ConflictCode[] },
+  ) => Promise<JobDTO | undefined>;
+  dismissRetryConflicts: () => void;
   /**
    * Queue a batch. Every item passes the conflict gate first (ADR-034): items that are not
    * ALLOW are skipped and reported; nothing is sent when no item is left.
@@ -343,8 +365,18 @@ function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]
 
 export const useStudio = create<State>((set, get) => {
   const isOpen = (projectId: string) => get().workspace?.project.id === projectId;
-  /** Per-project shot intents of this session; reopening a project restores its choices. */
+  /**
+   * Per-project shot intents of this session (a cache over `localStorage`, which keeps them
+   * across restarts); reopening a project restores its choices.
+   */
   const shotIntents = new Map<string, ShotIntent>();
+  const shotIntentOf = (projectId: string) => {
+    const cached = shotIntents.get(projectId);
+    if (cached) return cached;
+    const stored = loadShotIntent(projectId);
+    if (stored) shotIntents.set(projectId, stored);
+    return stored;
+  };
 
   /** The saved DNA + type the conflict gate checks (the open project's, else loaded). */
   const persistedProject = async (projectId: string) => {
@@ -353,6 +385,41 @@ export const useStudio = create<State>((set, get) => {
       return { dna: ws.persistedDna, projectType: ws.project.projectType };
     const bundle = await call("project_get", { projectId });
     return { dna: bundle.dna, projectType: bundle.project.projectType };
+  };
+
+  /**
+   * ADR-034: a retry resends a stored snapshot, so it passes the gate again against the
+   * CURRENT DNA with the shot intent it was compiled with. WARN codes accepted for the
+   * original submit stay accepted; any other WARN, and every BLOCK, refuses the retry and is
+   * queued in `retryConflicts`. Null when the job is unknown here (the backend then reports it).
+   */
+  const revalidateRetry = async (jobId: string, accepted: readonly ConflictCode[]) => {
+    const job =
+      get().jobs.find((j) => j.id === jobId) ??
+      (await call("job_list", { projectId: null })).find((j) => j.id === jobId);
+    if (!job) return null;
+    const generation = await call("generation_get", {
+      projectId: job.projectId,
+      generationId: job.generationId,
+    });
+    const project = await persistedProject(job.projectId);
+    const before = (generation.prompt.validation?.approvedExceptions ?? []) as ConflictCode[];
+    const validation = checkShot({
+      ...project,
+      cameraId: generation.cameraId,
+      shotIntent: generation.prompt.shotIntent,
+      approvedExceptions: [...before, ...accepted],
+    });
+    if (!canSubmit(validation)) {
+      set({
+        retryConflicts: [
+          ...get().retryConflicts.filter((c) => c.jobId !== jobId),
+          { jobId, label: job.label, validation },
+        ],
+      });
+      throw conflictError(validation);
+    }
+    return validation;
   };
 
   /** Refresh assets + project after outputs land (ignored if another project is open). */
@@ -402,6 +469,7 @@ export const useStudio = create<State>((set, get) => {
     enhanceSubmission: null,
     jobs: [],
     workflowView: null,
+    retryConflicts: [],
 
     openProject: async (projectId) => {
       set({
@@ -459,7 +527,7 @@ export const useStudio = create<State>((set, get) => {
               anchors,
               batches,
               workflow,
-              shotIntent: shotIntents.get(projectId),
+              shotIntent: shotIntentOf(projectId),
             },
             selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
             selectedCameraId: bundle.dna.cameras[0]?.id ?? null,
@@ -543,9 +611,15 @@ export const useStudio = create<State>((set, get) => {
           !shotIntent.targetSpaceId &&
           !shotIntent.targetDetailId &&
           !shotIntent.detailShotCount &&
-          !shotIntent.visualIntent);
-      if (empty) shotIntents.delete(id);
-      else shotIntents.set(id, shotIntent);
+          !shotIntent.visualIntent &&
+          !hasEffects(shotIntent.effects));
+      if (empty) {
+        shotIntents.delete(id);
+        clearShotIntent(id);
+      } else {
+        shotIntents.set(id, shotIntent);
+        saveShotIntent(id, shotIntent);
+      }
       set({ workspace: { ...ws, shotIntent: empty ? undefined : shotIntent } });
     },
 
@@ -831,6 +905,8 @@ export const useStudio = create<State>((set, get) => {
             referenceAssetIds: g.referenceAssetIds,
             params: g.params,
             cameraId: g.cameraId,
+            // WARN codes accepted for the original submit stay accepted on the resend.
+            approvedExceptions: (g.prompt.validation?.approvedExceptions ?? []) as ConflictCode[],
           },
           g.prompt,
         );
@@ -906,9 +982,14 @@ export const useStudio = create<State>((set, get) => {
       }
     },
 
-    retryJob: async (jobId) => {
+    retryJob: async (jobId, options) => {
       try {
-        const job = await call("job_retry", { jobId });
+        const validation = await revalidateRetry(jobId, options?.approvedExceptions ?? []);
+        const job = await call(
+          "job_retry",
+          validation ? { jobId, validation: validationSnapshot(validation) } : { jobId },
+        );
+        set({ retryConflicts: get().retryConflicts.filter((c) => c.jobId !== jobId) });
         get().applyJobEvent(job);
         void get().refreshBatches();
         return job;
@@ -917,6 +998,8 @@ export const useStudio = create<State>((set, get) => {
         return undefined;
       }
     },
+
+    dismissRetryConflicts: () => set({ retryConflicts: [] }),
 
     createBatch: async (input, options) => {
       try {

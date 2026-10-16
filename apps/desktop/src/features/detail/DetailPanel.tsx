@@ -271,6 +271,17 @@ export function DetailPanel() {
         <BatchDialog
           mode="production"
           initialCameraIds={[...new Set(plan.shots.map((shot) => shot.cameraSuggestion))]}
+          detailShots={plan.shots.map((shot) => ({
+            detailId: shot.detailId,
+            cameraId: shot.cameraSuggestion,
+            label: t("detail.shotLabel", {
+              detail: detailLabel(details.find((detail) => detail.id === shot.detailId)!),
+              camera:
+                dna.cameras.find((camera) => camera.id === shot.cameraSuggestion)?.name ??
+                shot.cameraSuggestion,
+              index: shot.angleIndex + 1,
+            }),
+          }))}
           onClose={() => setBatchOpen(false)}
         />
       )}

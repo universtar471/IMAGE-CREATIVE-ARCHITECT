@@ -15,9 +15,11 @@ import { MoodGradePanel } from "../../features/mood/MoodGradePanel";
 import { EnhancePanel } from "../../features/enhance/EnhancePanel";
 import { PostStepFrame, StepFrame } from "../../features/workflow/StepFrame";
 import { RegionPanel } from "../../features/regions/RegionPanel";
+import { PublishingPanel } from "../../features/publishing/PublishingPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
 import { DiagramPanel } from "../../features/diagram/DiagramPanel";
+import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
 
@@ -139,6 +141,7 @@ export function PropertyPanel() {
         )}
         {active === "detail" && <DetailPanel />}
         {active === "scene_objects" && <SceneObjectsPanel />}
+        {active === "effects" && <EffectsPanel />}
         {active === "lighting" && (
           <StepFrame stepId="dna.lighting">
             <LightingPanel />
@@ -152,6 +155,7 @@ export function PropertyPanel() {
         {active === "enhance" && <EnhancePanel />}
         {active === "regions" && <RegionPanel />}
         {active === "diagram" && <DiagramPanel />}
+        {active === "export" && <PublishingPanel />}
         {mod.availableIn !== null && (
           <FutureModulePlaceholder
             compact

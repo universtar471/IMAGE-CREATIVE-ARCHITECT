@@ -17,13 +17,14 @@ describe("workspace information architecture", () => {
       "Camera",
       "Architectural detail",
       "Scene objects",
+      "Effects",
       "Lighting",
       "Generate",
       "Mood / Grade",
       "Enhance",
       "Region edit",
       "Diagram",
-      "Export",
+      "Publishing Studio",
     ]);
   });
 
@@ -36,18 +37,21 @@ describe("workspace information architecture", () => {
       "camera",
       "detail",
       "scene_objects",
+      "effects",
       "lighting",
       "generate",
       "mood_grade",
       "enhance",
       "regions",
       "diagram",
+      "export",
     ]);
   });
 
   it("keeps navigation groups explicit", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
       "overview",
+      "dna",
       "dna",
       "dna",
       "dna",

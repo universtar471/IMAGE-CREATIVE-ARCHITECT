@@ -1,0 +1,6 @@
+{
+  "command": "publication_delete",
+  "response": {
+    "deleted": true
+  }
+}

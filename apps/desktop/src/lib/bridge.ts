@@ -24,6 +24,8 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  PublicationRecordDTOSchema,
+  PublicationSummaryDTOSchema,
   RegionDTOSchema,
   WorkflowConfirmStepRequestSchema,
   WorkflowDTOSchema,
@@ -43,10 +45,12 @@ import {
   type GenerationSubmitRequest,
   type JobDTO,
   type PromptEnhanceRequest,
+  type PublicationSaveRequest,
   type ProjectDNA,
   type ProjectType,
   type RegionEditParams,
   type RegionSaveRequest,
+  type ShotValidationSnapshot,
 } from "@arch/domain";
 import { t as tr } from "../i18n";
 
@@ -153,6 +157,16 @@ export const GradePreviewRequestSchema = z.object({
 });
 
 export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
+
+/** Publishing Studio (SRS P5b, API §22). */
+export const PUBLICATION_EXPORT_FORMATS = ["pdf", "png", "jpeg"] as const;
+export type PublicationExportFormat = (typeof PUBLICATION_EXPORT_FORMATS)[number];
+export const PublicationDeleteResultSchema = z.object({ deleted: z.literal(true) });
+export const PublicationCaptionDraftResultSchema = z.object({ raw: z.string() });
+export const PublicationExportSaveResultSchema = z.object({
+  saved: z.boolean(),
+  paths: z.array(z.string()),
+});
 export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
   purpose: "region_edit";
   params: GenerationParams & { region: RegionEditParams };
@@ -220,7 +234,11 @@ export type Requests = {
   /** null = every project. */
   job_list: { projectId: string | null };
   job_cancel: { jobId: string };
-  job_retry: { jobId: string };
+  /**
+   * `validation`: the desktop gate's fresh verdict for the stored snapshot against the
+   * current DNA (ADR-034); it replaces the snapshot's own. A BLOCK verdict is refused.
+   */
+  job_retry: { jobId: string; validation?: ShotValidationSnapshot };
   camera_anchor_list: { projectId: string };
   camera_anchor_set: { projectId: string; cameraId: string; assetId: string };
   camera_anchor_clear: { projectId: string; cameraId: string };
@@ -240,6 +258,19 @@ export type Requests = {
   region_list: { projectId: string; assetId: string };
   region_save: RegionSaveRequest;
   region_delete: { projectId: string; regionId: string };
+  publication_list: { projectId: string };
+  publication_get: { projectId: string; publicationId: string };
+  publication_save: PublicationSaveRequest;
+  publication_delete: { projectId: string; publicationId: string };
+  /** One paid text call, only on an explicit click; `prompt` comes from `buildCaptionPrompt`. */
+  publication_caption_draft: { projectId: string; providerId: string; prompt: string };
+  /** Base64 files rendered in the webview; the backend asks where to save them. */
+  publication_export_save: {
+    projectId: string;
+    format: PublicationExportFormat;
+    baseName: string;
+    files: string[];
+  };
   /** ADR-037: a rasterized sheet/frame saved as a new asset derived from the source render. */
   diagram_image_save: DiagramImageSaveRequestInput;
   diagram_ffmpeg_status: Record<string, never>;
@@ -303,6 +334,12 @@ export const responses = {
   region_list: z.array(RegionDTOSchema),
   region_save: RegionDTOSchema,
   region_delete: RegionDeleteResultSchema,
+  publication_list: z.array(PublicationSummaryDTOSchema),
+  publication_get: PublicationRecordDTOSchema,
+  publication_save: PublicationRecordDTOSchema,
+  publication_delete: PublicationDeleteResultSchema,
+  publication_caption_draft: PublicationCaptionDraftResultSchema,
+  publication_export_save: PublicationExportSaveResultSchema,
   diagram_image_save: AssetDTOSchema,
   diagram_ffmpeg_status: FfmpegStatusSchema,
   diagram_video_export: DiagramVideoExportResultSchema,

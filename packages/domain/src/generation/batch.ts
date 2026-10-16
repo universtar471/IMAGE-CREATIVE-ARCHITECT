@@ -16,6 +16,7 @@ import type { ProjectDNA } from "../schemas/projectDna";
 import type { GenerationParams, ModelCapabilities } from "../schemas/generation";
 import type { BatchItem, CameraAnchorDTO } from "../schemas/jobs";
 import type { ReferenceCandidate } from "./helpers";
+import type { ShotIntent } from "../validation/shotIntent";
 
 /** The asset fields the builders need (an `AssetDTO` satisfies it). */
 export type BatchAsset = ReferenceCandidate & { originalName?: string | null };
@@ -209,6 +210,42 @@ export function buildProductionBatchItems(
       );
       return buildItem(input, camera, [...fixed, ...extras], `${camera.name} — production`);
     });
+}
+
+/** One planned detail shot: the camera that sees the detail (from `planDetailShots`). */
+export type DetailBatchShot = {
+  detailId: string;
+  cameraId: string;
+  /** Item label; defaults to "<camera> — detail". */
+  label?: string;
+};
+
+/**
+ * One `production` item per planned detail shot (ADR-036 P2b), in plan order. Unlike the
+ * camera batch, two details seen by the same camera are two items, and every item compiles
+ * with its OWN shot intent: `targetDetailId` of that shot, its camera, and the shot count.
+ * References follow `buildProductionBatchItems` (master, the camera's anchor, extras).
+ * Shots whose camera is not in the DNA are skipped.
+ */
+export function buildDetailBatchItems(
+  input: BatchBuildInput,
+  shots: readonly DetailBatchShot[],
+  anchors: readonly Pick<CameraAnchorDTO, "cameraId" | "assetId">[],
+): BatchItem[] {
+  return shots.flatMap((shot) => {
+    const camera = input.dna.cameras.find((c) => c.id === shot.cameraId);
+    if (!camera) return [];
+    const shotIntent: ShotIntent = {
+      ...input.shotIntent,
+      projectType: input.project.projectType,
+      cameraId: camera.id,
+      targetDetailId: shot.detailId,
+      detailShotCount: Math.min(10, Math.max(1, shots.length)),
+    };
+    return buildProductionBatchItems({ ...input, shotIntent }, [camera.id], anchors).map(
+      (item) => ({ ...item, label: shot.label ?? `${camera.name} — detail` }),
+    );
+  });
 }
 
 function buildItem(

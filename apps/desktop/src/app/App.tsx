@@ -4,6 +4,7 @@ import { Toasts } from "../components/common/Toasts";
 import { ProjectHub } from "../features/projects/ProjectHub";
 import { ProviderSettingsDialog } from "../features/providers/ProviderSettingsDialog";
 import { ProjectWorkspace } from "../features/workspace/ProjectWorkspace";
+import { RetryConflictDialog } from "../features/validation/RetryConflictDialog";
 import { t, useLocale, useT } from "../i18n";
 import { isTerminalJob, startBackendSync, useStudio } from "./store";
 
@@ -22,6 +23,7 @@ export function App() {
       {!isTauri() && <div className="preview-banner">{tr("common.previewBanner")}</div>}
       {route.name === "hub" ? <ProjectHub /> : <ProjectWorkspace projectId={route.projectId} />}
       <ProviderSettingsDialog />
+      <RetryConflictDialog />
       <Toasts />
     </>
   );

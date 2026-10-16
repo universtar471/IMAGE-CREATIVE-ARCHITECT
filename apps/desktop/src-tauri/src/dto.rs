@@ -139,6 +139,8 @@ pub struct ShotIntent {
     pub scene_objects: Option<Vec<SceneObjectRequest>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visual_intent: Option<VisualIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effects: Option<ShotEffects>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }
@@ -154,6 +156,32 @@ pub struct VisualIntent {
     pub height: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub focus: Option<u8>,
+}
+
+/// Mirrors `ShotEffectsSchema` (ADR-036 P2c). The effect ids and the compatibility rules
+/// belong to the domain; the backend only checks the intensity and stores the selection.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ShotEffects {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary: Option<EffectChoice>,
+    #[serde(default)]
+    pub secondary: Vec<EffectChoice>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EffectChoice {
+    pub id: String,
+    pub intensity: EffectIntensity,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum EffectIntensity {
+    Light,
+    Medium,
+    Strong,
 }
 
 /// Mirrors `SceneObjectRequestSchema` (ADR-036 P2d). The domain validator owns the rules;

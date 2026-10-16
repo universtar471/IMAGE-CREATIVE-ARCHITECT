@@ -63,7 +63,7 @@ SRS §10, AC-14 and AC-15: plan diagram steps from DNA facts, lay out a determin
     - Images are embedded as data URLs taken from `asset_preview`.
     - The SVG root is resized to the target pixels before drawing to the canvas, so the vectors stay sharp.
   - The mock backend implements all three commands. `MockOptions.ffmpeg` turns FFmpeg on; it is off by default.
-- **Docs**: §22 in `docs/API_CONTRACTS.md`. i18n vi (full diacritics) and en.
+- **Docs**: §23 in `docs/API_CONTRACTS.md` (renumbered from §22 when main added Publishing as §22). i18n vi (full diacritics) and en.
 
 ## Tests
 

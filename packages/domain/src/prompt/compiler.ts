@@ -20,11 +20,12 @@ import { siteCameraText, siteOcclusionLines } from "./sections/siteOcclusion";
 import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
 import { VALIDATOR_VERSION } from "../validation/codes";
-import { validateShot, warningCodes } from "../validation/validateShot";
 import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
 import { detailTargetSection } from "./sections/detailTarget";
+import { effectsSection } from "./sections/effects";
+import { hasEffects } from "../effects/schemas";
 import { contextSuggestionsSection, usedContextLibrary } from "./sections/contextSuggestions";
 import type { ShotIntent } from "../validation/shotIntent";
 import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
@@ -174,7 +175,8 @@ export function normalizeShotIntent(
         value !== undefined &&
         value !== null &&
         value !== "" &&
-        !(Array.isArray(value) && value.length === 0),
+        !(Array.isArray(value) && value.length === 0) &&
+        !(key === "effects" && !hasEffects(value as ShotIntent["effects"])),
     ),
   );
   if (!Object.keys(choices).length) return undefined;
@@ -197,10 +199,11 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
-  // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects,
+  // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects, effects,
   // contextSuggestions, quality. Furnishing is interior-only; spaceScope appears only with an
   // active catalog space; sceneObjects only when the shot adds objects (SRS §12.2 item 7,
-  // after the camera); contextSuggestions only with `context.library` (lowest priority).
+  // after the camera); effects only when the shot turns one on (SRS §6.2); contextSuggestions
+  // only with `context.library` (lowest priority).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -240,6 +243,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ],
     ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
+    ["effects", shotIntent ? effectsSection(dna, shotIntent) : null],
     ["contextSuggestions", contextSuggestionsSection(dna, project.projectType)],
     [
       "quality",
@@ -280,14 +284,9 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   for (const r of references) roleCounts[r.role] = (roleCounts[r.role] ?? 0) + 1;
   const anchorIndex = references.findIndex(isAnchorRef);
 
-  // Provenance (ADR-034): the warnings the validator raises for this DNA + shot, and hashes
-  // of exactly what was compiled. Display-only fields (project name, reference labels) are
-  // left out so they do not change the hashes.
+  // Provenance (ADR-034): hashes of exactly what was compiled. Display-only fields (project
+  // name, reference labels) are left out so they do not change the hashes.
   const cameraId = camera?.id ?? null;
-  const validation = validateShot({
-    dna,
-    shotIntent: shotIntent ?? { projectType: project.projectType, cameraId },
-  });
   const sourceHash = canonicalHash({
     dna,
     shot: {
@@ -323,7 +322,9 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     catalogVersion,
     sourceHash,
     configHash,
-    resolvedWarnings: warningCodes(validation),
+    // Only WARN codes the user ACCEPTED belong here; the desktop gate sets them through
+    // `withValidation`. Codes found but not accepted live in `validation.issueCodes`.
+    resolvedWarnings: [],
     ...(shotIntent ? { shotIntent } : {}),
     positivePrompt: included.map(([, text]) => text).join("\n\n"),
     negativePrompt: negatives.join(", "),

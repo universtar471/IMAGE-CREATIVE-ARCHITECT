@@ -135,12 +135,10 @@ export function SceneObjectsPanel() {
     : [];
   const candidateBlocked = candidateIssues.some((i) => i.severity === "BLOCK");
 
+  // The store drops an intent that has no choices left, so other per-shot choices
+  // (effects, visual intent, detail) survive removing the last object.
   const write = (sceneObjects: SceneObjectRequest[]) =>
-    setShotIntent(
-      sceneObjects.length || shotIntent?.targetSpaceId || shotIntent?.targetDetailId
-        ? { ...shotIntent, projectType, sceneObjects }
-        : undefined,
-    );
+    setShotIntent({ ...shotIntent, projectType, sceneObjects });
   const add = () => {
     if (!candidate || candidateBlocked) return;
     write([...requests, candidate]);

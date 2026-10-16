@@ -455,7 +455,8 @@ describe("SCENE OBJECTS compiler section", () => {
     expect(bundle.positivePrompt).toContain(
       "Add TWO parked 1964 Shelby/AC Cobra 289 roadsters (slim early 289 body with narrow fenders; not the later, wider Cobra 427 body) on the parking bay of the garage, only if the parking bay is present in the approved references and has adequate clearance.",
     );
-    expect(bundle.resolvedWarnings).toEqual(["OBJECT_NO_PLACEMENT_ZONE"]);
+    // Found, not accepted: the compiler leaves resolvedWarnings to the desktop gate.
+    expect(bundle.resolvedWarnings).toEqual([]);
   });
 
   it("never compiles a refused object", () => {

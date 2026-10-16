@@ -22,6 +22,7 @@ import {
   TERMINAL_JOB_STATUSES,
   isDnaReady,
   ProjectDNASchema,
+  PublicationDocumentSchema,
   validateGenerationRequest,
   validateProjectDNA,
   resolveUpscaleSize,
@@ -43,6 +44,7 @@ import {
   type ProjectDTO,
   type ProjectStatus,
   type ProviderDescriptorDTO,
+  type PublicationRecordDTO,
   ARCH_LUT_FILTER,
 } from "@arch/domain";
 import type {
@@ -93,6 +95,8 @@ type Db = {
   anchors?: CameraAnchorDTO[];
   workflow?: Record<string, WorkflowStepState[]>;
   regions?: RegionDTO[];
+  /** SRS P5b Publishing Studio books (optional so older snapshots still load). */
+  publications?: PublicationRecordDTO[];
 };
 
 /** A job plus what the mock needs to run and retry it (never sent to the UI). */
@@ -512,6 +516,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   db.anchors ??= [];
   db.workflow ??= {};
   db.regions ??= [];
+  const publications = (db.publications ??= []);
   // Migration stand-in: projects that already had an approved master are grandfathered in.
   const workflowMigrationTime = new Date().toISOString();
   for (const [projectId, project] of Object.entries(db.projects)) {
@@ -708,7 +713,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         assetId: id,
         parentVersionId: parentVersion?.id ?? null,
         label: region
-          ? `Region edit Â· ${region.regionIds.length} region(s)`
+          ? `Region edit · ${region.regionIds.length} region(s)`
           : `${purpose} ${i + 1}/${req.params.outputCount}`,
         operation: region ? "region_edit" : enhance ? "enhance" : "generate",
         generationId: gen.id,
@@ -1360,6 +1365,115 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       return { deleted: true as const };
     },
 
+    publication_list: (req) => {
+      getProject(req.projectId);
+      return (
+        publications
+          .map((item, index) => ({ item, index }))
+          .filter(({ item }) => item.projectId === req.projectId)
+          // Newest first; ties keep the newest insertion first (the backend's rowid order).
+          .sort((a, b) => b.item.updatedAt.localeCompare(a.item.updatedAt) || b.index - a.index)
+          .map(({ item }) => item)
+          .map((item) => ({
+            id: item.id,
+            projectId: item.projectId,
+            title: item.publication.title,
+            type: item.publication.type,
+            paper: item.publication.paper,
+            targetPageCount: item.publication.targetPageCount,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          }))
+      );
+    },
+
+    publication_get: (req) => {
+      getProject(req.projectId);
+      return (
+        publications.find(
+          (item) => item.id === req.publicationId && item.projectId === req.projectId,
+        ) ?? fail("NOT_FOUND", `Publication not found: ${req.publicationId}`)
+      );
+    },
+
+    publication_save: (req) => {
+      const parsed = PublicationDocumentSchema.safeParse({
+        publication: req.publication,
+        facts: req.facts,
+      });
+      if (!parsed.success || parsed.data.publication.pages.length === 0)
+        fail("VALIDATION_ERROR", "The publication has invalid values and was not saved.", {
+          fieldErrors: Object.fromEntries(
+            (parsed.error?.issues ?? []).map((issue) => [issue.path.join("."), issue.message]),
+          ),
+        });
+      writable(req.projectId);
+      const t = now();
+      const existing = req.publicationId
+        ? (publications.find(
+            (item) => item.id === req.publicationId && item.projectId === req.projectId,
+          ) ?? fail("NOT_FOUND", `Publication not found: ${req.publicationId}`))
+        : null;
+      const record: PublicationRecordDTO = {
+        id: existing?.id ?? newId("PUB"),
+        projectId: req.projectId,
+        publication: parsed.data!.publication,
+        facts: parsed.data!.facts,
+        createdAt: existing?.createdAt ?? t,
+        updatedAt: t,
+      };
+      if (existing) Object.assign(existing, record);
+      else publications.push(record);
+      save();
+      return record;
+    },
+
+    publication_delete: (req) => {
+      writable(req.projectId);
+      const index = publications.findIndex(
+        (item) => item.id === req.publicationId && item.projectId === req.projectId,
+      );
+      if (index < 0) fail("NOT_FOUND", `Publication not found: ${req.publicationId}`);
+      publications.splice(index, 1);
+      save();
+      return { deleted: true as const };
+    },
+
+    publication_caption_draft: (req) => {
+      writable(req.projectId);
+      if (!req.prompt.trim()) fail("VALIDATION_ERROR", "The caption prompt is empty.");
+      const p = getProvider(req.providerId);
+      if (!MOCK_CHAT_PROVIDERS.includes(p.id))
+        fail("VALIDATION_ERROR", `${p.label} does not offer text generation.`);
+      if (!describeProvider(p).configured)
+        fail("PROVIDER_NOT_CONFIGURED", `${p.label} needs an API key.`, { providerId: p.id });
+      // Browser preview: no network call. One visible-feature sentence per listed slot.
+      const slotIds = [...req.prompt.matchAll(/^- (\S+) \(page /gm)].map((m) => m[1]!);
+      return {
+        raw: JSON.stringify({
+          slots: slotIds.map((slotId) => ({
+            slotId,
+            sentences: [{ text: "Ánh sáng tự nhiên trải đều qua không gian.", factRef: null }],
+          })),
+        }),
+      };
+    },
+
+    publication_export_save: (req) => {
+      getProject(req.projectId);
+      if (req.files.length === 0) fail("VALIDATION_ERROR", "There is nothing to export.");
+      // Browser preview: nothing is written; the paths only show what the app would create.
+      const base = req.baseName.trim() || "publication";
+      const ext = req.format === "jpeg" ? "jpg" : req.format;
+      const paths =
+        req.format === "pdf"
+          ? [`mock-export://${base}.pdf`]
+          : req.files.map(
+              (_, index) => `mock-export://${base}-p${String(index + 1).padStart(2, "0")}.${ext}`,
+            );
+      return { saved: true, paths };
+    },
+
     dna_get: (req) => {
       getProject(req.projectId);
       return db.dna[req.projectId];
@@ -1711,8 +1825,22 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const j = getJob(req.jobId);
       if (!["failed", "cancelled", "interrupted"].includes(j.status))
         fail("INVALID_STATE", "Only failed, cancelled or interrupted jobs can be retried.");
-      validateRequest(j.request);
-      const copy = enqueue(j.request, { batchId: j.batchId, label: j.label, priority: j.priority });
+      // Like Rust: the gate's fresh verdict replaces the stored one before validation.
+      const v = req.validation;
+      const request = v
+        ? {
+            ...j.request,
+            prompt: {
+              ...j.request.prompt,
+              validation: v,
+              ...(v.approvedExceptions.length || j.request.prompt.resolvedWarnings !== undefined
+                ? { resolvedWarnings: [...v.approvedExceptions] }
+                : {}),
+            },
+          }
+        : j.request;
+      validateRequest(request);
+      const copy = enqueue(request, { batchId: j.batchId, label: j.label, priority: j.priority });
       if (copy.batchId) batches.find((b) => b.id === copy.batchId)?.jobIds.push(copy.id);
       save();
       schedulePump();
