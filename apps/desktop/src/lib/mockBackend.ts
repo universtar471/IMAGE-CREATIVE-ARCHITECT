@@ -109,6 +109,8 @@ export type MockOptions = {
   generationDelayMs?: number;
   /** Backoff before attempts 2 and 3 (ms). The backend waits 15 s and 60 s. */
   retryDelaysMs?: readonly [number, number];
+  /** Pretend FFmpeg is on PATH (diagram video export, ADR-037). Default: missing. */
+  ffmpeg?: boolean;
 };
 
 /** ADR-017: concurrent jobs per provider, by provider kind. */
@@ -1285,6 +1287,71 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       else db.regions!.push(saved);
       save();
       return saved;
+    },
+
+    diagram_image_save: (req) => {
+      writable(req.projectId);
+      const parent = db.assets[req.parentAssetId];
+      if (!parent || parent.projectId !== req.projectId)
+        fail("NOT_FOUND", `Asset '${req.parentAssetId}' was not found.`);
+      if (!["sheet", "frame"].includes(req.kind))
+        fail("VALIDATION_ERROR", `Unknown diagram image kind '${req.kind}'.`);
+      if (!req.pngBase64.startsWith("iVBOR"))
+        fail("UNSUPPORTED_FILE", "A diagram image must be a PNG.");
+      const parentAsset = parent as AssetDTO;
+      const id = newId("AST");
+      const t = now();
+      const url = `data:image/png;base64,${req.pngBase64}`;
+      const operation = req.kind === "sheet" ? "diagram_sheet" : "diagram_frame";
+      db.assets[id] = {
+        ...parentAsset,
+        id,
+        role: "regular_image",
+        status: "ready",
+        originalName: req.label,
+        managedRelPath: `assets/original/${id}.png`,
+        absolutePath: url,
+        thumbnailPath: url,
+        mimeType: "image/png",
+        fileSizeBytes: Math.floor((req.pngBase64.length * 3) / 4),
+        sha256: null,
+        parentAssetId: parentAsset.id,
+        operation,
+        createdAt: t,
+        updatedAt: t,
+      };
+      const parentVersion = db.versions.filter((v) => v.assetId === parentAsset.id).at(-1);
+      db.versions.push({
+        id: newId("VER"),
+        projectId: req.projectId,
+        assetId: id,
+        parentVersionId: parentVersion?.id ?? null,
+        label: req.label,
+        operation,
+        generationId: null,
+        createdAt: t,
+      });
+      save();
+      return db.assets[id];
+    },
+
+    diagram_ffmpeg_status: () =>
+      options.ffmpeg
+        ? { available: true, version: "ffmpeg version mock" }
+        : { available: false, version: null },
+
+    diagram_video_export: (req) => {
+      writable(req.projectId);
+      if (!options.ffmpeg)
+        fail("INVALID_STATE", "FFmpeg is not installed or not on PATH.", {
+          reason: "ffmpeg_missing",
+        });
+      if (!req.frames.length) fail("VALIDATION_ERROR", "A diagram video needs frames.");
+      return {
+        path: `mock://projects/${req.projectId}/exports/diagram_${newId("DGV")}.mp4`,
+        durationMs: req.frames.reduce((sum, f) => sum + f.durationMs, 0),
+        frameCount: req.frames.length,
+      };
     },
 
     region_delete: (req) => {

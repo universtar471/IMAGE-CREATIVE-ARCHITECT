@@ -23,6 +23,7 @@ describe("workspace information architecture", () => {
       "Mood / Grade",
       "Enhance",
       "Region edit",
+      "Diagram",
       "Publishing Studio",
     ]);
   });
@@ -42,6 +43,7 @@ describe("workspace information architecture", () => {
       "mood_grade",
       "enhance",
       "regions",
+      "diagram",
       "export",
     ]);
   });
@@ -58,6 +60,7 @@ describe("workspace information architecture", () => {
       "dna",
       "dna",
       "generate",
+      "post",
       "post",
       "post",
       "post",

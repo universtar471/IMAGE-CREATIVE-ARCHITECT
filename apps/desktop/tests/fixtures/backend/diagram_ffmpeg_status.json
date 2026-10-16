@@ -1,0 +1,7 @@
+{
+  "command": "diagram_ffmpeg_status",
+  "response": {
+    "available": false,
+    "version": null
+  }
+}

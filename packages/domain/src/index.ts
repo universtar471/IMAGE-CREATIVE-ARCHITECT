@@ -47,3 +47,4 @@ export * from "./sceneObjects";
 export * from "./effects";
 export * from "./contextLibrary";
 export * from "./publishing";
+export * from "./diagram";

@@ -114,6 +114,9 @@ pub fn run() {
             commands::publication_delete,
             commands::publication_caption_draft,
             commands::publication_export_save,
+            commands::diagram_image_save,
+            commands::diagram_ffmpeg_status,
+            commands::diagram_video_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");
