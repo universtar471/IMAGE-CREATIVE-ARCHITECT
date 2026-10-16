@@ -1045,3 +1045,24 @@ Status: accepted (2026-10-16). Basis: SRS §11, AC-16 to AC-19.
 - PDF: page images in a minimal pure-TS PDF writer that embeds JPEG (DCTDecode) at the paper size. Text is rasterised in this MVP.
 - No new npm or cargo dependency unless it is already in a lockfile.
 - Vector-text PDF, bleed, brand kit, flipbook and video are P6.
+
+## ADR-039 — Short project wizard: theme first, data loaded per theme
+
+Status: accepted (2026-10-17). Basis: UI review of the NboxAI-inspired proposal (option B: shorten the wizard, no schema change).
+
+**Decision**
+- Step 1 "Cơ bản" asks for the name and one of two themes, shown as two large picture cards:
+  - **Công trình** (architecture, exterior)
+  - **Nội thất** (interior)
+- Step 2 "Phân loại" loads its choices from the chosen theme:
+  - Công trình: building-type cards from `ProjectTypeSchema`, limited to the in-scope types `townhouse`, `single_storey_house`, `villa`, `urban_villa`, `prefab_modular`, `hotel`, `resort`, plus `custom` ("Khác"). Then the subtype list from `knowledge.listSubtypes(type)`. The architectural style is optional.
+  - Nội thất: `projectType` is `interior`. The user picks the building use (`BUILDING_USES`), the room (`roomsForUse`) and the interior style (`INTERIOR_STYLES`), as the wizard does today.
+- "Tạo dự án" is available from step 2. Dimensions, floors, site size and the context preset move to an optional collapsed section "Thông số (tùy chọn)" on step 2. The pack defaults apply when it is left empty, and everything stays editable in the DNA and context panels.
+- Old projects whose type is `cafe`, `restaurant`, `office` or `commercial` still open and parse. The wizard no longer offers those types (ADR-034 amendment 2).
+
+**Unchanged**
+- `ProjectTypeSchema`, the SQLite column, the DTOs, the compiler and the validator. Every project still has a concrete `projectType`, so the gate keeps working.
+- `createInitialDNA` and `WizardStarter` inputs.
+
+**Rejected**
+- Option A (a project with no type, `unspecified`): it would touch about 25 domain files and the gate. Revisit only if users often cannot name the type.
