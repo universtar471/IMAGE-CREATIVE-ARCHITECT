@@ -177,13 +177,14 @@ describe("round 1 workflow UI regressions", () => {
     expect((screen.getByLabelText("Building type") as HTMLInputElement).disabled).toBe(false);
   });
 
-  it("renders visible DNA and post group headers", async () => {
+  it("renders the DNA group header and the post-production section", async () => {
     await openProject();
     useStudio.setState({ activeModule: "overview" });
     render(createElement(WorkspaceNav));
     expect(screen.getByText("Design DNA")).toBeTruthy();
     expect(screen.getByText("Architecture")).toBeTruthy();
-    expect(screen.getByText("Post-production")).toBeTruthy();
+    // ADR-040: post-production modules live in the "Edit images" section.
+    expect(screen.getByText("Edit images")).toBeTruthy();
   });
 
   it("uses Architecture for the first DNA step and resets the property scroll on module change", async () => {
