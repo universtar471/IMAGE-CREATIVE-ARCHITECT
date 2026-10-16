@@ -4183,3 +4183,18 @@ div.pub-slot {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Space wizard (SRS debts 2): placement facts and the interior room suggestion. */
+.space-fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+.space-room-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

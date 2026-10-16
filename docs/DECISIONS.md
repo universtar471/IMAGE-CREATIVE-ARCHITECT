@@ -831,6 +831,15 @@ The SRS's `Building_Space_Catalog_V3.zip` (256 presets) is not available locally
 - Every retry re-runs `validateShot` on the stored snapshot against the current DNA, with the shot intent the snapshot was compiled with. WARN codes accepted for the original submit stay accepted; a new WARN asks again in a retry dialog, and a BLOCK is refused. `job_retry` takes the fresh verdict as `validation`; Rust replaces the stored verdict with it and refuses BLOCK, as for a new submit. The free text appended to a stored prompt cannot be separated from it, so it is not re-checked on retry.
 - The batch gate validates each item with the shot intent in its own prompt snapshot. ContactSheet re-run, mood variations and enhance batches show the same exception panel as the generate and batch dialogs.
 
+**ADR-034 amendment 4 (2026-10-16): space, site and camera follow-ups (SRS debts 2).**
+- The space wizard gains the optional floor step (building type → floor → group → space → variant). `SpaceInstance.floorId` holds a stable id (`basement`, `floor_1` … `floor_N` from `building.floors`, default 5, and `roof`). Changing the floor moves the active space; skipping it leaves `floorId` absent. The floor is not compiled.
+- `lockedElementIds` is edited as chips over `LOCKABLE_SPACE_ELEMENTS` (walls, columns, stairs, doors and windows; flooring, ceiling and built-in furniture for interiors; paving, boundary walls and trees outside) plus the preset's optional items, and as free ids. SPACE SCOPE adds one "Locked elements, kept exactly where and as they appear in the approved references …" line when the list is not empty.
+- The fact editor records the placement facts the scene-object rules read (`driveway`, `hardscape` for a villa yard; `garage_bay` for a garage) with an evidence badge (verified, user_declared, unknown). Ticking a fact declares it (`user_declared`); unticking removes it. The dimension badge offers the same three statuses.
+- For an interior project, the active catalog space suggests its ADR-027 room (`suggestInteriorRoom`); one click writes `interior.roomId`, and the interior panel stays the owner. An exterior or semi-outdoor active space drops the "Interior space: …" form line, as it already dropped the furnishing line.
+- The site editor edits `heightRelation` for attached neighbours and boundary walls.
+- The negative prompt, the camera section, SITE & OCCLUSION and the camera chips read the camera plan through `siteCameraPlan`, which folds `resolveSiteAdjacency` back to the ADR-028 toggle vocabulary. A DNA without `site`, or with a `site` that mirrors the toggles, compiles byte-identically; an explicit `site` that disagrees with the toggles now wins.
+- `COMPILER_VERSION` becomes `pc-1.9.0`. The validator version is unchanged.
+
 ## ADR-035 — SRS P3: enhance preservation modes with local checks, upscale size targets
 
 Status: accepted (2026-10-16). Basis: SRS §8–§9 (modules E and F), the upgrade plan §5 P3, and the user's decision of 2026-10-15 to use local checks only, with no Vision QC (ADR-033).
@@ -944,6 +953,10 @@ Status: accepted (2026-10-16). Basis: SRS §5.1 and §5.3–§5.4 (module B), §
 **ADR-036 amendment (2026-10-16): SRS debts 1.**
 - The per-project ShotIntent survives restarts. It is kept in `localStorage` under `arch.shotIntent.<projectId>`, never in the DNA, and a stored value that fails `ShotIntentSchema` is dropped on load.
 - "Khám phá chi tiết" queues one item per planned shot (`buildDetailBatchItems`). Each item compiles with its own ShotIntent: the shot's `targetDetailId`, its camera and the shot count. Two details seen by the same camera are therefore two items.
+
+**ADR-036 amendment 2 (2026-10-16): interior camera intents (SRS debts 2).**
+- A shot is an interior one when the active space's zone is `interior`; without an active space, when `dna.interior` exists (`isInteriorShot`). An interior project whose active space is a garden offers the aerial view again.
+- For interior shots, `overview` and `approach` suggest `interior_wide` and `detail` suggests `interior_detail`, with the ADR-027 interior camera preset wording ("wide view from the entrance showing the whole room", "one-point perspective facing the main wall", "close-up material and furniture detail"). They never suggest `exterior_front`. The other views keep their suggestions.
 
 ## ADR-037 — SRS P4: Diagram Studio (MVP)
 

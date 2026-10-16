@@ -15,7 +15,8 @@ import { cameraSectionText } from "../camera/describe";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
-import { cameraSitePlan, viewTypeFraming } from "./topology";
+import { viewTypeFraming } from "./topology";
+import { siteCameraPlan } from "../site/plan";
 import { siteCameraText, siteOcclusionLines } from "./sections/siteOcclusion";
 import { stylePhrase } from "./stylePhrases";
 import { canonicalHash } from "./hash";
@@ -30,7 +31,7 @@ import { contextSuggestionsSection, usedContextLibrary } from "./sections/contex
 import type { ShotIntent } from "../validation/shotIntent";
 import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
 
-export const COMPILER_VERSION = "pc-1.8.0";
+export const COMPILER_VERSION = "pc-1.9.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -210,7 +211,11 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     [
       "form",
       usesInteriorDna
-        ? interiorLine(interiorLines, "Interior space:")
+        ? // The ADR-027 room ("Interior space: … bedroom") describes an interior; with an
+          // exterior or semi-outdoor active space (a garden) SPACE SCOPE names the space.
+          allowsInteriorFurnishing(dna)
+          ? interiorLine(interiorLines, "Interior space:")
+          : null
         : formSection(dna, isInterior),
     ],
     [
@@ -252,7 +257,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   ];
   const included = positiveSections.filter((s): s is [string, string] => s[1] !== null);
 
-  const plan = cameraSitePlan(camera, dna.context, project.projectType);
+  const plan = siteCameraPlan(camera, dna, project.projectType);
   const contextualNegatives =
     plan.mode === "oblique_street"
       ? [
@@ -624,7 +629,7 @@ function cameraSectionTextForPlan(
   dna: ProjectDNA,
   projectType: ProjectType,
 ): string {
-  const plan = cameraSitePlan(camera, dna.context, projectType);
+  const plan = siteCameraPlan(camera, dna, projectType);
   if (plan.mode === "oblique_street") {
     const side = plan.side ?? "side";
     return cameraSectionForPlan(camera, {

@@ -4,9 +4,11 @@ import {
   anchorViews,
   defaultGenerationParams,
   orderReferences,
+  siteCameraPlan,
   type ConflictCode,
   type DetailBatchShot,
   type GenerationParams,
+  type ProjectDNA,
 } from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
@@ -18,7 +20,6 @@ import { planBatch, type BatchMode } from "./batch";
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { SiteTopologyChip } from "./SiteTopologyChip";
-import { cameraSitePlan, type TopologyContext } from "../../lib/siteTopology";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { gateBatch } from "../validation/gate";
 
@@ -148,9 +149,10 @@ export function BatchDialog({
   const toggle = (list: string[], id: string, on: boolean) =>
     on ? [...list, id] : list.filter((x) => x !== id);
   const views = anchorViews(ws.draftDna);
-  const context = ws.draftDna.context as unknown as TopologyContext;
   const unresolved = cameras.filter(
-    (camera) => cameraSitePlan(camera, context, ws.project.projectType).mode === "unknown_side",
+    (camera) =>
+      siteCameraPlan(camera, ws.draftDna as ProjectDNA, ws.project.projectType).mode ===
+      "unknown_side",
   );
 
   return (

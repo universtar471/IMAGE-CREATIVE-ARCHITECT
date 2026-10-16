@@ -1,7 +1,9 @@
 import {
   EVIDENCE_STATUSES,
+  HEIGHT_RELATIONS,
   SITE_BOUNDARY_KINDS,
   SITE_SIDES,
+  sideHasHeightRelation,
   siteForEditing,
   type ProjectDNA,
   type SiteBoundaryKind,
@@ -16,7 +18,8 @@ import { editSiteSide } from "./siteEdit";
 
 /**
  * Site adjacency editor (ADR-034, SRS §5.2): four sides, each with a boundary kind and an
- * evidence status, left/right as seen when facing the front facade. Replaces the ADR-028
+ * evidence status, left/right as seen when facing the front facade. A neighbour or a wall
+ * also gets its height against the building (`heightRelation`; empty = not recorded). Replaces the ADR-028
  * left/right/corner toggles and writes both `site` and the synced `context.siteTopology`.
  */
 export function SiteAdjacencyEditor() {
@@ -34,6 +37,10 @@ export function SiteAdjacencyEditor() {
   const statusOptions = EVIDENCE_STATUSES.map((status) => ({
     value: status,
     label: t(`site.evidence.${status}`),
+  }));
+  const heightOptions = HEIGHT_RELATIONS.map((height) => ({
+    value: height,
+    label: t(`site.heights.${height}`),
   }));
 
   return (
@@ -66,6 +73,23 @@ export function SiteAdjacencyEditor() {
                   editSiteSide(editDna, dna, side, { status }, workspace.project.projectType)
                 }
               />
+              {sideHasHeightRelation(site[side].kind) && (
+                <SelectField
+                  label={t(`site.heightFor.${side}`)}
+                  value={site[side].heightRelation}
+                  disabled={disabled}
+                  options={heightOptions}
+                  onChange={(heightRelation) =>
+                    editSiteSide(
+                      editDna,
+                      dna,
+                      side,
+                      { heightRelation: heightRelation ?? null },
+                      workspace.project.projectType,
+                    )
+                  }
+                />
+              )}
             </div>
           ))}
         </div>

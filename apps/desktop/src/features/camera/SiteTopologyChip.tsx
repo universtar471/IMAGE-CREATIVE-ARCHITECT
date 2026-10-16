@@ -1,17 +1,17 @@
-import type { CameraDNA, ProjectDNA, ProjectType } from "@arch/domain";
+import { siteCameraPlan, type CameraDNA, type ProjectDNA, type ProjectType } from "@arch/domain";
 import { useStudio, selectReadOnly } from "../../app/store";
 import { useT } from "../../i18n";
-import { cameraSitePlan, type TopologyContext } from "../../lib/siteTopology";
 import { editSiteSide } from "../site/siteEdit";
 
 export function SiteTopologyChip({ camera }: { camera: CameraDNA }) {
   const t = useT();
   const project = useStudio((s) => s.workspace!.project);
-  const context = useStudio((s) => s.workspace!.draftDna.context as unknown as TopologyContext);
+  // The resolved site adjacency (ADR-034): an explicit `site` wins over the older toggles.
+  const draftDna = useStudio((s) => s.workspace!.draftDna as ProjectDNA);
   const readOnly = useStudio(selectReadOnly);
   const editDna = useStudio((s) => s.editDna);
   if (project.projectType === "interior") return null;
-  const plan = cameraSitePlan(camera, context, project.projectType as ProjectType);
+  const plan = siteCameraPlan(camera, draftDna, project.projectType as ProjectType);
   const sideLabel = plan.side ? t(`topology.${plan.side}Label`) : "";
   const label =
     plan.mode === "oblique_street"

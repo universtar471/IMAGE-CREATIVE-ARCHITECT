@@ -86,6 +86,24 @@ export function sceneSpaceKind(preset: SpacePreset | null): SceneSpaceKind {
   return "outdoor_other";
 }
 
+/**
+ * Space facts the placement rules read (`SpaceInstance.facts`, boolean values): a driveway
+ * or hardscape of a villa yard, the bay of a garage. The space wizard edits them with an
+ * evidence badge; the validator never assumes them.
+ */
+export const SPACE_PLACEMENT_FACTS = ["driveway", "hardscape", "garage_bay"] as const;
+export type SpacePlacementFact = (typeof SPACE_PLACEMENT_FACTS)[number];
+
+const PLACEMENT_FACTS_BY_KIND: Partial<Record<SceneSpaceKind, readonly SpacePlacementFact[]>> = {
+  villa_yard: ["driveway", "hardscape"],
+  garage: ["garage_bay"],
+};
+
+/** The placement facts that matter for a preset's space kind (none for most spaces). */
+export function placementFactsFor(preset: SpacePreset | null): readonly SpacePlacementFact[] {
+  return PLACEMENT_FACTS_BY_KIND[sceneSpaceKind(preset)] ?? [];
+}
+
 /** Allowed zones per object type; the first zone is the default. Absent type = not allowed. */
 type KindRule = Partial<Record<SceneObjectType, readonly PlacementZoneId[]>>;
 

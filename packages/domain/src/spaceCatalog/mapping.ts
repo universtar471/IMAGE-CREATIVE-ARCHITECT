@@ -3,7 +3,10 @@
  * changes `projectType` or the ADR-027 interior DNA.
  */
 import type { ProjectType } from "../schemas/enums";
+import type { ProjectDNA } from "../schemas/projectDna";
 import type { BuildingUseId, RoomId } from "../interior/catalog";
+import { roomsForUse } from "../interior/helpers";
+import { resolveActiveSpace } from "./resolve";
 import type { SpaceArchetypeId } from "./schemas";
 
 /**
@@ -147,4 +150,21 @@ export function interiorRoomForPreset(presetId: string | null | undefined): Room
   return presetId && Object.hasOwn(INTERIOR_ROOM_BY_PRESET, presetId)
     ? INTERIOR_ROOM_BY_PRESET[presetId]!
     : null;
+}
+
+/**
+ * The ADR-027 room to suggest for `dna.interior.roomId` from the active catalog space, or
+ * `null` when there is nothing to suggest: no interior DNA, no active interior space, no
+ * equivalent room, a room the building use does not offer, or the room already chosen.
+ * A suggestion only: the interior panel owns `interior.roomId` and applies it on one click.
+ */
+export function suggestInteriorRoom(
+  dna: Pick<ProjectDNA, "interior" | "spaceCatalog">,
+): RoomId | null {
+  const interior = dna.interior;
+  const preset = resolveActiveSpace(dna)?.preset;
+  if (!interior || !preset || preset.zone !== "interior") return null;
+  const room = interiorRoomForPreset(preset.id);
+  if (!room || room === interior.roomId) return null;
+  return roomsForUse(interior.buildingUseId).includes(room) ? room : null;
 }
