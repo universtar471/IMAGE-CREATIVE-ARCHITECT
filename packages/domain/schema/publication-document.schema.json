@@ -1,0 +1,586 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "publication": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "title": {
+          "default": "",
+          "type": "string"
+        },
+        "targetPageCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "selectionMode": {
+          "type": "string",
+          "enum": [
+            "include_all",
+            "ai_select"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "portfolio",
+            "catalog",
+            "concept_book",
+            "magazine"
+          ]
+        },
+        "paper": {
+          "type": "string",
+          "enum": [
+            "A4",
+            "A3",
+            "16:9"
+          ]
+        },
+        "textDensity": {
+          "type": "string",
+          "enum": [
+            "sparse",
+            "balanced",
+            "dense"
+          ]
+        },
+        "styleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layoutMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "hero_full_page",
+            "hero_plus_secondary",
+            "grid_2x2",
+            "grid_2x3",
+            "flexible_grid",
+            "split",
+            "asymmetric_editorial",
+            "diagram_sheet",
+            "dense_contact"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "lockedPageIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "allowImageRepeat": {
+          "default": false,
+          "type": "boolean"
+        },
+        "selectedImageIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "assetPins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "assetId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sourceHash": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "assetId",
+              "sourceHash"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "selectionReasons": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "cover",
+                  "content",
+                  "text",
+                  "diagram"
+                ]
+              },
+              "layoutTemplateId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "hero_full_page",
+                      "hero_plus_secondary",
+                      "grid_2x2",
+                      "grid_2x3",
+                      "flexible_grid",
+                      "split",
+                      "asymmetric_editorial",
+                      "diagram_sheet",
+                      "dense_contact"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "slots": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rect": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "w": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            },
+                            "h": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y",
+                            "w",
+                            "h"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "type": {
+                          "type": "string",
+                          "const": "image"
+                        },
+                        "assetId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sourceHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "fit": {
+                          "default": "cover",
+                          "type": "string",
+                          "enum": [
+                            "cover",
+                            "contain"
+                          ]
+                        },
+                        "bleed": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "primary": {
+                          "default": false,
+                          "type": "boolean"
+                        },
+                        "group": {
+                          "default": "general",
+                          "type": "string",
+                          "enum": [
+                            "context",
+                            "massing",
+                            "space",
+                            "detail",
+                            "general"
+                          ]
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "rect",
+                        "type",
+                        "assetId",
+                        "sourceHash",
+                        "fit",
+                        "bleed",
+                        "primary",
+                        "group"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rect": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "w": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            },
+                            "h": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y",
+                            "w",
+                            "h"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "type": {
+                          "type": "string",
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "default": "body",
+                          "type": "string",
+                          "enum": [
+                            "headline",
+                            "subheadline",
+                            "body",
+                            "pull_quote",
+                            "label",
+                            "chapter"
+                          ]
+                        },
+                        "fontSizePt": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "factRef": {
+                          "default": null,
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "placeholder": {
+                          "default": false,
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "rect",
+                        "type",
+                        "text",
+                        "role",
+                        "factRef",
+                        "placeholder"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rect": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "y": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "w": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            },
+                            "h": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y",
+                            "w",
+                            "h"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "type": {
+                          "type": "string",
+                          "const": "caption"
+                        },
+                        "caption": {
+                          "type": "object",
+                          "properties": {
+                            "textKind": {
+                              "type": "string",
+                              "enum": [
+                                "technical",
+                                "editorial",
+                                "commercial"
+                              ]
+                            },
+                            "sentences": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "text": {
+                                    "type": "string"
+                                  },
+                                  "factRef": {
+                                    "default": null,
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "needs_review": {
+                                    "default": false,
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "text",
+                                  "factRef",
+                                  "needs_review"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "needs_review": {
+                              "default": false,
+                              "type": "boolean"
+                            },
+                            "wordLimit": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "imageAssetIds": {
+                              "default": [],
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "group": {
+                              "type": "string",
+                              "enum": [
+                                "context",
+                                "massing",
+                                "space",
+                                "detail",
+                                "general"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "textKind",
+                            "sentences",
+                            "needs_review",
+                            "imageAssetIds"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "fontSizePt": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "rect",
+                        "type",
+                        "caption"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "warnings": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "id",
+              "index",
+              "kind",
+              "layoutTemplateId",
+              "slots",
+              "warnings"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "title",
+        "targetPageCount",
+        "selectionMode",
+        "type",
+        "paper",
+        "textDensity",
+        "styleId",
+        "layoutMode",
+        "seed",
+        "lockedPageIds",
+        "allowImageRepeat",
+        "selectedImageIds",
+        "assetPins",
+        "selectionReasons",
+        "pages"
+      ],
+      "additionalProperties": false
+    },
+    "facts": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "user_declared",
+              "inferred",
+              "unknown"
+            ]
+          },
+          "sourceAssetIds": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "status",
+          "sourceAssetIds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "publication",
+    "facts"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,148 @@
+{
+  "publication": {
+    "schemaVersion": 1,
+    "title": "Villa",
+    "targetPageCount": 2,
+    "selectionMode": "include_all",
+    "type": "portfolio",
+    "paper": "A4",
+    "textDensity": "balanced",
+    "styleId": "portfolio_minimal_white",
+    "layoutMode": "auto",
+    "seed": 7,
+    "lockedPageIds": [],
+    "allowImageRepeat": false,
+    "selectedImageIds": ["AST_1", "AST_2", "AST_3"],
+    "assetPins": [
+      {
+        "assetId": "AST_1",
+        "sourceHash": "sha1"
+      },
+      {
+        "assetId": "AST_2",
+        "sourceHash": "sha2"
+      },
+      {
+        "assetId": "AST_3",
+        "sourceHash": "sha3"
+      }
+    ],
+    "selectionReasons": {
+      "AST_1": "include_all: placed once on PAGE_1.",
+      "AST_2": "include_all: placed once on PAGE_1.",
+      "AST_3": "include_all: placed once on PAGE_2."
+    },
+    "pages": [
+      {
+        "id": "PAGE_1",
+        "index": 0,
+        "kind": "content",
+        "layoutTemplateId": "hero_plus_secondary",
+        "slots": [
+          {
+            "id": "P1_img_1",
+            "rect": {
+              "x": 0.04,
+              "y": 0.095,
+              "w": 0.92,
+              "h": 0.5184
+            },
+            "type": "image",
+            "assetId": "AST_1",
+            "sourceHash": "sha1",
+            "fit": "cover",
+            "bleed": false,
+            "primary": true,
+            "group": "general"
+          },
+          {
+            "id": "P1_img_2",
+            "rect": {
+              "x": 0.04,
+              "y": 0.6296,
+              "w": 0.92,
+              "h": 0.2754
+            },
+            "type": "image",
+            "assetId": "AST_2",
+            "sourceHash": "sha2",
+            "fit": "cover",
+            "bleed": false,
+            "primary": false,
+            "group": "general"
+          },
+          {
+            "id": "P1_caption_all",
+            "rect": {
+              "x": 0.04,
+              "y": 0.915,
+              "w": 0.92,
+              "h": 0.07
+            },
+            "type": "caption",
+            "caption": {
+              "textKind": "editorial",
+              "sentences": [],
+              "needs_review": false,
+              "wordLimit": 15,
+              "imageAssetIds": ["AST_1", "AST_2"]
+            },
+            "fontSizePt": 8
+          }
+        ],
+        "warnings": []
+      },
+      {
+        "id": "PAGE_2",
+        "index": 1,
+        "kind": "content",
+        "layoutTemplateId": "hero_full_page",
+        "slots": [
+          {
+            "id": "P2_img_1",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 1,
+              "h": 1
+            },
+            "type": "image",
+            "assetId": "AST_3",
+            "sourceHash": "sha3",
+            "fit": "cover",
+            "bleed": true,
+            "primary": true,
+            "group": "general"
+          },
+          {
+            "id": "P2_caption_all",
+            "rect": {
+              "x": 0.04,
+              "y": 0.915,
+              "w": 0.92,
+              "h": 0.07
+            },
+            "type": "caption",
+            "caption": {
+              "textKind": "editorial",
+              "sentences": [],
+              "needs_review": false,
+              "wordLimit": 15,
+              "imageAssetIds": ["AST_3"]
+            },
+            "fontSizePt": 8
+          }
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  "facts": [
+    {
+      "id": "F1",
+      "text": "Hoàn thành năm 2024",
+      "status": "user_declared",
+      "sourceAssetIds": []
+    }
+  ]
+}

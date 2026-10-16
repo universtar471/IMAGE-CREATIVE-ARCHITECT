@@ -15,7 +15,7 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
     anchors, assets, batches, dna, dna_assist, generations, grade, luts, projects, prompt_enhance, provider_settings,
-    queue, regions, workflow, AppCore,
+    publications, queue, regions, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -138,6 +138,85 @@ pub struct RegionDeleteRequest {
 pub async fn region_delete(core: Core<'_>, request: RegionDeleteRequest) -> AppResult<Value> {
     blocking(&core, move |c| {
         regions::delete(c, &request.project_id, &request.region_id).map(|_| serde_json::json!({"deleted": true}))
+    })
+    .await
+}
+
+// ------------------------------------------------------------------ publications (ADR-038)
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicationRef {
+    project_id: String,
+    publication_id: String,
+}
+
+#[tauri::command]
+pub async fn publication_list(
+    core: Core<'_>,
+    request: ProjectRef,
+) -> AppResult<Vec<publications::PublicationSummaryDto>> {
+    blocking(&core, move |c| publications::list(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn publication_get(core: Core<'_>, request: PublicationRef) -> AppResult<publications::PublicationRecordDto> {
+    blocking(&core, move |c| publications::get(c, &request.project_id, &request.publication_id)).await
+}
+
+#[tauri::command]
+pub async fn publication_save(
+    core: Core<'_>,
+    request: publications::SaveRequest,
+) -> AppResult<publications::PublicationRecordDto> {
+    blocking(&core, move |c| publications::save(c, request)).await
+}
+
+#[tauri::command]
+pub async fn publication_delete(core: Core<'_>, request: PublicationRef) -> AppResult<Value> {
+    blocking(&core, move |c| {
+        publications::delete(c, &request.project_id, &request.publication_id)
+            .map(|_| serde_json::json!({"deleted": true}))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn publication_caption_draft(
+    core: Core<'_>,
+    request: publications::CaptionDraftRequest,
+) -> AppResult<publications::CaptionDraftResult> {
+    blocking(&core, move |c| publications::caption_draft(c, request)).await
+}
+
+/// Writes webview-rendered export files (SRS P5b). The files are checked first; then a
+/// native dialog asks where to save (a file for PDF, a folder for page images). The webview
+/// never names the path.
+#[tauri::command]
+pub async fn publication_export_save(
+    app: tauri::AppHandle,
+    core: Core<'_>,
+    request: publications::ExportSaveRequest,
+) -> AppResult<publications::ExportSaveResult> {
+    use tauri_plugin_dialog::DialogExt;
+    blocking(&core, move |c| {
+        let files = publications::prepare_export(c, &request)?;
+        let base = publications::safe_base_name(&request.base_name);
+        let dialog = app.dialog().file();
+        let picked = match request.format {
+            publications::ExportFormat::Pdf => dialog
+                .set_file_name(format!("{base}.pdf"))
+                .add_filter("PDF", &["pdf"])
+                .blocking_save_file()
+                .map(|p| p.into_path().map(publications::ExportTarget::File)),
+            _ => dialog.blocking_pick_folder().map(|p| p.into_path().map(publications::ExportTarget::Folder)),
+        };
+        let Some(target) = picked else {
+            return Ok(publications::ExportSaveResult { saved: false, paths: Vec::new() });
+        };
+        let target = target.map_err(|e| AppError::validation(format!("The chosen location cannot be used: {e}")))?;
+        let paths = publications::write_export(&target, request.format, &base, &files)?;
+        Ok(publications::ExportSaveResult { saved: true, paths })
     })
     .await
 }

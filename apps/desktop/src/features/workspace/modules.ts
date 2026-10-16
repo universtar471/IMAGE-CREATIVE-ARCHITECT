@@ -5,10 +5,10 @@
  * shows `modules.<id>.label` / `.description` from the i18n dictionaries.
  */
 import {
+  BookOpen,
   Aperture,
   Camera,
   Car,
-  Download,
   Dna,
   Images,
   LayoutDashboard,
@@ -141,10 +141,10 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
   },
   {
     id: "export",
-    label: "Export",
-    icon: Download,
+    label: "Publishing Studio",
+    icon: BookOpen,
     group: "export",
-    availableIn: 9,
+    availableIn: null,
   },
 ];
 

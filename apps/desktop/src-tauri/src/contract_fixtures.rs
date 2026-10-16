@@ -27,6 +27,7 @@ use crate::services::batches::{self, BatchCreateRequest};
 use crate::services::generations::{self, SubmitRequest};
 use crate::services::grade::{self, GradeApplyRequest};
 use crate::services::prompt_enhance::{self, EnhanceRequest};
+use crate::services::publications::{self, CaptionDraftRequest, ExportSaveResult, SaveRequest};
 use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
@@ -73,14 +74,15 @@ impl Normalizer {
         }
     }
 
-    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_/ECK_` + 26 ULID chars → counters in order of first appearance.
+    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_/ECK_/PUB_` + 26 ULID chars → counters in order of first appearance.
     fn stable_ids(&mut self, text: &str) -> String {
         let bytes = text.as_bytes();
         let mut out = String::with_capacity(text.len());
         let mut i = 0;
         while i < bytes.len() {
-            let candidate =
-                ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "ECK_"].iter().find(|p| text[i..].starts_with(**p));
+            let candidate = ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "ECK_", "PUB_"]
+                .iter()
+                .find(|p| text[i..].starts_with(**p));
             if let Some(prefix) = candidate {
                 let prefix_len = prefix.len();
                 let tail = &bytes[i + prefix_len..(i + prefix_len + 26).min(bytes.len())];
@@ -388,6 +390,41 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
 
     rec.record("generation_list", "generation_list", &generations::list(&core, &p.id).unwrap());
     rec.record("version_list", "version_list", &assets::list_versions(&core, &p.id).unwrap());
+
+    // SRS P5b (ADR-038): publication storage, the optional caption call and the export result.
+    let document: Value = serde_json::from_str(publications::TEST_VECTOR).unwrap();
+    let save_request = |id: Option<String>, document: &Value| SaveRequest {
+        project_id: p.id.clone(),
+        publication_id: id,
+        publication: document["publication"].clone(),
+        facts: document["facts"].clone(),
+    };
+    let saved = publications::save(&core, save_request(None, &document)).unwrap();
+    rec.record("publication_save", "publication_save", &saved);
+    let spare = publications::save(&core, save_request(None, &document)).unwrap();
+    rec.record("publication_list", "publication_list", &publications::list(&core, &p.id).unwrap());
+    rec.record("publication_get", "publication_get", &publications::get(&core, &p.id, &saved.id).unwrap());
+    publications::delete(&core, &p.id, &spare.id).unwrap();
+    rec.record("publication_delete", "publication_delete", &json!({ "deleted": true }));
+    let mut invalid = document.clone();
+    invalid["publication"]["targetPageCount"] = json!(0);
+    rec.record_error(
+        "error_publication_invalid",
+        &publications::save(&core, save_request(Some(saved.id.clone()), &invalid)).unwrap_err(),
+    );
+    let caption = publications::caption_draft(
+        &core,
+        CaptionDraftRequest { project_id: p.id.clone(), provider_id: TEST_PROVIDER.into(), prompt: "Captions".into() },
+    )
+    .unwrap();
+    rec.record("publication_caption_draft", "publication_caption_draft", &caption);
+    // The export command's result when the user closes the native dialog (no file written).
+    rec.record(
+        "publication_export_save_cancelled",
+        "publication_export_save",
+        &ExportSaveResult { saved: false, paths: Vec::new() },
+    );
+
     rec.out
 }
 
