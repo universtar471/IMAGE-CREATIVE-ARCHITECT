@@ -1066,3 +1066,39 @@ Status: accepted (2026-10-17). Basis: UI review of the NboxAI-inspired proposal 
 
 **Rejected**
 - Option A (a project with no type, `unspecified`): it would touch about 25 domain files and the gate. Revisit only if users often cannot name the type.
+
+## ADR-040 — Simple workspace: five sections, quick generate, source-image analysis
+
+Status: accepted (2026-10-17). Basis: the NboxAI-inspired UI proposal reviewed with the user (UI-1, UI-2, UI-3, UI-5).
+
+**Navigation (UI-1, UI-2)**
+
+- The left navigation shows five sections instead of 15 modules:
+  1. **Tạo ảnh tự động** (`create`): the `generate` module.
+  2. **Ảnh của tôi** (`library`): a full-size grid of project assets with search and filters on top and the asset details (versions, lineage, reference roles) in the right panel. Actions on a selected asset: edit, make more, download, add to a publication.
+  3. **Chỉnh sửa ảnh** (`edit`): tabs Chỉnh màu (`mood_grade`), Nâng độ nét (`enhance`), Sửa một vùng (`regions`).
+  4. **Trình bày & xuất** (`present`): tabs Hồ sơ trình bày (`export`), Sơ đồ kiến trúc (`diagram`).
+  5. **Studio nâng cao** (`studio`): sub-navigation over `overview`, `design_dna`, `context`, `references`, `camera`, `detail`, `scene_objects`, `effects`, `lighting`, in that order, keeping the workflow step numbers and status icons.
+- `ModuleId` and `activeModule` stay; a section is a grouping over modules. Each section remembers its last module. Calls to `setModule(id)` keep working and select the owning section.
+- Every existing panel, gate, spend confirmation and job queue stays reachable; nothing is removed.
+
+**Quick generate (UI-3)**
+
+- The `create` section opens a quick-generate screen: the source picker and the large image on the left (about 2/3), the request panel on the right (about 1/3).
+- Sources: Từ ảnh có sẵn, Từ phác thảo, Từ mô tả. A source the current generate pipeline cannot serve is hidden, not faked.
+- The request panel: wish (free text), faithfulness (keep the source, balanced, creative; mapped to existing generation settings), aspect, image count (default one test image), and a read-only "Thiết kế cần giữ" summary from the DNA.
+- "Xem kế hoạch tạo ảnh" opens a plan dialog: what will be made, the cost estimate and the validation exception panel. Submitting uses the existing generate path, gate and spend confirmation unchanged.
+- The full generate panel stays available behind "Tùy chỉnh đầy đủ".
+
+**Source-image analysis (UI-5)**
+
+- Uses the same text and vision API as the AI DNA assist (ADR-030: `dna_assist` through HHTECH, model `HHTECH_ASSIST_MODEL`). A new mode `source` takes exactly one reference asset and the user's wish.
+- The reply has:
+  - `observed`: what is visible.
+  - `inferred`: guesses, each with a confidence.
+  - `fields`: DNA field proposals from the allowed catalogue.
+  - `requestEn`: the wish rewritten in English as a change request.
+  - `keepEn`: what must be preserved.
+- The domain validates it as for the other modes. Inferred items and hidden sizes or materials never become verified facts.
+- It is shown in the quick-generate screen as "AI nhận diện từ ảnh": observed and inferred items with labels, and a "Dùng mô tả này" button. The button applies the chosen DNA fields through the ADR-030 proposal diff and writes `requestEn` and `keepEn` into the extra prompt. The prompt is still built by the compiler and passes the gate.
+- It is a paid call made only on an explicit click, goes through the spend confirmation, and is recorded in history with purpose `assist`. No call is made in tests.
