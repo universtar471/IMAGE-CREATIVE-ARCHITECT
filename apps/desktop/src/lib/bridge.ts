@@ -22,6 +22,8 @@ import {
   ProviderDescriptorDTOSchema,
   ProviderTestResultSchema,
   PromptEnhanceResultSchema,
+  PublicationRecordDTOSchema,
+  PublicationSummaryDTOSchema,
   RegionDTOSchema,
   WorkflowConfirmStepRequestSchema,
   WorkflowDTOSchema,
@@ -39,6 +41,7 @@ import {
   type GenerationSubmitRequest,
   type JobDTO,
   type PromptEnhanceRequest,
+  type PublicationSaveRequest,
   type ProjectDNA,
   type ProjectType,
   type RegionEditParams,
@@ -150,6 +153,16 @@ export const GradePreviewRequestSchema = z.object({
 });
 
 export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
+
+/** Publishing Studio (SRS P5b, API §22). */
+export const PUBLICATION_EXPORT_FORMATS = ["pdf", "png", "jpeg"] as const;
+export type PublicationExportFormat = (typeof PUBLICATION_EXPORT_FORMATS)[number];
+export const PublicationDeleteResultSchema = z.object({ deleted: z.literal(true) });
+export const PublicationCaptionDraftResultSchema = z.object({ raw: z.string() });
+export const PublicationExportSaveResultSchema = z.object({
+  saved: z.boolean(),
+  paths: z.array(z.string()),
+});
 export type RegionGenerationSubmitRequest = Omit<GenerationSubmitRequest, "purpose" | "params"> & {
   purpose: "region_edit";
   params: GenerationParams & { region: RegionEditParams };
@@ -241,6 +254,19 @@ export type Requests = {
   region_list: { projectId: string; assetId: string };
   region_save: RegionSaveRequest;
   region_delete: { projectId: string; regionId: string };
+  publication_list: { projectId: string };
+  publication_get: { projectId: string; publicationId: string };
+  publication_save: PublicationSaveRequest;
+  publication_delete: { projectId: string; publicationId: string };
+  /** One paid text call, only on an explicit click; `prompt` comes from `buildCaptionPrompt`. */
+  publication_caption_draft: { projectId: string; providerId: string; prompt: string };
+  /** Base64 files rendered in the webview; the backend asks where to save them. */
+  publication_export_save: {
+    projectId: string;
+    format: PublicationExportFormat;
+    baseName: string;
+    files: string[];
+  };
 };
 
 /** Response schemas per command. */
@@ -300,6 +326,12 @@ export const responses = {
   region_list: z.array(RegionDTOSchema),
   region_save: RegionDTOSchema,
   region_delete: RegionDeleteResultSchema,
+  publication_list: z.array(PublicationSummaryDTOSchema),
+  publication_get: PublicationRecordDTOSchema,
+  publication_save: PublicationRecordDTOSchema,
+  publication_delete: PublicationDeleteResultSchema,
+  publication_caption_draft: PublicationCaptionDraftResultSchema,
+  publication_export_save: PublicationExportSaveResultSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

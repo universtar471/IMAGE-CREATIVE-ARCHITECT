@@ -1362,3 +1362,62 @@ The fixtures are generated in the tests, never real third-party LUTs.
 - "Áp dụng" goes through `grade_apply`.
 - Manage sources: rescan, remove.
 - Missing files show a "Không tìm thấy file" state.
+
+## 22. Publishing Studio storage and export (ADR-038, SRS P5b)
+
+### 22.1 Stored document
+
+`PublicationDocumentSchema` (`packages/domain/src/publishing/document.ts`):
+`{ publication: Publication, facts: PublicationFact[] }`. The facts are the ones the user
+declared in the studio (there is no project-wide fact store yet); captions cite them by id.
+The JSON Schema `packages/domain/schema/publication-document.schema.json` is exported from
+the Zod schema (`npm run schema:export`; a test fails when it drifts) and embedded by Rust.
+
+### 22.2 Commands
+
+| Command | Request | Response |
+|---|---|---|
+| `publication_list` | `{ projectId }` | `PublicationSummaryDTO[]` — `{ id, projectId, title, type, paper, targetPageCount, createdAt, updatedAt }`, newest first |
+| `publication_get` | `{ projectId, publicationId }` | `PublicationRecordDTO` — `{ id, projectId, publication, facts, createdAt, updatedAt }` |
+| `publication_save` | `{ projectId, publicationId: string \| null, publication, facts }` | `PublicationRecordDTO` (null id creates `PUB_…`, an id updates that record) |
+| `publication_delete` | `{ projectId, publicationId }` | `{ deleted: true }` |
+| `publication_caption_draft` | `{ projectId, providerId, prompt }` | `{ raw }` |
+| `publication_export_save` | `{ projectId, format: "pdf" \| "png" \| "jpeg", baseName, files: base64[] }` | `{ saved, paths }` |
+
+- All commands use `blocking()`. Fixtures: `publication_*.json`, `error_publication_invalid.json`.
+- `publication_save` validates the document against the embedded JSON Schema plus "at least one
+  page"; errors are `VALIDATION_ERROR` with `details.fieldErrors` keyed by dotted path
+  (`publication.targetPageCount`). Documents above 4 MB are refused. Archived projects are
+  read-only (`INVALID_STATE`); list/get stay available. Records of another project are `NOT_FOUND`.
+- `publication_caption_draft` is the optional paid text call. It runs only on an explicit click,
+  after the spend confirmation, through the provider's `chat` (same checks as `prompt_enhance`:
+  chat model required, key required, `PROVIDER_NOT_CONFIGURED` otherwise). `prompt` is
+  `buildCaptionPrompt(...).prompt` (SRS §11.4 editorial prompt + confirmed facts + open slots).
+  Nothing is stored; the UI parses `raw` with `CaptionDraftResponseSchema` and every drafted
+  sentence lands as `needs_review`.
+- `publication_export_save` checks every file (base64, at most 500 files, signature `%PDF-` /
+  PNG / JPEG, PDF = exactly one file) before a native dialog opens: a save-file dialog for PDF,
+  a folder picker for page images (`<title>-p01.png`, …; existing files are never replaced,
+  `name (2).png` is used instead). The webview never names a path. Closing the dialog returns
+  `{ saved: false, paths: [] }`.
+
+### 22.3 Storage
+
+Migration `0009_publications.sql` creates `publications(id, project_id, json, created_at, updated_at)`
+with an index on `(project_id, updated_at)` and cascade on project delete. There is no asset
+foreign key: images are pinned inside the JSON by `assetId` + `sourceHash`, and a removed or
+re-rendered asset is reported by the validator (`REQUIRED_IMAGE_MISSING`) instead of rewriting
+the book.
+
+### 22.4 Export (webview)
+
+- Pages are drawn on a canvas from the page layout and the pinned source files, read through
+  `asset_preview` at the resolution the frame needs (≤ 4096 px). Print papers render at 150 dpi
+  (A4 1240 × 1754, A3 1754 × 2480), 16:9 at 1920 × 1080. Text is rasterised (MVP).
+- PNG/JPEG: one file per page. PDF: `buildPdf` in `apps/desktop/src/features/publishing/pdf.ts`
+  embeds each page JPEG unchanged (`/DCTDecode`) on a page of the paper size in points
+  (A4 595.28 × 841.89, A3 841.89 × 1190.55, 16:9 960 × 540).
+- Export is refused while any BLOCK issue is present (`UNVERIFIED_PUBLICATION_FACT`,
+  `PAGE_COUNT_MISMATCH`, `REQUIRED_IMAGE_MISSING`); an unapproved AI caption counts as
+  `UNVERIFIED_PUBLICATION_FACT` (`reason: "needs_review"`). Pending `PRINT_READABILITY_LOW`
+  warnings ask for confirmation first.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PublicationDocumentSchema } from "./publishing/document";
 import { ProjectDNASchema } from "./schemas/projectDna";
 
 /** Canonical JSON Schema text for persisted (fully parsed) ProjectDNA. */
@@ -10,5 +11,17 @@ export function projectDnaJsonSchemaText(): string {
   const lockRequired = schema.properties?.locks?.required;
   if (lockRequired)
     schema.properties!.locks!.required = lockRequired.filter((key) => key !== "mood");
+  return `${JSON.stringify(schema, null, 2)}\n`;
+}
+
+/**
+ * Canonical JSON Schema text for a stored publication document (SRS P5b). The UI saves
+ * the Zod-parsed document, so the output shape (defaults filled in) is what the backend checks.
+ */
+export function publicationDocumentJsonSchemaText(): string {
+  const schema = z.toJSONSchema(PublicationDocumentSchema, {
+    io: "output",
+    target: "draft-2020-12",
+  });
   return `${JSON.stringify(schema, null, 2)}\n`;
 }

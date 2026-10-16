@@ -14,6 +14,7 @@ pub mod luts;
 pub mod projects;
 pub mod prompt_enhance;
 pub mod provider_settings;
+pub mod publications;
 pub mod queue;
 pub mod regions;
 pub mod status;

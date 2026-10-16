@@ -18,6 +18,7 @@ import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
 import { resolveEnhancePair } from "../enhance/enhance";
 import { EnhanceCheckBadge } from "../enhance/EnhanceControls";
 import { RegionCanvas } from "../regions/RegionCanvas";
+import { PublishingStudio } from "../publishing/PublishingStudio";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -171,7 +172,7 @@ function CenterArea() {
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
-      <div className="center-tabs" role="tablist">
+      <div className="center-tabs" role="tablist" hidden={active === "export"}>
         {isCamera && (
           <button
             className="center-tab"
@@ -217,6 +218,8 @@ function CenterArea() {
             phase={mod.availableIn}
             description={t(`modules.${mod.id}.description`)}
           />
+        ) : active === "export" ? (
+          <PublishingStudio />
         ) : view === "prompt" ? (
           <PromptPreview />
         ) : view === "director" ? (
