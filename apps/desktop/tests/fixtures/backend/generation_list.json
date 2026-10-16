@@ -43,9 +43,7 @@
       "id": "GEN_0000000000000000000000000Z",
       "jobId": "JOB_00000000000000000000000010",
       "modelId": "lanczos3",
-      "outputAssetIds": [
-        "AST_00000000000000000000000011"
-      ],
+      "outputAssetIds": ["AST_00000000000000000000000011"],
       "params": {
         "aspectRatio": null,
         "enhance": {
@@ -86,9 +84,7 @@
       },
       "providerId": "local_upscale",
       "purpose": "enhance",
-      "referenceAssetIds": [
-        "AST_00000000000000000000000003"
-      ],
+      "referenceAssetIds": ["AST_00000000000000000000000003"],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"
     },
@@ -102,9 +98,7 @@
       "id": "GEN_0000000000000000000000000M",
       "jobId": "JOB_0000000000000000000000000K",
       "modelId": "placeholder-v1",
-      "outputAssetIds": [
-        "AST_0000000000000000000000000V"
-      ],
+      "outputAssetIds": ["AST_0000000000000000000000000V"],
       "params": {
         "aspectRatio": null,
         "imageSize": null,
@@ -126,9 +120,7 @@
       },
       "providerId": "local_preview",
       "purpose": "anchor",
-      "referenceAssetIds": [
-        "AST_00000000000000000000000003"
-      ],
+      "referenceAssetIds": ["AST_00000000000000000000000003"],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"
     },
@@ -142,9 +134,7 @@
       "id": "GEN_0000000000000000000000000N",
       "jobId": "JOB_0000000000000000000000000J",
       "modelId": "placeholder-v1",
-      "outputAssetIds": [
-        "AST_0000000000000000000000000T"
-      ],
+      "outputAssetIds": ["AST_0000000000000000000000000T"],
       "params": {
         "aspectRatio": null,
         "imageSize": null,
@@ -166,9 +156,7 @@
       },
       "providerId": "local_preview",
       "purpose": "anchor",
-      "referenceAssetIds": [
-        "AST_00000000000000000000000003"
-      ],
+      "referenceAssetIds": ["AST_00000000000000000000000003"],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"
     },
@@ -182,9 +170,7 @@
       "id": "GEN_0000000000000000000000000F",
       "jobId": "JOB_0000000000000000000000000G",
       "modelId": "placeholder-v1",
-      "outputAssetIds": [
-        "AST_0000000000000000000000000X"
-      ],
+      "outputAssetIds": ["AST_0000000000000000000000000X"],
       "params": {
         "aspectRatio": null,
         "imageSize": null,
@@ -256,9 +242,7 @@
       "id": "GEN_0000000000000000000000000P",
       "jobId": "JOB_0000000000000000000000000Q",
       "modelId": "full",
-      "outputAssetIds": [
-        "AST_0000000000000000000000000W"
-      ],
+      "outputAssetIds": ["AST_0000000000000000000000000W"],
       "params": {
         "aspectRatio": null,
         "imageSize": null,
@@ -370,10 +354,7 @@
       "id": "GEN_00000000000000000000000007",
       "jobId": "JOB_00000000000000000000000008",
       "modelId": "placeholder-v1",
-      "outputAssetIds": [
-        "AST_00000000000000000000000009",
-        "AST_0000000000000000000000000A"
-      ],
+      "outputAssetIds": ["AST_00000000000000000000000009", "AST_0000000000000000000000000A"],
       "params": {
         "aspectRatio": null,
         "imageSize": null,
@@ -395,9 +376,7 @@
       },
       "providerId": "local_preview",
       "purpose": "hero",
-      "referenceAssetIds": [
-        "AST_00000000000000000000000003"
-      ],
+      "referenceAssetIds": ["AST_00000000000000000000000003"],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"
     },
@@ -411,9 +390,7 @@
       "id": "GEN_00000000000000000000000004",
       "jobId": "JOB_00000000000000000000000005",
       "modelId": "lanczos3",
-      "outputAssetIds": [
-        "AST_00000000000000000000000006"
-      ],
+      "outputAssetIds": ["AST_00000000000000000000000006"],
       "params": {
         "aspectRatio": null,
         "enhance": {
@@ -439,9 +416,7 @@
       },
       "providerId": "local_upscale",
       "purpose": "enhance",
-      "referenceAssetIds": [
-        "AST_00000000000000000000000003"
-      ],
+      "referenceAssetIds": ["AST_00000000000000000000000003"],
       "startedAt": "2026-01-01T00:00:00.000Z",
       "status": "completed"
     }

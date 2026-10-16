@@ -36,9 +36,7 @@
     },
     "providerId": "local_upscale",
     "purpose": "enhance",
-    "referenceAssetIds": [
-      "AST_00000000000000000000000003"
-    ],
+    "referenceAssetIds": ["AST_00000000000000000000000003"],
     "startedAt": null,
     "status": "queued"
   }

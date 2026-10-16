@@ -42,9 +42,7 @@
     "id": "GEN_0000000000000000000000000Z",
     "jobId": "JOB_00000000000000000000000010",
     "modelId": "lanczos3",
-    "outputAssetIds": [
-      "AST_00000000000000000000000011"
-    ],
+    "outputAssetIds": ["AST_00000000000000000000000011"],
     "params": {
       "aspectRatio": null,
       "enhance": {
@@ -85,9 +83,7 @@
     },
     "providerId": "local_upscale",
     "purpose": "enhance",
-    "referenceAssetIds": [
-      "AST_00000000000000000000000003"
-    ],
+    "referenceAssetIds": ["AST_00000000000000000000000003"],
     "startedAt": "2026-01-01T00:00:00.000Z",
     "status": "completed"
   }

@@ -27,6 +27,7 @@ import {
 import { AssistControl } from "../assist/AssistControl";
 import { PhotoThumbnail } from "../previews/PhotoThumbnail";
 import { SpaceSelector } from "../space/SpaceSelector";
+import { applyAssistToDraft } from "../../lib/assist";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -126,7 +127,7 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
             dna={useStudio.getState().workspace!.draftDna as ProjectDNA}
             assets={useStudio.getState().workspace!.assets}
             hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-            onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+            onApply={applyAssistToDraft}
           />
           <SelectField
             label={t("interior.buildingUse")}
@@ -262,7 +263,7 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
             dna={useStudio.getState().workspace!.draftDna as ProjectDNA}
             assets={useStudio.getState().workspace!.assets}
             hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-            onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+            onApply={applyAssistToDraft}
           />
           <SelectField
             label={t("interior.daylightDirection")}

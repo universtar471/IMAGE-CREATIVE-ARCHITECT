@@ -191,7 +191,10 @@ export function keepFacts(dna: {
     style: b.architecturalStyle?.trim() || null,
     floors: b.floors ?? null,
     roof: b.roof.type?.trim() || null,
-    materials: b.materials.map((m) => `${m.zone}: ${m.description}`),
+    // Guard against a draft that is mid-edit and not yet schema-valid.
+    materials: Array.isArray(b.materials)
+      ? b.materials.map((m) => `${m.zone}: ${m.description}`)
+      : [],
     locked: (["building", "context", "camera", "lighting", "weather", "mood"] as const).filter(
       (key) => dna.locks[key],
     ),

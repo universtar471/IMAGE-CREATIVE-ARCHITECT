@@ -10,6 +10,7 @@ import { LockToggle } from "./LockToggle";
 import { InteriorDnaPanel } from "./InteriorDnaPanel";
 import { AssistControl } from "../assist/AssistControl";
 import { SpaceSelector } from "../space/SpaceSelector";
+import { applyAssistToDraft } from "../../lib/assist";
 
 export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -31,9 +32,7 @@ export function BuildingDnaPanel() {
           dna={useStudio.getState().workspace!.draftDna}
           assets={useStudio.getState().workspace!.assets}
           hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-          onApply={(fields) =>
-            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
-          }
+          onApply={applyAssistToDraft}
         />
         <DnaText path="building.buildingType" label={t("dna.buildingType")} />
         <DnaText

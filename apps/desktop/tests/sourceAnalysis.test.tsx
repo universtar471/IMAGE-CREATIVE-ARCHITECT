@@ -159,3 +159,31 @@ describe("SourceAnalysisCard", () => {
     expect(mergeExtraPrompt("mine\n\nA", "A")).toBe("mine\n\nA");
   });
 });
+
+describe("applying assist fields to the draft DNA", () => {
+  it("normalises free-text list fields so the draft stays valid", async () => {
+    await openProject();
+    const { applyAssistToDraft } = await import("../src/lib/assist");
+    const ok = applyAssistToDraft([
+      { path: "building.materials", value: "white render, timber louvres" },
+      { path: "building.specialFeatures", value: "roof garden" },
+      { path: "context.vegetation", value: "tropical planting" },
+    ] as never);
+    expect(ok).toBe(true);
+    const dna = useStudio.getState().workspace!.draftDna;
+    expect(dna.building.materials).toEqual([
+      { zone: "general", description: "white render, timber louvres" },
+    ]);
+    expect(dna.building.specialFeatures).toEqual(["roof garden"]);
+    expect(useStudio.getState().save.status).not.toBe("invalid");
+  });
+
+  it("refuses a proposal the DNA schema rejects and leaves the draft unchanged", async () => {
+    await openProject();
+    const { applyAssistToDraft } = await import("../src/lib/assist");
+    const before = useStudio.getState().workspace!.draftDna;
+    const ok = applyAssistToDraft([{ path: "building.floors", value: "many" }] as never);
+    expect(ok).toBe(false);
+    expect(useStudio.getState().workspace!.draftDna).toBe(before);
+  });
+});

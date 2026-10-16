@@ -71,10 +71,7 @@
             },
             {
               "caption": {
-                "imageAssetIds": [
-                  "AST_1",
-                  "AST_2"
-                ],
+                "imageAssetIds": ["AST_1", "AST_2"],
                 "needs_review": false,
                 "sentences": [],
                 "textKind": "editorial",
@@ -117,9 +114,7 @@
             },
             {
               "caption": {
-                "imageAssetIds": [
-                  "AST_3"
-                ],
+                "imageAssetIds": ["AST_3"],
                 "needs_review": false,
                 "sentences": [],
                 "textKind": "editorial",
@@ -142,11 +137,7 @@
       "paper": "A4",
       "schemaVersion": 1,
       "seed": 7,
-      "selectedImageIds": [
-        "AST_1",
-        "AST_2",
-        "AST_3"
-      ],
+      "selectedImageIds": ["AST_1", "AST_2", "AST_3"],
       "selectionMode": "include_all",
       "selectionReasons": {
         "AST_1": "include_all: placed once on PAGE_1.",

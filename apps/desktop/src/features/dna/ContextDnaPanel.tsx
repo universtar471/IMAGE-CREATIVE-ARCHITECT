@@ -16,6 +16,7 @@ import { ContextPresetCards, ContextPreview } from "../previews/ContextPreview";
 import { AssistControl } from "../assist/AssistControl";
 import { SiteAdjacencyEditor } from "../site/SiteAdjacencyEditor";
 import { ContextLibraryPanel } from "../contextLibrary/ContextLibraryPanel";
+import { applyAssistToDraft } from "../../lib/assist";
 
 export function ContextDnaPanel() {
   const t = useT();
@@ -60,9 +61,7 @@ export function ContextDnaPanel() {
           dna={useStudio.getState().workspace!.draftDna}
           assets={useStudio.getState().workspace!.assets}
           hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-          onApply={(fields) =>
-            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
-          }
+          onApply={applyAssistToDraft}
         />
         <DnaText
           path="context.macroContext"

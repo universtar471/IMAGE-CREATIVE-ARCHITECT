@@ -10,10 +10,7 @@
     "id": "GEN_00000000000000000000000007",
     "jobId": "JOB_00000000000000000000000008",
     "modelId": "placeholder-v1",
-    "outputAssetIds": [
-      "AST_00000000000000000000000009",
-      "AST_0000000000000000000000000A"
-    ],
+    "outputAssetIds": ["AST_00000000000000000000000009", "AST_0000000000000000000000000A"],
     "params": {
       "aspectRatio": null,
       "imageSize": null,
@@ -35,9 +32,7 @@
     },
     "providerId": "local_preview",
     "purpose": "hero",
-    "referenceAssetIds": [
-      "AST_00000000000000000000000003"
-    ],
+    "referenceAssetIds": ["AST_00000000000000000000000003"],
     "startedAt": "2026-01-01T00:00:00.000Z",
     "status": "completed"
   }

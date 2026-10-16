@@ -11,6 +11,7 @@ import {
   type AssistField,
   type AssistScope,
   type SourceAnalysis,
+  applyAssistToDraft,
 } from "../../lib/assist";
 import { MAX_EXTRA_PROMPT_CHARS } from "../generate/extraPrompt";
 import {
@@ -60,7 +61,6 @@ export function SourceAnalysisCard({
   const project = useStudio((s) => s.workspace?.project ?? null);
   const dna = useStudio((s) => (s.workspace?.draftDna ?? null) as ProjectDNA | null);
   const readOnly = useStudio(selectReadOnly);
-  const editDna = useStudio((s) => s.editDna);
   const setGenerateDraft = useStudio((s) => s.setGenerateDraft);
   const projectType = project?.projectType ?? "villa";
   const scope: AssistScope = scopeProp ?? (projectType === "interior" ? "interior" : "building");
@@ -112,7 +112,10 @@ export function SourceAnalysisCard({
 
   const applyFields = (fields: AssistField[]) =>
     applyAfterReopen(() => {
-      fields.forEach((field) => editDna(field.path, field.value));
+      if (!applyAssistToDraft(fields)) {
+        setError("invalid");
+        return;
+      }
       setStage("done");
     });
 
