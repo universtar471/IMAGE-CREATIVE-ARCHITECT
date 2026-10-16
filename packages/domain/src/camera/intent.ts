@@ -4,6 +4,7 @@ import type { CameraDNA, CameraViewType } from "../schemas/future";
 import type { ProjectDNA } from "../schemas/projectDna";
 import { resolveActiveSpace } from "../spaceCatalog/resolve";
 import { resolveSiteAdjacency } from "../site/adjacency";
+import { CAMERA_PRESETS, type InteriorCameraPresetId } from "../interior/catalog";
 
 export const VISUAL_INTENT_VIEWS = [
   "front",
@@ -38,12 +39,23 @@ const DEFAULT_VIEWS: readonly VisualIntentView[] = VISUAL_INTENT_VIEWS;
  * intentionally conservative: an attached side remains unavailable as a side-reveal, while
  * a street oblique remains a valid front-facade viewpoint for an attached townhouse.
  */
+/**
+ * Whether a shot is an interior one: the active space's zone decides when there is one (an
+ * interior project's garden is an outdoor shot), otherwise the presence of `dna.interior`.
+ */
+export function isInteriorShot(
+  dna: Pick<ProjectDNA, "interior" | "spaceCatalog">,
+  spaceZone?: SpaceZone,
+): boolean {
+  const zone = spaceZone ?? resolveActiveSpace(dna)?.preset?.zone;
+  return zone !== undefined ? zone === "interior" : dna.interior !== undefined;
+}
+
 export function availableIntents(
   dna: Pick<ProjectDNA, "interior" | "spaceCatalog" | "site" | "context">,
   spaceZone?: SpaceZone,
 ): VisualIntentView[] {
-  const zone = spaceZone ?? resolveActiveSpace(dna)?.preset?.zone;
-  const interior = zone === "interior" || dna.interior !== undefined;
+  const interior = isInteriorShot(dna, spaceZone);
   const adjacency = resolveSiteAdjacency(dna);
   const attachedTownhouse =
     adjacency.left.kind === "attached_building" || adjacency.right.kind === "attached_building";
@@ -107,6 +119,41 @@ const VIEW_SUGGESTIONS: Record<
   },
 };
 
+const interiorPrompt = (id: InteriorCameraPresetId) =>
+  CAMERA_PRESETS.find((preset) => preset.id === id)!.prompt;
+
+/**
+ * Interior counterparts of the views that would otherwise suggest an exterior camera. The
+ * compositions are the ADR-027 interior camera presets; lenses follow the interior pack
+ * (wide views at least 20 mm, ADR-028). Other views keep their suggestion.
+ */
+const INTERIOR_VIEW_SUGGESTIONS: Partial<
+  Record<VisualIntentView, Pick<CameraDNA, "viewType" | "presetId" | "lensMm" | "composition">>
+> = {
+  overview: {
+    viewType: "interior_wide",
+    presetId: "visual_intent_overview",
+    lensMm: 20,
+    composition: interiorPrompt("wide_entrance"),
+  },
+  approach: {
+    viewType: "interior_wide",
+    presetId: "visual_intent_approach",
+    lensMm: 24,
+    composition: interiorPrompt("one_point"),
+  },
+  detail: {
+    viewType: "interior_detail",
+    presetId: "visual_intent_detail",
+    lensMm: 50,
+    composition: interiorPrompt("detail"),
+  },
+};
+
+function viewSuggestion(view: VisualIntentView, interior: boolean) {
+  return (interior ? INTERIOR_VIEW_SUGGESTIONS[view] : undefined) ?? VIEW_SUGGESTIONS[view];
+}
+
 const ASPECT_BY_PURPOSE: Record<VisualIntentPurpose, string> = {
   landscape: "16:9",
   portrait: "4:5",
@@ -120,7 +167,7 @@ export function resolveVisualIntent(
 ): Partial<CameraDNA> {
   const zone = resolveActiveSpace(dna)?.preset?.zone;
   const view = availableIntents(dna, zone).includes(intent.view) ? intent.view : "overview";
-  const suggestion = VIEW_SUGGESTIONS[view];
+  const suggestion = viewSuggestion(view, isInteriorShot(dna, zone));
   const aspectRatio = ASPECT_BY_PURPOSE[intent.purpose];
   const next: Partial<CameraDNA> = {
     ...suggestion,
@@ -135,6 +182,10 @@ export function resolveVisualIntent(
   return next;
 }
 
-export function suggestedCameraViewType(intent: VisualIntent): CameraViewType {
-  return VIEW_SUGGESTIONS[intent.view].viewType;
+/** The view type an intent suggests; pass the DNA so interior shots get interior views. */
+export function suggestedCameraViewType(
+  intent: VisualIntent,
+  dna?: Pick<ProjectDNA, "interior" | "spaceCatalog">,
+): CameraViewType {
+  return viewSuggestion(intent.view, dna ? isInteriorShot(dna) : false).viewType;
 }

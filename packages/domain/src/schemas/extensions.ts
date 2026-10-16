@@ -25,11 +25,15 @@ export const SITE_BOUNDARY_KINDS = [
 export const SiteBoundaryKindSchema = z.enum(SITE_BOUNDARY_KINDS);
 export type SiteBoundaryKind = z.infer<typeof SiteBoundaryKindSchema>;
 
+/** A neighbour's or wall's height against the building (ADR-034). */
+export const HEIGHT_RELATIONS = ["lower", "similar", "taller", "unknown"] as const;
+export type HeightRelation = (typeof HEIGHT_RELATIONS)[number];
+
 export const SiteBoundarySchema = z.object({
   kind: SiteBoundaryKindSchema,
   evidence: EvidenceRefSchema,
   neighborObjectId: id.optional(),
-  heightRelation: z.enum(["lower", "similar", "taller", "unknown"]).optional(),
+  heightRelation: z.enum(HEIGHT_RELATIONS).optional(),
 });
 export type SiteBoundary = z.infer<typeof SiteBoundarySchema>;
 

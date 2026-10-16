@@ -8,6 +8,7 @@ import {
   siteTopologyFromSite,
   withSiteBoundary,
   type EvidenceStatus,
+  type HeightRelation,
   type ProjectDNA,
   type ProjectType,
   type SiteBoundaryKind,
@@ -40,7 +41,11 @@ export function editSiteSide(
   editDna: EditDna,
   dna: Pick<ProjectDNA, "site" | "context">,
   side: SiteSide,
-  patch: { kind?: SiteBoundaryKind; status?: EvidenceStatus },
+  patch: {
+    kind?: SiteBoundaryKind;
+    status?: EvidenceStatus;
+    heightRelation?: HeightRelation | null;
+  },
   projectType?: ProjectType,
 ): void {
   const site = siteForEditing(dna, projectType);

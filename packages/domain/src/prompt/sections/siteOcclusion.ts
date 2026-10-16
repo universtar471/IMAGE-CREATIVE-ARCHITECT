@@ -23,7 +23,7 @@ import {
   type Facade,
   type VisibilityResult,
 } from "../../site/visibility";
-import { cameraSitePlan } from "../topology";
+import { siteCameraPlan } from "../../site/plan";
 
 export const SITE_OCCLUSION_HEADING = "SITE & OCCLUSION PRESERVATION:";
 
@@ -98,7 +98,7 @@ export function siteOcclusionLines(
   if (!shot || !camera) return [];
   const { adjacency, visibility } = shot;
   const master = masterIndex >= 0 ? `Image ${masterIndex + 1}` : null;
-  const plan = cameraSitePlan(camera, dna.context, projectType);
+  const plan = siteCameraPlan(camera, dna, projectType);
   const hasWarning = (facade: Facade, code: VisibilityResult["warnings"][number]["code"]) =>
     visibility.warnings.some((w) => w.facade === facade && w.code === code);
   const lines: string[] = [];

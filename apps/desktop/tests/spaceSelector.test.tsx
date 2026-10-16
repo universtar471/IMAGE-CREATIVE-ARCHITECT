@@ -66,7 +66,7 @@ describe("SpaceSelector (ADR-034 P1a)", () => {
     expect(useStudio.getState().save.status).toBe("dirty");
 
     // Evidence badges; no variant step because the preset has no variants.
-    for (const badge of ["Đã xác minh", "Chưa rõ", "Theo ảnh tham chiếu"])
+    for (const badge of ["Đã xác minh", "Chưa rõ", "Người dùng khai báo"])
       expect(within(panel).getByRole("button", { name: badge })).toBeTruthy();
     expect(within(panel).queryByLabelText("Biến thể")).toBeNull();
     // Unmeasured dimensions stay blank.
@@ -142,6 +142,6 @@ describe("SpaceSelector (ADR-034 P1a)", () => {
     expect(within(panel).getByTestId("space-active").textContent).toBe(
       "Active space: Compact rear courtyard",
     );
-    expect(within(panel).getByRole("button", { name: "From reference images" })).toBeTruthy();
+    expect(within(panel).getByRole("button", { name: "Declared by user" })).toBeTruthy();
   });
 });
