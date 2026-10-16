@@ -25,7 +25,9 @@ import { CATALOG_VERSION } from "../spaceCatalog/schemas";
 import { allowsInteriorFurnishing, spaceScopeSection } from "./sections/spaceScope";
 import { sceneObjectsSection } from "./sections/sceneObjects";
 import { detailTargetSection } from "./sections/detailTarget";
+import { contextSuggestionsSection } from "./sections/contextSuggestions";
 import type { ShotIntent } from "../validation/shotIntent";
+import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
 
 export const COMPILER_VERSION = "pc-1.8.0";
 
@@ -237,6 +239,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ],
     ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
+    ["contextSuggestions", contextSuggestionsSection(dna)],
     [
       "quality",
       "Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.",
@@ -301,10 +304,12 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     },
   });
   const catalogVersion = dna.spaceCatalog ? CATALOG_VERSION : NO_CATALOG_VERSION;
+  const contextLibraryVersion = dna.context.library ? CONTEXT_LIBRARY_VERSION : undefined;
   const configHash = canonicalHash({
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
     catalogVersion,
+    ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
     knowledgePack: pack ?? null,
   });
 
@@ -326,6 +331,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       subtype: project.subtype ?? null,
       dnaSchemaVersion: dna.schemaVersion,
       knowledgePack: pack ? `${pack.projectType}/${pack.subtype}@${pack.packVersion}` : null,
+      ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
       sections: included.map(([name]) => name),
       referenceCount: references.length,
       referenceRoles: roleCounts,

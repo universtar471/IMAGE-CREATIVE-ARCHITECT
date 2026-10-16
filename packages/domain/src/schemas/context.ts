@@ -32,6 +32,14 @@ export const SiteTopologySchema = z
   });
 export type SiteTopology = z.infer<typeof SiteTopologySchema>;
 
+export const ContextLibrarySelectionSchema = z.object({
+  version: z.literal(1),
+  presetId: z.string().trim().min(1),
+  regionId: z.string().trim().min(1),
+  approvedOptional: z.array(z.string().trim().min(1)).default([]),
+});
+export type ContextLibrarySelection = z.infer<typeof ContextLibrarySelectionSchema>;
+
 export const ContextZoneSchema = z.object({
   spaceType: optionalText,
   roadType: optionalText,
@@ -62,6 +70,7 @@ export const ContextDNASchema = z.object({
   left: ContextZoneSchema.default(emptyContextZone),
   right: ContextZoneSchema.default(emptyContextZone),
   siteTopology: SiteTopologySchema.optional(),
+  library: ContextLibrarySelectionSchema.optional(),
   distantBackground: textList,
   atmosphereNotes: z.string().default(""),
   negativeConstraints: textList,
