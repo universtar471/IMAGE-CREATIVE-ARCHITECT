@@ -11,10 +11,9 @@ import {
   Settings2,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   anchorViews,
-  costHintText,
   dnaReadiness,
   type AssetDTO,
   type GenerationParams,
@@ -33,7 +32,8 @@ import { ExtraPromptSection } from "./ExtraPromptSection";
 import { GeneratePromptPreview } from "./GeneratePromptPreview";
 import { GenerationResult } from "./GenerationResult";
 import { QualityField } from "./QualityField";
-import { generateDisabledReason, resolveGenerateForm, type GenerateForm } from "./form";
+import { resolveGenerateForm, type GenerateForm } from "./form";
+import { useGenerateSubmit } from "./useGenerateSubmit";
 import { isGenerationAllowed } from "../../lib/workflow";
 import { blockedReason } from "../workflow/blockedReason";
 import { BatchDialog } from "../camera/BatchDialog";
@@ -41,123 +41,58 @@ import type { BatchMode } from "../camera/batch";
 import { isMasterApproved } from "../camera/labels";
 import { useAssetImport } from "../assets/useAssetImport";
 import { ConfirmDialog } from "../../components/common/Dialog";
-import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
-import { canSubmit, checkShot } from "../validation/gate";
 import { VisualIntentSelector } from "../camera/VisualIntentSelector";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
+  return (
+    <GenerateProvidersGate>
+      <GeneratePanelBody />
+    </GenerateProvidersGate>
+  );
+}
+
+/** Loading / error state until the provider list is known; then `children`. */
+export function GenerateProvidersGate({ children }: { children: ReactNode }) {
   const providers = useStudio((s) => s.providers);
   const providersError = useStudio((s) => s.providersError);
   const loadProviders = useStudio((s) => s.loadProviders);
+  const t = useT();
+  if (providers) return <>{children}</>;
+  if (providersError) {
+    return (
+      <div className="callout callout-error" role="alert">
+        <span>
+          <strong>{t("generate.providersFailed")}</strong> {providersError}
+        </span>
+        <button className="btn btn-sm" onClick={() => void loadProviders()}>
+          {t("common.tryAgain")}
+        </button>
+      </div>
+    );
+  }
+  return <LoadingState label={t("generate.loadingProviders")} />;
+}
+
+function GeneratePanelBody() {
+  const providers = useStudio((s) => s.providers!);
   const ws = useStudio((s) => s.workspace!);
   const draft = useStudio((s) => s.generateDraft);
-  const run = useStudio((s) => s.run);
-  const readOnly = useStudio(selectReadOnly);
-  const saveStatus = useStudio((s) => s.save.status);
   const setDraft = useStudio((s) => s.setGenerateDraft);
-  const submit = useStudio((s) => s.submitGeneration);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const setModule = useStudio((s) => s.setModule);
   const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
-  const spend = useSpendConfirm();
   const fixConflict = useConflictFix("extra-prompt");
-
-  if (!providers) {
-    if (providersError) {
-      return (
-        <div className="callout callout-error" role="alert">
-          <span>
-            <strong>{t("generate.providersFailed")}</strong> {providersError}
-          </span>
-          <button className="btn btn-sm" onClick={() => void loadProviders()}>
-            {t("common.tryAgain")}
-          </button>
-        </div>
-      );
-    }
-    return <LoadingState label={t("generate.loadingProviders")} />;
-  }
 
   const project = ws.project;
   const form = resolveGenerateForm(draft, providers, ws.assets, project.activeMasterAssetId);
-  const running = run?.status === "submitting";
-  const reason = generateDisabledReason(form, {
-    readOnly,
-    submitting: running,
-    dnaInvalid: saveStatus === "invalid",
-    assets: ws.assets,
-  });
-  const workflowGate = form.purpose
-    ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
-        masterApproved: ["master_approved", "anchor_generation", "production"].includes(
-          project.status,
-        ),
-        anchorCameraIds: ws.draftDna.cameras
-          .filter((camera) => camera.isAnchorView)
-          .map((camera) => camera.id),
-        cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
-        approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
-      })
-    : { ok: true as const };
-  // Conflict gate (ADR-034): the live view checks the draft; submit re-checks saved data.
-  const conflicts = checkShot({
-    dna: ws.draftDna,
-    projectType: project.projectType,
-    cameraId: null,
-    extraPrompt: draft.extraPrompt,
-    approvedExceptions: draft.approvedExceptions,
-    shotIntent: ws.shotIntent,
-  });
-  const conflictReason = canSubmit(conflicts)
-    ? null
-    : t(conflicts.verdict === "BLOCK" ? "conflictUi.refusedBlock" : "conflictUi.refusedWarn");
-  const disabledReason =
-    reason ??
-    (workflowGate.ok
-      ? null
-      : blockedReason(t, workflowGate.blockedBy, !!project.activeMasterAssetId)) ??
-    conflictReason;
+  const { running, conflicts, workflowGate, disabledReason, cost, thisRun, generate, spendDialog } =
+    useGenerateSubmit(form);
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
-  const thisRun = run && run.projectId === project.id ? run : null;
-  // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
-  const costText = form.model
-    ? costHintText(form.model, form.params.imageSize, form.params.outputCount)
-    : null;
-  const cost = costText ? translateDomainMessage(costText, t) : null;
-
-  const generate = async () => {
-    if (!form.provider || !form.model) return;
-    const unit = form.params.imageSize ? form.model.priceHint?.[form.params.imageSize] : undefined;
-    const estimatedTotal = unit === undefined ? null : unit * form.params.outputCount;
-    if (
-      !(await spend.request({
-        providerId: form.provider.id,
-        provider: form.provider.label,
-        model: form.model.label,
-        imageCount: form.params.outputCount,
-        costText: cost,
-        estimatedTotal,
-      }))
-    )
-      return;
-    void submit({
-      projectId: project.id,
-      providerId: form.provider.id,
-      modelId: form.model.id,
-      purpose: form.purpose,
-      referenceAssetIds: form.referenceIds,
-      params: form.params,
-      cameraId: null,
-      extraPrompt: draft.extraPrompt,
-      approvedExceptions: draft.approvedExceptions,
-      shotIntent: ws.shotIntent,
-    });
-  };
 
   return (
     <div className="generate-panel">
@@ -260,7 +195,7 @@ export function GeneratePanel() {
         )}
       </div>
       {batchMode && <BatchDialog mode={batchMode} onClose={() => setBatchMode(null)} />}
-      {spend.dialog}
+      {spendDialog}
     </div>
   );
 }
@@ -383,7 +318,7 @@ function useQueuedCount(projectId: string): number {
   );
 }
 
-function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
+export function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
   const providers = useStudio((s) => s.providers ?? []);
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
