@@ -42,6 +42,8 @@ import {
 } from "./phrases";
 import { validateObjectPlacement } from "../sceneObjects/placement";
 import type { ShotIntent } from "./shotIntent";
+import type { DetailRecord } from "../schemas/extensions";
+
 export type { ShotIntent } from "./shotIntent";
 
 export type ValidateShotInput = {
@@ -266,11 +268,25 @@ const spaceNotInBuildingRule: ConflictRule = {
 const occludedTargetRule: ConflictRule = {
   code: "OCCLUDED_TARGET",
   check(ctx) {
+    const targetDetail = ctx.shot.targetDetailId
+      ? ctx.dna.architecturalDetails?.find((detail) => detail.id === ctx.shot.targetDetailId)
+      : undefined;
+    if (ctx.shot.targetDetailId && !targetDetail) {
+      return [
+        {
+          code: "OCCLUDED_TARGET",
+          severity: "BLOCK",
+          path: "shotIntent.targetDetailId",
+          params: { source: "detail", targetDetailId: ctx.shot.targetDetailId },
+        },
+      ];
+    }
+    const detailIssue = targetDetail ? detailTargetIssue(ctx, targetDetail) : null;
     if (!isExterior(ctx.shot)) return [];
     const { adjacency } = ctx;
     const hidden = (f: Facade) =>
       !isFacadeExposable(adjacency, f) && !(f !== "roof" && attached(adjacency, f));
-    const issues: IssueDraft[] = [];
+    const issues: IssueDraft[] = detailIssue ? [detailIssue] : [];
     const found = shotCamera(ctx);
     const cameraSide = found ? revealedSide(found.camera) : null;
     if (found) {
@@ -326,6 +342,26 @@ const occludedTargetRule: ConflictRule = {
     return issues;
   },
 };
+
+function detailTargetIssue(ctx: RuleContext, detail: DetailRecord): IssueDraft | null {
+  const facade = detail.facade ?? detail.location?.facade;
+  if (!facade || facade === "roof") return null;
+  const found = shotCamera(ctx);
+  if (!found) return null;
+  const visibility = resolveVisibility(ctx.adjacency, found.camera);
+  if (visibility.visibleFacades.includes(facade)) return null;
+  return {
+    code: "OCCLUDED_TARGET",
+    path: "shotIntent.targetDetailId",
+    params: {
+      source: "detail",
+      targetDetailId: detail.id,
+      facade,
+      floorId: detail.floorId ?? detail.location?.floorId ?? "",
+      action: "reselect",
+    },
+  };
+}
 
 /**
  * ObjectPlacementValidator (P2d): scene objects the shot adds must belong in their target

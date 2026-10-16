@@ -27,7 +27,15 @@ import { gateBatch } from "../validation/gate";
  * computed from saved data; on submit the DNA is flushed and the batch is built again from
  * a fresh persisted snapshot.
  */
-export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () => void }) {
+export function BatchDialog({
+  mode,
+  onClose,
+  initialCameraIds,
+}: {
+  mode: BatchMode;
+  onClose: () => void;
+  initialCameraIds?: readonly string[];
+}) {
   const ws = useStudio((s) => s.workspace!);
   const providers = useStudio((s) => s.providers ?? []);
   const flushDna = useStudio((s) => s.flushDna);
@@ -59,7 +67,10 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     : { aspectRatio: null, imageSize: null, outputCount: 1, seed: null, quality: null };
   const [name, setName] = useState<string | undefined>(undefined);
   const [cameraIds, setCameraIds] = useState<string[]>(() =>
-    mode === "anchor" ? anchorViews(ws.draftDna).map((c) => c.id) : cameras.map((c) => c.id),
+    mode === "anchor"
+      ? anchorViews(ws.draftDna).map((c) => c.id)
+      : (initialCameraIds?.filter((id) => cameras.some((camera) => camera.id === id)) ??
+        cameras.map((c) => c.id)),
   );
   const [extraIds, setExtraIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -80,6 +91,7 @@ export function BatchDialog({ mode, onClose }: { mode: BatchMode; onClose: () =>
     cameraSelectionExplicit: mode === "anchor",
     extraReferenceIds: extraIds.filter((id) => !anchorAssetIds.has(id)),
     name,
+    shotIntent: ws.shotIntent,
   };
   // Preview from what is saved (the DNA is flushed before the real build).
   const plan = planBatch(

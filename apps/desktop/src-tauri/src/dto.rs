@@ -134,6 +134,8 @@ pub struct ShotIntent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_detail_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail_shot_count: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene_objects: Option<Vec<SceneObjectRequest>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub visual_intent: Option<VisualIntent>,
