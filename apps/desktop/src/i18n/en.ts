@@ -1567,6 +1567,36 @@ export const en = {
     footer: "Compiler {version} · compiled from saved DNA with the master.",
     footerAnchor:
       "Compiler {version} · compiled from saved DNA with the master and this camera's anchor.",
+    visualIntent: {
+      title: "Visual intent",
+      subtitle: "Choose the feeling of the shot without changing the project camera DNA.",
+      levelsLabel: "Visual intent level",
+      levels: { simple: "Easy", custom: "Custom", expert: "Expert" },
+      viewQuestion: "What do you want to see?",
+      purposeQuestion: "What will the image be used for?",
+      views: {
+        front: "Front",
+        streetOblique: "Oblique from the street",
+        pedestrian: "Pedestrian eye level",
+        overview: "Overview",
+        approach: "Approach",
+        detail: "Detail",
+        aerial: "Aerial",
+      },
+      viewHints: {
+        front: "The main facade clearly framed.",
+        streetOblique: "A street angle with context.",
+        pedestrian: "A believable eye-height view.",
+        overview: "Building and immediate surroundings.",
+        approach: "The route toward the entrance.",
+        detail: "One architectural feature in focus.",
+        aerial: "A high view where appropriate.",
+      },
+      purposes: { landscape: "Landscape", portrait: "Portrait", square: "Square" },
+      sliders: { distance: "Near / far", height: "Low / high", focus: "Wide / focused" },
+      expertHint: "Use the existing Camera Director for measured camera placement.",
+      openDirector: "Open Camera Director",
+    },
   },
 
   lighting: {

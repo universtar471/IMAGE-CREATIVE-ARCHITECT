@@ -1921,7 +1921,7 @@ mod tests {
                     "placementZoneId": "garage_bay", "state": "static",
                     "appearanceOverrides": { "color": "silver" }, "sourceReferenceIds": []
                 }],
-                "visualIntent": "front"
+                "visualIntent": { "view": "front", "purpose": "landscape", "focus": 55 }
             }
         });
         let bundle: PromptBundle = serde_json::from_value(raw.clone()).unwrap();
@@ -1929,7 +1929,8 @@ mod tests {
         assert_eq!(intent.project_type, ProjectType::Villa);
         let objects = intent.scene_objects.as_ref().unwrap();
         assert_eq!((objects[0].quantity, objects[0].state), (1, SceneObjectState::Static));
-        assert_eq!(intent.extra["visualIntent"], json!("front"));
+        assert_eq!(intent.visual_intent.as_ref().unwrap().view, "front");
+        assert_eq!(intent.visual_intent.as_ref().unwrap().focus, Some(55));
         // `cameraId: null` is written back as absent, which the domain schema reads the same.
         let mut expected = raw.clone();
         expected["shotIntent"].as_object_mut().unwrap().remove("cameraId");

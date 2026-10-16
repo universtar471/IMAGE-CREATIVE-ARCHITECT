@@ -135,8 +135,23 @@ pub struct ShotIntent {
     pub target_detail_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene_objects: Option<Vec<SceneObjectRequest>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visual_intent: Option<VisualIntent>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualIntent {
+    pub view: String,
+    pub purpose: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distance: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus: Option<u8>,
 }
 
 /// Mirrors `SceneObjectRequestSchema` (ADR-036 P2d). The domain validator owns the rules;

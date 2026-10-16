@@ -1570,6 +1570,36 @@ export const vi: Dict = {
     footer: "Trình biên dịch {version} · biên dịch từ DNA đã lưu cùng ảnh Master.",
     footerAnchor:
       "Trình biên dịch {version} · biên dịch từ DNA đã lưu cùng ảnh Master và Anchor của góc này.",
+    visualIntent: {
+      title: "Ý định hình ảnh",
+      subtitle: "Chọn cảm giác của ảnh mà không thay đổi Camera DNA của dự án.",
+      levelsLabel: "Mức độ ý định hình ảnh",
+      levels: { simple: "Dễ dùng", custom: "Tùy chỉnh", expert: "Chuyên gia" },
+      viewQuestion: "Bạn muốn nhìn gì?",
+      purposeQuestion: "Ảnh dùng để làm gì?",
+      views: {
+        front: "Chính diện",
+        streetOblique: "Góc xiên từ đường",
+        pedestrian: "Tầm mắt người đi bộ",
+        overview: "Toàn cảnh",
+        approach: "Tiệm cận",
+        detail: "Chi tiết",
+        aerial: "Chim bay",
+      },
+      viewHints: {
+        front: "Mặt tiền chính nằm rõ trong khung.",
+        streetOblique: "Góc nhìn từ đường cùng bối cảnh.",
+        pedestrian: "Góc nhìn tự nhiên ở tầm mắt.",
+        overview: "Công trình và vùng xung quanh.",
+        approach: "Lối tiếp cận dẫn về cửa vào.",
+        detail: "Tập trung vào một chi tiết kiến trúc.",
+        aerial: "Góc cao khi không gian cho phép.",
+      },
+      purposes: { landscape: "Ngang", portrait: "Dọc", square: "Vuông" },
+      sliders: { distance: "Gần / xa", height: "Thấp / cao", focus: "Rộng / tập trung" },
+      expertHint: "Dùng Camera Director hiện có để đặt vị trí máy đo được.",
+      openDirector: "Mở Camera Director",
+    },
   },
 
   lighting: {

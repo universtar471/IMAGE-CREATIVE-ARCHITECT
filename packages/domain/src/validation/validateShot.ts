@@ -42,7 +42,6 @@ import {
 } from "./phrases";
 import { validateObjectPlacement } from "../sceneObjects/placement";
 import type { ShotIntent } from "./shotIntent";
-
 export type { ShotIntent } from "./shotIntent";
 
 export type ValidateShotInput = {
