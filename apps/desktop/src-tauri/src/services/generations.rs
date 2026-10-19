@@ -197,12 +197,13 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         let conn = core.conn()?;
         let project = repo::get_project(&conn, &req.project_id)?;
         ensure_not_archived(&project)?;
-        workflow::ensure_generation_allowed(&conn, &project, purpose)?;
         let assets = req
             .reference_asset_ids
             .iter()
             .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
+        let has_source = assets.iter().any(|a| workflow::is_source_image(a.role));
+        workflow::ensure_generation_allowed(&conn, &project, purpose, has_source)?;
         let camera_name = match &req.camera_id {
             Some(id) => Some(camera_name(&repo::get_dna(&conn, &project.id)?, id)?),
             None => None,
@@ -587,10 +588,11 @@ pub(crate) fn insert_queued(
 ) -> AppResult<(String, String)> {
     ensure_not_archived(&repo::get_project(conn, &v.project_id)?)?;
     let project = repo::get_project(conn, &v.project_id)?;
-    workflow::ensure_generation_allowed(conn, &project, v.purpose)?;
+    let mut has_source = false;
     for id in &v.snapshot.reference_asset_ids {
-        check_reference(core, conn, &v.project_id, id)?;
+        has_source |= workflow::is_source_image(check_reference(core, conn, &v.project_id, id)?.role);
     }
+    workflow::ensure_generation_allowed(conn, &project, v.purpose, has_source)?;
     if let Some(id) = &v.camera_id {
         camera_name(&repo::get_dna(conn, &v.project_id)?, id)?;
     }
@@ -1400,6 +1402,13 @@ mod tests {
         assert_eq!(err.code, ErrorCode::ValidationError);
         assert!(err.message.contains("dna.building"));
         assert_eq!(count(&core, "jobs"), 0);
+
+        // Quick generate (ADR-039): a hero from a structure sketch needs no confirmed DNA.
+        let sketch = import(&core, tmp.path(), &p.id, "view.png", "structure_sketch", [0, 90, 0]);
+        let quick = SubmitRequest { reference_asset_ids: vec![sketch.id.clone()], ..request("hero") };
+        assert_eq!(validate(&core, quick).unwrap().purpose, GenerationPurpose::Hero);
+        let quick_anchor = SubmitRequest { reference_asset_ids: vec![sketch.id.clone()], ..request("anchor") };
+        assert!(validate(&core, quick_anchor).unwrap_err().message.contains("dna.building"));
 
         let master = import(&core, tmp.path(), &p.id, "master.png", "master_architecture", [200, 0, 0]);
         for step_id in DNA_STEP_IDS {

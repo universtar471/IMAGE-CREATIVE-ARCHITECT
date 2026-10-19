@@ -5,7 +5,10 @@ import { WORKSPACE_MODULES } from "../../features/workspace/modules";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS } from "../../lib/workflow";
 
-/** Permanent left navigation. Order and grouping are product architecture — do not reorder. */
+/**
+ * Permanent left navigation. Order and grouping are product architecture (regrouped once in
+ * ADR-039 around the preset-first Studio) — do not reorder without an ADR.
+ */
 export function WorkspaceNav() {
   const active = useStudio((s) => s.activeModule);
   const setModule = useStudio((s) => s.setModule);
@@ -22,9 +25,9 @@ export function WorkspaceNav() {
         return (
           <Fragment key={m.id}>
             {prev && prev.group !== m.group && <div className="nav-group-sep" role="separator" />}
-            {(m.group === "dna" || m.group === "post") && (!prev || prev.group !== m.group) && (
-              <div className="nav-group-label">
-                {t(`workflow.stage.${m.group === "dna" ? "dna" : "post"}`)}
+            {(!prev || prev.group !== m.group) && (
+              <div className="nav-group-label" data-group={m.group}>
+                {t(`modules.groups.${m.group}`)}
               </div>
             )}
             <button

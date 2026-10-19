@@ -19,6 +19,8 @@ let importedRole: string | null;
 let generationSubmits: number;
 
 beforeEach(() => {
+  // These tests drive the full panel (ADR-039: Simple is the default mode).
+  localStorage.setItem("arch.generateMode", "advanced");
   db = { projects: {}, dna: {}, assets: {}, versions: [] };
   importedRole = null;
   generationSubmits = 0;

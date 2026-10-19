@@ -8,18 +8,18 @@ import { knowledge } from "../src/lib/knowledge";
 import { getIn, setIn } from "../src/lib/path";
 
 describe("workspace information architecture", () => {
-  it("keeps the required left-navigation order", () => {
+  it("keeps the required left-navigation order (regrouped in ADR-039)", () => {
     expect(WORKSPACE_MODULES.map((m) => m.label)).toEqual([
       "Overview",
+      "Generate",
       "Design DNA",
       "Context",
       "References",
       "Camera",
+      "Lighting",
       "Architectural detail",
       "Scene objects",
       "Effects",
-      "Lighting",
-      "Generate",
       "Mood / Grade",
       "Enhance",
       "Region edit",
@@ -29,41 +29,25 @@ describe("workspace information architecture", () => {
   });
 
   it("marks the implemented modules as functional", () => {
-    expect(WORKSPACE_MODULES.filter((m) => m.availableIn === null).map((m) => m.id)).toEqual([
-      "overview",
-      "design_dna",
-      "context",
-      "references",
-      "camera",
-      "detail",
-      "scene_objects",
-      "effects",
-      "lighting",
-      "generate",
-      "mood_grade",
-      "enhance",
-      "regions",
-      "diagram",
-      "export",
-    ]);
+    expect(WORKSPACE_MODULES.every((m) => m.availableIn === null)).toBe(true);
   });
 
   it("keeps navigation groups explicit", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
-      "overview",
+      "studio",
+      "studio",
       "dna",
       "dna",
       "dna",
       "dna",
       "dna",
       "dna",
-      "dna",
-      "dna",
-      "generate",
+      "shot",
+      "shot",
       "post",
       "post",
       "post",
-      "post",
+      "export",
       "export",
     ]);
   });

@@ -1,5 +1,12 @@
 # Progress
 
+## M1 — Preset-first Studio (ADR-039), branch `claude/vizmaker-m1-presets`
+- **A1 domain:** 47 shot presets, `setShotPresets`/`togglePreset`, ShotIntent `presetIds` / `lighting` / `gradeLookId`, compiler `pc-1.10.0` (PRESETS section, per-shot time and weather), validator `cv-1.3.0` (`LOCKED_WEATHER_CONFLICT`).
+- **A2–A6 desktop:** preset grid and chips, Simple / Advanced Generate panel, quick generate from a source image (domain, Rust and mock), regrouped left navigation.
+- **Checks:** typecheck, lint, Prettier, Vitest and `cargo test` pass in the cloud container (Linux, with the GTK/WebKit dev packages installed).
+- **Not yet verified:** the native Windows window, and a live HHTECH generation with presets.
+- **Next:** M2 (My presets, SketchUp inbox, configurable OpenAI-compatible gateway). Preset wording is tuned from `docs/presets/PRESET_OBSERVATIONS.md`.
+
 ## Current phase
 Phase 3 — Anchor + Camera production, merged to `main` (2026-10-09) on the user's provisional
 approval. Codex reviews of the three Phase 3 branches are pending (Codex quota). Phase 2 review

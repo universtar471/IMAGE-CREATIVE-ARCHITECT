@@ -318,6 +318,23 @@ describe("generation workflow gating", () => {
     ).toEqual({ ok: true });
   });
 
+  it("lets a quick hero with a source image skip the DNA steps only (ADR-039)", () => {
+    const quick = facts({ hasSourceImage: true });
+    expect(isGenerationAllowed("hero", [], quick)).toEqual({ ok: true });
+    expect(isGenerationAllowed("anchor", [], quick)).toEqual({
+      ok: false,
+      blockedBy: "dna.building",
+    });
+    expect(isGenerationAllowed("production", [], quick)).toEqual({
+      ok: false,
+      blockedBy: "dna.building",
+    });
+    expect(isGenerationAllowed("variation", [], quick)).toEqual({
+      ok: false,
+      blockedBy: "generate.master",
+    });
+  });
+
   it("allows variation with an approved master even when DNA is not confirmed", () => {
     expect(isGenerationAllowed("variation", [], facts({ masterApproved: true }))).toEqual({
       ok: true,

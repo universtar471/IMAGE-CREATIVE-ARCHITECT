@@ -741,7 +741,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
   const validateRequest = (req: RegionOrGenerationRequest) => {
     writable(req.projectId);
-    const facts = workflowFacts(req.projectId);
+    // Quick generate (ADR-039): a source image among the references, as in Rust.
+    const sourceRoles = ["structure_sketch", "master_architecture"];
+    const facts = {
+      ...workflowFacts(req.projectId),
+      hasSourceImage: projectAssets(req.projectId).some(
+        (a) => req.referenceAssetIds.includes(a.id) && sourceRoles.includes(a.role),
+      ),
+    };
     const purpose = req.purpose as string;
     // Repairs came only from QC reports; QC was removed (ADR-033), so none are created now.
     if (purpose === "repair")

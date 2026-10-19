@@ -361,6 +361,13 @@ export const en = {
 
   modules: {
     navLabel: "Workspace modules",
+    groups: {
+      studio: "Studio",
+      dna: "Design DNA",
+      shot: "Shot details",
+      post: "Post-production",
+      export: "Publish",
+    },
     futureTitle: "{label} — coming in Phase {phase}",
     overview: { label: "Overview", description: "Project summary, readiness and prompt preview." },
     design_dna: {
@@ -1105,6 +1112,14 @@ export const en = {
   },
 
   generate: {
+    modeLabel: "Panel mode",
+    modeSimple: "Simple",
+    modeAdvanced: "Advanced",
+    simpleSource: "Source image",
+    simpleSourceHint:
+      "Pick a viewport, sketch or render. With a source image you can generate straight away, without confirming the DNA steps.",
+    quickHint: "Or pick a source image (viewport, sketch or master) to generate straight away.",
+    advancedHint: "Provider, size, references, seed, anchors and batch renders are under Advanced.",
     providersFailed: "Could not load image providers",
     loadingProviders: "Loading providers…",
     dnaIncomplete: "Design DNA is incomplete.",
@@ -2085,6 +2100,25 @@ export const en = {
     markMove: ". Drag or use arrow keys to move.",
   },
   /** Unified conflict validator messages, one per SRS §12.4 code (ADR-034). */
+  presets: {
+    title: "Presets",
+    selected: "Selected presets",
+    none: "No preset yet: click one below to add it.",
+    remove: "Remove {label}",
+    lookFree: "free, applied after generating",
+    skipped: "Not applied to this shot: {list}",
+    sources: "Preset lines: {list}",
+    groups: {
+      render: "Render",
+      time_light: "Time & light",
+      weather: "Weather",
+      camera: "Camera angle",
+      people_cars: "People & cars",
+      effects: "Effects",
+      color_look: "Colour look",
+    },
+  },
+
   conflicts: {
     SPACE_NOT_IN_BUILDING: "The selected space does not belong to this building type.",
     UNVERIFIED_GEOMETRY: "The request asks for exact dimensions that have not been verified.",

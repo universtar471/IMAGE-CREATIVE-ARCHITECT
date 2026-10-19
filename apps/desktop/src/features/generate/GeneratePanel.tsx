@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
+import { PresetGrid } from "../presets/PresetGrid";
 import {
   anchorViews,
   costHintText,
@@ -62,6 +63,7 @@ export function GeneratePanel() {
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const setModule = useStudio((s) => s.setModule);
   const [batchMode, setBatchMode] = useState<BatchMode | null>(null);
+  const [mode, setMode] = usePanelMode();
   const queuedHere = useQueuedCount(ws.project.id);
   const t = useT();
   const spend = useSpendConfirm();
@@ -92,6 +94,9 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
+  const hasSourceImage = form.referenceIds.some((id) =>
+    SOURCE_ROLES.includes(ws.assets.find((a) => a.id === id)?.role ?? "regular_image"),
+  );
   const workflowGate = form.purpose
     ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
         masterApproved: ["master_approved", "anchor_generation", "production"].includes(
@@ -102,6 +107,8 @@ export function GeneratePanel() {
           .map((camera) => camera.id),
         cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
         approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
+        // Quick generate (ADR-039): a hero with a source image skips the DNA steps.
+        hasSourceImage,
       })
     : { ok: true as const };
   // Conflict gate (ADR-034): the live view checks the draft; submit re-checks saved data.
@@ -159,13 +166,35 @@ export function GeneratePanel() {
     });
   };
 
+  const advanced = mode === "advanced";
   return (
     <div className="generate-panel">
-      <GenerationStepper />
-      <GenerationActions onOpen={setBatchMode} />
-      <VisualIntentSelector />
-      <ProviderSection form={form} disabled={running} />
-      {form.model && (
+      <div className="segmented generate-mode" role="group" aria-label={t("generate.modeLabel")}>
+        {(["simple", "advanced"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mode === m}
+            data-testid={`generate-mode-${m}`}
+            onClick={() => setMode(m)}
+          >
+            {t(m === "simple" ? "generate.modeSimple" : "generate.modeAdvanced")}
+          </button>
+        ))}
+      </div>
+      {advanced && <GenerationStepper />}
+      <SectionPanel title={t("generate.simpleSource")}>
+        <span className="field-hint">{t("generate.simpleSourceHint")}</span>
+        <SourceFields form={form} disabled={running} />
+      </SectionPanel>
+      <SectionPanel title={t("presets.title")}>
+        <PresetGrid disabled={running} />
+      </SectionPanel>
+      {!advanced && <span className="field-hint">{t("generate.advancedHint")}</span>}
+      {advanced && <GenerationActions onOpen={setBatchMode} />}
+      {advanced && <VisualIntentSelector />}
+      {advanced && <ProviderSection form={form} disabled={running} />}
+      {advanced && form.model && (
         <OutputSection
           form={form}
           model={form.model}
@@ -174,7 +203,7 @@ export function GeneratePanel() {
           onParams={(params) => setDraft({ params })}
         />
       )}
-      {form.model && (
+      {advanced && form.model && (
         <ReferenceSection
           form={form}
           model={form.model}
@@ -184,7 +213,7 @@ export function GeneratePanel() {
         />
       )}
 
-      {missingDna.length > 0 && (
+      {advanced && missingDna.length > 0 && (
         <div className="callout callout-warning">
           <AlertTriangle size={14} />
           <div>
@@ -255,6 +284,11 @@ export function GeneratePanel() {
         {disabledReason && (
           <div data-testid="generate-disabled-reason">
             <span className="field-hint">{disabledReason}</span>
+            {!workflowGate.ok && form.purpose === "hero" && !hasSourceImage && (
+              <span className="field-hint quick-generate-hint" data-testid="quick-generate-hint">
+                {t("generate.quickHint")}
+              </span>
+            )}
             {!workflowGate.ok && <BlockedExplainer stepId={workflowGate.blockedBy} />}
           </div>
         )}
@@ -488,92 +522,10 @@ function OutputSection({
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const p = form.params;
   const counts = Array.from({ length: model.maxOutputs }, (_, i) => i + 1);
-  const { busy, duplicate, pickAndImport } = useAssetImport();
   const t = useT();
 
   return (
     <SectionPanel title={t("generate.output")}>
-      {form.purpose === "hero" && (
-        <FieldGroup label={t("generate.source")}>
-          <div className="segmented" role="group" aria-label={t("generate.source")}>
-            {(["dna", "sketch"] as const).map((source) => (
-              <button
-                key={source}
-                type="button"
-                aria-pressed={form.source === source}
-                disabled={disabled}
-                onClick={() =>
-                  setDraft({
-                    source,
-                    purpose: "hero",
-                    referenceAssetIds: null,
-                    params: null,
-                  })
-                }
-              >
-                {t(source === "dna" ? "generate.sourceDna" : "generate.sourceSketch")}
-              </button>
-            ))}
-          </div>
-        </FieldGroup>
-      )}
-      {form.source === "sketch" && (
-        <FieldGroup label={t("generate.sketchPicker")} hint={t("generate.sketchHowTo")}>
-          {form.structureSketches.length > 0 && (
-            <ul className="ref-list" aria-label={t("generate.sketchPicker")}>
-              {form.structureSketches.map((asset) => (
-                <li
-                  key={asset.id}
-                  className={`ref-row ${asset.id === form.sketch?.id ? "is-checked" : ""}`}
-                >
-                  <label>
-                    <input
-                      type="radio"
-                      name="structure-sketch"
-                      checked={asset.id === form.sketch?.id}
-                      disabled={disabled}
-                      onChange={() => setDraft({ referenceAssetIds: [asset.id], params: null })}
-                    />
-                    <span className="ref-thumb">
-                      {fileUrl(asset.thumbnailPath) ? (
-                        <img
-                          src={fileUrl(asset.thumbnailPath)!}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <ImageOff size={14} />
-                      )}
-                    </span>
-                    <span className="ref-meta">
-                      <span className="ref-name">{asset.originalName ?? asset.id}</span>
-                      <RoleBadge role={asset.role} short />
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={disabled || !!busy}
-            onClick={() => void pickAndImport("structure_sketch")}
-          >
-            <ImagePlus size={13} /> {t("generate.importSketch")}
-          </button>
-          {duplicate && (
-            <ConfirmDialog
-              title={t("assets.duplicateTitle")}
-              message={duplicate.message}
-              confirmLabel={t("assets.importAnyway")}
-              onConfirm={() => duplicate.resolve(true)}
-              onCancel={() => duplicate.resolve(false)}
-            />
-          )}
-        </FieldGroup>
-      )}
       <FieldGroup
         label={t("generate.purpose")}
         hint={
@@ -658,6 +610,101 @@ function OutputSection({
         <span className="field-hint">{t("generate.modelChoosesSize", { model: model.label })}</span>
       )}
     </SectionPanel>
+  );
+}
+
+/**
+ * The source of a hero shot: the DNA (with the approved master when there is one) or a
+ * structure sketch / viewport. Shown in both panel modes (ADR-039).
+ */
+function SourceFields({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
+  const setDraft = useStudio((s) => s.setGenerateDraft);
+  const { busy, duplicate, pickAndImport } = useAssetImport();
+  const t = useT();
+  return (
+    <>
+      {form.purpose === "hero" && (
+        <FieldGroup label={t("generate.source")}>
+          <div className="segmented" role="group" aria-label={t("generate.source")}>
+            {(["dna", "sketch"] as const).map((source) => (
+              <button
+                key={source}
+                type="button"
+                aria-pressed={form.source === source}
+                disabled={disabled}
+                onClick={() =>
+                  setDraft({
+                    source,
+                    purpose: "hero",
+                    referenceAssetIds: null,
+                    params: null,
+                  })
+                }
+              >
+                {t(source === "dna" ? "generate.sourceDna" : "generate.sourceSketch")}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+      )}
+      {form.source === "sketch" && (
+        <FieldGroup label={t("generate.sketchPicker")} hint={t("generate.sketchHowTo")}>
+          {form.structureSketches.length > 0 && (
+            <ul className="ref-list" aria-label={t("generate.sketchPicker")}>
+              {form.structureSketches.map((asset) => (
+                <li
+                  key={asset.id}
+                  className={`ref-row ${asset.id === form.sketch?.id ? "is-checked" : ""}`}
+                >
+                  <label>
+                    <input
+                      type="radio"
+                      name="structure-sketch"
+                      checked={asset.id === form.sketch?.id}
+                      disabled={disabled}
+                      onChange={() => setDraft({ referenceAssetIds: [asset.id], params: null })}
+                    />
+                    <span className="ref-thumb">
+                      {fileUrl(asset.thumbnailPath) ? (
+                        <img
+                          src={fileUrl(asset.thumbnailPath)!}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <ImageOff size={14} />
+                      )}
+                    </span>
+                    <span className="ref-meta">
+                      <span className="ref-name">{asset.originalName ?? asset.id}</span>
+                      <RoleBadge role={asset.role} short />
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={disabled || !!busy}
+            onClick={() => void pickAndImport("structure_sketch")}
+          >
+            <ImagePlus size={13} /> {t("generate.importSketch")}
+          </button>
+          {duplicate && (
+            <ConfirmDialog
+              title={t("assets.duplicateTitle")}
+              message={duplicate.message}
+              confirmLabel={t("assets.importAnyway")}
+              onConfirm={() => duplicate.resolve(true)}
+              onCancel={() => duplicate.resolve(false)}
+            />
+          )}
+        </FieldGroup>
+      )}
+    </>
   );
 }
 
@@ -779,4 +826,30 @@ function ReferenceRow({
       </label>
     </li>
   );
+}
+
+/** Roles that make a request a quick generate (mirrors Rust `workflow::is_source_image`). */
+const SOURCE_ROLES: readonly string[] = ["structure_sketch", "master_architecture"];
+
+const MODE_STORAGE_KEY = "arch.generateMode";
+type PanelMode = "simple" | "advanced";
+
+/** Simple / Advanced, remembered on this machine; storage may be unavailable. */
+function usePanelMode(): [PanelMode, (mode: PanelMode) => void] {
+  const [mode, setModeState] = useState<PanelMode>(() => {
+    try {
+      return localStorage.getItem(MODE_STORAGE_KEY) === "advanced" ? "advanced" : "simple";
+    } catch {
+      return "simple";
+    }
+  });
+  const setMode = (next: PanelMode) => {
+    setModeState(next);
+    try {
+      localStorage.setItem(MODE_STORAGE_KEY, next);
+    } catch {
+      // A UI preference only: ignore storage that is blocked or full.
+    }
+  };
+  return [mode, setMode];
 }

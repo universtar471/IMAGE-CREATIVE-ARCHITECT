@@ -359,6 +359,13 @@ export const vi: Dict = {
 
   modules: {
     navLabel: "Các mô-đun làm việc",
+    groups: {
+      studio: "Studio",
+      dna: "DNA thiết kế",
+      shot: "Chi tiết shot",
+      post: "Hậu kỳ",
+      export: "Xuất bản",
+    },
     futureTitle: "{label} — có ở Giai đoạn {phase}",
     overview: { label: "Tổng quan", description: "Tóm tắt dự án, mức sẵn sàng và xem prompt." },
     design_dna: {
@@ -1105,6 +1112,15 @@ export const vi: Dict = {
   },
 
   generate: {
+    modeLabel: "Chế độ panel",
+    modeSimple: "Đơn giản",
+    modeAdvanced: "Nâng cao",
+    simpleSource: "Ảnh nguồn",
+    simpleSourceHint:
+      "Chọn ảnh viewport, phác thảo hoặc ảnh render. Có ảnh nguồn là tạo được ngay, không cần xác nhận các bước DNA.",
+    quickHint: "Hoặc chọn ảnh nguồn (viewport, phác thảo hoặc master) để tạo ngay.",
+    advancedHint:
+      "Provider, kích thước, ảnh tham chiếu, seed, anchor và render hàng loạt nằm trong Nâng cao.",
     providersFailed: "Không tải được danh sách nhà cung cấp ảnh",
     loadingProviders: "Đang tải nhà cung cấp…",
     dnaIncomplete: "DNA thiết kế chưa đầy đủ.",
@@ -2083,6 +2099,25 @@ export const vi: Dict = {
     markAnchored: ", đã có Anchor",
     markMove: ". Kéo hoặc dùng phím mũi tên để di chuyển.",
   },
+  presets: {
+    title: "Preset",
+    selected: "Preset đã chọn",
+    none: "Chưa có preset: bấm một preset bên dưới để thêm.",
+    remove: "Bỏ {label}",
+    lookFree: "miễn phí, áp sau khi tạo",
+    skipped: "Không áp được cho shot này: {list}",
+    sources: "Dòng prompt từ preset: {list}",
+    groups: {
+      render: "Kiểu render",
+      time_light: "Giờ và ánh sáng",
+      weather: "Thời tiết",
+      camera: "Góc máy",
+      people_cars: "Người và xe",
+      effects: "Hiệu ứng",
+      color_look: "Look màu",
+    },
+  },
+
   conflicts: {
     SPACE_NOT_IN_BUILDING: "Không gian đã chọn không thuộc loại công trình này.",
     UNVERIFIED_GEOMETRY: "Yêu cầu kích thước chính xác trong khi dữ liệu chưa được xác minh.",

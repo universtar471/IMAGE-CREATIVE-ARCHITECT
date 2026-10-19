@@ -1066,9 +1066,21 @@ Status: accepted (2026-10-19). Basis: the user's VizMaker study and plan `docs/p
   - `LOCKED_LIGHTING_CONFLICT` also fires when a shot time differs from the locked lighting.
   - New `LOCKED_WEATHER_CONFLICT` (BLOCK) for a weather preset against locked weather.
 
-**Desktop (next M1 steps, briefs in `docs/agent-tasks/m1-*.md`)**
-- A2 preset grid + chips.
-- A3 old modules move under "Advanced".
-- A4 quick generate: source image + presets is enough; anchors and batches stay gated.
-- A5 simple and advanced Generate panel.
-- A6 grouped left navigation.
+**Desktop (M1 A2–A6, done)**
+- **A2 Preset grid.**
+  - `features/presets/PresetGrid.tsx` shows the presets of `presetsForShot` by group, plus a selected-chip row with ×. The colour-look chip is marked as free and applied after generating.
+  - A click runs `togglePreset`, then `setShotPresets`, then `setShotIntent`. Presets that do not fit the shot are listed.
+  - The Prompt Preview names the presets behind the PRESETS lines (`metadata.presetSources`).
+- **A3.** Visual intent, provider, output, references, anchors and batches move under the panel's Advanced mode. The Effects and Scene objects modules stay; chips and these panels edit the same ShotIntent fields.
+- **A4 Quick generate.**
+  - `WorkflowFacts.hasSourceImage`, and in Rust `ensure_generation_allowed(…, has_source_image)`: a hero whose references include a `structure_sketch` or `master_architecture` asset skips the DNA steps.
+  - Anchor, production and master-based purposes keep their gates.
+  - Rust derives the flag from the reference rows at validation and again when queueing. The mock backend mirrors it.
+- **A5 Generate panel.**
+  - A Simple / Advanced switch, remembered in `localStorage["arch.generateMode"]`. Simple is the default.
+  - **Simple:** Source → Presets → extra prompt → conflicts → Generate with the cost estimate.
+  - **Advanced:** adds the stepper, anchors/batches, visual intent, provider, output and references.
+- **A6 Navigation.**
+  - `ModuleGroup` = studio, dna, shot, post, export.
+  - Order: Overview and Generate, then the DNA steps (Design DNA, Context, References, Camera, Lighting, Detail), Scene objects and Effects, post-production, and publishing. Every group has a label.
+  - This deliberately changes the "do not reorder" navigation; module ids and DNA step numbers are unchanged.
