@@ -2095,7 +2095,9 @@ export const vi: Dict = {
       "Hiệu ứng không có nguồn trong cảnh (ví dụ tia sao mà không có nguồn sáng).",
     EFFECT_MOTION_CONFLICT:
       "Hiệu ứng chuyển động mâu thuẫn với vật thể đứng yên (ví dụ vệt đèn của xe đang đỗ).",
-    LOCKED_LIGHTING_CONFLICT: "Cảnh đêm hoặc hoàng hôn mâu thuẫn với ánh sáng ban ngày đã khóa.",
+    LOCKED_LIGHTING_CONFLICT:
+      "Thời điểm trong ngày được chọn (hoặc chữ cảnh đêm/hoàng hôn) mâu thuẫn với ánh sáng đã khóa.",
+    LOCKED_WEATHER_CONFLICT: "Preset thời tiết mâu thuẫn với thời tiết đã khóa.",
     ENHANCE_PRESERVATION_RISK:
       "Nâng cấp ảnh có thể làm thay đổi vùng đã khóa hoặc hình học công trình.",
     OUTPUT_SIZE_MISMATCH: "Kích thước ảnh xuất không đúng cấu hình đã yêu cầu.",

@@ -30,8 +30,12 @@ import { hasEffects } from "../effects/schemas";
 import { contextSuggestionsSection, usedContextLibrary } from "./sections/contextSuggestions";
 import type { ShotIntent } from "../validation/shotIntent";
 import { CONTEXT_LIBRARY_VERSION } from "../contextLibrary";
+import { presetLines, presetsSection } from "./sections/presets";
+import { PRESET_CATALOG_VERSION } from "../presets/catalog";
+import type { TimeOfDay } from "../schemas/future";
+import type { InteriorDNA } from "../interior/schemas";
 
-export const COMPILER_VERSION = "pc-1.9.0";
+export const COMPILER_VERSION = "pc-1.10.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -189,22 +193,29 @@ export function withResolvedWarnings(bundle: PromptBundle, codes: readonly strin
   return { ...bundle, resolvedWarnings: merged };
 }
 
-function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): PromptBundle {
+function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA): PromptBundle {
   const { project, pack } = input;
   const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
+  const camera = input.cameraId
+    ? sourceDna.cameras.find((c) => c.id === input.cameraId)
+    : undefined;
+  const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
+  // The shot's own time of day and weather (ADR-039) replace the DNA values for this prompt
+  // only; the hashes below still describe the stored DNA plus the shot intent.
+  const dna = withShotLighting(sourceDna, shotIntent);
   const usesInteriorDna = isInterior && dna.interior !== undefined;
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
-  const camera = input.cameraId ? dna.cameras.find((c) => c.id === input.cameraId) : undefined;
-  const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
+  const presetSources = presetLines(dna, shotIntent, camera !== undefined).map((l) => l.presetId);
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
   // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects, effects,
-  // contextSuggestions, quality. Furnishing is interior-only; spaceScope appears only with an
+  // presets, contextSuggestions, quality. Furnishing is interior-only; spaceScope appears only with an
   // active catalog space; sceneObjects only when the shot adds objects (SRS §12.2 item 7,
   // after the camera); effects only when the shot turns one on (SRS §6.2); contextSuggestions
-  // only with `context.library` (lowest priority).
+  // only with `context.library` (lowest priority); presets only when a selected preset
+  // writes a sentence (ADR-039).
   const positiveSections: Array<[string, string | null]> = [
     ["subject", subjectSection(input, typeLabel, isInterior, camera)],
     ["spaceScope", spaceScopeSection(dna)],
@@ -249,6 +260,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
     ["detailTarget", detailTargetSection(dna, shotIntent?.targetDetailId, project.projectType)],
     ["sceneObjects", sceneObjectsSection(dna, project.projectType, shotIntent?.sceneObjects)],
     ["effects", shotIntent ? effectsSection(dna, shotIntent) : null],
+    ["presets", presetsSection(dna, shotIntent, camera !== undefined)],
     ["contextSuggestions", contextSuggestionsSection(dna, project.projectType)],
     [
       "quality",
@@ -293,7 +305,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   // name, reference labels) are left out so they do not change the hashes.
   const cameraId = camera?.id ?? null;
   const sourceHash = canonicalHash({
-    dna,
+    dna: sourceDna,
     shot: {
       projectId: project.id,
       projectType: project.projectType,
@@ -313,11 +325,14 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
   const contextLibraryVersion = usedContextLibrary(dna, project.projectType)
     ? CONTEXT_LIBRARY_VERSION
     : undefined;
+  // Only present when a preset sentence is compiled, so other prompts hash as before.
+  const presetCatalogVersion = presetSources.length ? PRESET_CATALOG_VERSION : undefined;
   const configHash = canonicalHash({
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
     catalogVersion,
     ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
+    ...(presetCatalogVersion ? { presetCatalogVersion } : {}),
     knowledgePack: pack ?? null,
   });
 
@@ -342,6 +357,7 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       dnaSchemaVersion: dna.schemaVersion,
       knowledgePack: pack ? `${pack.projectType}/${pack.subtype}@${pack.packVersion}` : null,
       ...(contextLibraryVersion ? { contextLibraryVersion } : {}),
+      ...(presetCatalogVersion ? { presetCatalogVersion, presetSources } : {}),
       sections: included.map(([name]) => name),
       referenceCount: references.length,
       referenceRoles: roleCounts,
@@ -357,6 +373,43 @@ function compilePromptInternal(input: PromptCompileInput, dna: ProjectDNA): Prom
       },
     },
   };
+}
+
+// ---------------------------------------------------------------- shot lighting
+
+/** Interior DNA has no dawn or blue hour; the nearest interior value is used. */
+const INTERIOR_TIME: Record<TimeOfDay, NonNullable<InteriorDNA["timeOfDay"]>> = {
+  dawn: "morning",
+  morning: "morning",
+  midday: "midday",
+  afternoon: "afternoon",
+  golden_hour: "golden_hour",
+  blue_hour: "evening",
+  night: "night",
+};
+
+/**
+ * The DNA as seen by one shot: `shotIntent.lighting` replaces the time of day (and the
+ * time-bound sun fields) and the weather, unless that DNA section is locked.
+ */
+function withShotLighting(dna: ProjectDNA, shot: ShotIntent | undefined): ProjectDNA {
+  const time = dna.locks.lighting ? undefined : shot?.lighting?.timeOfDay;
+  const weather = dna.locks.weather ? undefined : shot?.lighting?.weather;
+  if (!time && !weather) return dna;
+  const next: ProjectDNA = { ...dna };
+  if (time) {
+    const lighting: LightingDNA = {
+      ...(dna.lighting ?? { schemaVersion: 1, artificialLighting: [] }),
+      timeOfDay: time.replaceAll("_", " "),
+    };
+    delete lighting.presetId;
+    delete lighting.sunElevation;
+    delete lighting.shadowLength;
+    next.lighting = lighting;
+    if (dna.interior) next.interior = { ...dna.interior, timeOfDay: INTERIOR_TIME[time] };
+  }
+  if (weather) next.weather = { schemaVersion: 1, notes: "", preset: weather.replaceAll("_", " ") };
+  return next;
 }
 
 // ---------------------------------------------------------------- sections

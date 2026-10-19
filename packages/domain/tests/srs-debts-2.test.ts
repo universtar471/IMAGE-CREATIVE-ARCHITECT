@@ -240,7 +240,7 @@ describe("interior room sync and the interior space line", () => {
       space("SPC_g", "villa.outdoor.san_vuon_rong"),
     ];
     const garden = compileInterior(withSpaces(interiorDna(), "villa", spaces, "SPC_g"));
-    expect(COMPILER_VERSION).toBe("pc-1.9.0");
+    expect(COMPILER_VERSION).toBe("pc-1.10.0");
     expect(garden.positivePrompt).not.toContain("Interior space:");
     expect(garden.positivePrompt).not.toMatch(/master bedroom/i);
     expect(garden.metadata.sections).not.toContain("form");

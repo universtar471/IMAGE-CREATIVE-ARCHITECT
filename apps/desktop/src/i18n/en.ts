@@ -2097,7 +2097,9 @@ export const en = {
       "The effect has no source in the scene (for example a sunstar without a light source).",
     EFFECT_MOTION_CONFLICT:
       "The motion effect contradicts a static object (for example light trails from a parked car).",
-    LOCKED_LIGHTING_CONFLICT: "Night or dusk contradicts the locked daytime lighting.",
+    LOCKED_LIGHTING_CONFLICT:
+      "The requested time of day (or night/dusk wording) contradicts the locked lighting.",
+    LOCKED_WEATHER_CONFLICT: "The weather preset contradicts the locked weather.",
     ENHANCE_PRESERVATION_RISK: "The enhancement may change locked areas or the geometry.",
     OUTPUT_SIZE_MISMATCH: "The output size does not match the requested profile.",
     PAGE_COUNT_MISMATCH: "The page count differs from the target page count.",
