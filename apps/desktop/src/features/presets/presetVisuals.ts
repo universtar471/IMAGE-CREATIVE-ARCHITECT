@@ -6,6 +6,7 @@ export const groupVisualId: Record<PresetGroup, PremiumIconId> = {
   render: "enhance",
   time_light: "sunset",
   weather: "clouds",
+  palette: "color",
   camera: "view",
   people_cars: "people",
   effects: "atmosphere",
@@ -29,6 +30,8 @@ export function presetVisualId(preset: Pick<ShotPreset, "id" | "group">): Premiu
       if (id.includes("rain")) return "rain";
       if (id.includes("mist")) return "fog";
       return id.includes("clear") ? "day" : "clouds";
+    case "palette":
+      return "color";
     case "camera":
       if (id.includes("aerial")) return "isometric";
       if (id.includes("detail")) return "closeup";

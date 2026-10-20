@@ -6,7 +6,8 @@
 
 ## Muc tieu
 
-Sửa các khoảng trống V6.1 sau audit theo yêu cầu trực tiếp của người dùng, cập nhật PR #5 và merge khi kiểm tra đạt.
+Sửa các khoảng trống V6.1 sau audit theo yêu cầu trực tiếp của người dùng; PR mới thay PR #5
+để đưa cả V6.1 và bản sửa đã rebase lên main, merge khi kiểm tra đạt. Không force-push nhánh Claude.
 
 ## Da xong
 
@@ -33,5 +34,7 @@ Không lấy Typography V2 chưa commit từ worktree khác. Các tính năng V6
 - ViewerVideo cleanup xoá src; StrictMode chạy lại effect trên cùng element nên phải khôi phục src ở setup.
 - Browser QA phải có generation lineage để clip/reference xuất hiện trong Node Canvas.
 - Session store được reset khi mở project để video draft không rò sang project khác.
+- Rebase giữ cả VideoCanvas và navigateTabs, bỏ tab Branches cũ, khôi phục mapping video/palette
+  từ merge commit R1. Tree source sau xử lý giống hệt bản đã chạy toàn bộ test.
 - Không chạy live provider test. Artifact/scratch mặc định ở temp, không nằm trong repo.
 

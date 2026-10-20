@@ -10,6 +10,7 @@ import { useWorkspaceLayout } from "../../features/workspace/layout";
 const MODULE_PREMIUM_ICONS: Record<ModuleId, PremiumIconId> = {
   overview: "preset-grid",
   generate: "create-image",
+  video: "video",
   design_dna: "townhouse",
   context: "resort",
   references: "composite",
