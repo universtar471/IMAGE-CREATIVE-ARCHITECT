@@ -162,6 +162,7 @@
           "textToImage": true
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": true
     },
     {
@@ -250,6 +251,7 @@
           "textToImage": true
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": true
     },
     {
@@ -470,6 +472,7 @@
           "textToImage": true
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": true
     },
     {
@@ -479,6 +482,7 @@
       "kind": "remote",
       "label": "Custom gateway (OpenAI-compatible)",
       "models": [],
+      "outputKind": "image",
       "requiresApiKey": true
     },
     {
@@ -514,6 +518,7 @@
           "textToImage": true
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": false
     },
     {
@@ -539,7 +544,37 @@
           "textToImage": false
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": false
+    },
+    {
+      "configured": false,
+      "id": "kling",
+      "keySource": null,
+      "kind": "remote",
+      "label": "Kling (video)",
+      "models": [
+        {
+          "aspectRatios": [],
+          "id": "kling-v2-1",
+          "imageSizes": [
+            "5s",
+            "10s"
+          ],
+          "imageToImage": true,
+          "label": "kling-v2-1",
+          "maxOutputs": 1,
+          "maxReferenceImages": 1,
+          "priceHint": null,
+          "qualityOptions": [],
+          "supportsMask": false,
+          "supportsNegativePrompt": true,
+          "supportsSeed": false,
+          "textToImage": false
+        }
+      ],
+      "outputKind": "video",
+      "requiresApiKey": true
     },
     {
       "configured": false,
@@ -603,6 +638,7 @@
           "textToImage": false
         }
       ],
+      "outputKind": "image",
       "requiresApiKey": true
     }
   ]

@@ -54,8 +54,14 @@ export const ProviderDescriptorDTOSchema = z.object({
   keySource: z.enum(["keychain", "env"]).nullable(),
   /** Empty only for a provider that is not set up yet (the custom gateway, ADR-040). */
   models: z.array(ModelCapabilitiesSchema).transform((models) => models as ModelCapabilities[]),
+  /** ADR-043: what runs produce. Optional so older payloads still parse (= image). */
+  outputKind: z.enum(["image", "video"]).optional(),
 });
 export type ProviderDescriptorDTO = z.infer<typeof ProviderDescriptorDTOSchema>;
+
+/** Image providers only: video providers (ADR-043) run from the Video module. */
+export const isImageProvider = (provider: Pick<ProviderDescriptorDTO, "outputKind">): boolean =>
+  provider.outputKind !== "video";
 
 export const ProviderTestResultSchema = z.object({
   ok: z.boolean(),
@@ -72,6 +78,7 @@ export const GenerationPurposeSchema = z.enum([
   "repair",
   "region_edit",
   "assist",
+  "video",
 ]);
 export type GenerationPurpose = z.infer<typeof GenerationPurposeSchema>;
 

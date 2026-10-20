@@ -75,11 +75,16 @@ describe("backend contract fixtures", () => {
       id: string;
       configured: boolean;
       keySource: string | null;
+      outputKind?: string;
     }[];
-    // The fixture registry is the builtin order plus a test double at the end.
+    // The fixture registry lists the image builtins in order, one video provider (Kling) and a
+    // test double; each listed builtin must match its mock exactly.
     const builtin = list
-      .slice(0, MOCK_PROVIDERS.length)
+      .filter((p) => p.id !== "test_remote")
       .map(({ configured: _c, keySource: _k, ...rest }) => rest);
-    expect(builtin).toEqual(MOCK_PROVIDERS);
+    const mocks = builtin.map((p) => MOCK_PROVIDERS.find((m) => m.id === p.id));
+    expect(builtin).toEqual(mocks);
+    const imageMocks = MOCK_PROVIDERS.filter((m) => m.outputKind === "image").map((m) => m.id);
+    expect(builtin.filter((p) => p.outputKind === "image").map((p) => p.id)).toEqual(imageMocks);
   });
 });

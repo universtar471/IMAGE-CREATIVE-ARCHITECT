@@ -63,6 +63,8 @@ pub(crate) fn asset_dto(storage: &Storage, a: &AssetRow) -> AppResult<AssetDto> 
         sha256: a.sha256.clone(),
         parent_asset_id: a.parent_asset_id.clone(),
         operation: a.operation.clone(),
+        media_kind: if crate::services::video::is_video_asset(a) { "video" } else { "image" },
+        duration_ms: crate::services::video::duration_of(a),
         created_at: a.created_at.clone(),
         updated_at: a.updated_at.clone(),
     })
@@ -285,7 +287,7 @@ pub(crate) mod faults {
 }
 
 /// Write to `<target>.part`, fsync, verify size, then rename into place.
-fn write_new_file(target: &Path, bytes: &[u8]) -> AppResult<()> {
+pub(crate) fn write_new_file(target: &Path, bytes: &[u8]) -> AppResult<()> {
     #[cfg(test)]
     if faults::hit(&faults::FAIL_ORIGINAL_AT) {
         return Err(AppError::io("Could not copy the image into project storage", std::io::Error::other("injected")));
@@ -339,6 +341,9 @@ fn apply_master(
         }
         return status::save_with_status(conn, project, now);
     }
+    if let Some(id) = asset_id {
+        ensure_image_role(&get_owned_asset(conn, &project.id, id)?, AssetRole::MasterArchitecture)?;
+    }
     repo::demote_masters(conn, &project.id, now)?;
     if let Some(id) = asset_id {
         get_owned_asset(conn, &project.id, id)?;
@@ -361,6 +366,14 @@ pub fn set_master(core: &AppCore, project_id: &str, asset_id: Option<&str>) -> A
     list(core, project_id)
 }
 
+/// A clip (ADR-043) is never a reference: it keeps the plain `regular_image` role.
+fn ensure_image_role(asset: &AssetRow, role: AssetRole) -> AppResult<()> {
+    if role != AssetRole::RegularImage && crate::services::video::is_video_asset(asset) {
+        return Err(AppError::validation("A video cannot be a reference or the master. Use an image for this role."));
+    }
+    Ok(())
+}
+
 /// Change an asset's role. Becoming master routes through `apply_master`; leaving the
 /// master role clears the project's master.
 pub fn update_role(core: &AppCore, project_id: &str, asset_id: &str, role: &str) -> AppResult<Vec<AssetDto>> {
@@ -371,6 +384,7 @@ pub fn update_role(core: &AppCore, project_id: &str, asset_id: &str, role: &str)
         let project = repo::get_project(&tx, project_id)?;
         ensure_not_archived(&project)?;
         let asset = get_owned_asset(&tx, project_id, asset_id)?;
+        ensure_image_role(&asset, role)?;
         let now = now_iso();
         if role == AssetRole::MasterArchitecture {
             apply_master(&tx, project, Some(asset_id), &now)?;

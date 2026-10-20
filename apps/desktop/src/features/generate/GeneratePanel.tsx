@@ -24,6 +24,7 @@ import {
   type AssetDTO,
   type GenerationParams,
   type ModelCapabilities,
+  isImageProvider,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { RoleBadge } from "../../components/common/StatusBadge";
@@ -54,7 +55,8 @@ import { VisualIntentSelector } from "../camera/VisualIntentSelector";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
-  const providers = useStudio((s) => s.providers);
+  const allProviders = useStudio((s) => s.providers);
+  const providers = allProviders && allProviders.filter(isImageProvider);
   const providersError = useStudio((s) => s.providersError);
   const loadProviders = useStudio((s) => s.loadProviders);
   const ws = useStudio((s) => s.workspace!);
@@ -462,7 +464,7 @@ function useQueuedCount(projectId: string): number {
 }
 
 function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const provider = form.provider;

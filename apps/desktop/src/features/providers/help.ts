@@ -34,6 +34,27 @@ export const PROVIDER_KEY_HELP: Readonly<Record<string, ProviderKeyHelp>> = {
       "providers.help.gateway.key",
     ],
   },
+  // ADR-043: video providers (keys entered later; nothing is called before the first clip).
+  kling: {
+    keyUrl: "app.klingai.com/global/dev",
+    notes: [
+      "providers.help.kling.key",
+      "providers.help.kling.billing",
+      "providers.help.kling.optional",
+    ],
+  },
+  veo: {
+    keyUrl: "aistudio.google.com/apikey",
+    notes: ["providers.help.veo.key", "providers.help.veo.billing", "providers.help.veo.optional"],
+  },
+  seedance: {
+    keyUrl: "console.byteplus.com/ark",
+    notes: ["providers.help.seedance.key", "providers.help.seedance.optional"],
+  },
+  comfy_cloud: {
+    keyUrl: "platform.comfy.org",
+    notes: ["providers.help.comfy_cloud.workflow", "providers.help.comfy_cloud.key"],
+  },
 };
 
 export function providerKeyHelp(providerId: string): ProviderKeyHelp | null {

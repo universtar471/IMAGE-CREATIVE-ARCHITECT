@@ -20,7 +20,7 @@ use crate::domain::{GenerationStatus, JobStatus};
 use crate::providers::local_preview::{self, LocalPreviewProvider};
 use crate::providers::local_upscale::{self, LocalUpscaleProvider};
 use crate::providers::{
-    gateway, gemini::GeminiProvider, hhtech, openai::OpenAiProvider, ProviderErrorKind, ProviderRegistry,
+    gateway, gemini::GeminiProvider, hhtech, openai::OpenAiProvider, video::kling, ProviderErrorKind, ProviderRegistry,
 };
 use crate::secrets::{env_var_names, EnvSource, FixedEnv, MemorySecretStore, ProcessEnv};
 use crate::services::anchors::{self, AnchorClearRequest, AnchorSetRequest};
@@ -169,11 +169,13 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
         Arc::new(gateway::provider(&FixedEnv::default())),
         Arc::new(LocalPreviewProvider),
         Arc::new(LocalUpscaleProvider),
+        // ADR-043: a video provider (no key), pointed at the closed port.
+        Arc::new(kling::provider(&FixedEnv::with(kling::ENV_BASE_URL, "http://127.0.0.1:9"))),
         double.clone(),
     ]);
     let core = AppCore::open_with(&data_root, registry, Arc::new(MemorySecretStore::default())).unwrap();
     drop(ambient);
-    for id in ["gemini", "openai", "hhtech", "gateway"] {
+    for id in ["gemini", "openai", "hhtech", "gateway", "kling"] {
         for name in env_var_names(id) {
             assert!(core.env.var(&name).is_none(), "fixture core must not see an ambient key");
         }

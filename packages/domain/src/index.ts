@@ -53,3 +53,4 @@ export * from "./prompt/sections/presets";
 export * from "./contextLibrary";
 export * from "./publishing";
 export * from "./diagram";
+export * from "./video";

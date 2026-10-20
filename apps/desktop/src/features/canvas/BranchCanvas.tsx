@@ -16,6 +16,7 @@ import { AnalysisDialog } from "../analysis/AnalysisDialog";
 import {
   buildBranchGraph,
   deepAiChain,
+  isVideoAsset,
   layoutBranchGraph,
   setShotPresets,
   type AssetDTO,
@@ -28,6 +29,7 @@ import {
 import { selectReadOnly, useStudio } from "../../app/store";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { VideoBadge } from "../../components/common/VideoBadge";
 import { GenerationStatusBadge } from "../generate/GenerationStatusBadge";
 import { call, toBridgeError } from "../../lib/bridge";
 import { fileUrl } from "../../lib/files";
@@ -245,6 +247,7 @@ function NodeActions({ node }: { node: BranchNode }) {
   const [analysing, setAnalysing] = useState<AssetDTO | null>(null);
 
   if (node.kind === "image") {
+    const isClip = ws.assets.some((a) => a.id === node.assetId && isVideoAsset(a));
     return (
       <div className="branch-actions" data-testid="branch-actions">
         <strong>
@@ -255,22 +258,24 @@ function NodeActions({ node }: { node: BranchNode }) {
             <AlertTriangle size={12} /> {t("branches.deepChain")}
           </span>
         )}
-        <button
-          type="button"
-          className="btn btn-sm btn-primary"
-          disabled={readOnly}
-          onClick={() => {
-            setDraft({
-              source: "sketch",
-              purpose: "hero",
-              referenceAssetIds: [node.assetId],
-              params: null,
-            });
-            notify("success", t("branches.sourceSet"));
-          }}
-        >
-          {t("branches.useAsSource")}
-        </button>
+        {!isClip && (
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            disabled={readOnly}
+            onClick={() => {
+              setDraft({
+                source: "sketch",
+                purpose: "hero",
+                referenceAssetIds: [node.assetId],
+                params: null,
+              });
+              notify("success", t("branches.sourceSet"));
+            }}
+          >
+            {t("branches.useAsSource")}
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm"
@@ -281,14 +286,16 @@ function NodeActions({ node }: { node: BranchNode }) {
         >
           {t("branches.viewLarge")}
         </button>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={readOnly}
-          onClick={() => setAnalysing(ws.assets.find((a) => a.id === node.assetId) ?? null)}
-        >
-          <ScanSearch size={13} /> {t("analysis.open")}
-        </button>
+        {!isClip && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={readOnly}
+            onClick={() => setAnalysing(ws.assets.find((a) => a.id === node.assetId) ?? null)}
+          >
+            <ScanSearch size={13} /> {t("analysis.open")}
+          </button>
+        )}
         {analysing && <AnalysisDialog asset={analysing} onClose={() => setAnalysing(null)} />}
       </div>
     );
@@ -358,7 +365,12 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
   return (
     <div className="branch-node branch-node-image" data-node={node.id}>
       <Handle type="target" position={Position.Left} />
-      <div className="branch-thumb">{thumb ? <img src={thumb} alt="" /> : null}</div>
+      <div className="branch-thumb">
+        {thumb ? <img src={thumb} alt="" /> : null}
+        {data.asset && isVideoAsset(data.asset) && (
+          <VideoBadge durationMs={data.asset.durationMs} />
+        )}
+      </div>
       <div className="branch-node-label" title={node.label}>
         {deepAiChain(node) && <AlertTriangle size={11} aria-label={t("branches.deepChain")} />}{" "}
         {node.label}

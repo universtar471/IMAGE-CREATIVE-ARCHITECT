@@ -218,6 +218,7 @@ export const vi: Dict = {
       repair: "Sửa theo QC",
       enhance: "Nâng cấp",
       assist: "Trợ lý AI",
+      video: "Video",
     },
     generationStatus: {
       queued: "Trong hàng đợi",
@@ -317,6 +318,7 @@ export const vi: Dict = {
       one: "Tạo ảnh xong: {count} ảnh.",
       other: "Tạo ảnh xong: {count} ảnh.",
     },
+    videoFinished: "Video đã xong.",
     generationFailed: "Tạo ảnh thất bại",
     historyUnavailable: "Không tải được lịch sử",
     anchorsUnavailable: "Không tải được Anchor",
@@ -367,6 +369,11 @@ export const vi: Dict = {
       export: "Xuất bản",
     },
     futureTitle: "{label} — có ở Giai đoạn {phase}",
+    video: {
+      label: "Tạo video",
+      description:
+        "Biến một ảnh thành clip ngắn bằng preset chuyển động (Kling, Veo, Seedance, Comfy Cloud).",
+    },
     overview: { label: "Tổng quan", description: "Tóm tắt dự án, mức sẵn sàng và xem prompt." },
     design_dna: {
       label: "Kiến trúc",
@@ -553,6 +560,9 @@ export const vi: Dict = {
     remember: "Không hỏi lại khi dưới {threshold}đ",
     threshold: "Ngưỡng chi phí",
     reset: "Đặt lại ngưỡng",
+    clip: "Clip",
+    clipLength: "{seconds} giây",
+    createVideo: "Tạo video",
   },
 
   tray: {
@@ -1653,6 +1663,28 @@ export const vi: Dict = {
           "Tùy chọn: GATEWAY_CHAT_MODEL (bật Cải thiện prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
         key: "Dán key lấy từ trang quản lý của gateway, hoặc đặt GATEWAY_API_KEY.",
       },
+      kling: {
+        key: "Dán ACCESS_KEY:SECRET_KEY (cả hai lấy ở Kling developer console, nối bằng dấu hai chấm), hoặc đặt KLING_API_KEY. Ứng dụng dùng chúng để ký token ngắn hạn.",
+        billing:
+          "Kling trừ tiền mỗi clip từ gói tài nguyên API trả trước; cần mua gói trước video đầu tiên.",
+        optional:
+          "Tùy chọn: KLING_VIDEO_MODEL (các id model, phân tách bằng dấu phẩy, mặc định kling-v2-1), KLING_BASE_URL.",
+      },
+      veo: {
+        key: "Dùng được key Gemini API (aistudio.google.com/apikey); hoặc đặt VEO_API_KEY hay GEMINI_API_KEY.",
+        billing: "Veo cần bật thanh toán cho project chứa key và tính phí theo giây video.",
+        optional: "Tùy chọn: VEO_VIDEO_MODEL (mặc định veo-3.1-generate-preview), VEO_BASE_URL.",
+      },
+      seedance: {
+        key: "Dán API key BytePlus ModelArk, hoặc đặt ARK_API_KEY. Cần kích hoạt model Seedance trong ModelArk console.",
+        optional:
+          "Tùy chọn: SEEDANCE_VIDEO_MODEL (id model hoặc endpoint, mặc định seedance-1-0-pro-250528), SEEDANCE_BASE_URL.",
+      },
+      comfy_cloud: {
+        workflow:
+          "Cần COMFY_VIDEO_WORKFLOW: đường dẫn file workflow ComfyUI lưu bằng Export (API), có {{image}} trong node LoadImage và {{prompt}} / {{negative_prompt}} / {{duration}} ở chỗ bạn muốn. Khởi động lại ứng dụng sau khi đổi.",
+        key: "Dán API key Comfy Cloud (platform.comfy.org), hoặc đặt COMFY_CLOUD_API_KEY. Mỗi lượt chạy trừ credit Comfy của bạn.",
+      },
     },
   },
 
@@ -2511,5 +2543,56 @@ export const vi: Dict = {
     recordMeta: "{type} · {paper} · {pages} trang",
     deleteBook: "Xóa ấn phẩm",
     deleteConfirm: "Xóa “{title}”? Không thể hoàn tác.",
+  },
+  videoModule: {
+    retryNote:
+      "Nếu nhà cung cấp đã nhận clip này, Thử lại chỉ chờ tiếp (không tính phí mới); nếu không, đó là một clip mới có tính phí.",
+    source: "Ảnh nguồn (khung đầu)",
+    sourceHint:
+      "Clip bắt đầu từ ảnh này. Chọn kết quả đã duyệt hoặc ảnh master để video giữ đúng thiết kế nhất.",
+    noSource: "Hãy nhập hoặc tạo một ảnh trước; video bắt đầu từ một ảnh.",
+    motion: "Chuyển động",
+    provider: "Nhà cung cấp video",
+    model: "Mô hình",
+    duration: "Thời lượng",
+    durationOption: "{seconds} giây",
+    aspect: "Tỉ lệ khung",
+    aspectFollow: "Theo ảnh nguồn",
+    note: "Chỉ dẫn thêm (không bắt buộc)",
+    notePlaceholder: "VD: mưa nhẹ, vài người đi vào",
+    cost: "Chi phí ước tính",
+    costValue: "≈ {amount} mỗi clip",
+    costUnknown: "Chưa có giá cho mô hình này; xem bảng giá của nhà cung cấp.",
+    create: "Tạo video",
+    creating: "Đang gửi…",
+    cancelWarning:
+      "Hủy chỉ dừng việc chờ trong app; nhà cung cấp vẫn có thể làm xong và tính phí clip.",
+    noProviders:
+      "Chưa có nhà cung cấp video nào được cấu hình. Thêm key trong Cài đặt nhà cung cấp.",
+    settings: "Cài đặt nhà cung cấp video",
+    needsKey: "{label} (cần key)",
+    promptPreview: "Prompt gửi cho mô hình",
+    recent: "Video của dự án",
+    noVideos: "Chưa có video.",
+    reasonReadOnly: "Dự án đã lưu trữ chỉ xem được.",
+    reasonNoSource: "Chọn một ảnh nguồn.",
+    reasonNoProvider: "Chọn một nhà cung cấp video đã cấu hình.",
+    reasonBusy: "Đang gửi một yêu cầu.",
+    player: "Trình phát video",
+    firstFrame: "Khung đầu của clip",
+    sourceFrame: "Ảnh nguồn",
+    compareHint: "So khung đầu với ảnh nguồn để phát hiện kiến trúc bị méo.",
+    sourcePreviewHint: "Ảnh này sẽ là khung đầu. Chọn chuyển động rồi tạo video ở panel bên phải.",
+    playError: "Không phát được video này ở đây. Hãy mở file trong thư mục dự án.",
+    motions: {
+      dolly_in: "Dolly tiến vào",
+      dolly_out: "Dolly lùi ra",
+      orbit_left: "Xoay quanh trái",
+      orbit_right: "Xoay quanh phải",
+      drone_rise: "Flycam nâng lên",
+      parallax_pan: "Lia ngang parallax",
+      cinemagraph: "Cinemagraph",
+      day_to_night: "Ngày sang đêm",
+    },
   },
 };

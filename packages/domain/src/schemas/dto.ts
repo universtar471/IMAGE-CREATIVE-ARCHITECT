@@ -51,10 +51,18 @@ export const AssetDTOSchema = z.object({
   sha256: z.string().nullable(),
   parentAssetId: z.string().nullable(),
   operation: z.string().nullable(),
+  /** ADR-043: `video` for a clip (mime `video/*`). Optional so older payloads still parse. */
+  mediaKind: z.enum(["image", "video"]).optional(),
+  /** Clip length of a video. */
+  durationMs: z.number().int().nonnegative().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type AssetDTO = z.infer<typeof AssetDTOSchema>;
+
+/** Whether an asset is a video clip (ADR-043), also for payloads without `mediaKind`. */
+export const isVideoAsset = (asset: Pick<AssetDTO, "mimeType"> & { mediaKind?: string }): boolean =>
+  asset.mediaKind === "video" || (asset.mimeType ?? "").startsWith("video/");
 
 export const ProjectBundleDTOSchema = z.object({
   project: ProjectDTOSchema,

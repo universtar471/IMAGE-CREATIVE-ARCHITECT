@@ -8,10 +8,11 @@ import { knowledge } from "../src/lib/knowledge";
 import { getIn, setIn } from "../src/lib/path";
 
 describe("workspace information architecture", () => {
-  it("keeps the required left-navigation order (regrouped in ADR-039)", () => {
+  it("keeps the required left-navigation order (regrouped in ADR-039, Video in ADR-043)", () => {
     expect(WORKSPACE_MODULES.map((m) => m.label)).toEqual([
       "Overview",
       "Generate",
+      "Video",
       "Design DNA",
       "Context",
       "References",
@@ -34,6 +35,7 @@ describe("workspace information architecture", () => {
 
   it("keeps navigation groups explicit", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
+      "studio",
       "studio",
       "studio",
       "dna",

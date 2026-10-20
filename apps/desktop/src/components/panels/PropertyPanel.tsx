@@ -19,6 +19,7 @@ import { PublishingPanel } from "../../features/publishing/PublishingPanel";
 import { SceneObjectsPanel } from "../../features/sceneObjects/SceneObjectsPanel";
 import { DetailPanel } from "../../features/detail/DetailPanel";
 import { DiagramPanel } from "../../features/diagram/DiagramPanel";
+import { VideoPanel } from "../../features/video/VideoPanel";
 import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
@@ -134,6 +135,7 @@ export function PropertyPanel() {
           </StepFrame>
         )}
         {active === "generate" && <GeneratePanel />}
+        {active === "video" && <VideoPanel />}
         {active === "camera" && (
           <StepFrame stepId="dna.camera">
             <CameraPanel />

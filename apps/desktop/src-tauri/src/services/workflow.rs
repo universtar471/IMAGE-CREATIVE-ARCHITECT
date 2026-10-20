@@ -132,6 +132,11 @@ pub(crate) fn ensure_generation_allowed(
     if purpose == GenerationPurpose::Hero && has_source_image {
         return Ok(());
     }
+    // Image to video (ADR-043) animates an image the user picked; it adds no design, so no
+    // DNA step gates it.
+    if purpose == GenerationPurpose::Video {
+        return Ok(());
+    }
     if matches!(
         purpose,
         GenerationPurpose::Variation

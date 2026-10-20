@@ -219,6 +219,7 @@ export const en = {
       enhance: "Enhance",
       region_edit: "Region edit",
       assist: "Assist",
+      video: "Video",
     },
     generationStatus: {
       queued: "Queued",
@@ -320,6 +321,7 @@ export const en = {
       one: "Generation finished: {count} image.",
       other: "Generation finished: {count} images.",
     },
+    videoFinished: "The video is ready.",
     generationFailed: "Generation failed",
     historyUnavailable: "History unavailable",
     anchorsUnavailable: "Anchors unavailable",
@@ -369,6 +371,11 @@ export const en = {
       export: "Publish",
     },
     futureTitle: "{label} — coming in Phase {phase}",
+    video: {
+      label: "Video",
+      description:
+        "Turn one image into a short clip with a motion preset (Kling, Veo, Seedance, Comfy Cloud).",
+    },
     overview: { label: "Overview", description: "Project summary, readiness and prompt preview." },
     design_dna: {
       label: "Architecture",
@@ -555,6 +562,9 @@ export const en = {
     remember: "Do not ask again below {threshold}đ",
     threshold: "Spend threshold",
     reset: "Reset threshold",
+    clip: "Clip",
+    clipLength: "{seconds} s",
+    createVideo: "Create video",
   },
 
   tray: {
@@ -1653,6 +1663,29 @@ export const en = {
           "Optional: GATEWAY_CHAT_MODEL (turns on Enhance prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
         key: "Paste the key from the gateway's own dashboard, or set GATEWAY_API_KEY.",
       },
+      kling: {
+        key: "Paste ACCESS_KEY:SECRET_KEY (both from the Kling developer console, joined by a colon), or set KLING_API_KEY. The app signs a short-lived token with them.",
+        billing:
+          "Kling bills each clip from prepaid API resource packs; buy one before the first video.",
+        optional:
+          "Optional: KLING_VIDEO_MODEL (comma-separated model ids, default kling-v2-1), KLING_BASE_URL.",
+      },
+      veo: {
+        key: "A Gemini API key works (aistudio.google.com/apikey); or set VEO_API_KEY or GEMINI_API_KEY.",
+        billing:
+          "Veo needs billing enabled on the key's project and is billed per second of video.",
+        optional: "Optional: VEO_VIDEO_MODEL (default veo-3.1-generate-preview), VEO_BASE_URL.",
+      },
+      seedance: {
+        key: "Paste a BytePlus ModelArk API key, or set ARK_API_KEY. The Seedance model must be activated in the ModelArk console.",
+        optional:
+          "Optional: SEEDANCE_VIDEO_MODEL (the model or endpoint id, default seedance-1-0-pro-250528), SEEDANCE_BASE_URL.",
+      },
+      comfy_cloud: {
+        workflow:
+          "Needs COMFY_VIDEO_WORKFLOW: the path of a ComfyUI workflow saved with Export (API), with {{image}} in its LoadImage node and {{prompt}} / {{negative_prompt}} / {{duration}} where you want them. Restart the app after changing it.",
+        key: "Paste a Comfy Cloud API key (platform.comfy.org), or set COMFY_CLOUD_API_KEY. Runs use your Comfy credits.",
+      },
     },
   },
 
@@ -2517,5 +2550,56 @@ export const en = {
     recordMeta: "{type} · {paper} · {pages} pages",
     deleteBook: "Delete book",
     deleteConfirm: "Delete “{title}”? This cannot be undone.",
+  },
+  videoModule: {
+    retryNote:
+      "If the provider already accepted this clip, Retry only waits for it again (no new charge); otherwise it is a new paid clip.",
+    source: "Source image (first frame)",
+    sourceHint:
+      "The clip starts from this image. Pick an approved result or the master for the most faithful video.",
+    noSource: "Import or generate an image first; a video starts from one image.",
+    motion: "Motion",
+    provider: "Video provider",
+    model: "Model",
+    duration: "Clip length",
+    durationOption: "{seconds} seconds",
+    aspect: "Aspect ratio",
+    aspectFollow: "Follow the image",
+    note: "Extra direction (optional)",
+    notePlaceholder: "e.g. light rain, a few people walk in",
+    cost: "Estimated cost",
+    costValue: "≈ {amount} per clip",
+    costUnknown: "No price known for this model; check the provider's price list.",
+    create: "Create video",
+    creating: "Sending…",
+    cancelWarning:
+      "Cancelling only stops the app from waiting; the provider may still finish and bill the clip.",
+    noProviders: "No video provider is set up yet. Add a key in Provider settings.",
+    settings: "Video provider settings",
+    needsKey: "{label} (needs a key)",
+    promptPreview: "Prompt sent to the model",
+    recent: "Videos of this project",
+    noVideos: "No video yet.",
+    reasonReadOnly: "Archived projects are read-only.",
+    reasonNoSource: "Pick a source image.",
+    reasonNoProvider: "Pick a configured video provider.",
+    reasonBusy: "A request is being sent.",
+    player: "Video player",
+    firstFrame: "First frame of the clip",
+    sourceFrame: "Source image",
+    compareHint: "Compare the first frame with the source image to catch warped architecture.",
+    sourcePreviewHint:
+      "This image will be the first frame. Pick a motion and create the video on the right.",
+    playError: "This video cannot be played here. Open the file from the project folder.",
+    motions: {
+      dolly_in: "Dolly in",
+      dolly_out: "Dolly out",
+      orbit_left: "Orbit left",
+      orbit_right: "Orbit right",
+      drone_rise: "Drone rise",
+      parallax_pan: "Parallax pan",
+      cinemagraph: "Cinemagraph",
+      day_to_night: "Day to night",
+    },
   },
 };

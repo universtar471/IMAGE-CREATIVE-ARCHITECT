@@ -432,9 +432,14 @@ export const useStudio = create<State>((set, get) => {
   const onTrackedFinished = (g: GenerationDTO) => {
     if (g.status === "completed") {
       const n = g.outputAssetIds.length;
-      get().notify("success", t("store.generationFinished", { count: n }));
+      const video = g.purpose === "video";
+      get().notify(
+        "success",
+        video ? t("store.videoFinished") : t("store.generationFinished", { count: n }),
+      );
       const first = g.outputAssetIds[0];
-      if (first && isOpen(g.projectId) && get().activeModule === "generate") {
+      const module = get().activeModule;
+      if (first && isOpen(g.projectId) && module === (video ? "video" : "generate")) {
         set({ selectedAssetId: first, centerView: "canvas" });
       }
     } else if (g.status === "failed" || g.status === "interrupted") {

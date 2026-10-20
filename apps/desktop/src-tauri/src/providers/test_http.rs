@@ -26,6 +26,8 @@ pub enum Reply {
     Slow(Duration, u16, String),
     /// Any content type and raw bytes (plain-text errors, image downloads).
     Raw(u16, &'static str, Vec<u8>),
+    /// `302 Found` to this location.
+    Redirect(String),
 }
 
 pub struct MockServer {
@@ -151,9 +153,14 @@ fn serve_one(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<Recorded>>) {
             (*status, "application/json", payload.as_bytes())
         }
         Reply::Raw(status, content_type, bytes) => (*status, *content_type, bytes.as_slice()),
+        Reply::Redirect(_) => (302, "text/plain", &[][..]),
+    };
+    let location = match reply {
+        Reply::Redirect(to) => format!("Location: {to}\r\n"),
+        _ => String::new(),
     };
     let head = format!(
-        "HTTP/1.1 {status} X\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} X\r\nContent-Type: {content_type}\r\n{location}Content-Length: {}\r\nConnection: close\r\n\r\n",
         payload.len()
     );
     let mut stream = stream;

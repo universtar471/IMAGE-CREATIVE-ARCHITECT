@@ -22,6 +22,7 @@ pub mod regions;
 pub mod sketchup_inbox;
 pub mod status;
 pub mod user_presets;
+pub mod video;
 pub mod workflow;
 
 use std::path::Path;

@@ -9,6 +9,7 @@ import {
   type DetailBatchShot,
   type GenerationParams,
   type ProjectDNA,
+  isImageProvider,
 } from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
@@ -42,7 +43,7 @@ export function BatchDialog({
   detailShots?: readonly DetailBatchShot[];
 }) {
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const flushDna = useStudio((s) => s.flushDna);
   const createBatch = useStudio((s) => s.createBatch);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);

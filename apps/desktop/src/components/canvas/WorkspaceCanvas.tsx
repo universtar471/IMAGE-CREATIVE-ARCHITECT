@@ -5,12 +5,13 @@
  */
 import { Images } from "lucide-react";
 import { useState } from "react";
-import type { AssetDTO } from "@arch/domain";
+import { isVideoAsset, type AssetDTO } from "@arch/domain";
 import { fileUrl } from "../../lib/files";
 import { formatDimensions } from "../../lib/format";
 import { RoleBadge } from "../common/StatusBadge";
 import { EmptyState, ErrorState } from "../common/states";
 import { ImageViewer, type ImageDisplayRect } from "./ImageViewer";
+import { VideoPlayer } from "./VideoPlayer";
 import { useT } from "../../i18n";
 
 export type CanvasMode = { kind: "single"; asset: AssetDTO | null };
@@ -39,6 +40,8 @@ export function WorkspaceCanvas({
       </EmptyState>
     );
   }
+  // ADR-043: a clip plays instead of being drawn as an image.
+  if (isVideoAsset(asset)) return <VideoPlayer key={asset.id} asset={asset} />;
   const src = fileUrl(asset.absolutePath);
   if (asset.status === "missing_file" || !src || failedSrc === src) {
     return (

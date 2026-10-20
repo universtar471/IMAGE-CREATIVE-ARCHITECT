@@ -24,8 +24,8 @@ use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle, ShotVerdict};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
-    EnhanceMode, GenerationParams, ImageProvider, MaskImage, ModelCapabilities, PreservationMode, PromptText,
-    ProviderOutput, ProviderRequest, ReferenceImage, UpscaleTarget,
+    EnhanceMode, GenerationParams, ImageProvider, MaskImage, ModelCapabilities, OutputKind, PreservationMode,
+    PromptText, ProviderOutput, ProviderRequest, ReferenceImage, UpscaleTarget,
 };
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
@@ -57,10 +57,10 @@ pub struct SubmitRequest {
 /// What `generations.request_json` holds: the provider-neutral request, never a key.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-struct RequestSnapshot {
-    prompt: PromptBundle,
-    reference_asset_ids: Vec<String>,
-    params: GenerationParams,
+pub(super) struct RequestSnapshot {
+    pub(super) prompt: PromptBundle,
+    pub(super) reference_asset_ids: Vec<String>,
+    pub(super) params: GenerationParams,
 }
 
 /// A request that passed every check of API_CONTRACTS §9/§10 and may be enqueued.
@@ -91,15 +91,15 @@ pub(crate) struct JobOptions {
 }
 
 /// A job that is running and ready to send: everything read, key resolved.
-struct Prepared {
-    job_id: String,
-    generation: GenerationRow,
-    provider: Arc<dyn ImageProvider>,
-    model: ModelCapabilities,
-    purpose: GenerationPurpose,
-    snapshot: RequestSnapshot,
-    references: Vec<ReferenceImage>,
-    api_key: Option<String>,
+pub(super) struct Prepared {
+    pub(super) job_id: String,
+    pub(super) generation: GenerationRow,
+    pub(super) provider: Arc<dyn ImageProvider>,
+    pub(super) model: ModelCapabilities,
+    pub(super) purpose: GenerationPurpose,
+    pub(super) snapshot: RequestSnapshot,
+    pub(super) references: Vec<ReferenceImage>,
+    pub(super) api_key: Option<String>,
     region_shapes: Vec<crate::services::regions::RegionShape>,
 }
 
@@ -114,17 +114,17 @@ struct CheckedOutput {
 
 /// Why a job attempt ended without outputs.
 #[derive(Debug)]
-struct Failure(GenerationErrorRow);
+pub(super) struct Failure(pub(super) GenerationErrorRow);
 
 impl Failure {
-    fn new(kind: &str, message: impl Into<String>, retryable: bool) -> Self {
+    pub(super) fn new(kind: &str, message: impl Into<String>, retryable: bool) -> Self {
         Self(GenerationErrorRow { kind: kind.into(), message: message.into(), retryable })
     }
 }
 
 /// How a run stops early.
 #[derive(Debug)]
-enum Stop {
+pub(super) enum Stop {
     Failed(Failure),
     /// The job is no longer running (cancelled): drop the result, write nothing.
     Discarded,
@@ -192,6 +192,7 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         .cloned()
         .ok_or_else(|| AppError::not_found(&format!("Model of {}", info.label), &req.model_id))?;
     validate_against_model(&req, purpose, &model)?;
+    crate::services::video::validate_purpose(provider.as_ref(), purpose, &req.params, req.reference_asset_ids.len())?;
 
     let (project, assets, camera_name) = {
         let conn = core.conn()?;
@@ -530,6 +531,12 @@ fn check_reference(core: &AppCore, conn: &Connection, project_id: &str, asset_id
     if asset.status != "ready" || !path.is_file() {
         return Err(missing_reference(&asset));
     }
+    if crate::services::video::is_video_asset(&asset) {
+        return Err(AppError::validation(format!(
+            "'{}' is a video and cannot be used as a reference image. Pick an image instead.",
+            asset.original_name.as_deref().unwrap_or(&asset.id)
+        )));
+    }
     Ok(asset)
 }
 
@@ -671,6 +678,12 @@ pub(crate) fn request_of(conn: &Connection, generation_id: &str) -> AppResult<Su
 pub(crate) fn run_job(core: &AppCore, job_id: &str) -> RunOutcome {
     let clock = Instant::now();
     let stop = match prepare_run(core, job_id) {
+        Ok(prepared) if prepared.provider.output_kind() == OutputKind::Video => {
+            match crate::services::video::run(core, &prepared, &clock) {
+                Ok(()) => return RunOutcome::Completed,
+                Err(stop) => stop,
+            }
+        }
         Ok(prepared) => match call_and_store(core, &prepared, &clock) {
             Ok(()) => return RunOutcome::Completed,
             Err(stop) => stop,
@@ -688,7 +701,7 @@ fn not_runnable(message: impl Into<String>) -> Stop {
     Stop::Failed(Failure::new("invalid_request", message, false))
 }
 
-fn job_is_running(core: &AppCore, job_id: &str) -> Result<bool, Stop> {
+pub(super) fn job_is_running(core: &AppCore, job_id: &str) -> Result<bool, Stop> {
     let conn = core.conn()?;
     Ok(repo::get_job(&conn, job_id)?.status == JobStatus::Running)
 }
@@ -823,7 +836,7 @@ fn call_and_store(core: &AppCore, prepared: &Prepared, clock: &Instant) -> Resul
     store_outputs(core, prepared, output, clock)
 }
 
-fn elapsed_ms(clock: &Instant) -> i64 {
+pub(super) fn elapsed_ms(clock: &Instant) -> i64 {
     i64::try_from(clock.elapsed().as_millis()).unwrap_or(i64::MAX)
 }
 
@@ -1227,6 +1240,8 @@ pub fn get(core: &AppCore, project_id: &str, generation_id: &str) -> AppResult<G
 /// Startup recovery (ADR-014/017): a job or generation still `running` means the app died
 /// mid-call. Interrupted jobs are never re-sent automatically (remote calls cost money).
 pub fn recover_interrupted(conn: &Connection, now: &str) -> AppResult<usize> {
+    // A video the provider already accepted resumes polling (ADR-043); it is not lost work.
+    repo::requeue_running_video_jobs(conn, now)?;
     repo::interrupt_running_jobs(conn, INTERRUPTED_MESSAGE, now)?;
     repo::interrupt_running_generations(conn, INTERRUPTED_MESSAGE, now)
 }

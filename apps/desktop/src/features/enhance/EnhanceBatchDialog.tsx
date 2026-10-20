@@ -1,3 +1,4 @@
+import { isImageProvider } from "@arch/domain";
 import { Ban, ChevronDown, ChevronRight, Layers, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
@@ -43,7 +44,7 @@ export function EnhanceBatchDialog({
   initialSelectedIds?: readonly string[];
 }) {
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const loadProviders = useStudio((s) => s.loadProviders);
   const createBatch = useStudio((s) => s.createBatch);
   const t = useT();

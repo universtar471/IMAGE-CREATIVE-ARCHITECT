@@ -23,5 +23,12 @@ export function spendRequestForGeneration(
       ? translateDomainMessage(costHintText(model, generation.params.imageSize, count) ?? "", t)
       : null,
     estimatedTotal: unit === undefined ? null : unit * count,
+    // ADR-043: a clip always asks; Retry resumes a clip the provider already accepted.
+    ...(provider?.outputKind === "video"
+      ? {
+          video: { durationSec: Number.parseInt(generation.params.imageSize ?? "0", 10) || 0 },
+          children: t("videoModule.retryNote"),
+        }
+      : {}),
   };
 }

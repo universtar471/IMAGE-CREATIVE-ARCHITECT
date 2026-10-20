@@ -22,6 +22,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (9, include_str!("../migrations/0009_publications.sql")),
     (10, include_str!("../migrations/0010_user_presets.sql")),
     (11, include_str!("../migrations/0011_canvas_layouts.sql")),
+    (12, include_str!("../migrations/0012_video_tasks.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -123,6 +124,7 @@ mod tests {
                 "schema_migrations",
                 "user_presets",
                 "versions",
+                "video_tasks",
                 "workflow_steps"
             ]
         );
@@ -347,7 +349,7 @@ mod tests {
         }
 
         let (core, _) = open_test_core(&root);
-        assert_eq!(schema_version(&core.conn().unwrap()).unwrap(), 11);
+        assert_eq!(schema_version(&core.conn().unwrap()).unwrap(), MIGRATIONS.last().unwrap().0);
         let layout = serde_json::json!({ "version": 1, "positions": { "asset:AST_A": { "x": 1, "y": 2 } } });
         canvas_layouts::save(
             &core,
@@ -355,6 +357,28 @@ mod tests {
         )
         .unwrap();
         assert_eq!(canvas_layouts::get(&core, "PRJ_V10").unwrap().layout, layout);
+    }
+
+    #[test]
+    fn migration_0012_adds_video_tasks_to_an_m4_database() {
+        let conn = Connection::open_in_memory().unwrap();
+        configure(&conn).unwrap();
+        conn.execute_batch("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);")
+            .unwrap();
+        for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v <= 11) {
+            conn.execute_batch(sql).unwrap();
+            conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version]).unwrap();
+        }
+        assert!(!tables(&conn).contains(&"video_tasks".to_string()));
+        migrate(&conn).unwrap();
+        assert_eq!(schema_version(&conn).unwrap(), 12);
+        assert!(tables(&conn).contains(&"video_tasks".to_string()));
+        // A task cannot point at a missing generation.
+        let orphan = conn.execute(
+            "INSERT INTO video_tasks (generation_id, provider_id, task_json, submitted_at) VALUES ('GEN_X', 'kling', '{}', 't')",
+            [],
+        );
+        assert!(orphan.is_err());
     }
 
     #[test]

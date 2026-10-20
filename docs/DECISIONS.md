@@ -1180,3 +1180,43 @@ Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M4 (A1
 - **UI:** "Analyse image" on an image node of the branch canvas.
   - "Analyse" runs only on click.
   - "Save as image" rasterises the board (2400 px) through `diagram_image_save`, as a new asset derived from the analysed image.
+
+
+## ADR-043 — B1: image to video (Kling, Veo, Seedance, Comfy Cloud)
+
+Status: accepted (2026-10-20). Basis: phase B of `docs/plans/VIZMAKER_IMAGE_PLAN.md`; the user asked for key slots for Kling, Veo and Seedance (keys entered later) plus Comfy Cloud.
+
+**Decision.** A video is one more purpose (`video`) of the existing generation pipeline, not a parallel system. It reuses `generation_submit`, the persistent job queue, history, versions and lineage. Only the attempt differs: video providers implement `VideoApi` (`submit` → `poll` → `download`) instead of `ImageProvider::generate`. `VideoProvider` wraps each adapter and still implements `ImageProvider`, so the registry, key store, provider list and queue slots work unchanged. It reports `OutputKind::Video` (`outputKind` on the provider descriptor) and refuses image requests.
+
+**Billing safety**
+- Right after a provider accepts a clip, its task is written to `video_tasks` (migration `0012`, additive). Every later attempt resumes polling the stored task instead of submitting again: the queue's own network retry, the user's Retry (the row moves to the new generation) and an app restart (startup recovery requeues a running video job instead of interrupting it). One request is billed once.
+- The row is removed when the clip is stored or when the provider reports a failure. A failed clip can then only be made again as a new request, behind a new spend confirm.
+- `auto_retries_timeouts` is false for every video provider. After 30 minutes of polling the attempt fails with a retryable `timeout`, and the task row is kept, so Retry keeps waiting.
+- Cancel only stops the app from waiting; the UI says the provider may still bill.
+- The spend confirm always opens for a paid clip; the "do not ask below N đ" threshold does not apply to video. The free local mock preview skips it, as local providers always do.
+
+**Adapters** (`providers/video/`). All take their models from `*_VIDEO_MODEL` (comma-separated ids, a default otherwise) and a base URL from `*_BASE_URL` (https only; http only for loopback). Keys come from the OS keychain or the environment.
+- **Kling:** `POST /v1/videos/image2video` with the first frame as raw base64, then `GET …/{task_id}`. The key is `ACCESS_KEY:SECRET_KEY`; each call carries an HS256 JWT signed in-process (`iss`, `exp` +30 min, `nbf` −5 s; HMAC-SHA256 tested against RFC 4231). Clips are 5 or 10 s, and the ratio follows the image.
+- **Veo (Gemini API):** `POST /v1beta/models/{model}:predictLongRunning`, then `GET /v1beta/{operation}`, with the key in `x-goog-api-key` (a Gemini key works). Clips are 4, 6 or 8 s at 16:9 or 9:16. RAI-filtered results are reported as `blocked`.
+- **Seedance (BytePlus ModelArk):** `POST /api/v3/contents/generations/tasks` with a text part and the first frame as a data URL, then `GET …/tasks/{id}`. Duration and ratio go as `--duration` / `--ratio` flags in the text. Seedance has no negative prompt, so the avoid list is appended as plain "Avoid: …" text.
+- **Comfy Cloud:** runs a ComfyUI workflow the user exported with "Export (API)", named by `COMFY_VIDEO_WORKFLOW`. It uses `{{image}}` (required), `{{prompt}}`, `{{negative_prompt}}` and `{{duration}}`; a value that is exactly `"{{duration}}"` becomes a number. Calls: `POST /api/upload/image`, `POST /api/prompt`, `GET /api/history/{id}`, then `GET /api/view`, all with `X-API-Key`. Without the workflow file the provider is listed as not configured.
+- **Downloads:** https (or loopback) only, at most 500 MB, and the bytes must carry an MP4, MOV or WebM signature. The key header goes to the vendor's URL only; a redirect is followed once without it, so a signed storage link never receives the key. Errors quote the vendor's message with the key redacted, including each part of a Kling `ACCESS:SECRET` key.
+- **Sources:** the request shapes follow the vendors' public documentation as of 2026-10. The official pages could not be fetched from the build container, so some details come from third-party guides. Every response is therefore parsed defensively, and each adapter is tested only against a mock HTTP server. **No live call was made.**
+
+**Video assets.** A clip is an `assets` row with a `video/*` mime type; no new column was added. `AssetDTO` derives `mediaKind` from the mime type and reads `durationMs` from the operation metadata (taken from the MP4 `mvhd` box, else the requested length).
+- **Lineage:** `parent_asset_id` is the first frame's asset, and the version operation is `video`.
+- **Thumbnail (poster):** the clip's first frame via FFmpeg when it is on PATH, else the source image.
+- **Restrictions:** a clip is never a reference or the master (refused in `check_reference`, `update_role` and `set_master`).
+- **Image modules:** they list only image providers and image assets.
+
+**Domain** (`packages/domain/src/video/`)
+- Eight motion presets in the app's own wording, each with a list of things to avoid.
+- `compileVideoPrompt` (`vc-1.0.0`) is deterministic and does not write to the DNA. It produces a short prompt: a building summary from the DNA, the motion, an optional user note, the rigid-architecture preservation sentence, and the section sources in its metadata.
+- Cost per clip comes from `priceHint["<n>s"]`. No video model has a price yet, so the UI says "no price known".
+
+**UI.** A "Video" module in the Studio group.
+- **Right panel:** source image, motion grid, provider/model, length, ratio, note, cost, then **Create video** through the spend confirm.
+- **Centre:** a `<video>` player, plus the clip's first frame next to the source image so warping is easy to spot.
+- **Tray and branch canvas:** clips get a ▶ badge with their length.
+- **Playback:** the Tauri CSP gains `media-src` for the asset protocol.
+- **Mock backend:** lists the four providers unconfigured, plus a free `local_video_preview` whose "clip" is the source image as a still poster.

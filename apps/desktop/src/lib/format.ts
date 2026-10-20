@@ -45,3 +45,10 @@ export function formatRelativeTime(iso: string, now = Date.now()): string {
   if (diff < 7 * day) return t("format.daysAgo", { count: Math.floor(diff / day) });
   return new Date(then).toLocaleDateString(intlLocale(currentLocale()));
 }
+
+/** "0:05" style label of a clip length (ADR-043). */
+export function formatClipDuration(durationMs: number | null | undefined): string | null {
+  if (durationMs === null || durationMs === undefined) return null;
+  const total = Math.round(durationMs / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}

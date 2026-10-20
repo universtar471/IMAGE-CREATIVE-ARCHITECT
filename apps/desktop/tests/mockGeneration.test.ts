@@ -120,7 +120,7 @@ describe("mock providers", () => {
     ).resolves.toMatchObject({ purpose: "variation" });
   });
 
-  it("lists gemini, openai, hhtech and the gateway (unconfigured) plus both local providers", async () => {
+  it("lists the image providers, then the video providers (ADR-043)", async () => {
     const list = await call("provider_list", {});
     expect(list.map((p) => [p.id, p.configured, p.keySource])).toEqual([
       ["gemini", false, null],
@@ -129,7 +129,13 @@ describe("mock providers", () => {
       ["gateway", false, null],
       ["local_preview", true, null],
       ["local_upscale", true, null],
+      ["kling", false, null],
+      ["veo", false, null],
+      ["seedance", false, null],
+      ["comfy_cloud", false, null],
+      ["local_video_preview", true, null],
     ]);
+    expect(list.filter((p) => p.outputKind === "video").map((p) => p.id)).toHaveLength(5);
   });
 
   it("stores only a boolean for a key, never the string", async () => {

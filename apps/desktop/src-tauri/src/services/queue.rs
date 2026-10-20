@@ -473,7 +473,10 @@ pub fn retry_with(core: &AppCore, job_id: &str, validation: Option<ShotValidatio
     let new_job_id = {
         let mut conn = core.conn()?;
         let tx = conn.transaction()?;
-        let (_, new_job_id) = generations::insert_queued(core, &tx, &validated, &options, &core.now_iso())?;
+        let (new_generation_id, new_job_id) =
+            generations::insert_queued(core, &tx, &validated, &options, &core.now_iso())?;
+        // A video the provider already accepted is waited for again, not sent again (ADR-043).
+        repo::move_video_task(&tx, &job.generation_id, &new_generation_id)?;
         tx.commit()?;
         new_job_id
     };
