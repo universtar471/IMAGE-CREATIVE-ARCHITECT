@@ -28,6 +28,7 @@ import { RegionCanvas } from "../regions/RegionCanvas";
 import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
 import { BranchCanvas } from "../canvas/BranchCanvas";
+import { VideoCanvas } from "../video/VideoCanvas";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -264,6 +265,8 @@ function CenterArea() {
           </>
         ) : active === "diagram" ? (
           <DiagramCanvas />
+        ) : active === "video" ? (
+          <VideoCanvas />
         ) : active === "regions" ? (
           regionPair ? (
             <CompareCanvas source={regionPair.source} result={regionPair.result} />

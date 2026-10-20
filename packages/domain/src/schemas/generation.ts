@@ -59,6 +59,10 @@ export const ProviderDescriptorDTOSchema = z.object({
 });
 export type ProviderDescriptorDTO = z.infer<typeof ProviderDescriptorDTOSchema>;
 
+/** Image providers only: video providers (ADR-043) run from the Video module. */
+export const isImageProvider = (provider: Pick<ProviderDescriptorDTO, "outputKind">): boolean =>
+  provider.outputKind !== "video";
+
 export const ProviderTestResultSchema = z.object({
   ok: z.boolean(),
   message: z.string(),

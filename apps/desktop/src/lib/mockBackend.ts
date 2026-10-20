@@ -172,6 +172,9 @@ export const MOCK_PROVIDER_SLOTS = { local: 2, remote: 1 } as const;
 export const MOCK_MAX_ATTEMPTS = 3;
 const RETRYABLE_KINDS: readonly GenerationError["kind"][] = ["rate_limited", "network", "timeout"];
 
+/** Mirrors Rust `assets::ensure_image_role` (ADR-043). */
+const VIDEO_ROLE_ERROR = "A video cannot be a reference or the master. Use an image for this role.";
+
 const PURPOSE_TITLES: Record<string, string> = {
   hero: "Hero",
   variation: "Variation",
@@ -1837,6 +1840,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       const asset = db.assets[req.assetId];
       if (!asset || asset.projectId !== req.projectId)
         fail("NOT_FOUND", "Asset not found in this project.");
+      if (req.role !== "regular_image" && isVideoAsset(asset!))
+        fail("VALIDATION_ERROR", VIDEO_ROLE_ERROR);
       if (req.role === "master_architecture") applyMaster(req.projectId, req.assetId);
       else {
         if (asset!.role === "master_architecture") applyMaster(req.projectId, null);
@@ -1848,6 +1853,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
 
     asset_set_master: (req) => {
       writable(req.projectId);
+      const asset = req.assetId ? db.assets[req.assetId] : undefined;
+      if (asset && isVideoAsset(asset)) fail("VALIDATION_ERROR", VIDEO_ROLE_ERROR);
       applyMaster(req.projectId, req.assetId);
       save();
       return projectAssets(req.projectId);

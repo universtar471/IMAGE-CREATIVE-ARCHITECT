@@ -9,6 +9,7 @@ import {
   Aperture,
   Camera,
   Car,
+  Clapperboard,
   Dna,
   Images,
   LayoutDashboard,
@@ -35,6 +36,7 @@ export type ModuleId =
   | "lighting"
   | "mood_grade"
   | "generate"
+  | "video"
   | "enhance"
   | "regions"
   | "diagram"
@@ -68,6 +70,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "generate",
     label: "Generate",
     icon: Sparkles,
+    group: "studio",
+    availableIn: null,
+  },
+  {
+    id: "video",
+    label: "Video",
+    icon: Clapperboard,
     group: "studio",
     availableIn: null,
   },

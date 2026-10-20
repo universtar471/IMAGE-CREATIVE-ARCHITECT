@@ -1,3 +1,4 @@
+import { isImageProvider } from "@arch/domain";
 import { AlertTriangle, ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ConflictCode, GenerationParams } from "@arch/domain";
@@ -41,7 +42,7 @@ const EMPTY_PARAMS: GenerationParams = {
 
 export function EnhancePanel() {
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const loadProviders = useStudio((s) => s.loadProviders);
   const submit = useStudio((s) => s.submitGeneration);
   const readOnly = useStudio(selectReadOnly);

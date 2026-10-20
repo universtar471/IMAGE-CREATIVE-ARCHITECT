@@ -6,6 +6,8 @@ import {
   adaptGenerationParams,
   defaultGenerationParams,
   defaultReferenceIds,
+  isImageProvider,
+  isVideoAsset,
   orderReferenceIds,
   orderReferences,
   validateGenerationRequest,
@@ -52,6 +54,9 @@ export function resolveGenerateForm(
   assets: readonly AssetDTO[],
   masterAssetId: string | null,
 ): GenerateForm {
+  // Video providers and clips belong to the Video module (ADR-043).
+  providers = providers.filter(isImageProvider);
+  assets = assets.filter((asset) => !isVideoAsset(asset));
   const provider =
     providers.find((p) => p.id === draft.providerId) ??
     providers.find((p) => p.configured) ??

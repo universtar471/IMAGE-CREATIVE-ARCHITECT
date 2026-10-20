@@ -7,6 +7,7 @@ import {
   type GenerationParams,
   type WeatherPreset,
   type WeatherDNA,
+  isImageProvider,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
@@ -48,7 +49,7 @@ export function weatherPresetValues(preset: {
 
 export function MoodGradePanel() {
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const editDna = useStudio((s) => s.editDna);
   const flushDna = useStudio((s) => s.flushDna);
   const applyGrade = useStudio((s) => s.applyGrade);

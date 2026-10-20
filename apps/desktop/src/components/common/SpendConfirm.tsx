@@ -12,6 +12,8 @@ export type SpendRequest = {
   imageCount: number;
   costText?: string | null;
   estimatedTotal?: number | null;
+  /** ADR-043: a paid clip. Always asks (no threshold) and shows the clip length. */
+  video?: { durationSec: number };
   children?: ReactNode;
 };
 
@@ -58,6 +60,7 @@ export function useSpendConfirm() {
     if ((details.providerId ?? details.provider).startsWith("local_")) return Promise.resolve(true);
     const threshold = readThreshold();
     if (
+      !details.video &&
       hasRememberedThreshold() &&
       details.estimatedTotal !== null &&
       details.estimatedTotal !== undefined &&
@@ -111,7 +114,7 @@ function SpendConfirmDialog({
             {t("common.cancel")}
           </button>
           <button className="btn btn-primary" onClick={confirm}>
-            {t("spend.create")}
+            {request.video ? t("spend.createVideo") : t("spend.create")}
           </button>
         </>
       }
@@ -121,20 +124,31 @@ function SpendConfirmDialog({
         <dd>{request.provider}</dd>
         <dt>{t("spend.model")}</dt>
         <dd>{request.model}</dd>
-        <dt>{t("spend.images")}</dt>
-        <dd>{request.imageCount}</dd>
+        {request.video ? (
+          <>
+            <dt>{t("spend.clip")}</dt>
+            <dd>{t("spend.clipLength", { seconds: request.video.durationSec })}</dd>
+          </>
+        ) : (
+          <>
+            <dt>{t("spend.images")}</dt>
+            <dd>{request.imageCount}</dd>
+          </>
+        )}
         <dt>{t("spend.estimate")}</dt>
         <dd>{request.costText || t("spend.unknown")}</dd>
       </dl>
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={remember}
-          onChange={(event) => setRemember(event.target.checked)}
-        />
-        {t("spend.remember", { threshold })}
-      </label>
-      {remember && (
+      {!request.video && (
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+          />
+          {t("spend.remember", { threshold })}
+        </label>
+      )}
+      {remember && !request.video && (
         <input
           className="input"
           type="number"
@@ -144,16 +158,18 @@ function SpendConfirmDialog({
           onChange={(event) => setThreshold(Number(event.target.value) || 0)}
         />
       )}
-      <button
-        className="link-btn"
-        onClick={() => {
-          resetThreshold();
-          setRemember(false);
-          setThreshold(DEFAULT_SPEND_THRESHOLD);
-        }}
-      >
-        {t("spend.reset")}
-      </button>
+      {!request.video && (
+        <button
+          className="link-btn"
+          onClick={() => {
+            resetThreshold();
+            setRemember(false);
+            setThreshold(DEFAULT_SPEND_THRESHOLD);
+          }}
+        >
+          {t("spend.reset")}
+        </button>
+      )}
       {request.children}
     </Dialog>
   );

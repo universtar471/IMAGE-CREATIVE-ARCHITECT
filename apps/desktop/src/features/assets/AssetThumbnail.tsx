@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ImageOff, Star } from "lucide-react";
-import type { AssetDTO } from "@arch/domain";
+import { isVideoAsset, type AssetDTO } from "@arch/domain";
+import { VideoBadge } from "../../components/common/VideoBadge";
 import { RoleBadge } from "../../components/common/StatusBadge";
 import { fileUrl } from "../../lib/files";
 import { formatDimensions } from "../../lib/format";
@@ -36,6 +37,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
         ) : (
           <ImageOff size={20} aria-label={t("assets.noThumbnail")} />
         )}
+        {isVideoAsset(asset) && <VideoBadge durationMs={asset.durationMs} />}
       </div>
       <div className="asset-thumb-meta">
         <span className="name">{asset.originalName ?? asset.id}</span>

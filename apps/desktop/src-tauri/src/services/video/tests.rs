@@ -279,3 +279,14 @@ fn mp4_duration_reads_version_0_and_rejects_garbage() {
     assert_eq!(mp4_duration_ms(b"\x00\x00\x00\x08ftyp"), None);
     assert_eq!(mp4_duration_ms(&[0xff; 40]), None);
 }
+
+#[test]
+fn a_clip_cannot_become_a_reference_or_the_master() {
+    let f = fixture(vec![done()]);
+    let clip = submit(&f).output_asset_ids[0].clone();
+    let err = assets::update_role(&f.core, &f.project_id, &clip, "master_architecture").unwrap_err();
+    assert!(err.message.contains("video cannot be"));
+    assert!(assets::update_role(&f.core, &f.project_id, &clip, "material_reference").is_err());
+    assert!(assets::set_master(&f.core, &f.project_id, Some(&clip)).is_err());
+    assert!(assets::update_role(&f.core, &f.project_id, &clip, "regular_image").is_ok());
+}

@@ -341,6 +341,9 @@ fn apply_master(
         }
         return status::save_with_status(conn, project, now);
     }
+    if let Some(id) = asset_id {
+        ensure_image_role(&get_owned_asset(conn, &project.id, id)?, AssetRole::MasterArchitecture)?;
+    }
     repo::demote_masters(conn, &project.id, now)?;
     if let Some(id) = asset_id {
         get_owned_asset(conn, &project.id, id)?;
@@ -363,6 +366,14 @@ pub fn set_master(core: &AppCore, project_id: &str, asset_id: Option<&str>) -> A
     list(core, project_id)
 }
 
+/// A clip (ADR-043) is never a reference: it keeps the plain `regular_image` role.
+fn ensure_image_role(asset: &AssetRow, role: AssetRole) -> AppResult<()> {
+    if role != AssetRole::RegularImage && crate::services::video::is_video_asset(asset) {
+        return Err(AppError::validation("A video cannot be a reference or the master. Use an image for this role."));
+    }
+    Ok(())
+}
+
 /// Change an asset's role. Becoming master routes through `apply_master`; leaving the
 /// master role clears the project's master.
 pub fn update_role(core: &AppCore, project_id: &str, asset_id: &str, role: &str) -> AppResult<Vec<AssetDto>> {
@@ -373,6 +384,7 @@ pub fn update_role(core: &AppCore, project_id: &str, asset_id: &str, role: &str)
         let project = repo::get_project(&tx, project_id)?;
         ensure_not_archived(&project)?;
         let asset = get_owned_asset(&tx, project_id, asset_id)?;
+        ensure_image_role(&asset, role)?;
         let now = now_iso();
         if role == AssetRole::MasterArchitecture {
             apply_master(&tx, project, Some(asset_id), &now)?;

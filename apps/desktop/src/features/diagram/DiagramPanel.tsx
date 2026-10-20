@@ -21,6 +21,7 @@ import {
   type DiagramStep,
   type FfmpegStatus,
   type GenerationParams,
+  isImageProvider,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
@@ -315,7 +316,7 @@ function FramesSection({
 }) {
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []);
+  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
   const createBatch = useStudio((s) => s.createBatch);
   const flushDna = useStudio((s) => s.flushDna);
   const notify = useStudio((s) => s.notify);

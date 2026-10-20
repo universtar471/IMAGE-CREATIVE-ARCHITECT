@@ -1,5 +1,17 @@
 # Progress
 
+## B1 — Image to video (ADR-043)
+- **Done:**
+  - **Providers:** four video providers with key slots: Kling (JWT), Veo (Gemini API), Seedance (ModelArk) and Comfy Cloud (user workflow).
+  - **Queue path:** submit → stored task → poll → download → video asset with lineage. Retry and restart resume the task instead of resubmitting (migration 12 `video_tasks`).
+  - **Domain:** 8 motion presets and `compileVideoPrompt` `vc-1.0.0`.
+  - **UI:** "Video" module (panel, player, first-frame comparison) and ▶ badges in the tray and on the branch canvas.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy, `cargo test` and the contract fixtures pass. Playwright screenshots were taken on the mock backend.
+- **Not yet verified:**
+  - **Live vendor calls:** none was made. The adapters are tested only against mock HTTP servers built from public API descriptions. Enter a key and make one 5-second clip per provider.
+  - **Native window:** video playback through the asset protocol has not been tried.
+  - **Comfy Cloud:** not run with a real exported workflow.
+
 ## M4 — Recipes and evidence analysis (ADR-042)
 - **Done:**
   - **Recipes:** 4 recipes (lighting × 6, weather × 4, facade colours × 4, moodboard). They run behind one spend confirm, with one generation per variant.

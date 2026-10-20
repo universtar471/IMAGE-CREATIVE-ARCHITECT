@@ -181,6 +181,30 @@ The gateway must serve `POST {BASE}/images/generations` and, for references,
 `POST {BASE}/images/edits` in the OpenAI shape. Until both required variables are set it is
 listed as "not configured" and never called.
 
+### Video providers (ADR-043)
+
+The **Video** module turns one image into a short clip. Keys go in Provider settings (OS
+credential store) or the environment / `.env`; nothing is called until you press **Create
+video** and confirm the cost. Restart the app after changing a variable.
+
+| Provider | Key | Models (`*_VIDEO_MODEL`, comma-separated) | Other |
+|---|---|---|---|
+| Kling | `ACCESS_KEY:SECRET_KEY` in settings, or `KLING_API_KEY` | `KLING_VIDEO_MODEL` (default `kling-v2-1`) | `KLING_BASE_URL` (default `https://api-singapore.klingai.com`) |
+| Veo | a Gemini API key; `VEO_API_KEY` or `GEMINI_API_KEY` | `VEO_VIDEO_MODEL` (default `veo-3.1-generate-preview`) | `VEO_BASE_URL` |
+| Seedance | BytePlus ModelArk key; `ARK_API_KEY` | `SEEDANCE_VIDEO_MODEL` (model or endpoint id, default `seedance-1-0-pro-250528`) | `SEEDANCE_BASE_URL` (default `https://ark.ap-southeast.bytepluses.com`) |
+| Comfy Cloud | `COMFY_CLOUD_API_KEY` | your workflow (see below) | `COMFY_VIDEO_WORKFLOW` (required), `COMFY_CLOUD_BASE_URL` |
+
+**Comfy Cloud workflow.**
+1. In ComfyUI, build an image-to-video workflow that ends in a node saving a video (MP4/WebM).
+2. Put `{{image}}` as the file name of its LoadImage node, `{{prompt}}` / `{{negative_prompt}}` in the text encoders and, optionally, `{{duration}}` where the length is set.
+3. Save it with **Workflow → Export (API)**.
+4. Point `COMFY_VIDEO_WORKFLOW` at the `.json`.
+
+**Retry and restart.** The accepted provider task is stored, so Retry and an app restart keep
+waiting for the same clip instead of paying for a new one. Cancel only stops waiting; the
+provider may still bill. A clip's poster is its first frame when FFmpeg is on PATH, otherwise
+the source image.
+
 ## SketchUp → app (ADR-040)
 
 `tools/sketchup/` holds a small SketchUp extension that sends views to the app; nothing is
