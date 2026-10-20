@@ -71,6 +71,9 @@ export function BranchCanvas() {
 
   const [layout, setLayout] = useState<CanvasLayout | null>(null);
   const [dragged, setDragged] = useState<Record<string, CanvasPosition>>({});
+  // Sizes React Flow measured. Passing them back keeps rebuilt node objects measured, so a
+  // selection change never hides a node for a frame (that broke double clicks).
+  const [measured, setMeasured] = useState<Record<string, { width: number; height: number }>>({});
   const [error, setError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Read once: the canvas owns its viewport while mounted; the store only remembers it.
@@ -111,6 +114,22 @@ export function BranchCanvas() {
     () => new Map(ws.generations.map((g) => [g.id, g])),
     [ws.generations],
   );
+  // Node data keeps its identity across selection changes, so selecting a node never makes
+  // React Flow re-measure (and briefly hide) it between the two clicks of a double click.
+  const dataById = useMemo(
+    () =>
+      new Map<string, NodeData>(
+        graph.nodes.map((node) => [
+          node.id,
+          {
+            node,
+            asset: node.kind === "image" ? assets.get(node.assetId) : undefined,
+            generation: node.kind === "generation" ? generations.get(node.generationId) : undefined,
+          },
+        ]),
+      ),
+    [graph, assets, generations],
+  );
   const nodes: FlowNode[] = useMemo(
     () =>
       graph.nodes.map((node) => ({
@@ -119,13 +138,10 @@ export function BranchCanvas() {
         position: dragged[node.id] ?? positions[node.id] ?? { x: 0, y: 0 },
         selected: selection.includes(node.id),
         draggable: !readOnly && node.kind !== "draft",
-        data: {
-          node,
-          asset: node.kind === "image" ? assets.get(node.assetId) : undefined,
-          generation: node.kind === "generation" ? generations.get(node.generationId) : undefined,
-        },
+        data: dataById.get(node.id)!,
+        ...(measured[node.id] ? { measured: measured[node.id] } : {}),
       })),
-    [graph, dragged, positions, selection, readOnly, assets, generations],
+    [graph, dragged, positions, selection, readOnly, dataById, measured],
   );
   const edges: Edge[] = useMemo(
     () =>
@@ -153,6 +169,14 @@ export function BranchCanvas() {
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
     let next = useStudio.getState().canvasSelection;
     for (const change of changes) {
+      if (change.type === "dimensions" && change.dimensions) {
+        const { id, dimensions } = change;
+        setMeasured((m) =>
+          m[id]?.width === dimensions.width && m[id]?.height === dimensions.height
+            ? m
+            : { ...m, [id]: dimensions },
+        );
+      }
       if (change.type === "position" && change.position) {
         const { id, position } = change;
         setDragged((d) => ({ ...d, [id]: position }));
