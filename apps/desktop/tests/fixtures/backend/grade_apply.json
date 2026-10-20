@@ -13,6 +13,7 @@
     "operation": "color_grade",
     "originalName": "Warm tropical grade",
     "parentAssetId": "AST_00000000000000000000000003",
+    "posterSource": null,
     "projectId": "PRJ_00000000000000000000000001",
     "role": "regular_image",
     "sha256": "46f93f86714218912b43fc09eec5d34d1c92361535089e4ed0590c3751875382",

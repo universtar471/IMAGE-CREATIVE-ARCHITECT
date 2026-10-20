@@ -12,13 +12,13 @@ import {
   durationSize,
   estimateVideoCost,
   formatVnd,
-  type MotionPresetId,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { LoadingState } from "../../components/common/states";
 import { FieldGroup, SelectField, TextAreaField } from "../../components/panels/fields";
 import { SectionPanel } from "../../components/panels/SectionPanel";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { fileUrl } from "../../lib/files";
 import { useT } from "../../i18n";
 import { formatClipDuration } from "../../lib/format";
@@ -45,14 +45,9 @@ export function VideoPanel() {
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const spend = useSpendConfirm();
   const t = useT();
-  const [motion, setMotion] = useState<MotionPresetId>("dolly_in");
-  const [note, setNote] = useState("");
-  const [choice, setChoice] = useState<VideoChoice>({
-    providerId: null,
-    modelId: null,
-    durationSec: null,
-    aspectRatio: null,
-  });
+  const { motion, note, choice } = useStudio((s) => s.videoDraft);
+  const setDraft = useStudio((s) => s.setVideoDraft);
+  const setChoice = (value: VideoChoice) => setDraft({ choice: value });
   const [sentHere, setSentHere] = useState(false);
 
   if (!providers) return <LoadingState label={t("generate.loadingProviders")} />;
@@ -117,13 +112,17 @@ export function VideoPanel() {
   return (
     <div className="video-panel" data-testid="video-panel">
       {spend.dialog}
-      <SectionPanel title={t("videoModule.source")}>
+      <SectionPanel
+        title={t("videoModule.source")}
+        aside={
+          <HelpPopover topic={t("videoModule.source")}>{t("videoModule.sourceHint")}</HelpPopover>
+        }
+      >
         {sources.length === 0 ? (
           <p className="field-hint">{t("videoModule.noSource")}</p>
         ) : (
           <SelectField
             label={t("videoModule.source")}
-            hint={t("videoModule.sourceHint")}
             allowEmpty={false}
             disabled={readOnly}
             value={source?.id}
@@ -153,7 +152,7 @@ export function VideoPanel() {
               aria-pressed={motion === preset.id}
               disabled={readOnly}
               title={preset.motionEn}
-              onClick={() => setMotion(preset.id)}
+              onClick={() => setDraft({ motion: preset.id })}
             >
               {t(`videoModule.motions.${preset.id}`)}
             </button>
@@ -164,7 +163,7 @@ export function VideoPanel() {
           value={note}
           placeholder={t("videoModule.notePlaceholder")}
           disabled={readOnly}
-          onChange={(value) => setNote(value.slice(0, 400))}
+          onChange={(value) => setDraft({ note: value.slice(0, 400) })}
         />
       </SectionPanel>
 

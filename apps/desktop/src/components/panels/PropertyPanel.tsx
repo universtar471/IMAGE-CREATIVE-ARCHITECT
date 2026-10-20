@@ -1,4 +1,4 @@
-import { Archive } from "lucide-react";
+import { Archive, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
@@ -22,7 +22,14 @@ import { DiagramPanel } from "../../features/diagram/DiagramPanel";
 import { VideoPanel } from "../../features/video/VideoPanel";
 import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
-import { clampPanelWidth, PANEL_WIDTH_KEY, readPanelWidth } from "./PropertyPanelResize";
+import { SelectionInspector } from "../../features/selection/SelectionInspector";
+import {
+  clampPanelWidth,
+  DEFAULT_PANEL_WIDTH,
+  PANEL_WIDTH_KEY,
+  readPanelWidth,
+} from "./PropertyPanelResize";
+import { effectivePanelWidth, useWorkspaceLayout } from "../../features/workspace/layout";
 
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
@@ -44,10 +51,19 @@ export function PropertyPanel() {
   const panelBody = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
+  const layout = useWorkspaceLayout();
+  const drawerOpen = useStudio((s) => s.inspectorOpen);
+  const setDrawerOpen = useStudio((s) => s.setInspectorOpen);
+  // The stored width is the user's choice; the shell only caps what fits right now, so a
+  // window that grows again gets the chosen width back (ADR-044).
+  const shownWidth = effectivePanelWidth(panelWidth, layout);
 
   useEffect(() => {
     const workspace = panelRef.current?.closest<HTMLElement>(".workspace");
-    workspace?.style.setProperty("--panel-w", `${panelWidth}px`);
+    workspace?.style.setProperty("--panel-w", `${shownWidth}px`);
+  }, [shownWidth]);
+
+  useEffect(() => {
     try {
       globalThis.localStorage?.setItem(PANEL_WIDTH_KEY, String(panelWidth));
     } catch {
@@ -58,7 +74,7 @@ export function PropertyPanel() {
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
-    const startWidth = panelWidth;
+    const startWidth = shownWidth;
     const move = (moveEvent: PointerEvent) =>
       setPanelWidth(clampPanelWidth(startWidth + startX - moveEvent.clientX));
     const finish = () => {
@@ -74,7 +90,20 @@ export function PropertyPanel() {
   }, [active]);
 
   return (
-    <aside className="panel" aria-label={t("workspace.properties")} ref={panelRef}>
+    <aside
+      className="panel"
+      aria-label={t("workspace.properties")}
+      ref={panelRef}
+      data-testid="property-panel"
+      // A closed drawer stays mounted (form state survives) but is out of the tab order.
+      inert={layout.drawer && !drawerOpen ? true : undefined}
+      onKeyDown={(event) => {
+        if (layout.drawer && event.key === "Escape" && !event.defaultPrevented) {
+          event.preventDefault();
+          setDrawerOpen(false);
+        }
+      }}
+    >
       <div
         className="panel-resize-handle"
         role="separator"
@@ -82,17 +111,19 @@ export function PropertyPanel() {
         aria-orientation="vertical"
         aria-valuemin={320}
         aria-valuemax={720}
-        aria-valuenow={panelWidth}
+        aria-valuenow={shownWidth}
         tabIndex={0}
+        title={t("workspace.resizePanelHint")}
         onPointerDown={startResize}
+        onDoubleClick={() => setPanelWidth(DEFAULT_PANEL_WIDTH)}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
             event.preventDefault();
-            setPanelWidth((width) => clampPanelWidth(width + 16));
+            setPanelWidth(clampPanelWidth(shownWidth + 16));
           }
           if (event.key === "ArrowRight") {
             event.preventDefault();
-            setPanelWidth((width) => clampPanelWidth(width - 16));
+            setPanelWidth(clampPanelWidth(shownWidth - 16));
           }
           if (event.key === "Home") {
             event.preventDefault();
@@ -111,6 +142,17 @@ export function PropertyPanel() {
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
         {active !== "overview" && !activeIsStep && <NextStepBar compact />}
+        {layout.drawer && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon panel-drawer-close"
+            aria-label={t("workspace.closeInspector")}
+            title={t("workspace.closeInspector")}
+            onClick={() => setDrawerOpen(false)}
+          >
+            <X size={15} />
+          </button>
+        )}
       </div>
       <div className="panel-body" ref={panelBody}>
         {readOnly && (
@@ -118,6 +160,8 @@ export function PropertyPanel() {
             <Archive size={14} /> {t("workspace.readOnly")}
           </div>
         )}
+        {/* References has its own full asset panel; elsewhere the selection block leads. */}
+        {active !== "references" && <SelectionInspector />}
         {active === "overview" && <OverviewPanel />}
         {active === "design_dna" && (
           <StepFrame stepId="dna.building">

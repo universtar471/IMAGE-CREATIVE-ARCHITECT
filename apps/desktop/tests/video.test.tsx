@@ -141,9 +141,9 @@ describe("video helpers (ADR-043)", () => {
     expect(form.candidates.map((a) => a.id)).not.toContain("AST_V");
   });
 
-  it("has a Video module in the Studio group", () => {
+  it("has a Video module in the Video group", () => {
     expect(WORKSPACE_MODULES.find((m) => m.id === "video")).toMatchObject({
-      group: "studio",
+      group: "video",
       availableIn: null,
     });
   });
@@ -251,8 +251,27 @@ describe("Video module (ADR-043)", () => {
     const { container } = render(<VideoCanvas />);
     expect(screen.getByTestId("video-player")).toBeTruthy();
     expect(container.querySelector("video")?.getAttribute("poster")).toBe("data:AST_CLIP");
-    expect(screen.getByText("First frame of the clip")).toBeTruthy();
+    // Unknown poster origin (stored before ADR-044): a neutral label, never "first frame".
+    expect(screen.getByText("Poster")).toBeTruthy();
+    expect(screen.queryByText("First frame of the clip")).toBeNull();
     expect(screen.getByAltText("Source image")).toBeTruthy();
+  });
+
+  it("calls the poster a first frame only when FFmpeg took it from the clip", async () => {
+    const p = await openProject();
+    db.assets.AST_F = clip(p.id, "AST_F", { parentAssetId: "AST_FACADE", posterSource: "frame" });
+    db.assets.AST_S = clip(p.id, "AST_S", { parentAssetId: "AST_FACADE", posterSource: "source" });
+    await useStudio.getState().openProject(p.id);
+    useStudio.getState().selectAsset("AST_F");
+    const { unmount } = render(<VideoCanvas />);
+    expect(screen.getByText("First frame of the clip")).toBeTruthy();
+    unmount();
+    useStudio.getState().selectAsset("AST_S");
+    render(<VideoCanvas />);
+    expect(
+      screen.getAllByText(/source image — not a frame extracted from the clip/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("First frame of the clip")).toBeNull();
   });
 
   it("marks clips in the tray with the play badge and length", () => {

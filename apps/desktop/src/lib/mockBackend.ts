@@ -791,6 +791,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       operation: "video",
       mediaKind: "video",
       durationMs: durationSec * 1000,
+      // The mock "clip" is the source image, never a frame of a real clip.
+      posterSource: "source",
       createdAt: t,
       updatedAt: t,
     };

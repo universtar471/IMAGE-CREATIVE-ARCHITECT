@@ -66,10 +66,38 @@ import {
   withValidation,
 } from "../features/validation/gate";
 import { clearShotIntent, loadShotIntent, saveShotIntent } from "../lib/shotIntentStorage";
+import { nodeSelectionModule, type WorkspaceMode } from "../features/selection/selection";
+import { EMPTY_VIDEO_DRAFT, type VideoDraft } from "../features/video/video";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
-export type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
+export type NodeViewport = { x: number; y: number; zoom: number };
+
+/**
+ * Large viewer: an ordered set of assets the user can step through (only that set, one
+ * project), the shown index, and an optional image to compare the shown one with.
+ */
+export type ViewerState = { assetIds: string[]; index: number; compareWithId?: string | null };
+
+export const WORKSPACE_MODE_KEY = "arch.workspaceMode";
+
+function readWorkspaceMode(): WorkspaceMode {
+  try {
+    return globalThis.localStorage?.getItem(WORKSPACE_MODE_KEY) === "node" ? "node" : "studio";
+  } catch {
+    return "studio";
+  }
+}
+
+function writeWorkspaceMode(mode: WorkspaceMode) {
+  try {
+    globalThis.localStorage?.setItem(WORKSPACE_MODE_KEY, mode);
+  } catch {
+    /* session-only preference */
+  }
+}
+
+type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
 export type SaveStatus = "saved" | "dirty" | "saving" | "invalid" | "error";
 
 export type SaveState = {
@@ -178,11 +206,21 @@ type State = {
   activeModule: ModuleId;
   centerView: CenterView;
   selectedAssetId: string | null;
+  /** Studio (asset-centred) or Node (branch graph) workspace (ADR-044); remembered per device. */
+  workspaceMode: WorkspaceMode;
+  /** Selected graph node ids in Node mode (`asset:<id>`, `gen:<id>`, `draft`). */
+  canvasSelection: string[];
+  /** Node Canvas pan/zoom per project, this session only (never in ProjectDNA). */
+  nodeViewport: Record<string, NodeViewport>;
+  /** Large media viewer (lightbox); null = closed. Its own zoom never leaves the viewer. */
+  viewer: ViewerState | null;
   selectedCameraId: string | null;
   /** Batch shown on the Contact Sheet; null = the newest. */
   contactBatchId: string | null;
   trayTab: TrayTabId;
   trayCollapsed: boolean;
+  /** Inspector drawer open (only used when the layout makes the inspector a drawer). */
+  inspectorOpen: boolean;
   save: SaveState;
   toasts: Toast[];
   /** Bumped whenever persisted project data changes (prompt preview, hub refresh). */
@@ -193,6 +231,7 @@ type State = {
   /** Provider settings dialog; `focus` = provider to highlight. */
   providerDialog: { focus: string | null } | null;
   generateDraft: GenerateDraft;
+  videoDraft: VideoDraft;
   run: GenerationRun | null;
   /** The exact enhance submission whose completed output may be auto-selected. */
   enhanceSubmission: { projectId: string; generationId: string } | null;
@@ -206,10 +245,17 @@ type State = {
   goToHub: () => Promise<void>;
   setModule: (id: ModuleId) => void;
   setCenterView: (v: CenterView) => void;
-  selectAsset: (id: string | null) => void;
+  /** `keepView`: select without leaving the current centre view (graph clicks). */
+  selectAsset: (id: string | null, options?: { keepView?: boolean }) => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+  setCanvasSelection: (ids: string[]) => void;
+  setNodeViewport: (projectId: string, viewport: NodeViewport) => void;
+  openViewer: (viewer: ViewerState) => void;
+  closeViewer: () => void;
   selectCamera: (id: string | null) => void;
   setTrayTab: (t: TrayTabId) => void;
   toggleTray: () => void;
+  setInspectorOpen: (open: boolean) => void;
   editDna: (path: string, value: unknown) => void;
   /** Replace the camera list (add / delete / duplicate / reorder). */
   setCameras: (cameras: CameraDNA[]) => void;
@@ -231,6 +277,7 @@ type State = {
   openProviderDialog: (focus?: string | null) => void;
   closeProviderDialog: () => void;
   setGenerateDraft: (patch: Partial<GenerateDraft>) => void;
+  setVideoDraft: (patch: Partial<VideoDraft>) => void;
   /** Load a past generation's provider/model/params/references into the Generate panel. */
   reuseGeneration: (g: GenerationDTO) => void;
   refreshGenerations: () => Promise<void>;
@@ -459,10 +506,15 @@ export const useStudio = create<State>((set, get) => {
     activeModule: "overview",
     centerView: "canvas",
     selectedAssetId: null,
+    workspaceMode: readWorkspaceMode(),
+    canvasSelection: [],
+    nodeViewport: {},
+    viewer: null,
     selectedCameraId: null,
     contactBatchId: null,
     trayTab: "assets",
     trayCollapsed: false,
+    inspectorOpen: false,
     save: SAVED,
     toasts: [],
     dataRevision: 0,
@@ -470,6 +522,7 @@ export const useStudio = create<State>((set, get) => {
     providersError: null,
     providerDialog: null,
     generateDraft: EMPTY_GENERATE_DRAFT,
+    videoDraft: EMPTY_VIDEO_DRAFT,
     run: null,
     enhanceSubmission: null,
     jobs: [],
@@ -485,10 +538,13 @@ export const useStudio = create<State>((set, get) => {
         activeModule: "overview",
         centerView: "canvas",
         selectedAssetId: null,
+        canvasSelection: [],
+        viewer: null,
         selectedCameraId: null,
         contactBatchId: null,
         save: SAVED,
         generateDraft: EMPTY_GENERATE_DRAFT,
+        videoDraft: EMPTY_VIDEO_DRAFT,
         enhanceSubmission: null,
         workflowView: null,
       });
@@ -581,10 +637,41 @@ export const useStudio = create<State>((set, get) => {
       if (v === "prompt") void get().flushDna();
       set({ centerView: v });
     },
-    selectAsset: (id) => set({ selectedAssetId: id, centerView: "canvas" }),
+    selectAsset: (id, options) =>
+      set(
+        options?.keepView ? { selectedAssetId: id } : { selectedAssetId: id, centerView: "canvas" },
+      ),
+    setWorkspaceMode: (mode) => {
+      writeWorkspaceMode(mode);
+      set({ workspaceMode: mode });
+    },
+    setCanvasSelection: (ids) =>
+      set((s) => {
+        // Re-selecting the same node must not override a tool chosen from its toolbar.
+        const changed = ids.join("\n") !== s.canvasSelection.join("\n");
+        const ws = s.workspace;
+        const activeModule =
+          changed && ws && s.workspaceMode === "node"
+            ? nodeSelectionModule(ids, ws.assets, ws.generations, s.activeModule)
+            : s.activeModule;
+        const assetId = ids.length === 1 && ids[0]!.startsWith("asset:") ? ids[0]!.slice(6) : null;
+        return {
+          canvasSelection: ids,
+          activeModule,
+          ...(assetId && ws?.assets.some((a) => a.id === assetId)
+            ? { selectedAssetId: assetId }
+            : {}),
+        };
+      }),
+    setVideoDraft: (patch) => set((s) => ({ videoDraft: { ...s.videoDraft, ...patch } })),
+    setNodeViewport: (projectId, viewport) =>
+      set((s) => ({ nodeViewport: { ...s.nodeViewport, [projectId]: viewport } })),
+    openViewer: (viewer) => set({ viewer }),
+    closeViewer: () => set({ viewer: null }),
     selectCamera: (id) => set({ selectedCameraId: id }),
     setTrayTab: (t) => set({ trayTab: t, trayCollapsed: false }),
     toggleTray: () => set((s) => ({ trayCollapsed: !s.trayCollapsed })),
+    setInspectorOpen: (open) => set({ inspectorOpen: open }),
 
     editDna: (path, value) => {
       const ws = get().workspace;

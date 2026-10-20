@@ -1,14 +1,6 @@
-import {
-  Camera,
-  FileText,
-  GitBranch,
-  Image as ImageIcon,
-  ImagePlus,
-  LayoutGrid,
-} from "lucide-react";
-import { useEffect } from "react";
+import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { useStudio } from "../../app/store";
-import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { ErrorState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
 import { PropertyPanel } from "../../components/panels/PropertyPanel";
@@ -18,7 +10,9 @@ import { BottomTray } from "../assets/BottomTray";
 import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
-import { moduleById } from "./modules";
+import { hasOwnCenter, moduleById } from "./modules";
+import { WorkspaceLayoutContext, workspaceLayout } from "./layout";
+import { useElementSize } from "../../lib/useElementSize";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
@@ -29,6 +23,9 @@ import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
 import { BranchCanvas } from "../canvas/BranchCanvas";
 import { VideoCanvas } from "../video/VideoCanvas";
+import { MediaViewer } from "../viewer/MediaViewer";
+import { StudioPreview } from "../viewer/StudioPreview";
+import { navigateTabs } from "../../components/common/tabNavigation";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -100,14 +97,39 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     );
   }
 
+  return <WorkspaceShell />;
+}
+
+/**
+ * Responsive shell (ADR-044): measures itself and exposes the layout tier to CSS
+ * (`data-tier`, `data-short`, `data-drawer`) and to components (WorkspaceLayoutContext). The
+ * five areas stay mounted at every size, so a resize never drops form state or selection.
+ */
+function WorkspaceShell() {
+  const ref = useRef<HTMLDivElement>(null);
+  const size = useElementSize(ref);
+  const layout = useMemo(() => workspaceLayout(size.width, size.height), [size.width, size.height]);
+  const inspectorOpen = useStudio((s) => s.inspectorOpen);
   return (
-    <div className="workspace" data-testid="workspace">
-      <WorkspaceTopBar />
-      <WorkspaceNav />
-      <CenterArea />
-      <PropertyPanel />
-      <BottomTray />
-    </div>
+    <WorkspaceLayoutContext.Provider value={layout}>
+      <div
+        className="workspace"
+        data-testid="workspace"
+        ref={ref}
+        data-tier={layout.tier}
+        data-short={layout.short || undefined}
+        data-icon-nav={layout.iconNav || undefined}
+        data-drawer={layout.drawer || undefined}
+        data-inspector-open={(layout.drawer && inspectorOpen) || undefined}
+      >
+        <WorkspaceTopBar />
+        <WorkspaceNav />
+        <CenterArea />
+        <PropertyPanel />
+        <BottomTray />
+      </div>
+      <MediaViewer />
+    </WorkspaceLayoutContext.Provider>
   );
 }
 
@@ -124,10 +146,10 @@ function CenterArea() {
   const mod = moduleById(active);
   const isCamera = active === "camera";
   // The Camera Director only exists in the Camera module.
+  // "branches" was the old centre tab of the graph; the graph is Node mode now (ADR-044).
   const view =
-    (centerView === "director" && !isCamera) || (centerView === "branches" && active !== "generate")
-      ? "canvas"
-      : centerView;
+    (centerView === "director" && !isCamera) || centerView === "branches" ? "canvas" : centerView;
+  const nodeMode = useStudio((s) => s.workspaceMode) === "node" && !hasOwnCenter(active);
 
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
@@ -185,12 +207,18 @@ function CenterArea() {
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
-      <div className="center-tabs" role="tablist" hidden={active === "export"}>
+      <div
+        className="center-tabs"
+        role="tablist"
+        hidden={active === "export" || nodeMode}
+        onKeyDown={navigateTabs}
+      >
         {isCamera && (
           <button
             className="center-tab"
             role="tab"
             aria-selected={view === "director"}
+            tabIndex={view === "director" ? 0 : -1}
             onClick={() => setCenterView("director")}
           >
             <Camera size={14} /> {t("workspace.tabDirector")}
@@ -200,26 +228,17 @@ function CenterArea() {
           className="center-tab"
           role="tab"
           aria-selected={view === "canvas"}
+          tabIndex={view === "canvas" ? 0 : -1}
           onClick={() => setCenterView("canvas")}
         >
           <ImageIcon size={14} /> {isCamera ? t("workspace.tabImage") : t("workspace.tabCanvas")}
         </button>
-        {active === "generate" && (
-          <button
-            className="center-tab"
-            role="tab"
-            aria-selected={view === "branches"}
-            onClick={() => setCenterView("branches")}
-            data-testid="tab-branches"
-          >
-            <GitBranch size={14} /> {t("workspace.tabBranches")}
-          </button>
-        )}
         {(isCamera || hasBatches || view === "contact") && (
           <button
             className="center-tab"
             role="tab"
             aria-selected={view === "contact"}
+            tabIndex={view === "contact" ? 0 : -1}
             onClick={() => setCenterView("contact")}
           >
             <LayoutGrid size={14} /> {t("workspace.tabContact")}
@@ -229,6 +248,7 @@ function CenterArea() {
           className="center-tab"
           role="tab"
           aria-selected={view === "prompt"}
+          tabIndex={view === "prompt" ? 0 : -1}
           onClick={() => setCenterView("prompt")}
         >
           <FileText size={14} /> {t("workspace.tabPrompt")}
@@ -244,14 +264,14 @@ function CenterArea() {
           />
         ) : active === "export" ? (
           <PublishingStudio />
+        ) : nodeMode ? (
+          <BranchCanvas />
         ) : view === "prompt" ? (
           <PromptPreview />
         ) : view === "director" ? (
           <CameraDirector />
         ) : view === "contact" ? (
           <ContactSheet />
-        ) : view === "branches" ? (
-          <BranchCanvas />
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (
@@ -274,8 +294,7 @@ function CenterArea() {
             <RegionCanvas />
           )
         ) : (
-          <WorkspaceCanvas
-            mode={{ kind: "single", asset }}
+          <StudioPreview
             emptyAction={
               <button className="btn" onClick={() => setModule("references")}>
                 <ImagePlus size={14} /> {t("workspace.goToReferences")}

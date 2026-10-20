@@ -1,11 +1,13 @@
 /**
- * Reusable image viewer: fit, zoom (buttons / wheel around cursor), pan when zoomed.
+ * Reusable image viewer: fit, zoom (buttons / wheel around cursor / keys), pan when zoomed,
+ * clamped so the image never leaves the view (ADR-044). Its zoom is its own local state: it
+ * never touches the Node Canvas zoom or the app's UI scale.
  * Knows nothing about assets or persistence; future compare/mask tools layer on top
  * through `overlay` and the toolbar `extraTools` slot.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Maximize, Minus, Plus, Scan } from "lucide-react";
-import { clampZoom, fitScale, MAX_ZOOM, MIN_ZOOM, zoomAround, type View } from "./viewMath";
+import { clampPan, fitScale, MAX_ZOOM, MIN_ZOOM, zoomAround, type View } from "./viewMath";
 import { useT } from "../../i18n";
 
 export type ImageDisplayRect = { left: number; top: number; width: number; height: number };
@@ -19,6 +21,13 @@ export type ImageViewerProps = {
   overlay?: ReactNode | ((rect: ImageDisplayRect) => ReactNode);
   extraTools?: ReactNode;
   onError?: () => void;
+  /** Zoom limits (the large viewer uses 25–400 %; Fit may still be smaller). */
+  minZoom?: number;
+  maxZoom?: number;
+  /** Focusable, with + / − / 0 (Fit) / 1 (100 %) keys (the large viewer). */
+  keyboard?: boolean;
+  /** Reports the shown zoom (for labels outside the viewer and tests). */
+  onZoomChange?: (scale: number, fitted: boolean) => void;
 };
 
 export function ImageViewer({
@@ -30,6 +39,10 @@ export function ImageViewer({
   overlay,
   extraTools,
   onError,
+  minZoom = MIN_ZOOM,
+  maxZoom = MAX_ZOOM,
+  keyboard = false,
+  onZoomChange,
 }: ImageViewerProps) {
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,9 +75,32 @@ export function ImageViewer({
       }
     : manualView;
 
+  const clampScale = (scale: number) => Math.min(maxZoom, Math.max(minZoom, scale));
   const zoomTo = (scale: number, cx = box.w / 2, cy = box.h / 2) => {
     setFitted(false);
-    setManualView(zoomAround(view, clampZoom(scale), cx, cy));
+    setManualView(
+      clampPan(zoomAround(view, clampScale(scale), cx, cy), natural.w, natural.h, box.w, box.h),
+    );
+  };
+
+  useLayoutEffect(() => {
+    onZoomChange?.(view.scale, fitted);
+  }, [view.scale, fitted, onZoomChange]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!keyboard) return;
+    const keys: Record<string, () => void> = {
+      "+": () => zoomTo(view.scale * 1.25),
+      "=": () => zoomTo(view.scale * 1.25),
+      "-": () => zoomTo(view.scale / 1.25),
+      "0": () => setFitted(true),
+      "1": () => zoomTo(1),
+    };
+    const run = keys[e.key];
+    if (run && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      run();
+    }
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -85,7 +121,15 @@ export function ImageViewer({
     const s = panStart.current;
     if (!s) return;
     setFitted(false);
-    setManualView({ scale: view.scale, x: s.x + e.clientX - s.px, y: s.y + e.clientY - s.py });
+    setManualView(
+      clampPan(
+        { scale: view.scale, x: s.x + e.clientX - s.px, y: s.y + e.clientY - s.py },
+        natural.w,
+        natural.h,
+        box.w,
+        box.h,
+      ),
+    );
   };
   const endPan = () => {
     panStart.current = null;
@@ -101,8 +145,18 @@ export function ImageViewer({
       onPointerMove={onPointerMove}
       onPointerUp={endPan}
       onPointerCancel={endPan}
-      onDoubleClick={() => setFitted(true)}
+      onDoubleClick={(e) => {
+        // Fit ↔ 100 %, around the clicked point.
+        if (!fitted) return setFitted(true);
+        const rect = containerRef.current!.getBoundingClientRect();
+        zoomTo(1, e.clientX - rect.left, e.clientY - rect.top);
+      }}
+      onKeyDown={onKeyDown}
+      tabIndex={keyboard ? 0 : undefined}
+      aria-label={keyboard ? t("viewer.imageKeys") : undefined}
       data-testid="image-viewer"
+      data-zoom={Math.round(view.scale * 100)}
+      data-fitted={fitted || undefined}
     >
       <img
         src={src}
@@ -136,7 +190,7 @@ export function ImageViewer({
         <button
           className="btn btn-ghost btn-sm btn-icon"
           onClick={() => zoomTo(view.scale / 1.25)}
-          disabled={view.scale <= MIN_ZOOM}
+          disabled={view.scale <= minZoom}
           aria-label={t("canvas.zoomOut")}
           title={t("canvas.zoomOut")}
         >
@@ -148,7 +202,7 @@ export function ImageViewer({
         <button
           className="btn btn-ghost btn-sm btn-icon"
           onClick={() => zoomTo(view.scale * 1.25)}
-          disabled={view.scale >= MAX_ZOOM}
+          disabled={view.scale >= maxZoom}
           aria-label={t("canvas.zoomIn")}
           title={t("canvas.zoomIn")}
         >

@@ -1,0 +1,159 @@
+/*
+ * Responsive workspace shell (UX V6.1-R1, ADR-044). The shell measures its own size and sets
+ * `data-tier` (wide ≥1600, regular ≥1280, compact ≥1000, narrow ≥800, tight) plus
+ * `data-short` (height < 760) — see features/workspace/layout.ts. Widths here must match
+ * NAV_WIDTH there. Nothing is unmounted per tier; areas only change size or become a drawer.
+ */
+
+.workspace {
+  --nav-w: 196px;
+  --tray-h: 200px;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr) var(--panel-w);
+}
+.workspace[data-tier="regular"] {
+  --nav-w: 176px;
+  --tray-h: 170px;
+}
+.workspace[data-tier="compact"] {
+  --nav-w: 64px;
+  --tray-h: 150px;
+}
+.workspace[data-tier="narrow"] {
+  --nav-w: 56px;
+  --tray-h: 128px;
+}
+.workspace[data-tier="tight"] {
+  --nav-w: 52px;
+  --tray-h: 120px;
+}
+.workspace[data-short] {
+  --tray-h: 120px;
+}
+.workspace[data-short] .tray-body-large {
+  height: min(200px, 34vh);
+}
+
+/* ---------------------------------------------------------------- icon-only navigation */
+.workspace[data-icon-nav] .nav {
+  padding-inline: 6px;
+  align-items: stretch;
+}
+.workspace[data-icon-nav] .nav-label,
+.workspace[data-icon-nav] .nav-phase,
+.workspace[data-icon-nav] .nav-group-label {
+  display: none;
+}
+.workspace[data-icon-nav] .nav-item {
+  position: relative;
+  justify-content: center;
+  padding: 0;
+  height: 40px;
+  min-height: 40px;
+}
+.workspace[data-icon-nav] .nav-step-number {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 15px;
+  height: 15px;
+  font-size: 11px;
+}
+.workspace[data-icon-nav] .nav-status {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- top bar */
+.workspace[data-tier="compact"] .topbar-label,
+.workspace[data-tier="compact"] .topbar-type,
+.workspace[data-tier="narrow"] .topbar-type,
+.workspace[data-tier="tight"] .topbar-type,
+.workspace[data-tier="narrow"] .topbar-label,
+.workspace[data-tier="tight"] .topbar-label {
+  display: none;
+}
+.workspace[data-tier="compact"] .topbar-title strong {
+  max-width: 220px;
+}
+.workspace[data-tier="narrow"] .topbar-title strong,
+.workspace[data-tier="tight"] .topbar-title strong {
+  max-width: 160px;
+  min-width: 60px;
+}
+.topbar .btn {
+  min-height: 32px;
+}
+.topbar-inspector[aria-pressed="true"] {
+  background: var(--c-surface-3);
+}
+
+/* ---------------------------------------------------------------- inspector */
+.panel {
+  min-width: 0;
+}
+.panel-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Drawer: the panel leaves the grid and slides over the canvas only while open. */
+.workspace[data-drawer] {
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  grid-template-areas:
+    "top top"
+    "nav center"
+    "tray tray";
+  position: relative;
+  /* The closed drawer sits just past the right edge; it must not add a page scrollbar. */
+  overflow: clip;
+}
+.workspace[data-drawer] .panel {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: var(--topbar-h);
+  bottom: 0;
+  width: var(--panel-w);
+  max-width: calc(100% - var(--nav-w) - 16px);
+  box-shadow: -16px 0 40px rgb(0 0 0 / 45%);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform 0.16s ease,
+    visibility 0s linear 0.16s;
+}
+.workspace[data-drawer][data-inspector-open] .panel {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.16s ease;
+}
+.workspace[data-drawer] .panel-resize-handle {
+  display: none;
+}
+.panel-drawer-close {
+  margin-left: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace[data-drawer] .panel,
+  .workspace[data-drawer][data-inspector-open] .panel {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- short windows */
+.workspace[data-short] .center-tabs {
+  height: 32px;
+}
+.workspace[data-short] .panel-header {
+  min-height: 32px;
+}
+/* Short tray: the filter column scrolls instead of cutting its controls. */
+.tray-side {
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.workspace[data-tier="narrow"] .tray-side,
+.workspace[data-tier="tight"] .tray-side {
+  width: 150px !important;
+}

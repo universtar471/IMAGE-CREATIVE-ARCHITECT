@@ -14,6 +14,8 @@ import { selectReadOnly, useStudio } from "../../app/store";
 import { useLocale, useT } from "../../i18n";
 import { UserPresetsRow } from "./UserPresetsRow";
 import { presetLabel, presetLabels } from "./labels";
+import { PremiumIcon } from "../../components/common/PremiumIcon";
+import { groupVisualId, presetVisualId } from "./presetVisuals";
 
 /**
  * Preset studio (ADR-039): one click adds a chip that writes structured choices into the
@@ -85,20 +87,32 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
         if (!items.length) return null;
         return (
           <div className="preset-group" key={group}>
-            <span className="field-label">{t(`presets.groups.${group}`)}</span>
+            <div className="preset-group-heading">
+              <PremiumIcon id={groupVisualId[group]} size={20} />
+              <span className="field-label">{t(`presets.groups.${group}`)}</span>
+              <span className="preset-group-count" aria-hidden="true">
+                {items.length}
+              </span>
+            </div>
             <div className="preset-options" role="group" aria-label={t(`presets.groups.${group}`)}>
               {items.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
-                  className="chip"
+                  className="chip premium-preset-card"
                   aria-pressed={selected.includes(preset.id)}
                   disabled={locked}
-                  title={locale === "vi" ? preset.hintVi : preset.hintEn}
+                  // Full name first (labels clamp to two lines), then what the preset does.
+                  title={`${presetLabel(preset, locale)} — ${locale === "vi" ? preset.hintVi : preset.hintEn}`}
                   data-preset={preset.id}
                   onClick={() => apply(togglePreset(selected, preset.id))}
                 >
-                  {presetLabel(preset, locale)}
+                  <PremiumIcon
+                    id={presetVisualId(preset)}
+                    size={31}
+                    className="premium-preset-icon"
+                  />
+                  <span className="preset-option-label">{presetLabel(preset, locale)}</span>
                 </button>
               ))}
             </div>

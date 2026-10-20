@@ -21,7 +21,8 @@
     "sketchup:rbz": "node tools/sketchup/build-rbz.mjs",
     "check:rust": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "test:rust": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run test:rust"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run test:rust",
+    "test:ui": "node tools/qa/v6-1-browser.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -29,6 +30,7 @@
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
+    "playwright": "1.64.1",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",

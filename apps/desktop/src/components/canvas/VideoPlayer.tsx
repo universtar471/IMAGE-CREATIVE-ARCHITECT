@@ -1,15 +1,27 @@
 /** Plays a clip (ADR-043) with its poster; falls back to the poster when it cannot play. */
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AssetDTO } from "@arch/domain";
 import { fileUrl } from "../../lib/files";
 import { formatClipDuration } from "../../lib/format";
 import { ErrorState } from "../common/states";
 import { useT } from "../../i18n";
+import { useStudio } from "../../app/store";
 
-export function VideoPlayer({ asset }: { asset: AssetDTO }) {
+export function VideoPlayer({ asset, extra }: { asset: AssetDTO; extra?: ReactNode }) {
   const t = useT();
   const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
   const src = fileUrl(asset.absolutePath);
+  const viewerOpen = useStudio((s) => s.viewer !== null);
+  // The workspace remains mounted behind the viewer; never let its audio play underneath.
+  useEffect(() => {
+    if (viewerOpen) ref.current?.pause();
+  }, [viewerOpen]);
+  // Leaving the clip (another selection, module or mode) stops it: no sound in the background.
+  useEffect(() => {
+    const el = ref.current;
+    return () => el?.pause();
+  }, [asset.id]);
   const poster = fileUrl(asset.thumbnailPath) ?? undefined;
   if (asset.status === "missing_file" || !src) {
     return (
@@ -32,10 +44,11 @@ export function VideoPlayer({ asset }: { asset: AssetDTO }) {
       ) : (
         <video
           key={asset.id}
+          ref={ref}
           src={src}
           poster={poster}
           controls
-          loop
+          preload="metadata"
           playsInline
           aria-label={t("videoModule.player")}
           onError={() => setFailed(true)}
@@ -44,6 +57,8 @@ export function VideoPlayer({ asset }: { asset: AssetDTO }) {
       <figcaption className="video-caption">
         <span>{asset.originalName ?? asset.id}</span>
         {asset.durationMs != null && <span>{formatClipDuration(asset.durationMs)}</span>}
+        {asset.posterSource === "source" && <span>{t("viewer.posterSource")}</span>}
+        {extra}
       </figcaption>
     </figure>
   );

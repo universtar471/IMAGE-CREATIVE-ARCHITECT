@@ -8,6 +8,7 @@ import {
   type AssetDTO,
   type ModelCapabilities,
   type ProviderDescriptorDTO,
+  type MotionPresetId,
 } from "@arch/domain";
 
 export type VideoChoice = {
@@ -15,6 +16,14 @@ export type VideoChoice = {
   modelId: string | null;
   durationSec: number | null;
   aspectRatio: string | null;
+};
+
+/** Session draft; survives panel changes and resets when a different project opens. */
+export type VideoDraft = { motion: MotionPresetId; note: string; choice: VideoChoice };
+export const EMPTY_VIDEO_DRAFT: VideoDraft = {
+  motion: "dolly_in",
+  note: "",
+  choice: { providerId: null, modelId: null, durationSec: null, aspectRatio: null },
 };
 
 export type VideoForm = {
