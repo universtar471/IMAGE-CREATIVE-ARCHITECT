@@ -1,5 +1,22 @@
 # Progress
 
+## V6.1-R1 — Studio shell, contextual selection, large viewer (ADR-044), branch `claude/ux-v6-1`
+- **Done:**
+  - **PR #2:** merged into the V6 branch (not into `main`).
+  - **Shell:** responsive tiers measured from the shell itself: icon-only nav, an inspector drawer below 1000 px, and short-window rules. The Tauri minimum is 800×600.
+  - **Selection:** one normalised selection and an action registry.
+  - **Toolbar and inspector:** a floating contextual toolbar and a selection inspector.
+  - **Modes:** a Studio | Node switch that keeps the Node Canvas pan/zoom.
+  - **Navigation:** four groups with a collapsible Advanced DNA.
+  - **Previews:** a Studio preview router and the large image/video viewer.
+  - **Video:** the poster origin is recorded and labelled honestly.
+  - **Help and type:** help popovers, preset cards sized to the panel, and a type scale.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, Vite build, rustfmt, clippy, `cargo test` and the contract fixtures pass. The Playwright QA matrix ran on the browser mock (`docs/design/v6-1/QA_REPORT.md`).
+- **Not yet verified:**
+  - The native Tauri window on Windows: real maximize/restore, real display scaling and video through the asset protocol.
+  - Be Vietnam Pro (not bundled).
+  - The uncommitted Typography V2 files on the owner's machine (not available).
+
 ## B1 — Image to video (ADR-043)
 - **Done:**
   - **Providers:** four video providers with key slots: Kling (JWT), Veo (Gemini API), Seedance (ModelArk) and Comfy Cloud (user workflow).

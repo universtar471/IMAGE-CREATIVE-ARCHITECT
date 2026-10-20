@@ -1220,3 +1220,72 @@ Status: accepted (2026-10-20). Basis: phase B of `docs/plans/VIZMAKER_IMAGE_PLAN
 - **Tray and branch canvas:** clips get a ▶ badge with their length.
 - **Playback:** the Tauri CSP gains `media-src` for the asset protocol.
 - **Mock backend:** lists the four providers unconfigured, plus a free `local_video_preview` whose "clip" is the source image as a still poster.
+
+
+## ADR-044 — V6.1-R1: responsive Studio shell, contextual selection and the large viewer
+
+Status: proposed for review (2026-10-20). Basis: `UX_UI_V6_CLAUDE_SPEC.md` V6.1 and `ADDENDUM_RESPONSIVE_NODE_PREVIEW.md` (P0), supplied by the project owner. Branch `claude/ux-v6-1`, not merged into `main`.
+
+**PR #2 (Premium Duotone UI).** Branch `feature/premium-duotone-preset-ui-20261020` (e1e94d6) was merged into the V6 branch, not into `main`. The only conflict was two imports in `ProjectWorkspace.tsx`; both were kept. Its viewport-based overrides were replaced by the tiers below: the `48vw`/`40vw` panel caps and the stacked grid under 700 px. PR #2 itself stays open. The uncommitted Typography V2 work on the owner's Windows machine was not available here and is not included.
+
+**Responsive shell** (`features/workspace/layout.ts`, `styles/responsive.css`)
+- **Measurement:** the workspace measures itself with a ResizeObserver in CSS px, never `window.innerWidth`. Maximize, restore, panel drags and Windows display scale all resolve the same way; 1920 px at 150 % is 1280 CSS px.
+- **Tiers:** `data-tier` is wide (≥ 1600), regular (≥ 1280), compact (≥ 1000), narrow (≥ 800) or tight. `data-short` is set below 760 px of height.
+  - **Nav:** icon-only from compact down; labels become accessible names and tooltips.
+  - **Inspector:** below 1000 px it becomes a drawer, opened from the top bar or by choosing a module and closed with Esc. It stays mounted, so form state survives every resize.
+  - **Inspector width:** the user's stored width is kept and only capped to what fits, so the canvas keeps 480 px. Double-clicking the handle resets it.
+- **Tauri:** the minimum window size drops to 800×600, because 1920 px at 200 % is only 960 CSS px wide.
+
+**One selection** (`features/selection/`)
+- **`resolveSelection`:** turns Studio's selected asset, or Node mode's graph nodes, into one value: none, image (source / ai / import), video, reference, generation (pending / complete / failed), draft or multi. A clip is never an image.
+- **Who reads it:** the toolbar, the inspector, the centre preview and the viewer all read this value.
+- **Store:** `workspaceMode` (remembered per device), `canvasSelection`, a per-project `nodeViewport` (this session only, never in ProjectDNA) and `viewer`.
+
+**Action registry** (`actions.ts`)
+- **Shape:** one table of actions, each with applies, disabledReason, run and risk.
+- **No new behaviour:** every action maps to a function that already exists. Read-only projects disable every change but keep viewing. Retry is the only paid action and goes through the existing spend confirm.
+- **Clips:** only Play, Source image and New clip.
+- **Compare:** needs exactly two images and gives the reason otherwise.
+
+**Toolbar and inspector**
+- **`ContextualToolbar`:** up to four buttons (three when compact), then a `…` menu.
+  - **Node mode:** the toolbar floats above the selected node, or below it near the top edge, and is clamped inside the canvas (`placement.ts`). It follows pan, zoom and drags.
+  - **Studio mode:** it sits top-right over the preview.
+- **`SelectionInspector`:** heads the inspector with a breadcrumb, a thumbnail that opens the viewer, role/size/length, lineage, and the state and outputs of a run. Module panels stay mounted below it.
+- **Studio | Node switch:** sits in the top bar and replaces the Branches tab. Publishing, Diagram and Region edit keep their own centre.
+- **Node Canvas:**
+  - The viewport is restored when the canvas mounts again, with no `fitView` jump.
+  - Double-click opens the viewer.
+  - Only visible nodes render once the graph has 100 or more.
+  - Thumbnails load lazily.
+  - Reference nodes carry a role badge, and running jobs show "no result yet".
+  - Node objects keep the sizes React Flow measured, so a selection change no longer hides a node for one frame. That hiding was breaking double clicks.
+
+**Large viewer** (`features/viewer/MediaViewer.tsx`)
+- **Layer:** a portal layer over the app, z 35, below dialogs.
+- **What it steps through:** the opener's set — one run's outputs, else one media kind of the project — with a "3 / 8" position, ← / → navigation, and stops at both ends.
+- **Images:** Fit, 100 %, 25–400 %, `+ − 0 1` keys, wheel inside the viewer, and double-click to toggle Fit ↔ 100 %. Pan is clamped so 64 px always stay visible. An image can be compared with its lineage source; clips cannot.
+- **Clips:** the browser's own controls (play, seek, volume, mute, fullscreen), plus Stop. No autoplay. Closing the viewer or moving on pauses and releases the media.
+- **Keys and focus:** Esc closes and returns focus to the opener, and Tab stays inside. Keys stop at the viewer, so canvas or region shortcuts never fire behind it; the region canvas also ignores keys typed in fields.
+- **Nothing is written:** viewing leaves the selection, the prompt draft and the Node Canvas transform untouched.
+- **Poster labels:** the backend records where a clip's poster came from (`posterSource`: `frame` or `source`). The UI calls a poster "first frame" only for a real frame; otherwise it says "source image — not a frame extracted from the clip".
+
+**Three zooms stay separate**
+- **Viewer zoom:** local state of the viewer.
+- **Node Canvas zoom:** React Flow, remembered in `nodeViewport`.
+- **Windows UI scale:** reaches the app only as CSS px, through the tiers. Nothing scales the app with `transform`.
+
+**Navigation (V6.1).** Four groups: Create image, Edit, Video and Publish.
+- The DNA steps, Scene objects and Effects sit under a collapsible "Advanced DNA" with done/total steps. It opens by itself while one of them is active.
+- Module ids, step numbers and statuses are unchanged.
+
+**Help and type**
+- **`HelpPopover`:** a "?" opens long explanations by click, Enter or Space. Esc returns focus, and the popover sits in a portal and flips so it is never cut. Cost and billing warnings stay as visible text.
+- **Preset cards:** columns follow the panel width, labels clamp to two lines, and the full name is in the tooltip.
+- **Type scale:** page 20, panel 16, section 14, body 14, field 13, secondary 12 and badge 11. No text is below 11 px.
+- **Font:** the stack prefers Be Vietnam Pro, but it is not bundled yet (licence and offline files pending), so Inter / Segoe UI render.
+
+**Not in V6.1**
+- From V6.2–V6.5: the Draft Workflow graph, the Context Picker V6, Reference Node editing, Edit Detail, and undo/redo.
+- A native "open file / folder" action, because no Tauri command exists for it.
+- Pin Preview.
