@@ -86,18 +86,25 @@ const sample = () => ({
 });
 
 describe("branch graph (ADR-041)", () => {
+  it("shows imported ordinary/reference images before any generation exists", () => {
+    const graph = buildBranchGraph({ assets: [loose, mood], generations: [] });
+    expect(graph.nodes.map((n) => n.id).sort()).toEqual(["asset:AST_LOOSE", "asset:AST_MOOD"]);
+    expect(graph.edges).toEqual([]);
+  });
+
   it("derives images, generations and edges from lineage", () => {
     const graph = buildBranchGraph(sample());
     expect(graph.nodes.map((n) => n.id)).toEqual([
       imageNodeId("AST_SK"),
       imageNodeId("AST_MOOD"),
+      imageNodeId("AST_LOOSE"),
       generationNodeId("GEN_A"),
       imageNodeId("AST_A1"),
       imageNodeId("AST_A2"),
       generationNodeId("GEN_B"),
       imageNodeId("AST_B1"),
     ]);
-    expect(graph.nodes.some((n) => n.id === imageNodeId("AST_LOOSE"))).toBe(false);
+    expect(graph.nodes.some((n) => n.id === imageNodeId("AST_LOOSE"))).toBe(true);
     const gen = graph.nodes.find((n) => n.id === generationNodeId("GEN_A"));
     expect(gen).toMatchObject({ kind: "generation", presetIds: ["time.golden_hour"], depth: 1 });
     expect(graph.edges).toContainEqual({

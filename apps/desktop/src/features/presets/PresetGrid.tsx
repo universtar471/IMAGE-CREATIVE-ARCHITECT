@@ -46,9 +46,7 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
   return (
     <div className="preset-studio" data-testid="preset-studio">
       <div className="preset-selected" aria-label={t("presets.selected")}>
-        {selected.length === 0 ? (
-          <span className="field-hint">{t("presets.none")}</span>
-        ) : (
+        {selected.length > 0 &&
           selected.map((id) => {
             const preset = shotPreset(id);
             const label = preset ? presetLabel(preset, locale) : id;
@@ -69,8 +67,7 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
                 </button>
               </span>
             );
-          })
-        )}
+          })}
       </div>
       {skipped.length > 0 && (
         <span className="field-hint" role="status" data-testid="preset-skipped">

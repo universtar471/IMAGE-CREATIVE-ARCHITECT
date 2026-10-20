@@ -4,7 +4,7 @@ import type { ProjectSummaryDTO } from "@arch/domain";
 import { attempt, useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { EmptyState, ErrorState, LoadingState } from "../../components/common/states";
-import { BrandMark } from "../../components/shell/BrandMark";
+import { BrandIdentity } from "../../components/shell/BrandMark";
 import { LocaleSwitch } from "../../components/shell/LocaleSwitch";
 import { translate, useLocale, useT } from "../../i18n";
 import { subtypeLabel } from "../../i18n/knowledge";
@@ -82,7 +82,7 @@ export function ProjectHub() {
     <div className="hub" data-testid="project-hub">
       <header className="hub-header">
         <div className="brand">
-          <BrandMark /> Arch AI Studio
+          <BrandIdentity />
         </div>
         <span className="spacer" />
         <div className="search">

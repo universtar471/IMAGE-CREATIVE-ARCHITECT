@@ -385,7 +385,7 @@ describe("Generate form derivation", () => {
     const missing = resolveGenerateForm(
       { ...EMPTY_GENERATE_DRAFT, source: "sketch" },
       providers(true),
-      assets,
+      [],
       null,
     );
     expect(generateDisabledReason(missing, ctx)).toBe(

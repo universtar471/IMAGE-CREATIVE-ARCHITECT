@@ -6,6 +6,7 @@ import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useT } from "../../i18n";
 import { translateDomainMessage } from "../../i18n/domain";
+import { HelpPopover } from "../common/HelpPopover";
 
 type FieldShellProps = {
   label: string;
@@ -19,17 +20,18 @@ export function FieldGroup({ label, hint, error, htmlFor, children }: FieldShell
   const t = useT();
   return (
     <div className="field">
-      <label className="field-label" htmlFor={htmlFor}>
-        {label}
-      </label>
+      <div className="field-heading">
+        <label className="field-label" htmlFor={htmlFor}>
+          {label}
+        </label>
+        {hint && <HelpPopover topic={label}>{hint}</HelpPopover>}
+      </div>
       {children}
       {error ? (
         <span className="field-error" role="alert">
           {translateDomainMessage(error, t)}
         </span>
-      ) : (
-        hint && <span className="field-hint">{hint}</span>
-      )}
+      ) : null}
     </div>
   );
 }

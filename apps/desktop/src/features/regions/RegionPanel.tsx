@@ -1,4 +1,5 @@
-import { Archive, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { isVideoAsset } from "@arch/domain";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AssetDTO, ConflictCode, GenerationDTO, ProjectDNA } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
@@ -15,13 +16,11 @@ import {
   type SceneObject,
   type SceneObjectCategory,
 } from "../../lib/regions";
-import { isMasterApproved } from "../camera/labels";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { spendRequestForGeneration } from "../../lib/spend";
-import { BlockedExplainer } from "../workflow/BlockedExplainer";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { canSubmit, checkShot, withValidation } from "../validation/gate";
 
@@ -49,8 +48,9 @@ export function RegionPanel() {
   const readOnly = useStudio(selectReadOnly);
   const selectedId = useStudio((state) => state.selectedAssetId) ?? ws.project.activeMasterAssetId;
   const selected =
-    ws.assets.find((asset) => asset.id === selectedId && asset.status === "ready") ?? null;
-  const approved = isMasterApproved(ws.project.status);
+    ws.assets.find(
+      (asset) => asset.id === selectedId && asset.status === "ready" && !isVideoAsset(asset),
+    ) ?? null;
   const t = useT();
   const spend = useSpendConfirm();
   const [regions, setRegions] = useState<RegionDTO[]>([]);
@@ -232,7 +232,6 @@ export function RegionPanel() {
       !selected ||
       !provider ||
       !model ||
-      !approved ||
       readOnly ||
       !selectedRegions.size ||
       (mode === "edit" ? !instruction.trim() : !material.trim()) ||
@@ -265,12 +264,6 @@ export function RegionPanel() {
   return (
     <div className="region-panel" data-testid="region-panel">
       {spend.dialog}
-      {!approved && (
-        <div className="callout callout-warning">
-          <Archive size={14} /> {t("regions.needsMaster")}
-          <BlockedExplainer stepId="generate.master" />
-        </div>
-      )}
       <SectionPanel title={t("regions.howToUse")} defaultOpen={false}>
         <p className="field-hint">{t("regions.howToUse")}</p>
       </SectionPanel>
@@ -295,7 +288,7 @@ export function RegionPanel() {
             <input
               value={region.label}
               aria-label={t("regions.label")}
-              disabled={readOnly || !approved}
+              disabled={readOnly || !selected}
               onChange={(event) => {
                 const next = { ...region, label: event.target.value };
                 setRegions((items) => items.map((item) => (item.id === region.id ? next : item)));
@@ -305,7 +298,7 @@ export function RegionPanel() {
             <select
               value={region.kind}
               aria-label={t("regions.kind")}
-              disabled={readOnly || !approved}
+              disabled={readOnly || !selected}
               onChange={(event) =>
                 void saveRegion(region, { kind: event.target.value as RegionDTO["kind"] })
               }
@@ -317,7 +310,7 @@ export function RegionPanel() {
             <select
               value={region.objectId ?? ""}
               aria-label={t("regions.linkedObject")}
-              disabled={readOnly || !approved}
+              disabled={readOnly || !selected}
               onChange={(event) =>
                 void saveRegion(region, { objectId: event.target.value || null })
               }
@@ -333,7 +326,7 @@ export function RegionPanel() {
               className="btn btn-ghost btn-icon"
               title={t("regions.deleteRegion")}
               aria-label={t("regions.deleteRegion")}
-              disabled={readOnly || !approved}
+              disabled={readOnly || !selected}
               onClick={() => void deleteRegion(region)}
             >
               <Trash2 size={13} />
@@ -545,7 +538,7 @@ export function RegionPanel() {
           disabled={
             busy ||
             readOnly ||
-            !approved ||
+            !selected ||
             !selectedRegions.size ||
             !provider ||
             !model ||

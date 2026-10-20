@@ -6,6 +6,7 @@ import { useT } from "../../i18n";
 import { WORKFLOW_STEPS } from "../../lib/workflow";
 import { PremiumIcon, type PremiumIconId } from "../common/PremiumIcon";
 import { useWorkspaceLayout } from "../../features/workspace/layout";
+import { useEditableSource } from "../../features/assets/useEditableSource";
 
 const MODULE_PREMIUM_ICONS: Record<ModuleId, PremiumIconId> = {
   overview: "preset-grid",
@@ -58,6 +59,7 @@ export function WorkspaceNav() {
   const layout = useWorkspaceLayout();
   const t = useT();
   const workflow = useStudio((s) => s.workflowView);
+  const editableSource = useEditableSource();
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
   const [advancedPref, setAdvancedPref] = useState(readAdvancedOpen);
   // The DNA steps open by themselves while one of them is the active module.
@@ -135,7 +137,10 @@ export function WorkspaceNav() {
                 {m.availableIn && <span className="nav-phase">P{m.availableIn}</span>}
                 {(() => {
                   const step = WORKFLOW_STEPS.find((item) => item.moduleId === m.id);
-                  const status = workflow?.steps.find((item) => item.id === step?.id)?.status;
+                  const status =
+                    step?.id === "post.grade" && editableSource
+                      ? "available"
+                      : workflow?.steps.find((item) => item.id === step?.id)?.status;
                   return step && status ? (
                     <span
                       className="nav-status"

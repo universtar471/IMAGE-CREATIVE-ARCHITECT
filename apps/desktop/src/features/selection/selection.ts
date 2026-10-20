@@ -7,13 +7,7 @@
  * (`canvasSelection`, ids from `buildBranchGraph`: `asset:<id>`, `gen:<id>`, `draft`). A clip is
  * an asset whose mediaKind is video, never an image. Pure: no store, no React, no backend.
  */
-import {
-  isQuickSourceImage,
-  isVideoAsset,
-  type AssetDTO,
-  type AssetRole,
-  type GenerationDTO,
-} from "@arch/domain";
+import { isVideoAsset, type AssetDTO, type AssetRole, type GenerationDTO } from "@arch/domain";
 import { hasOwnCenter, type ModuleId } from "../workspace/modules";
 
 /** Route a newly selected graph node without saving DNA or changing a generation draft. */
@@ -125,7 +119,11 @@ function fromAsset(
       ...node,
     };
   const origin: ImageOrigin =
-    asset.source === "ai_generated" ? "ai" : isQuickSourceImage(asset) ? "source" : "import";
+    asset.source === "ai_generated"
+      ? "ai"
+      : asset.role === "structure_sketch" || asset.role === "master_architecture"
+        ? "source"
+        : "import";
   return { kind: "image", asset, origin, readOnly, ...node };
 }
 

@@ -37,7 +37,13 @@ describe("SpaceSelector (ADR-034 P1a)", () => {
     await openTownhouse();
     render(<SpaceSelector />);
     const panel = screen.getByTestId("space-selector");
-    expect(within(panel).getByText("Gợi ý theo loại dự án: Nhà phố")).toBeTruthy();
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Trợ giúp: Loại công trình (danh mục)" }),
+    );
+    expect(screen.getByRole("note").textContent).toContain("Gợi ý theo loại dự án: Nhà phố");
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Trợ giúp: Loại công trình (danh mục)" }),
+    );
     expect(draft().spaceCatalog).toBeUndefined();
 
     fireEvent.change(within(panel).getByLabelText("Loại công trình (danh mục)"), {

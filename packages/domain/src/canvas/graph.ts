@@ -64,9 +64,6 @@ export const AI_CHAIN_WARNING_DEPTH = 3;
 export const imageNodeId = (assetId: string) => `asset:${assetId}`;
 export const generationNodeId = (generationId: string) => `gen:${generationId}`;
 
-/** Roles that start a branch even before any generation uses them. */
-const SOURCE_ROLES: readonly AssetDTO["role"][] = ["structure_sketch", "master_architecture"];
-
 const byTimeThenId = <T extends { createdAt: string; id: string }>(a: T, b: T) =>
   a.createdAt < b.createdAt
     ? -1
@@ -108,9 +105,10 @@ export function buildBranchGraph(input: {
     return node;
   };
 
-  // Standalone sources first, so they sit in the first column even without a generation.
+  // Every imported asset is visible immediately, including ordinary images and references.
+  // The generation loop below reuses these nodes and assigns outputs their lineage depth.
   for (const asset of [...assets.values()].sort(byTimeThenId)) {
-    if (SOURCE_ROLES.includes(asset.role)) imageNode(asset);
+    imageNode(asset);
   }
 
   for (const g of generations) {

@@ -203,7 +203,16 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
             .iter()
             .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
-        let has_source = assets.iter().any(|a| workflow::is_source_image(a.role, a.source));
+        // check_reference above already rejects missing files, videos and cross-project ids.
+        let editing = matches!(
+            purpose,
+            GenerationPurpose::Variation | GenerationPurpose::Enhance | GenerationPurpose::RegionEdit
+        );
+        let has_source = if editing {
+            !assets.is_empty()
+        } else {
+            assets.iter().any(|a| workflow::is_source_image(a.role, a.source))
+        };
         workflow::ensure_generation_allowed(&conn, &project, purpose, has_source)?;
         let camera_name = match &req.camera_id {
             Some(id) => Some(camera_name(&repo::get_dna(&conn, &project.id)?, id)?),
@@ -2192,9 +2201,8 @@ mod tests {
     fn conservative_enhance_is_local_exact_and_keeps_source_bytes_and_lineage() {
         let (tmp, core, _) = core_with_double();
         let project = test_create_villa(&core, "Enhance");
-        let source = import(&core, tmp.path(), &project.id, "source.png", "master_architecture", [32, 64, 96]);
+        let source = import(&core, tmp.path(), &project.id, "source.png", "regular_image", [32, 64, 96]);
         let source_bytes = std::fs::read(&source.absolute_path).unwrap();
-        projects::approve_master(&core, &project.id, true).unwrap();
         let generation = submit(
             &core,
             enhance_request(

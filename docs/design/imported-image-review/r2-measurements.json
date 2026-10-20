@@ -1,0 +1,73 @@
+{
+  "fontLoaded": true,
+  "selection": [
+    {
+      "id": "AST_CLIP",
+      "module": "video",
+      "toolbar": "video"
+    },
+    {
+      "id": "AST_REF",
+      "module": "references",
+      "toolbar": "reference"
+    },
+    {
+      "id": "AST_IMG",
+      "module": "generate",
+      "toolbar": "image"
+    }
+  ],
+  "resize": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    },
+    {
+      "width": 1000,
+      "height": 768,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    },
+    {
+      "width": 960,
+      "height": 540,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "horizontalScroll": false,
+      "draft": "Giữ nguyên bản nháp",
+      "selection": "AST_IMG"
+    }
+  ],
+  "initialNodesFit": true,
+  "standaloneImportsVisible": true,
+  "traySelectsNode": true,
+  "fullscreenEntered": true,
+  "inspectorScrollKept": 160,
+  "editingWithoutMaster": true,
+  "trayPortraitFits": true,
+  "videoPlaybackStops": true,
+  "noWrites": true
+}

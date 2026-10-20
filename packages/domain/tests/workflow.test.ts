@@ -32,6 +32,17 @@ const facts = (over: Partial<WorkflowFacts> = {}): WorkflowFacts => ({
   ...over,
 });
 
+it("edits a selected input image without a Master or confirmed DNA", () => {
+  for (const purpose of ["variation", "enhance", "region_edit"] as const) {
+    expect(isGenerationAllowed(purpose, [], facts({ hasSourceImage: true }))).toEqual({ ok: true });
+    expect(isGenerationAllowed(purpose, [], facts())).toEqual({
+      ok: false,
+      blockedBy: "generate.master",
+    });
+  }
+  expect(isGenerationAllowed("production", [], facts({ hasSourceImage: true })).ok).toBe(false);
+});
+
 describe("workflow schemas", () => {
   it("accepts exactly the stable step ids and persisted DNA states", () => {
     expect(WorkflowStepIdSchema.options).toHaveLength(9);
@@ -330,8 +341,7 @@ describe("generation workflow gating", () => {
       blockedBy: "dna.building",
     });
     expect(isGenerationAllowed("variation", [], quick)).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
+      ok: true,
     });
   });
 

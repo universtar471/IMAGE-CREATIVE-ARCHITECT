@@ -8,6 +8,7 @@ import {
   defaultReferenceIds,
   isImageProvider,
   isVideoAsset,
+  isQuickSourceImage,
   orderReferenceIds,
   orderReferences,
   validateGenerationRequest,
@@ -71,7 +72,7 @@ export function resolveGenerateForm(
   // the first good hero image becomes the master.
   const purpose = source === "sketch" ? "hero" : (draft.purpose ?? "hero");
   const readySketches = ready
-    .filter((asset) => asset.role === "structure_sketch")
+    .filter(isQuickSourceImage)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   const requestedSketch = draft.referenceAssetIds
     ?.map((id) => readySketches.find((asset) => asset.id === id))

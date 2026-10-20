@@ -164,7 +164,7 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     labelKey: "selectionActions.detail",
     icon: ScanLine,
     risk: "view",
-    applies: isAiImage,
+    applies: anyImage,
     run: (s, env) => {
       env.focusAsset(assetOf(s)!.id);
       env.setModule("detail");
@@ -175,7 +175,7 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     labelKey: "selectionActions.grade",
     icon: Palette,
     risk: "view",
-    applies: isAiImage,
+    applies: anyImage,
     run: (s, env) => {
       env.focusAsset(assetOf(s)!.id);
       env.setModule("mood_grade");
@@ -186,7 +186,7 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     labelKey: "selectionActions.enhance",
     icon: Wand2,
     risk: "view",
-    applies: isAiImage,
+    applies: anyImage,
     run: (s, env) => {
       env.focusAsset(assetOf(s)!.id);
       env.setModule("enhance");

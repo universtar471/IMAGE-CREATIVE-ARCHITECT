@@ -6,6 +6,7 @@ import { SectionPanel } from "../../components/panels/SectionPanel";
 import { call, toBridgeError } from "../../lib/bridge";
 import { ErrorMessage } from "../../components/common/ErrorMessage";
 import { useT } from "../../i18n";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import {
   ENHANCE_PROVIDER_ID,
   MAX_EXTRA_PROMPT_CHARS,
@@ -77,7 +78,10 @@ export function ExtraPromptSection({
   };
 
   return (
-    <SectionPanel title={t("extra.title")}>
+    <SectionPanel
+      title={t("extra.title")}
+      aside={<HelpPopover topic={t("extra.title")}>{t("extra.hint")}</HelpPopover>}
+    >
       <div className="field">
         <label className="field-label" htmlFor="extra-prompt">
           {t("extra.label")}
@@ -93,7 +97,6 @@ export function ExtraPromptSection({
           onChange={(e) => setText(e.target.value)}
           data-testid="extra-prompt"
         />
-        <span className="field-hint">{t("extra.hint")}</span>
       </div>
       <div className="extra-prompt-actions">
         {/* A disabled button gets no hover events; the wrapper carries the tooltip. */}

@@ -15,7 +15,15 @@ const SOURCES = Object.entries(
 );
 
 /** Text that is the same in every language (units, formats, product names). */
-const ALLOWED = new Set(["JPEG · PNG · WebP", "SHA-256", "Arch AI Studio", "1:1"]);
+const ALLOWED = new Set([
+  "JPEG · PNG · WebP",
+  "SHA-256",
+  "Arch AI Studio",
+  "IMAGE-CREATIVE-",
+  "ARCHITECT",
+  "IMAGE-CREATIVE-ARCHITECT",
+  "1:1",
+]);
 
 function leftovers(source: string): string[] {
   const found: string[] = [];

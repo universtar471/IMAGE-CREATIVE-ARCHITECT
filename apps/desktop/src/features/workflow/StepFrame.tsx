@@ -8,7 +8,8 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { useStudio } from "../../app/store";
+import { selectReadOnly, useStudio } from "../../app/store";
+import { useEditableSource } from "../assets/useEditableSource";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS, type DnaStepId, type DerivedWorkflowStep } from "../../lib/workflow";
 import { BlockedExplainer } from "./BlockedExplainer";
@@ -139,12 +140,16 @@ export function PostStepFrame({ children }: { children: ReactNode }) {
   const setModule = useStudio((state) => state.setModule);
   const t = useT();
   const step = workflow?.steps.find((item) => item.id === "post.grade");
-  const locked = !step || step.status === "locked";
+  const source = useEditableSource();
+  const readOnly = useStudio(selectReadOnly);
+  const locked = readOnly || !source;
   return (
     <section
       className="workflow-step"
       data-step-id="post.grade"
-      data-step-status={step?.status ?? "locked"}
+      data-step-status={
+        locked ? "locked" : step?.status === "locked" ? "available" : (step?.status ?? "available")
+      }
     >
       {locked && (
         <div
@@ -152,11 +157,10 @@ export function PostStepFrame({ children }: { children: ReactNode }) {
           role="status"
         >
           <LockKeyhole size={14} />
-          <span>{t("workflow.locked", { step: t("workflow.steps.generate.master.name") })}</span>
-          <button className="link-btn" onClick={() => setModule("generate")}>
+          <span>{t("enhance.noSource")}</span>
+          <button className="link-btn" onClick={() => setModule("references")}>
             {t("workflow.goThere")}
           </button>
-          <BlockedExplainer stepId="generate.master" />
         </div>
       )}
       <fieldset disabled={locked} className="workflow-fields">

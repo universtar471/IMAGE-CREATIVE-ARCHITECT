@@ -210,18 +210,21 @@ export function GeneratePanel() {
   const advanced = mode === "advanced";
   return (
     <div className="generate-panel">
-      <div className="segmented generate-mode" role="group" aria-label={t("generate.modeLabel")}>
-        {(["simple", "advanced"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            aria-pressed={mode === m}
-            data-testid={`generate-mode-${m}`}
-            onClick={() => setMode(m)}
-          >
-            {t(m === "simple" ? "generate.modeSimple" : "generate.modeAdvanced")}
-          </button>
-        ))}
+      <div className="generate-mode-row">
+        <div className="segmented generate-mode" role="group" aria-label={t("generate.modeLabel")}>
+          {(["simple", "advanced"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={mode === m}
+              data-testid={`generate-mode-${m}`}
+              onClick={() => setMode(m)}
+            >
+              {t(m === "simple" ? "generate.modeSimple" : "generate.modeAdvanced")}
+            </button>
+          ))}
+        </div>
+        <HelpPopover topic={t("generate.modeLabel")}>{t("generate.advancedHint")}</HelpPopover>
       </div>
       {advanced && <GenerationStepper />}
       <SectionPanel
@@ -234,7 +237,10 @@ export function GeneratePanel() {
       >
         <SourceFields form={form} disabled={running} />
       </SectionPanel>
-      <SectionPanel title={t("presets.title")}>
+      <SectionPanel
+        title={t("presets.title")}
+        aside={<HelpPopover topic={t("presets.title")}>{t("presets.none")}</HelpPopover>}
+      >
         <PresetGrid disabled={running} />
       </SectionPanel>
       <RecipeSection
@@ -243,7 +249,6 @@ export function GeneratePanel() {
         outputCount={form.params.outputCount}
         onRun={(plans) => void runRecipe(plans)}
       />
-      {!advanced && <span className="field-hint">{t("generate.advancedHint")}</span>}
       {advanced && <GenerationActions onOpen={setBatchMode} />}
       {advanced && <VisualIntentSelector />}
       {advanced && <ProviderSection form={form} disabled={running} />}
