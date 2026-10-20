@@ -1,0 +1,210 @@
+{
+  "referenceInDraft": true,
+  "resize": [
+    {
+      "viewport": "1920x1080@1",
+      "tier": "wide",
+      "short": false,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg"
+    },
+    {
+      "viewport": "1280x720@1",
+      "tier": "regular",
+      "short": true,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg"
+    },
+    {
+      "viewport": "1000x768@1",
+      "tier": "compact",
+      "short": true,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 360,
+      "ctaVisible": true,
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg"
+    },
+    {
+      "viewport": "800x600@1",
+      "tier": "narrow",
+      "short": true,
+      "drawer": true,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": "in drawer (closed)",
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg"
+    },
+    {
+      "viewport": "800x600@1",
+      "tier": "narrow",
+      "short": true,
+      "drawer": true,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg",
+      "note": "drawer open"
+    },
+    {
+      "viewport": "1920x1080@1",
+      "tier": "wide",
+      "short": false,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+      "selected": "hero-6prkk8-1.svg"
+    }
+  ],
+  "selection": [
+    {
+      "node": "asset:AST_01K5D016FD1YJN9GGGKYS9RYBQ",
+      "toolbar": "image",
+      "inspector": "image",
+      "actions": ["continue_from_ai", "detail", "grade", "enhance", "expand"]
+    },
+    {
+      "node": "asset:AST_01K5D01H6129PBHN3G7NK6MSKF",
+      "toolbar": "video",
+      "inspector": "video",
+      "actions": ["view_source", "remake_video", "play"]
+    },
+    {
+      "node": "asset:AST_QA_REF",
+      "toolbar": "reference",
+      "inspector": "reference",
+      "actions": ["reference_role", "toggle_reference", "expand"]
+    },
+    {
+      "node": "gen:GEN_01K5D014X5PX982GAKC86PRKK8",
+      "toolbar": "generation",
+      "inspector": "generation",
+      "actions": ["show_outputs", "copy_prompt", "reuse_presets"]
+    },
+    {
+      "node": "gen:GEN_01K5D01R5NEBFF79FX0CB4NK7M",
+      "toolbar": "generation",
+      "inspector": "generation",
+      "actions": ["copy_prompt", "reuse_presets", "cancel_job"]
+    }
+  ],
+  "zoomTracking": {
+    "toolbarInsideCanvas": true,
+    "toolbarAboveOrBelowNode": true,
+    "overlapsNodeBody": false
+  },
+  "viewerImage": {
+    "zoomFit": "100",
+    "zoom100": "100",
+    "closedByEsc": true,
+    "canvasTransformKept": true,
+    "transformBefore": "translate(40px, 129.505px) scale(0.609091)",
+    "transformAfter": "translate(40px, 129.505px) scale(0.609091)"
+  },
+  "viewerVideo": {
+    "autoplayOnOpen": false,
+    "afterPlaySeekMute": {
+      "paused": false,
+      "time": 2,
+      "muted": true,
+      "duration": null
+    },
+    "afterStop": {
+      "paused": true,
+      "time": 0
+    },
+    "playingVideosAfterClose": 0
+  },
+  "afterViewers": {
+    "viewport": "1440x900@1",
+    "tier": "regular",
+    "short": false,
+    "drawer": false,
+    "horizontalScroll": false,
+    "panelWidth": 380,
+    "ctaVisible": true,
+    "extraPrompt": "Giữ nguyên mặt tiền, nắng chiều ấm",
+    "selected": "orbit-left-qa.webm"
+  },
+  "readOnly": [
+    {
+      "action": "continue_from_ai",
+      "disabled": true
+    },
+    {
+      "action": "detail",
+      "disabled": false
+    },
+    {
+      "action": "grade",
+      "disabled": false
+    },
+    {
+      "action": "expand",
+      "disabled": false
+    }
+  ],
+  "readOnlyViewerOpens": true,
+  "scale": [
+    {
+      "label": "1920@125",
+      "viewport": "1536x864@1.25",
+      "tier": "regular",
+      "short": false,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "",
+      "selected": "hero-vxwygv-1.svg"
+    },
+    {
+      "label": "1920@150",
+      "viewport": "1280x720@1.5",
+      "tier": "regular",
+      "short": true,
+      "drawer": false,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "",
+      "selected": "hero-jy15ft-1.svg"
+    },
+    {
+      "label": "1920@200",
+      "viewport": "960x540@2",
+      "tier": "narrow",
+      "short": true,
+      "drawer": true,
+      "horizontalScroll": false,
+      "panelWidth": 380,
+      "ctaVisible": true,
+      "extraPrompt": "",
+      "selected": "hero-fknydh-1.svg"
+    }
+  ],
+  "english": {
+    "viewport": "1000x768@1",
+    "tier": "compact",
+    "short": true,
+    "drawer": false,
+    "horizontalScroll": false,
+    "panelWidth": 360,
+    "ctaVisible": true,
+    "extraPrompt": "",
+    "selected": "hero-2qt0wh-1.svg"
+  }
+}
