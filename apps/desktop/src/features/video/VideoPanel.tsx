@@ -19,6 +19,7 @@ import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { LoadingState } from "../../components/common/states";
 import { FieldGroup, SelectField, TextAreaField } from "../../components/panels/fields";
 import { SectionPanel } from "../../components/panels/SectionPanel";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { fileUrl } from "../../lib/files";
 import { useT } from "../../i18n";
 import { formatClipDuration } from "../../lib/format";
@@ -117,13 +118,17 @@ export function VideoPanel() {
   return (
     <div className="video-panel" data-testid="video-panel">
       {spend.dialog}
-      <SectionPanel title={t("videoModule.source")}>
+      <SectionPanel
+        title={t("videoModule.source")}
+        aside={
+          <HelpPopover topic={t("videoModule.source")}>{t("videoModule.sourceHint")}</HelpPopover>
+        }
+      >
         {sources.length === 0 ? (
           <p className="field-hint">{t("videoModule.noSource")}</p>
         ) : (
           <SelectField
             label={t("videoModule.source")}
-            hint={t("videoModule.sourceHint")}
             allowEmpty={false}
             disabled={readOnly}
             value={source?.id}

@@ -446,3 +446,101 @@
     padding: 8px;
   }
 }
+
+/* ---------------------------------------------------------------- typography tokens (V6.1) */
+/*
+ * Type scale from the V6 spec: page 20/700, panel 16/600, section 14/600, body 14/400,
+ * field 13–14/500, secondary 12/400, badge 11–12/500. Be Vietnam Pro is preferred when the
+ * machine has it; it is not bundled yet (licence and offline font files pending), so Inter /
+ * Segoe UI render today. No main content is below 11 px.
+ */
+:root {
+  --font: "Be Vietnam Pro", "Inter", "Segoe UI", system-ui, sans-serif;
+  --fs-page: 20px;
+  --fs-panel: 16px;
+  --fs-section: 14px;
+  --fs-body: 14px;
+  --fs-field: 13px;
+  --fs-secondary: 12px;
+  --fs-badge: 11px;
+}
+body {
+  font: var(--fs-body) / 1.5 var(--font);
+}
+.panel-header {
+  font-size: var(--fs-panel);
+  font-weight: 600;
+}
+.section > summary {
+  font-size: var(--fs-secondary);
+  font-weight: 600;
+}
+.field-label,
+.select,
+.input,
+.textarea,
+.btn {
+  font-size: var(--fs-field);
+}
+.field-hint {
+  font-size: var(--fs-secondary);
+  line-height: 1.5;
+}
+.badge {
+  font-size: var(--fs-badge);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- help popover */
+.help-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: pointer;
+}
+.help-button:hover,
+.help-button[aria-expanded="true"] {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+}
+.help-popover {
+  position: fixed;
+  z-index: 45;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 10px 12px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 8px;
+  background: var(--c-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+  color: var(--c-text);
+  font-size: var(--fs-field);
+  line-height: 1.5;
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+/* ---------------------------------------------------------------- preset cards (V6.1) */
+/* Columns follow the panel's own width (4 → 3 → 2), never the window's. */
+.preset-studio .preset-options,
+.workspace .preset-studio .preset-options {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.preset-studio .preset-options .premium-preset-card {
+  min-height: 84px;
+}
+.preset-option-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-secondary);
+  overflow-wrap: break-word;
+}

@@ -48,6 +48,7 @@ import { isMasterApproved } from "../camera/labels";
 import { useAssetImport } from "../assets/useAssetImport";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { canSubmit, checkShot } from "../validation/gate";
@@ -223,8 +224,14 @@ export function GeneratePanel() {
         ))}
       </div>
       {advanced && <GenerationStepper />}
-      <SectionPanel title={t("generate.simpleSource")}>
-        <span className="field-hint">{t("generate.simpleSourceHint")}</span>
+      <SectionPanel
+        title={t("generate.simpleSource")}
+        aside={
+          <HelpPopover topic={t("generate.simpleSource")}>
+            {t("generate.simpleSourceHint")}
+          </HelpPopover>
+        }
+      >
         <SourceFields form={form} disabled={running} />
       </SectionPanel>
       <SectionPanel title={t("presets.title")}>
