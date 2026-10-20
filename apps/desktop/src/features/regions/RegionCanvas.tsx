@@ -179,6 +179,14 @@ export function RegionCanvas() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // ADR-044: keys typed in a field, a dialog or the large viewer are not region commands.
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "") ||
+        document.querySelector(".media-viewer-backdrop, .dialog-backdrop")
+      )
+        return;
       if (event.key === "Escape") setDraw(null);
       if (event.key === "Enter" && draw?.kind === "polygon" && draw.points.length >= 3)
         finishDraw({ type: "polygon", points: draw.points });

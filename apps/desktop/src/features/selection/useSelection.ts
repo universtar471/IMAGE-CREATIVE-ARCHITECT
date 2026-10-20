@@ -9,8 +9,11 @@ export function draftSourceOf(draft: GenerateDraft, masterId: string | null): st
   return draft.source === "sketch" ? (draft.referenceAssetIds?.[0] ?? null) : masterId;
 }
 
-/** The one normalised selection every surface reads (ADR-044). */
-export function useSelection(): Selection {
+/**
+ * The one normalised selection every surface reads (ADR-044). `fallbackAssetId` stands in for
+ * an empty Studio selection (the centre shows the master as a visual anchor).
+ */
+export function useSelection(fallbackAssetId: string | null = null): Selection {
   const ws = useStudio((s) => s.workspace);
   const mode = useStudio((s) => s.workspaceMode);
   const canvasSelection = useStudio((s) => s.canvasSelection);
@@ -31,12 +34,12 @@ export function useSelection(): Selection {
     return resolveSelection({
       mode,
       canvasSelection,
-      selectedAssetId,
+      selectedAssetId: selectedAssetId ?? fallbackAssetId,
       assets: ws.assets,
       generations: ws.generations,
       draftReferenceIds,
       draft: source ? { sourceAssetId: source, presetIds: ws.shotIntent?.presetIds ?? [] } : null,
       readOnly,
     });
-  }, [ws, mode, canvasSelection, selectedAssetId, draft, providers, readOnly]);
+  }, [ws, mode, canvasSelection, selectedAssetId, fallbackAssetId, draft, providers, readOnly]);
 }

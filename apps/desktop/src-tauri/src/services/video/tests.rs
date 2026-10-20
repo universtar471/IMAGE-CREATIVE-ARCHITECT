@@ -155,9 +155,13 @@ fn submits_once_polls_and_stores_a_video_with_lineage() {
     assert_eq!(asset.operation.as_deref(), Some("video"));
     assert!(asset.absolute_path.ends_with(".mp4"));
     assert!(asset.thumbnail_path.is_some(), "poster from the source image (or FFmpeg)");
+    // The scripted clip is not decodable by FFmpeg, so the poster is the source image, and
+    // the DTO says so.
+    assert_eq!(asset.poster_source, Some("source"));
     let source = assets::list(&f.core, &f.project_id).unwrap().into_iter().find(|a| a.id == f.source_id).unwrap();
     assert_eq!(source.media_kind, "image");
     assert_eq!(source.duration_ms, None);
+    assert_eq!(source.poster_source, None);
 }
 
 #[test]

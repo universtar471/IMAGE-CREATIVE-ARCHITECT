@@ -19,3 +19,30 @@ export function zoomAround(v: View, scale: number, cx: number, cy: number): View
   const k = scale / v.scale;
   return { scale, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
 }
+
+/** Pixels of the image that always stay inside the box while panning. */
+export const PAN_KEEP = 64;
+
+/**
+ * Keep at least `keep` px of the image visible on each axis (ADR-044), so a pan or a zoom
+ * never loses the image entirely; an image smaller than the box stays where it is.
+ */
+export function clampPan(
+  v: View,
+  imgW: number,
+  imgH: number,
+  boxW: number,
+  boxH: number,
+  keep = PAN_KEEP,
+): View {
+  const w = imgW * v.scale;
+  const h = imgH * v.scale;
+  if (!w || !h || !boxW || !boxH) return v;
+  const kx = Math.min(keep, w);
+  const ky = Math.min(keep, h);
+  return {
+    scale: v.scale,
+    x: Math.min(boxW - kx, Math.max(kx - w, v.x)),
+    y: Math.min(boxH - ky, Math.max(ky - h, v.y)),
+  };
+}

@@ -13,6 +13,7 @@
     "operation": "diagram_sheet",
     "originalName": "Diagram sheet",
     "parentAssetId": "AST_00000000000000000000000003",
+    "posterSource": null,
     "projectId": "PRJ_00000000000000000000000001",
     "role": "regular_image",
     "sha256": "d531d9d0e2e07ec1484c06afdc60dbdbfe83451d760c54bc5380ecbfbe86db0d",

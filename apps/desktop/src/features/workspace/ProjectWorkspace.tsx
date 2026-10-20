@@ -1,7 +1,6 @@
 import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useStudio } from "../../app/store";
-import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
 import { ErrorState, FutureModulePlaceholder, LoadingState } from "../../components/common/states";
 import { PropertyPanel } from "../../components/panels/PropertyPanel";
@@ -24,6 +23,8 @@ import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
 import { BranchCanvas } from "../canvas/BranchCanvas";
 import { VideoCanvas } from "../video/VideoCanvas";
+import { MediaViewer } from "../viewer/MediaViewer";
+import { StudioPreview } from "../viewer/StudioPreview";
 import { navigateTabs } from "../../components/common/tabNavigation";
 
 export function findSubmittedEnhanceResult(
@@ -127,6 +128,7 @@ function WorkspaceShell() {
         <PropertyPanel />
         <BottomTray />
       </div>
+      <MediaViewer />
     </WorkspaceLayoutContext.Provider>
   );
 }
@@ -292,8 +294,7 @@ function CenterArea() {
             <RegionCanvas />
           )
         ) : (
-          <WorkspaceCanvas
-            mode={{ kind: "single", asset }}
+          <StudioPreview
             emptyAction={
               <button className="btn" onClick={() => setModule("references")}>
                 <ImagePlus size={14} /> {t("workspace.goToReferences")}

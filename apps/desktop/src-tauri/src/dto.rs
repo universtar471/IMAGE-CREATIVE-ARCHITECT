@@ -57,6 +57,8 @@ pub struct AssetDto {
     pub media_kind: &'static str,
     /// Clip length of a video, from its operation metadata.
     pub duration_ms: Option<i64>,
+    /// Clip poster origin: `frame` (FFmpeg) or `source` (the source image); null when unknown.
+    pub poster_source: Option<&'static str>,
     pub created_at: String,
     pub updated_at: String,
 }

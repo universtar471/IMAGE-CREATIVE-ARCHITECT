@@ -31,6 +31,13 @@ export function VideoCanvas() {
   }
   const parent = assets.find((a) => a.id === clip.parentAssetId) ?? null;
   const poster = fileUrl(clip.thumbnailPath);
+  // Only a frame FFmpeg took from the clip is called its first frame (ADR-044).
+  const posterLabel =
+    clip.posterSource === "frame"
+      ? t("videoModule.firstFrame")
+      : clip.posterSource === "source"
+        ? t("viewer.posterSource")
+        : t("viewer.posterUnknown");
   const parentSrc = parent ? fileUrl(parent.thumbnailPath ?? parent.absolutePath) : null;
   return (
     <div className="video-canvas">
@@ -38,8 +45,8 @@ export function VideoCanvas() {
       {parent && (
         <section className="video-compare" aria-label={t("videoModule.compareHint")}>
           <figure>
-            {poster && <img src={poster} alt={t("videoModule.firstFrame")} />}
-            <figcaption>{t("videoModule.firstFrame")}</figcaption>
+            {poster && <img src={poster} alt={posterLabel} />}
+            <figcaption>{posterLabel}</figcaption>
           </figure>
           <figure>
             {parentSrc && <img src={parentSrc} alt={t("videoModule.sourceFrame")} />}
