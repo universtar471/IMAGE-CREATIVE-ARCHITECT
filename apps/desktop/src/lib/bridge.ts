@@ -212,7 +212,8 @@ export type Requests = {
   dna_assist: {
     projectId: string;
     mode: "brief" | "images" | "master" | "translate";
-    scope: "interior" | "building" | "context" | "lighting";
+    /** `analysis`: the evidence board of one image (ADR-042). */
+    scope: "interior" | "building" | "context" | "lighting" | "analysis";
     brief?: string;
     referenceAssetIds?: string[];
     catalog: {

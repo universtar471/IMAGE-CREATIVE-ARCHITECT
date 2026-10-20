@@ -1,5 +1,13 @@
 # Progress
 
+## M4 — Recipes and evidence analysis (ADR-042)
+- **Done:**
+  - **Recipes:** 4 recipes (lighting × 6, weather × 4, facade colours × 4, moodboard). They run behind one spend confirm, with one generation per variant.
+  - **Presets:** a facade palette group and a material moodboard preset (`ps-1.1.0`).
+  - **Evidence board:** the vision call goes through the `dna_assist` `analysis` scope; the SVG board is drawn by the app, every item labelled inferred, and can be saved as a derived image.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy and `cargo test` pass.
+- **Not yet verified:** a live HHTECH vision call, the image quality of the palette and moodboard prompts, and the native window.
+
 ## M3 — Branch canvas (ADR-041)
 - **Done:**
   - Branch graph derived from generation lineage (domain, deterministic) and a depth-column layout with saved positions (migration 11).

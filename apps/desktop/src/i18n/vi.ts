@@ -2125,6 +2125,39 @@ export const vi: Dict = {
     draftHint: "Đây là những gì nút Tạo sẽ gửi. Chưa có gì chạy cho tới khi bạn bấm Tạo.",
   },
 
+  recipes: {
+    title: "Recipe (nhiều biến thể)",
+    variants: "Các biến thể",
+    notForShot: "không hợp với shot này",
+    run: "Chạy {count} biến thể ({images} ảnh)",
+    costNote:
+      "Xác nhận tổng chi phí một lần, rồi mỗi biến thể là một lượt tạo. Chưa có gì chạy trước khi bạn xác nhận.",
+  },
+
+  analysis: {
+    open: "Phân tích ảnh",
+    title: "Bảng phân tích có chứng cứ",
+    explain:
+      "Gọi AI đọc ảnh này một lần (model assist của HHTECH, chỉ tốn token văn bản). App tự vẽ bảng; mọi nội dung là suy luận từ ảnh, không phải số đo.",
+    run: "Phân tích",
+    running: "Đang phân tích…",
+    badReply: "Không đọc được câu trả lời của model. Hãy thử lại.",
+    save: "Lưu thành ảnh",
+    saved: "Đã lưu bảng phân tích thành ảnh mới.",
+    assetLabel: "Phân tích — {name}",
+    boardTitle: "Phân tích ảnh",
+    inferred: "AI suy luận từ ảnh — không phải số đo",
+    materials: "Vật liệu nhìn thấy",
+    palette: "Bảng màu",
+    composition: "Bố cục",
+    viewpoint: "Góc nhìn",
+    lighting: "Ánh sáng",
+    focus: "Điểm nhấn",
+    observations: "Nhận xét",
+    confidence: { low: "khó thấy", medium: "thấy khá rõ", high: "thấy rõ" },
+    footer: "Arch AI Studio · AI suy luận từ một ảnh; không phải khảo sát, đo đạc hay kiểm định.",
+  },
+
   sketchup: {
     receive: "Nhận từ SketchUp ({count})",
     folder: "Thư mục chờ:",
@@ -2158,6 +2191,7 @@ export const vi: Dict = {
       render: "Kiểu render",
       time_light: "Giờ và ánh sáng",
       weather: "Thời tiết",
+      palette: "Phối màu",
       camera: "Góc máy",
       people_cars: "Người và xe",
       effects: "Hiệu ứng",

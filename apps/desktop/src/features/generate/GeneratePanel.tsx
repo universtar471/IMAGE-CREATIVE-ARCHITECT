@@ -14,11 +14,13 @@ import {
 import { useState } from "react";
 import { PresetGrid } from "../presets/PresetGrid";
 import { SketchupInbox } from "./SketchupInbox";
+import { RecipeSection } from "./RecipeSection";
 import {
   anchorViews,
   costHintText,
   dnaReadiness,
   isQuickSourceImage,
+  type PlannedVariant,
   type AssetDTO,
   type GenerationParams,
   type ModelCapabilities,
@@ -169,6 +171,39 @@ export function GeneratePanel() {
     });
   };
 
+  /** ADR-042: one spend confirm for every variant, then one ordinary generation each. */
+  const runRecipe = async (plans: readonly PlannedVariant[]) => {
+    if (!form.provider || !form.model || plans.length === 0) return;
+    const images = form.params.outputCount * plans.length;
+    const unit = form.params.imageSize ? form.model.priceHint?.[form.params.imageSize] : undefined;
+    const total = costHintText(form.model, form.params.imageSize, images);
+    if (
+      !(await spend.request({
+        providerId: form.provider.id,
+        provider: form.provider.label,
+        model: form.model.label,
+        imageCount: images,
+        costText: total ? translateDomainMessage(total, t) : null,
+        estimatedTotal: unit === undefined ? null : unit * images,
+      }))
+    )
+      return;
+    for (const plan of plans) {
+      await submit({
+        projectId: project.id,
+        providerId: form.provider.id,
+        modelId: form.model.id,
+        purpose: form.purpose,
+        referenceAssetIds: form.referenceIds,
+        params: form.params,
+        cameraId: null,
+        extraPrompt: draft.extraPrompt,
+        approvedExceptions: draft.approvedExceptions,
+        shotIntent: plan.shotIntent,
+      });
+    }
+  };
+
   const advanced = mode === "advanced";
   return (
     <div className="generate-panel">
@@ -193,6 +228,12 @@ export function GeneratePanel() {
       <SectionPanel title={t("presets.title")}>
         <PresetGrid disabled={running} />
       </SectionPanel>
+      <RecipeSection
+        disabledReason={disabledReason}
+        running={running}
+        outputCount={form.params.outputCount}
+        onRun={(plans) => void runRecipe(plans)}
+      />
       {!advanced && <span className="field-hint">{t("generate.advancedHint")}</span>}
       {advanced && <GenerationActions onOpen={setBatchMode} />}
       {advanced && <VisualIntentSelector />}

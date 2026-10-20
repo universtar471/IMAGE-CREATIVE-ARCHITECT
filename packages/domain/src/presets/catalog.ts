@@ -13,7 +13,7 @@ import type { GradeLookId, TimeOfDay } from "../schemas/future";
 import type { VisualIntentView } from "../camera/intent";
 import type { PresetGroup, PresetObject, PresetScope, ShotPreset, ShotWeather } from "./schemas";
 
-export const PRESET_CATALOG_VERSION = "ps-1.0.0";
+export const PRESET_CATALOG_VERSION = "ps-1.1.0";
 
 const GEOMETRY_KEEP =
   "Keep the building geometry, camera viewpoint, openings, floor count and proportions of the source image exactly.";
@@ -99,6 +99,53 @@ const RENDER: ShotPreset[] = [
     source: "authored",
   },
 ];
+
+// ---------------------------------------------------------------- material moodboard (ADR-042)
+
+const MOODBOARD: ShotPreset = {
+  id: "render.material_moodboard",
+  group: "render",
+  exclusive: "render",
+  scope: "any",
+  labelVi: "Moodboard vật liệu",
+  labelEn: "Material moodboard",
+  hintVi: "Bảng mẫu vật liệu thấy trong ảnh, không có chữ",
+  hintEn: "A board of the materials seen in the image, without text",
+  patch: {},
+  promptEn:
+    "Instead of the building view, create a flat-lay material moodboard on a neutral background: physical samples of the main materials visible in the source image (facade finishes, timber, stone, metal, glass, planting), arranged in a clean grid with soft even studio light.",
+  keepEn:
+    "Use only materials that appear in the source image; no text, no labels, no numbers, no logos.",
+  source: "authored",
+};
+
+// ---------------------------------------------------------------- facade palette (ADR-042)
+
+const PALETTE_KEEP =
+  "Change only the colour of painted wall surfaces; keep the geometry, openings, glass, roof, timber, stone, metal and every other material exactly.";
+
+const PALETTE: ShotPreset[] = (
+  [
+    ["warm_white", "Trắng ấm", "Warm white", "warm off-white"],
+    ["sand_beige", "Be cát", "Sand beige", "soft sand beige"],
+    ["light_grey", "Xám nhạt", "Light grey", "light neutral grey"],
+    ["charcoal", "Xám than", "Charcoal", "deep charcoal grey"],
+    ["terracotta", "Đất nung", "Terracotta", "muted terracotta"],
+  ] as const
+).map(([id, vi, en, colour]) => ({
+  id: `palette.${id}`,
+  group: "palette" as const,
+  exclusive: "palette",
+  scope: "exterior" as const,
+  labelVi: vi,
+  labelEn: en,
+  hintVi: `Sơn tường ngoài màu ${vi.toLowerCase()}`,
+  hintEn: `Paint the facade walls ${colour}`,
+  patch: {},
+  promptEn: `Paint the facade wall surfaces in a ${colour} matte finish.`,
+  keepEn: PALETTE_KEEP,
+  source: "authored" as const,
+}));
 
 // ---------------------------------------------------------------- time of day
 
@@ -432,8 +479,10 @@ const LOOKS: ShotPreset[] = LOOK_IDS.map((id) => {
 
 export const SHOT_PRESETS: readonly ShotPreset[] = [
   ...RENDER,
+  MOODBOARD,
   ...TIME,
   ...WEATHER,
+  ...PALETTE,
   ...CAMERA,
   ...PEOPLE_CARS,
   ...EFFECTS,

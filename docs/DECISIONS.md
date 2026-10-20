@@ -1152,3 +1152,31 @@ Runs stay the immutable generation records they already are. The planned `recipe
 **Quick generate from outputs.** `is_source_image(role, source)` in Rust, and `isQuickSourceImage` in the domain and mock, also accept `ai_generated` images of the project. This lets a branch continue from an output without confirmed DNA. To guard against drift, `aiDepth` counts AI images in a row on the primary lineage; from `AI_CHAIN_WARNING_DEPTH` (3) the node shows a warning to go back to the original source.
 
 **Dependency.** `@xyflow/react` 12.12.0 (React Flow, MIT) provides pan, zoom, drag and selection. It is the only new dependency, pinned exactly.
+
+
+## ADR-042 — M4: image recipes and the evidence analysis board
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M4 (A10 + A11).
+
+**Recipes** (`packages/domain/src/recipes/`)
+- A recipe is a list of variants, and each variant is a list of preset ids. `planRecipe(recipe, baseShot, dna, variantIds?)` puts each variant on top of the user's current chips through `setShotPresets`, so the variant wins every exclusive key (time, weather, palette…) and the other chips stay.
+- A variant whose own presets do not fit the shot is left out; for example, facade colours are dropped for an interior shot.
+- **Built-in recipes:**
+  - 6 lighting scenarios (morning, midday, golden hour, overcast, blue hour, night);
+  - weather set (4);
+  - facade colour options (4);
+  - material moodboard (1).
+- **New presets** (catalog `ps-1.1.0`): a `palette` group with five wall colours (exterior only). The sentence changes only painted wall surfaces and keeps every other material. `render.material_moodboard` creates a flat-lay board of the materials visible in the source, with no text.
+- **Running:**
+  - The Generate panel lists the variants with checkboxes.
+  - One spend confirm covers the total (variants × images per run), then each variant is submitted as an ordinary generation with its own shot intent.
+  - Every run stays an immutable record with lineage and appears on the branch canvas; nothing runs on the recipe's own.
+
+**Evidence analysis board** (`packages/domain/src/analysis/`)
+- One vision call through the existing DNA-assist path. Rust `dna_assist` accepts the new scope `analysis` (mode `images`); the call uses the HHTECH assist model and is recorded as an `assist` generation.
+- **Model output:** `ANALYSIS_SYSTEM_PROMPT` (the app's own wording) asks for strict JSON describing only what is visible: materials with a visibility confidence, up to 6 hex colours, composition, and up to 5 observations. Dimensions, prices, brands, standards and performance claims are forbidden. The instructions stay in English; the findings are written in the UI language (`analysisSystemPrompt`), because they are shown to the user, not sent to a model.
+- **Parsing:** `parseImageAnalysis` accepts a ```json fence and validates against `ImageAnalysisSchema`.
+- **Drawing:** `analysisBoardSvg` draws the board itself (escaped, deterministic, image on the left), so the text is sharp and no number is painted by the model. Every board says "inferred from the image by AI — not measured", and the confidence words describe visibility, not quality.
+- **UI:** "Analyse image" on an image node of the branch canvas.
+  - "Analyse" runs only on click.
+  - "Save as image" rasterises the board (2400 px) through `diagram_image_save`, as a new asset derived from the analysed image.

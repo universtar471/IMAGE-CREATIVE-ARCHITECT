@@ -11,7 +11,8 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, ArrowLeft, Columns2, LayoutGrid } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Columns2, LayoutGrid, ScanSearch } from "lucide-react";
+import { AnalysisDialog } from "../analysis/AnalysisDialog";
 import {
   buildBranchGraph,
   deepAiChain,
@@ -241,6 +242,7 @@ function NodeActions({ node }: { node: BranchNode }) {
   const retry = useStudio((s) => s.retryGeneration);
   const providers = useStudio((s) => s.providers);
   const spend = useSpendConfirm();
+  const [analysing, setAnalysing] = useState<AssetDTO | null>(null);
 
   if (node.kind === "image") {
     return (
@@ -279,6 +281,15 @@ function NodeActions({ node }: { node: BranchNode }) {
         >
           {t("branches.viewLarge")}
         </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={readOnly}
+          onClick={() => setAnalysing(ws.assets.find((a) => a.id === node.assetId) ?? null)}
+        >
+          <ScanSearch size={13} /> {t("analysis.open")}
+        </button>
+        {analysing && <AnalysisDialog asset={analysing} onClose={() => setAnalysing(null)} />}
       </div>
     );
   }

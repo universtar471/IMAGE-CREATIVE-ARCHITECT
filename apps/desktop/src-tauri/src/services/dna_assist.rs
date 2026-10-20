@@ -169,7 +169,8 @@ pub fn run(core: &AppCore, request: AssistRequest) -> AppResult<AssistResult> {
 
 fn validate_request(request: &AssistRequest) -> AppResult<()> {
     if !["brief", "images", "master", "translate"].contains(&request.mode.as_str())
-        || !["interior", "building", "context", "lighting"].contains(&request.scope.as_str())
+        // `analysis` (ADR-042): the evidence board reads one or more images; it never edits DNA.
+        || !["interior", "building", "context", "lighting", "analysis"].contains(&request.scope.as_str())
     {
         return Err(AppError::validation("Unknown AI assist mode or scope."));
     }
@@ -245,5 +246,31 @@ fn user_text(request: &AssistRequest) -> String {
         "Infer suggestions from the attached reference images.".into()
     } else {
         parts.join("\n\n")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request(mode: &str, scope: &str) -> AssistRequest {
+        AssistRequest {
+            project_id: "PRJ_1".into(),
+            mode: mode.into(),
+            scope: scope.into(),
+            brief: None,
+            reference_asset_ids: vec!["AST_1".into()],
+            catalog: Value::Null,
+            system_prompt: "Describe the image.".into(),
+            translate: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn accepts_the_analysis_scope_and_still_rejects_unknown_ones() {
+        assert!(validate_request(&request("images", "analysis")).is_ok());
+        assert!(validate_request(&request("images", "building")).is_ok());
+        assert!(validate_request(&request("images", "payroll")).is_err());
+        assert!(validate_request(&request("paint", "analysis")).is_err());
     }
 }

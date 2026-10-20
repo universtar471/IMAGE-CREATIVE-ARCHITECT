@@ -125,6 +125,26 @@ export type MockInboxView = {
 
 export const MOCK_INBOX_PATH = "mock://app-data/inbox/sketchup";
 
+/** The mock's answer to an evidence-board request (ADR-042). */
+export const MOCK_ANALYSIS = {
+  materials: [
+    { name: "Painted render", location: "main facade walls", confidence: "high" },
+    { name: "Timber louvres", location: "upper floor screen", confidence: "medium" },
+    { name: "Clear glazing", location: "ground floor shopfront", confidence: "high" },
+  ],
+  palette: [
+    { hex: "#E9E4DA", name: "Warm white" },
+    { hex: "#9C7A5B", name: "Timber" },
+    { hex: "#4B5563", name: "Dark frames" },
+  ],
+  composition: {
+    viewpoint: "Street-level oblique view of the front facade",
+    lighting: "Soft daylight from the left",
+    focus: "Entrance and upper-floor louvres",
+  },
+  observations: ["Planting at the base softens the street edge."],
+};
+
 /** A neutral grey placeholder standing in for a SketchUp viewport capture. */
 const VIEWPORT_PLACEHOLDER =
   "data:image/svg+xml;utf8," +
@@ -1169,7 +1189,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           providerId: provider.id,
         });
       return {
-        raw: JSON.stringify({ fields: [] }),
+        // ADR-042: a fixed, plausible analysis so the evidence board can be tried offline.
+        raw: JSON.stringify(req.scope === "analysis" ? MOCK_ANALYSIS : { fields: [] }),
         modelId: "mock-assist",
         generationId: newId("GEN"),
       };

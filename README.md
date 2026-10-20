@@ -211,6 +211,11 @@ replaces the current chips; presets that no longer exist or do not fit the shot 
 - **Shift-click two images** and choose **Compare A/B** for the split view.
 - **Drag nodes** to arrange them; positions are saved per project (**Re-arrange** resets them).
 
+## Recipes and evidence analysis
+
+- **Generate → Recipes:** pick a recipe (6 lighting scenarios, weather set, facade colour options, material moodboard) and untick the variants you do not need. One cost confirmation covers all of them; each variant then runs as a normal generation on top of your current preset chips.
+- **Branches → an image → Analyse image:** one AI call (HHTECH assist model) reads the image, and the app draws a board of the materials, palette, composition and observations. Everything on it is marked as inferred from the image, not measured. **Save as image** stores the board as a new asset linked to the analysed image.
+
 ### `.env`
 
 Copy `.env.example` to `.env` (gitignored) and fill it in. At startup the app loads, without
