@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 76" width="76" height="76" aria-label="Resort"><defs>
+  <linearGradient id="duo" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#FF61CF"/><stop offset=".47" stop-color="#A24DFF"/><stop offset="1" stop-color="#34CBFF"/></linearGradient>
+  <linearGradient id="pink" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#FF80D5"/><stop offset="1" stop-color="#924FFF"/></linearGradient>
+  <linearGradient id="purple" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#BE78FF"/><stop offset="1" stop-color="#6E50F5"/></linearGradient>
+  <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#46D9FA"/><stop offset="1" stop-color="#4B64F4"/></linearGradient>
+  <linearGradient id="cyan" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#39E7F8"/><stop offset="1" stop-color="#299AFB"/></linearGradient>
+  <linearGradient id="lavender" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#EEB2FF"/><stop offset="1" stop-color="#7EC5FF"/></linearGradient>
+  <linearGradient id="warm" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#FFF082"/><stop offset=".50" stop-color="#FFB544"/><stop offset="1" stop-color="#FE6F83"/></linearGradient>
+  <linearGradient id="cardbg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#11263A"/><stop offset="1" stop-color="#071522"/></linearGradient>
+  <linearGradient id="cardborder" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#2F546F"/><stop offset="1" stop-color="#15273E"/></linearGradient>
+  <filter id="softglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4"/></filter>
+  </defs><style>
+.duo{fill:url(#duo)}.pink{fill:url(#pink)}.purple{fill:url(#purple)}.blue{fill:url(#blue)}.cyan{fill:url(#cyan)}.lavender{fill:url(#lavender)}.warm{fill:url(#warm)}.night{fill:#102036}
+.line{fill:none;stroke:#D9F6FF;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.outline{fill:none;stroke:url(#duo);stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+.cyan-stroke{fill:none;stroke:url(#cyan);stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.pink-stroke{fill:none;stroke:url(#pink);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.blue-stroke{fill:none;stroke:url(#blue);stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+.warm-stroke{fill:none;stroke:url(#warm);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+</style><polygon points="8,57 17,50 31,57" class="purple"/><polygon points="34,60 44,50 57,60" class="blue"/><path d="M38 50C43 29 46 24 49 13" class="cyan-stroke"/><path d="M49 17Q28 7 27 27Q40 25 49 17M49 17Q60 -1 66 16Q58 18 49 17M49 17Q68 22 61 38Q52 34 49 17M49 17Q34 31 29 39Q26 24 49 17" class="cyan"/><circle cx="17" cy="57" r="5" class="blue" /></svg>

@@ -22,6 +22,7 @@ import {
 } from "./viewMode";
 import { formatDateTime, formatDimensions } from "../../lib/format";
 import { fileUrl } from "../../lib/files";
+import { navigateTabs } from "../../components/common/tabNavigation";
 
 const ROLE_FILTERS = AssetRoleSchema.options;
 const LIST_COLUMN_TRANSLATION = {
@@ -46,13 +47,14 @@ export function BottomTray() {
 
   return (
     <section className="tray" aria-label={t("tray.label")}>
-      <div className="tray-tabs" role="tablist">
+      <div className="tray-tabs" role="tablist" onKeyDown={navigateTabs}>
         {TRAY_TABS.map((tab) => (
           <button
             key={tab.id}
             role="tab"
             className={`tray-tab ${tab.availableIn ? "is-future" : ""}`}
             aria-selected={trayTab === tab.id && !collapsed}
+            tabIndex={trayTab === tab.id ? 0 : -1}
             onClick={() => setTrayTab(tab.id)}
             title={tab.availableIn ? t("tray.comingIn", { phase: tab.availableIn }) : undefined}
           >

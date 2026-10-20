@@ -1,0 +1,505 @@
+/** Premium Duotone UI — presentation only. Loaded after app.css. */
+:root {
+  --pd-cyan: #35d8f8;
+  --pd-blue: #3981fb;
+  --pd-violet: #8956f5;
+  --pd-pink: #f261ca;
+  --pd-gradient: linear-gradient(115deg, #9630bc 0%, #6840c9 43%, #225dc1 75%, #08718c 100%);
+  --pd-glass: linear-gradient(145deg, rgb(26 49 80 / 76%), rgb(9 24 45 / 87%));
+  --pd-line: rgb(70 142 224 / 29%);
+  --pd-glow: 0 0 0 1px rgb(88 164 255 / 28%), 0 0 22px rgb(93 70 243 / 15%);
+}
+
+/* Base surfaces: preserve workspace layout and resizable panel geometry. */
+.workspace .topbar,
+.workspace .nav,
+.workspace .panel,
+.workspace .center-tabs,
+.workspace .tray-tabs {
+  background: linear-gradient(125deg, #0d2138 0%, #081527 100%);
+  border-color: var(--pd-line);
+}
+.workspace .topbar {
+  box-shadow: inset 0 -1px rgb(38 203 244 / 8%);
+}
+.workspace .nav {
+  gap: 3px;
+}
+
+/* Buttons, toolbars and focus rings. Do not change disabled or click behaviour. */
+.btn,
+.center-tab,
+.tray-tab,
+.nav-item,
+.preset-studio button {
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+.btn:not(.btn-ghost, .btn-danger) {
+  border-color: rgb(82 129 202 / 40%);
+  background: linear-gradient(145deg, #142f51, #0b1d35);
+  border-radius: 8px;
+}
+.btn.btn-primary,
+.workspace .btn.btn-primary,
+.generate-btn {
+  background: var(--pd-gradient);
+  border-color: #8d74ff;
+  color: #fff;
+  font-weight: 650;
+  box-shadow: 0 3px 14px rgb(93 67 227 / 18%);
+}
+.btn.btn-primary:hover:not(:disabled),
+.generate-btn:hover:not(:disabled) {
+  background: linear-gradient(115deg, #a239c7, #7049d2 45%, #226bb5);
+  box-shadow: 0 0 18px rgb(79 138 253 / 45%);
+}
+.btn.btn-ghost:hover:not(:disabled) {
+  background: rgb(53 114 184 / 18%);
+}
+.btn:focus-visible,
+.nav-item:focus-visible,
+.center-tab:focus-visible,
+.tray-tab:focus-visible,
+.preset-studio button:focus-visible {
+  outline: 2px solid var(--pd-cyan);
+  outline-offset: 2px;
+}
+.viewer-toolbar,
+.compare-canvas-toolbar,
+.grade-image-toolbar,
+.pub-toolbar,
+.contact-toolbar {
+  border-color: var(--pd-line);
+  backdrop-filter: blur(10px);
+}
+
+/* Sidebar: preserve all workflow/status indicators, order, module ids and existing navigation. */
+.nav .nav-item {
+  min-height: 36px;
+  height: auto;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+.nav .nav-item:hover {
+  border-color: rgb(66 150 238 / 25%);
+  background: rgb(38 80 139 / 30%);
+}
+.nav .nav-item[aria-current="page"] {
+  color: #fff;
+  background: linear-gradient(112deg, rgb(109 54 206 / 55%), rgb(25 108 197 / 49%));
+  border-color: rgb(73 184 255 / 45%);
+  box-shadow:
+    inset 3px 0 var(--pd-pink),
+    var(--pd-glow);
+}
+.nav .nav-group-label {
+  color: #9ab7e0;
+}
+.nav .premium-icon {
+  flex-shrink: 0;
+}
+.nav .nav-item {
+  flex-shrink: 0;
+  padding: 6px;
+  gap: 5px;
+  font-size: 12px;
+}
+.nav-item .nav-label {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.nav-item > svg,
+.nav-step-number,
+.nav-phase {
+  flex-shrink: 0;
+}
+
+/* Active center and bottom tabs remain keyboard and screen-reader discoverable. */
+.center-tabs {
+  gap: 5px;
+}
+.center-tabs {
+  flex-shrink: 0;
+  overflow-x: auto;
+  min-height: 38px;
+  padding-block: 4px;
+  height: auto;
+}
+.center-tab,
+.tray-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.center-tab > svg,
+.btn > svg {
+  flex-shrink: 0;
+}
+.tray-tabs {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: var(--tray-tabs-h);
+  padding-block: 4px;
+  row-gap: 4px;
+}
+.asset-view-toggle {
+  flex-wrap: wrap;
+}
+.center-tab,
+.tray-tab {
+  position: relative;
+  border: 1px solid transparent;
+}
+.center-tab:hover,
+.tray-tab:hover {
+  color: #fff;
+  background: rgb(55 97 155 / 23%);
+}
+.center-tab[aria-selected="true"],
+.tray-tab[aria-selected="true"] {
+  color: #fff;
+  border-color: rgb(81 151 247 / 44%);
+  background: linear-gradient(135deg, rgb(76 56 152 / 45%), rgb(21 69 122 / 54%));
+  box-shadow: inset 0 -2px var(--pd-pink);
+}
+.center-tab[aria-selected="true"] svg,
+.tray-tab[aria-selected="true"] svg {
+  color: var(--pd-cyan);
+  filter: drop-shadow(0 0 4px rgb(78 190 251 / 24%));
+}
+.segmented button[aria-pressed="true"],
+.choice[aria-pressed="true"] {
+  border-color: rgb(123 124 255 / 62%);
+  background: linear-gradient(120deg, rgb(110 54 200 / 50%), rgb(32 100 169 / 50%));
+  box-shadow: inset 0 -2px var(--pd-pink);
+}
+.generate-mode .btn[aria-pressed="true"],
+.visual-intent-levels .btn[aria-selected="true"],
+.asset-view-toggle .btn[aria-pressed="true"] {
+  background: linear-gradient(120deg, #51296e, #184678);
+  border-color: #8186ef;
+  box-shadow: inset 0 -2px var(--pd-pink);
+  color: #fff;
+}
+.workspace :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--pd-cyan);
+  outline-offset: 2px;
+}
+.workspace button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.workspace
+  :is(
+    .viewer-toolbar,
+    .compare-canvas-toolbar,
+    .grade-image-toolbar,
+    .pub-toolbar,
+    .contact-toolbar
+  ) {
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+
+/* New ADR-039 shot-preset library — spacious, recognizable icons at small widths. */
+.preset-studio {
+  gap: 14px;
+}
+.preset-studio .preset-group {
+  border: 1px solid var(--pd-line);
+  background: linear-gradient(155deg, rgb(15 40 69 / 75%), rgb(7 21 39 / 86%));
+  border-radius: 12px;
+  padding: 10px;
+  gap: 9px;
+}
+.preset-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8e9fc;
+}
+.preset-group-heading .field-label {
+  margin: 0;
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+}
+.preset-group-count {
+  color: #87a9d0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.premium-icon {
+  display: block;
+  object-fit: contain;
+  flex: none;
+  user-select: none;
+}
+.preset-studio .preset-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.preset-studio .preset-options .premium-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 86px;
+  padding: 10px 6px;
+  gap: 7px;
+  color: #deebff;
+  border: 1px solid rgb(72 132 208 / 36%);
+  border-radius: 11px;
+  background: var(--pd-glass);
+  white-space: normal;
+  line-height: 1.3;
+}
+.preset-studio .preset-options .premium-preset-card:hover:not(:disabled) {
+  background: linear-gradient(145deg, #183d69, #101f3a);
+  border-color: rgb(64 202 250 / 70%);
+  box-shadow: 0 0 16px rgb(57 121 245 / 17%);
+  transform: translateY(-1px);
+}
+.preset-studio .preset-options .premium-preset-card[aria-pressed="true"] {
+  border-color: var(--pd-cyan);
+  color: #fff;
+  background: linear-gradient(135deg, #40227a 0%, #163f88 75%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 9%),
+    0 0 0 1px rgb(48 190 246 / 45%),
+    0 0 18px rgb(156 70 230 / 26%);
+}
+.premium-preset-card[aria-pressed="true"] .premium-preset-icon {
+  filter: drop-shadow(0 0 5px rgb(93 208 255 / 30%));
+}
+.premium-preset-icon {
+  width: 31px;
+  height: 31px;
+}
+.preset-option-label {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.preset-studio .preset-options .premium-preset-card:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+}
+.preset-studio .preset-chip {
+  background: linear-gradient(115deg, #9b47e4, #237ae4);
+  border: 1px solid rgb(165 114 255 / 65%);
+  box-shadow: 0 0 8px rgb(121 83 230 / 12%);
+}
+/* Saved presets remain compact and fit the same section without card-style overrides. */
+.preset-studio .user-presets .preset-options {
+  display: flex;
+  flex-wrap: wrap;
+}
+.preset-studio .user-presets .chip {
+  border-color: var(--pd-line);
+  border-radius: 8px;
+}
+.user-preset {
+  min-width: 0;
+  max-width: 100%;
+}
+.user-preset .chip {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.user-preset-form {
+  flex-wrap: wrap;
+}
+.user-preset-form .input {
+  flex-basis: 100%;
+}
+
+/* Camera intent artwork and the new SketchUp Inbox surface. */
+.visual-intent-card .visual-intent-card-art {
+  height: 37px;
+  background: radial-gradient(circle, rgb(91 49 188 / 28%), transparent 70%);
+}
+.visual-intent-card[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--pd-cyan);
+}
+/* PhotoThumbnail retains its real architecture artwork at both thumbnail and hover sizes. */
+.preview-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+.preview-card-image {
+  flex: 0 0 64px;
+  width: 64px;
+  min-width: 0;
+}
+.preview-card-image > :is(img, .scene-preview-compact, .mood-preview-compact) {
+  display: block;
+  width: 64px;
+  height: 46px;
+  border-radius: 5px;
+}
+.preview-card-large img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.preview-preset-card:nth-child(2n) .preview-card-large {
+  left: auto;
+  right: 0;
+}
+.preview-preset-card > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sketchup-inbox {
+  background: linear-gradient(140deg, rgb(17 44 78 / 78%), rgb(6 19 36 / 89%));
+  border-color: var(--pd-line);
+  border-radius: 12px;
+}
+
+/* Cap the rendered panel width without changing the saved resize preference. */
+.workspace {
+  grid-template-columns: var(--nav-w) minmax(0, 1fr) min(var(--panel-w), 48vw);
+}
+.workspace .topbar {
+  overflow-x: auto;
+}
+.topbar > :not(.spacer),
+.topbar-title > :not(strong) {
+  flex-shrink: 0;
+}
+.topbar .topbar-title {
+  flex-shrink: 0;
+}
+.topbar-title strong {
+  min-width: 100px;
+}
+.workspace .panel {
+  min-width: 0;
+}
+.panel-header {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 36px;
+  padding-block: 6px;
+}
+.next-step-compact {
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.next-step-compact > svg {
+  flex-shrink: 0;
+}
+.panel-header .next-step-compact {
+  max-width: 100%;
+}
+.workflow-step-header,
+.workflow-step-actions,
+.visual-intent-head,
+.visual-intent-levels {
+  flex-wrap: wrap;
+}
+.workflow-step-header > div:first-child {
+  flex: 1 0 120px;
+}
+.workflow-step-actions {
+  flex: 1 1 220px;
+  justify-content: flex-start;
+}
+.visual-intent-head > div:first-child {
+  flex: 1 0 180px;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 176px minmax(0, 1fr) min(var(--panel-w), 40vw);
+  }
+  .center-tab {
+    padding-inline: 8px;
+  }
+}
+
+/* The browser-only notice gets its own row instead of covering workspace controls. */
+.preview-banner {
+  position: static;
+  transform: none;
+  height: 24px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 10px;
+  background: #452a80;
+}
+#root:has(> .preview-banner) > :is(.workspace, .hub) {
+  height: calc(100% - 24px);
+}
+
+/* Small windows retain both canvas and properties in independently scrollable rows. */
+@media (max-width: 700px) {
+  .workspace {
+    grid-template-columns: 148px minmax(0, 1fr);
+    grid-template-rows: var(--topbar-h) minmax(100px, 1fr) minmax(0, 1.2fr) auto;
+    grid-template-areas: "top top" "nav center" "nav panel" "tray tray";
+  }
+  .workspace .panel {
+    border-top: 1px solid var(--pd-line);
+  }
+  .panel-resize-handle {
+    display: none;
+  }
+  .nav .nav-item {
+    gap: 5px;
+    padding-inline: 5px;
+  }
+}
+
+@media (forced-colors: active) {
+  .premium-icon {
+    forced-color-adjust: none;
+  }
+  .workspace :is(button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+  .workspace :is([aria-selected="true"], [aria-pressed="true"], [aria-current="page"]) {
+    border: 2px solid Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .center-tab,
+  .tray-tab,
+  .nav-item,
+  .preset-studio button {
+    transition: none;
+  }
+  .premium-preset-card:hover:not(:disabled) {
+    transform: none !important;
+  }
+}
+@media (max-width: 1024px) {
+  .preset-studio .preset-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .premium-preset-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .preset-studio .preset-options .premium-preset-card {
+    min-height: 75px;
+  }
+}

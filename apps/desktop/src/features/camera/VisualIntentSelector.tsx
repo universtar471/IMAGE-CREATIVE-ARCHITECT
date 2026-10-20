@@ -9,17 +9,18 @@ import {
 import { selectReadOnly, useStudio } from "../../app/store";
 import { FieldGroup } from "../../components/panels/fields";
 import { useT } from "../../i18n";
+import { PremiumIcon, type PremiumIconId } from "../../components/common/PremiumIcon";
 
 type SelectorLevel = "simple" | "custom" | "expert";
 
-const VIEW_GLYPHS: Record<VisualIntentView, string> = {
-  front: "▣",
-  street_oblique: "◩",
-  pedestrian: "●",
-  overview: "◎",
-  approach: "↗",
-  detail: "⌕",
-  aerial: "△",
+const VIEW_ICONS: Record<VisualIntentView, PremiumIconId> = {
+  front: "view",
+  street_oblique: "wide-view",
+  pedestrian: "view",
+  overview: "wide-view",
+  approach: "view",
+  detail: "closeup",
+  aerial: "isometric",
 };
 
 const VIEW_KEYS: Record<VisualIntentView, string> = {
@@ -114,7 +115,7 @@ export function VisualIntentSelector() {
                 onClick={() => update({ view })}
               >
                 <span className="visual-intent-card-art" aria-hidden="true">
-                  {VIEW_GLYPHS[view]}
+                  <PremiumIcon id={VIEW_ICONS[view]} size={27} />
                 </span>
                 <strong>{t(`camera.visualIntent.views.${VIEW_KEYS[view]}` as never)}</strong>
                 <small>{t(`camera.visualIntent.viewHints.${VIEW_KEYS[view]}` as never)}</small>

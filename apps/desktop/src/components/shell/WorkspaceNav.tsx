@@ -1,9 +1,28 @@
 import { Fragment } from "react";
 import { AlertTriangle, Check, Circle, LockKeyhole, Minus } from "lucide-react";
 import { useStudio } from "../../app/store";
-import { WORKSPACE_MODULES } from "../../features/workspace/modules";
+import { WORKSPACE_MODULES, type ModuleId } from "../../features/workspace/modules";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS } from "../../lib/workflow";
+import { PremiumIcon, type PremiumIconId } from "../common/PremiumIcon";
+
+const MODULE_PREMIUM_ICONS: Record<ModuleId, PremiumIconId> = {
+  overview: "preset-grid",
+  generate: "create-image",
+  design_dna: "townhouse",
+  context: "resort",
+  references: "composite",
+  camera: "view",
+  lighting: "day",
+  detail: "closeup",
+  scene_objects: "car",
+  effects: "atmosphere",
+  mood_grade: "color",
+  enhance: "enhance",
+  regions: "edit",
+  diagram: "isometric",
+  export: "portfolio",
+};
 
 /**
  * Permanent left navigation. Order and grouping are product architecture (regrouped once in
@@ -19,7 +38,6 @@ export function WorkspaceNav() {
     <nav className="nav" aria-label={t("modules.navLabel")}>
       {WORKSPACE_MODULES.map((m, i) => {
         const prev = WORKSPACE_MODULES[i - 1];
-        const Icon = m.icon;
         const label =
           isInterior && m.id === "design_dna" ? t("interior.space") : t(`modules.${m.id}.label`);
         return (
@@ -49,7 +67,7 @@ export function WorkspaceNav() {
                   <span className="nav-step-number">{dnaIndex + 1}</span>
                 ) : null;
               })()}
-              <Icon size={16} />
+              <PremiumIcon id={MODULE_PREMIUM_ICONS[m.id]} size={19} />
               <span className="nav-label">{label}</span>
               {m.availableIn && <span className="nav-phase">P{m.availableIn}</span>}
               {(() => {
