@@ -66,10 +66,37 @@ import {
   withValidation,
 } from "../features/validation/gate";
 import { clearShotIntent, loadShotIntent, saveShotIntent } from "../lib/shotIntentStorage";
+import type { WorkspaceMode } from "../features/selection/selection";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
-export type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
+export type NodeViewport = { x: number; y: number; zoom: number };
+
+/**
+ * Large viewer: an ordered set of assets the user can step through (only that set, one
+ * project), the shown index, and an optional image to compare the shown one with.
+ */
+export type ViewerState = { assetIds: string[]; index: number; compareWithId?: string | null };
+
+export const WORKSPACE_MODE_KEY = "arch.workspaceMode";
+
+function readWorkspaceMode(): WorkspaceMode {
+  try {
+    return globalThis.localStorage?.getItem(WORKSPACE_MODE_KEY) === "node" ? "node" : "studio";
+  } catch {
+    return "studio";
+  }
+}
+
+function writeWorkspaceMode(mode: WorkspaceMode) {
+  try {
+    globalThis.localStorage?.setItem(WORKSPACE_MODE_KEY, mode);
+  } catch {
+    /* session-only preference */
+  }
+}
+
+type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
 export type SaveStatus = "saved" | "dirty" | "saving" | "invalid" | "error";
 
 export type SaveState = {
@@ -178,6 +205,14 @@ type State = {
   activeModule: ModuleId;
   centerView: CenterView;
   selectedAssetId: string | null;
+  /** Studio (asset-centred) or Node (branch graph) workspace (ADR-044); remembered per device. */
+  workspaceMode: WorkspaceMode;
+  /** Selected graph node ids in Node mode (`asset:<id>`, `gen:<id>`, `draft`). */
+  canvasSelection: string[];
+  /** Node Canvas pan/zoom per project, this session only (never in ProjectDNA). */
+  nodeViewport: Record<string, NodeViewport>;
+  /** Large media viewer (lightbox); null = closed. Its own zoom never leaves the viewer. */
+  viewer: ViewerState | null;
   selectedCameraId: string | null;
   /** Batch shown on the Contact Sheet; null = the newest. */
   contactBatchId: string | null;
@@ -208,7 +243,13 @@ type State = {
   goToHub: () => Promise<void>;
   setModule: (id: ModuleId) => void;
   setCenterView: (v: CenterView) => void;
-  selectAsset: (id: string | null) => void;
+  /** `keepView`: select without leaving the current centre view (graph clicks). */
+  selectAsset: (id: string | null, options?: { keepView?: boolean }) => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+  setCanvasSelection: (ids: string[]) => void;
+  setNodeViewport: (projectId: string, viewport: NodeViewport) => void;
+  openViewer: (viewer: ViewerState) => void;
+  closeViewer: () => void;
   selectCamera: (id: string | null) => void;
   setTrayTab: (t: TrayTabId) => void;
   toggleTray: () => void;
@@ -462,6 +503,10 @@ export const useStudio = create<State>((set, get) => {
     activeModule: "overview",
     centerView: "canvas",
     selectedAssetId: null,
+    workspaceMode: readWorkspaceMode(),
+    canvasSelection: [],
+    nodeViewport: {},
+    viewer: null,
     selectedCameraId: null,
     contactBatchId: null,
     trayTab: "assets",
@@ -489,6 +534,8 @@ export const useStudio = create<State>((set, get) => {
         activeModule: "overview",
         centerView: "canvas",
         selectedAssetId: null,
+        canvasSelection: [],
+        viewer: null,
         selectedCameraId: null,
         contactBatchId: null,
         save: SAVED,
@@ -585,7 +632,19 @@ export const useStudio = create<State>((set, get) => {
       if (v === "prompt") void get().flushDna();
       set({ centerView: v });
     },
-    selectAsset: (id) => set({ selectedAssetId: id, centerView: "canvas" }),
+    selectAsset: (id, options) =>
+      set(
+        options?.keepView ? { selectedAssetId: id } : { selectedAssetId: id, centerView: "canvas" },
+      ),
+    setWorkspaceMode: (mode) => {
+      writeWorkspaceMode(mode);
+      set({ workspaceMode: mode });
+    },
+    setCanvasSelection: (ids) => set({ canvasSelection: ids }),
+    setNodeViewport: (projectId, viewport) =>
+      set((s) => ({ nodeViewport: { ...s.nodeViewport, [projectId]: viewport } })),
+    openViewer: (viewer) => set({ viewer }),
+    closeViewer: () => set({ viewer: null }),
     selectCamera: (id) => set({ selectedCameraId: id }),
     setTrayTab: (t) => set({ trayTab: t, trayCollapsed: false }),
     toggleTray: () => set((s) => ({ trayCollapsed: !s.trayCollapsed })),
