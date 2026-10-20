@@ -218,6 +218,7 @@ export const vi: Dict = {
       repair: "Sửa theo QC",
       enhance: "Nâng cấp",
       assist: "Trợ lý AI",
+      video: "Video",
     },
     generationStatus: {
       queued: "Trong hàng đợi",
@@ -1652,6 +1653,28 @@ export const vi: Dict = {
         optional:
           "Tùy chọn: GATEWAY_CHAT_MODEL (bật Cải thiện prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
         key: "Dán key lấy từ trang quản lý của gateway, hoặc đặt GATEWAY_API_KEY.",
+      },
+      kling: {
+        key: "Dán ACCESS_KEY:SECRET_KEY (cả hai lấy ở Kling developer console, nối bằng dấu hai chấm), hoặc đặt KLING_API_KEY. Ứng dụng dùng chúng để ký token ngắn hạn.",
+        billing:
+          "Kling trừ tiền mỗi clip từ gói tài nguyên API trả trước; cần mua gói trước video đầu tiên.",
+        optional:
+          "Tùy chọn: KLING_VIDEO_MODEL (các id model, phân tách bằng dấu phẩy, mặc định kling-v2-1), KLING_BASE_URL.",
+      },
+      veo: {
+        key: "Dùng được key Gemini API (aistudio.google.com/apikey); hoặc đặt VEO_API_KEY hay GEMINI_API_KEY.",
+        billing: "Veo cần bật thanh toán cho project chứa key và tính phí theo giây video.",
+        optional: "Tùy chọn: VEO_VIDEO_MODEL (mặc định veo-3.1-generate-preview), VEO_BASE_URL.",
+      },
+      seedance: {
+        key: "Dán API key BytePlus ModelArk, hoặc đặt ARK_API_KEY. Cần kích hoạt model Seedance trong ModelArk console.",
+        optional:
+          "Tùy chọn: SEEDANCE_VIDEO_MODEL (id model hoặc endpoint, mặc định seedance-1-0-pro-250528), SEEDANCE_BASE_URL.",
+      },
+      comfy_cloud: {
+        workflow:
+          "Cần COMFY_VIDEO_WORKFLOW: đường dẫn file workflow ComfyUI lưu bằng Export (API), có {{image}} trong node LoadImage và {{prompt}} / {{negative_prompt}} / {{duration}} ở chỗ bạn muốn. Khởi động lại ứng dụng sau khi đổi.",
+        key: "Dán API key Comfy Cloud (platform.comfy.org), hoặc đặt COMFY_CLOUD_API_KEY. Mỗi lượt chạy trừ credit Comfy của bạn.",
       },
     },
   },

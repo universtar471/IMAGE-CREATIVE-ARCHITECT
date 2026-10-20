@@ -5,10 +5,12 @@
       {
         "absolutePath": "/data/projects/PRJ_00000000000000000000000001/assets/original/AST_0000000000000000000000001G.png",
         "createdAt": "2026-01-01T00:00:00.000Z",
+        "durationMs": null,
         "fileSizeBytes": 137,
         "heightPx": 6,
         "id": "AST_0000000000000000000000001G",
         "managedRelPath": "assets/original/AST_0000000000000000000000001G.png",
+        "mediaKind": "image",
         "mimeType": "image/png",
         "operation": "import",
         "originalName": "street.png",

@@ -63,6 +63,8 @@ pub(crate) fn asset_dto(storage: &Storage, a: &AssetRow) -> AppResult<AssetDto> 
         sha256: a.sha256.clone(),
         parent_asset_id: a.parent_asset_id.clone(),
         operation: a.operation.clone(),
+        media_kind: if crate::services::video::is_video_asset(a) { "video" } else { "image" },
+        duration_ms: crate::services::video::duration_of(a),
         created_at: a.created_at.clone(),
         updated_at: a.updated_at.clone(),
     })
@@ -285,7 +287,7 @@ pub(crate) mod faults {
 }
 
 /// Write to `<target>.part`, fsync, verify size, then rename into place.
-fn write_new_file(target: &Path, bytes: &[u8]) -> AppResult<()> {
+pub(crate) fn write_new_file(target: &Path, bytes: &[u8]) -> AppResult<()> {
     #[cfg(test)]
     if faults::hit(&faults::FAIL_ORIGINAL_AT) {
         return Err(AppError::io("Could not copy the image into project storage", std::io::Error::other("injected")));

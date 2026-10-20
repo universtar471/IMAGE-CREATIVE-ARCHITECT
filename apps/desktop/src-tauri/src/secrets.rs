@@ -154,6 +154,14 @@ pub fn env_var_names(provider_id: &str) -> Vec<String> {
     if provider_id == crate::providers::gateway::ID {
         names.push(crate::providers::gateway::ENV_API_KEY.to_string());
     }
+    use crate::providers::video::{comfy, kling, seedance, veo};
+    match provider_id {
+        kling::ID => names.push(kling::ENV_API_KEY.to_string()),
+        veo::ID => names.extend([veo::ENV_API_KEY.to_string(), veo::ENV_GEMINI_KEY.to_string()]),
+        seedance::ID => names.push(seedance::ENV_API_KEY.to_string()),
+        comfy::ID => names.push(comfy::ENV_API_KEY.to_string()),
+        _ => {}
+    }
     names.push(env_var_name(provider_id));
     names
 }

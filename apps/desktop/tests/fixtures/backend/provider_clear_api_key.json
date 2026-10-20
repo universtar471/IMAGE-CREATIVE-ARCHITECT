@@ -161,6 +161,7 @@
         "textToImage": true
       }
     ],
+    "outputKind": "image",
     "requiresApiKey": true
   }
 }

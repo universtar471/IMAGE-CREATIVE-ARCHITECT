@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 use crate::domain::{
     AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus, ProjectStatus, ProjectType,
 };
-use crate::providers::{GenerationParams, ModelCapabilities, ProviderKind};
+use crate::providers::{GenerationParams, ModelCapabilities, OutputKind, ProviderKind};
 use crate::secrets::KeySource;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,6 +53,10 @@ pub struct AssetDto {
     pub sha256: Option<String>,
     pub parent_asset_id: Option<String>,
     pub operation: Option<String>,
+    /// `image` or `video` (ADR-043), from the mime type.
+    pub media_kind: &'static str,
+    /// Clip length of a video, from its operation metadata.
+    pub duration_ms: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -239,6 +243,8 @@ pub struct ProviderDescriptorDto {
     pub configured: bool,
     pub key_source: Option<KeySource>,
     pub models: Vec<ModelCapabilities>,
+    /// `image` or `video` (ADR-043).
+    pub output_kind: OutputKind,
 }
 
 /// Mirrors `ProviderTestResultSchema`; `ok: false` is a normal answer, not an error.

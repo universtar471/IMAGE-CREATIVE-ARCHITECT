@@ -3,10 +3,12 @@
   "response": {
     "absolutePath": "/data/projects/PRJ_00000000000000000000000001/assets/original/AST_00000000000000000000000002.png",
     "createdAt": "2026-01-01T00:00:00.000Z",
+    "durationMs": null,
     "fileSizeBytes": 196,
     "heightPx": 24,
     "id": "AST_00000000000000000000000002",
     "managedRelPath": "assets/original/AST_00000000000000000000000002.png",
+    "mediaKind": "image",
     "mimeType": "image/png",
     "operation": "color_grade",
     "originalName": "Warm tropical grade",

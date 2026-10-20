@@ -781,3 +781,77 @@ pub fn delete_anchor(conn: &Connection, project_id: &str, camera_id: &str) -> Ap
     conn.execute("DELETE FROM camera_anchors WHERE project_id = ?1 AND camera_id = ?2", [project_id, camera_id])?;
     Ok(())
 }
+
+// ------------------------------------------------------------------ video tasks (ADR-043)
+
+/// The provider task of a video generation, kept between polls and across restarts.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VideoTaskRow {
+    pub generation_id: String,
+    pub provider_id: String,
+    pub task_json: String,
+    pub submitted_at: String,
+    pub last_polled_at: Option<String>,
+}
+
+pub fn insert_video_task(conn: &Connection, t: &VideoTaskRow) -> AppResult<()> {
+    conn.execute(
+        "INSERT INTO video_tasks (generation_id, provider_id, task_json, submitted_at, last_polled_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![t.generation_id, t.provider_id, t.task_json, t.submitted_at, t.last_polled_at],
+    )?;
+    Ok(())
+}
+
+pub fn find_video_task(conn: &Connection, generation_id: &str) -> AppResult<Option<VideoTaskRow>> {
+    Ok(conn
+        .query_row(
+            "SELECT generation_id, provider_id, task_json, submitted_at, last_polled_at FROM video_tasks
+             WHERE generation_id = ?1",
+            [generation_id],
+            |r| {
+                Ok(VideoTaskRow {
+                    generation_id: r.get(0)?,
+                    provider_id: r.get(1)?,
+                    task_json: r.get(2)?,
+                    submitted_at: r.get(3)?,
+                    last_polled_at: r.get(4)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
+pub fn touch_video_task(conn: &Connection, generation_id: &str, now: &str) -> AppResult<()> {
+    conn.execute("UPDATE video_tasks SET last_polled_at = ?2 WHERE generation_id = ?1", params![generation_id, now])?;
+    Ok(())
+}
+
+/// Retry makes a new generation; the accepted task moves to it so polling resumes.
+pub fn move_video_task(conn: &Connection, from_generation_id: &str, to_generation_id: &str) -> AppResult<()> {
+    conn.execute(
+        "UPDATE video_tasks SET generation_id = ?2 WHERE generation_id = ?1",
+        params![from_generation_id, to_generation_id],
+    )?;
+    Ok(())
+}
+
+pub fn delete_video_task(conn: &Connection, generation_id: &str) -> AppResult<()> {
+    conn.execute("DELETE FROM video_tasks WHERE generation_id = ?1", [generation_id])?;
+    Ok(())
+}
+
+/// Startup recovery: a running job whose video task was already accepted goes back to the
+/// queue, so it resumes polling instead of being interrupted (and resubmitted by Retry).
+pub fn requeue_running_video_jobs(conn: &Connection, now: &str) -> AppResult<usize> {
+    conn.execute(
+        "UPDATE generations SET status = ?1, updated_at = ?2
+         WHERE status = ?3 AND id IN (SELECT generation_id FROM video_tasks)",
+        params![GenerationStatus::Queued, now, GenerationStatus::Running],
+    )?;
+    Ok(conn.execute(
+        "UPDATE jobs SET status = 'queued', next_attempt_at = NULL, updated_at = ?1
+         WHERE status = 'running' AND generation_id IN (SELECT generation_id FROM video_tasks)",
+        [now],
+    )?)
+}

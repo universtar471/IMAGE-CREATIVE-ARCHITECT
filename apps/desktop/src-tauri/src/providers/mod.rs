@@ -16,6 +16,7 @@ pub mod local_preview;
 pub mod local_upscale;
 pub mod openai;
 pub mod text;
+pub mod video;
 
 #[cfg(test)]
 mod test_http;
@@ -25,6 +26,24 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+/// What a provider's runs produce (ADR-043). Video providers run through
+/// [`video::VideoApi`] instead of [`ImageProvider::generate`].
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputKind {
+    Image,
+    Video,
+}
+
+impl OutputKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Image => "image",
+            Self::Video => "video",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -348,6 +367,16 @@ pub trait ImageProvider: Send + Sync {
         true
     }
 
+    /// Whether runs produce images or videos.
+    fn output_kind(&self) -> OutputKind {
+        OutputKind::Image
+    }
+
+    /// The asynchronous video API of a video provider.
+    fn video(&self) -> Option<&dyn video::VideoApi> {
+        None
+    }
+
     /// Chat model used for prompt enhancement, if this provider offers one.
     fn chat_model(&self) -> Option<String> {
         None
@@ -388,6 +417,10 @@ impl ProviderRegistry {
             Arc::new(gateway::provider(env)),
             Arc::new(local_preview::LocalPreviewProvider),
             Arc::new(local_upscale::LocalUpscaleProvider),
+            Arc::new(video::kling::provider(env)),
+            Arc::new(video::veo::provider(env)),
+            Arc::new(video::seedance::provider(env)),
+            Arc::new(video::comfy::provider(env)),
         ])
     }
 

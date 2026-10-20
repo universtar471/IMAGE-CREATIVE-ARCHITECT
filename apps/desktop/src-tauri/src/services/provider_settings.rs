@@ -60,6 +60,7 @@ fn descriptor(core: &AppCore, provider: &dyn ImageProvider) -> ProviderDescripto
         configured: set_up && (!info.requires_api_key || key_source.is_some()),
         key_source,
         models: info.models,
+        output_kind: provider.output_kind(),
     }
 }
 
@@ -166,7 +167,21 @@ mod tests {
         let mut core =
             AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
         let ids: Vec<String> = list(&core).into_iter().map(|p| p.id).collect();
-        assert_eq!(ids, ["gemini", "openai", "hhtech", "gateway", "local_preview", "local_upscale"]);
+        assert_eq!(
+            ids,
+            [
+                "gemini",
+                "openai",
+                "hhtech",
+                "gateway",
+                "local_preview",
+                "local_upscale",
+                "kling",
+                "veo",
+                "seedance",
+                "comfy_cloud"
+            ]
+        );
         assert!(!find(&list(&core), "openai").configured);
 
         assert_eq!(crate::secrets::env_var_name("openai"), "ARCH_STUDIO_OPENAI_API_KEY");
@@ -229,8 +244,9 @@ mod tests {
         let value = serde_json::to_value(find(&list(&core), local_preview::ID)).unwrap();
         let mut keys: Vec<&str> = value.as_object().unwrap().keys().map(String::as_str).collect();
         keys.sort_unstable();
-        assert_eq!(keys, ["configured", "id", "keySource", "kind", "label", "models", "requiresApiKey"]);
+        assert_eq!(keys, ["configured", "id", "keySource", "kind", "label", "models", "outputKind", "requiresApiKey"]);
         assert_eq!(value["kind"], json!("local"));
+        assert_eq!(value["outputKind"], json!("image"));
         let mut model_keys: Vec<&str> = value["models"][0].as_object().unwrap().keys().map(String::as_str).collect();
         model_keys.sort_unstable();
         assert_eq!(

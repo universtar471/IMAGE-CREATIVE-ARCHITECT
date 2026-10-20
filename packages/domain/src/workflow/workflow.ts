@@ -252,6 +252,8 @@ export function isGenerationAllowed(
   facts: WorkflowFacts,
 ): GenerationAllowed {
   if (purpose === "hero" && facts.hasSourceImage) return { ok: true };
+  // Image to video animates an image the user picked; no DNA step gates it (ADR-043).
+  if (purpose === "video") return { ok: true };
   const first = firstUnconfirmed(persisted);
   if (
     purpose !== "variation" &&

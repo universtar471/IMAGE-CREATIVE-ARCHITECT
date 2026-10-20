@@ -103,6 +103,7 @@ string_enum!(GenerationPurpose {
     Repair => "repair",
     RegionEdit => "region_edit",
     Assist => "assist",
+    Video => "video",
 });
 
 impl GenerationPurpose {
@@ -117,6 +118,7 @@ impl GenerationPurpose {
             Self::Repair => "Repair",
             Self::RegionEdit => "Region edit",
             Self::Assist => "AI assist",
+            Self::Video => "Video",
         }
     }
 }

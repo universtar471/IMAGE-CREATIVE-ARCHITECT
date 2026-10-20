@@ -31,6 +31,7 @@ import {
   type CanvasLayout,
   CanvasLayoutSchema,
   isQuickSourceImage,
+  isVideoAsset,
   type UserPresetDTO,
   USER_PRESET_NAME_MAX,
   type AssetRole,
@@ -179,6 +180,7 @@ const PURPOSE_TITLES: Record<string, string> = {
   enhance: "Enhance",
   repair: "Repair",
   region_edit: "Region edit",
+  video: "Video",
 };
 
 type MockProvider = Omit<ProviderDescriptorDTO, "configured" | "keySource">;
@@ -311,6 +313,33 @@ const HHTECH_MODELS: ModelCapabilities[] = (
   };
 });
 
+/** Mirrors Rust `video_model`: one first frame, one clip, durations as "5s" sizes. */
+function videoModel(
+  id: string,
+  durations: readonly number[],
+  ratios: readonly string[],
+  label = id,
+): ModelCapabilities {
+  return {
+    id,
+    label,
+    textToImage: false,
+    imageToImage: true,
+    maxReferenceImages: 1,
+    maxOutputs: 1,
+    aspectRatios: [...ratios],
+    imageSizes: durations.map((d) => `${d}s`),
+    supportsNegativePrompt: true,
+    supportsSeed: false,
+    qualityOptions: [],
+    priceHint: null,
+  };
+}
+
+function videoProvider(id: string, label: string, models: ModelCapabilities[]): MockProvider {
+  return { id, label, kind: "remote", requiresApiKey: true, outputKind: "video", models };
+}
+
 /** Providers whose chat model can enhance prompts (`prompt_enhance`). */
 export const MOCK_CHAT_PROVIDERS: readonly string[] = ["hhtech"];
 
@@ -321,6 +350,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "Google Gemini",
     kind: "remote",
     requiresApiKey: true,
+    outputKind: "image",
     models: GEMINI_MODELS,
   },
   {
@@ -328,6 +358,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "OpenAI (GPT Image)",
     kind: "remote",
     requiresApiKey: true,
+    outputKind: "image",
     models: OPENAI_MODELS,
   },
   {
@@ -335,6 +366,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "HHTECH (OpenAI-compatible)",
     kind: "remote",
     requiresApiKey: true,
+    outputKind: "image",
     models: HHTECH_MODELS,
   },
   {
@@ -343,6 +375,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "Custom gateway (OpenAI-compatible)",
     kind: "remote",
     requiresApiKey: true,
+    outputKind: "image",
     models: [],
   },
   {
@@ -350,6 +383,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "Local preview (offline)",
     kind: "local",
     requiresApiKey: false,
+    outputKind: "image",
     models: [
       {
         id: "placeholder-v1",
@@ -372,6 +406,7 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     label: "Local upscale",
     kind: "local",
     requiresApiKey: false,
+    outputKind: "image",
     models: [
       {
         id: "lanczos3",
@@ -388,6 +423,30 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
         priceHint: null,
       },
     ],
+  },
+  // ADR-043: the video providers. Mirrors `providers/video/*` with no VIDEO env settings.
+  videoProvider("kling", "Kling (video)", [videoModel("kling-v2-1", [5, 10], [])]),
+  videoProvider("veo", "Veo (video)", [
+    videoModel("veo-3.1-generate-preview", [4, 6, 8], ["16:9", "9:16"]),
+  ]),
+  videoProvider("seedance", "Seedance (video)", [
+    {
+      ...videoModel("seedance-1-0-pro-250528", [5, 10], ["adaptive", "16:9", "9:16", "1:1"]),
+      supportsNegativePrompt: false,
+    },
+  ]),
+  // Not set up until COMFY_VIDEO_WORKFLOW names a workflow file, so it cannot run in the mock.
+  videoProvider("comfy_cloud", "Comfy Cloud (video workflow)", [
+    videoModel("workflow", [5, 10], [], "Your exported workflow"),
+  ]),
+  // Mock only: a free "video" (the source image as a still poster) to try the flow.
+  {
+    id: "local_video_preview",
+    label: "Local video preview (mock, still poster)",
+    kind: "local",
+    requiresApiKey: false,
+    outputKind: "video",
+    models: [videoModel("still-v1", [5, 10], [], "Still poster (no motion)")],
   },
 ];
 
@@ -694,9 +753,63 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     outputAssetIds: g.outputAssetIds.filter((id) => db.assets[id]),
   });
 
+  /**
+   * ADR-043: a video output. The mock cannot encode a clip, so the "video" is the source image
+   * as a still poster; the asset still carries `mediaKind`, the duration and the lineage.
+   */
+  const createVideoOutput = (
+    gen: GenerationDTO,
+    req: RegionOrGenerationRequest,
+    parent: AssetDTO | undefined,
+  ): string => {
+    const id = newId("AST");
+    const t = now();
+    const durationSec = Number.parseInt(req.params.imageSize ?? "5", 10) || 5;
+    const poster =
+      parent?.thumbnailPath ??
+      parent?.absolutePath ??
+      placeholderSvg(1280, 720, "Video", req.modelId, 0);
+    db.assets[id] = {
+      id,
+      projectId: req.projectId,
+      source: "ai_generated",
+      role: "regular_image",
+      status: "ready",
+      originalName: `video-${gen.id.slice(-6).toLowerCase()}.mp4`,
+      managedRelPath: `assets/original/${id}.mp4`,
+      absolutePath: poster,
+      thumbnailPath: poster,
+      mimeType: "video/mp4",
+      fileSizeBytes: null,
+      widthPx: null,
+      heightPx: null,
+      sha256: null,
+      parentAssetId: gen.parentAssetId,
+      operation: "video",
+      mediaKind: "video",
+      durationMs: durationSec * 1000,
+      createdAt: t,
+      updatedAt: t,
+    };
+    db.versions.push({
+      id: newId("VER"),
+      projectId: req.projectId,
+      assetId: id,
+      parentVersionId: parent
+        ? (db.versions.filter((v) => v.assetId === parent.id).at(-1)?.id ?? null)
+        : null,
+      label: `Video — ${req.modelId}`,
+      operation: "video",
+      generationId: gen.id,
+      createdAt: t,
+    });
+    return id;
+  };
+
   /** ADR-015: outputs are ai_generated regular images, versioned under the parent's latest. */
   const createOutputs = (gen: GenerationDTO, req: RegionOrGenerationRequest): string[] => {
     const parent = gen.parentAssetId ? db.assets[gen.parentAssetId] : undefined;
+    if (req.purpose === "video") return [createVideoOutput(gen, req, parent)];
     const parentVersion = parent
       ? db.versions.filter((v) => v.assetId === parent.id).at(-1)
       : undefined;
@@ -844,6 +957,23 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
         fail("NOT_FOUND", `Reference asset '${id}' was not found in this project.`);
       if (a.status !== "ready")
         fail("INVALID_STATE", `The file of reference '${a.originalName ?? id}' is missing.`);
+      if (isVideoAsset(a))
+        fail(
+          "VALIDATION_ERROR",
+          `'${a.originalName ?? id}' is a video and cannot be used as a reference image. Pick an image instead.`,
+        );
+    }
+    // ADR-043: purpose and provider must agree, as in Rust `video::validate_purpose`.
+    const videoProvider = provider.outputKind === "video";
+    if (videoProvider && req.purpose !== "video")
+      fail("VALIDATION_ERROR", `${provider.label} makes videos; use it from the Video module.`);
+    if (!videoProvider && req.purpose === "video")
+      fail("VALIDATION_ERROR", `${provider.label} makes images; pick a video provider.`);
+    if (req.purpose === "video") {
+      if (req.referenceAssetIds.length !== 1)
+        fail("VALIDATION_ERROR", "A video starts from exactly one source image.");
+      if (!/^\d+s$/.test(req.params.imageSize ?? ""))
+        fail("VALIDATION_ERROR", "Pick a clip length for the video.");
     }
     const enhance = (req.params as GenerationParams & { enhance?: EnhanceParams }).enhance;
     if (req.purpose === "enhance") {

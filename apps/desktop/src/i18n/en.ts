@@ -219,6 +219,7 @@ export const en = {
       enhance: "Enhance",
       region_edit: "Region edit",
       assist: "Assist",
+      video: "Video",
     },
     generationStatus: {
       queued: "Queued",
@@ -1652,6 +1653,29 @@ export const en = {
         optional:
           "Optional: GATEWAY_CHAT_MODEL (turns on Enhance prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
         key: "Paste the key from the gateway's own dashboard, or set GATEWAY_API_KEY.",
+      },
+      kling: {
+        key: "Paste ACCESS_KEY:SECRET_KEY (both from the Kling developer console, joined by a colon), or set KLING_API_KEY. The app signs a short-lived token with them.",
+        billing:
+          "Kling bills each clip from prepaid API resource packs; buy one before the first video.",
+        optional:
+          "Optional: KLING_VIDEO_MODEL (comma-separated model ids, default kling-v2-1), KLING_BASE_URL.",
+      },
+      veo: {
+        key: "A Gemini API key works (aistudio.google.com/apikey); or set VEO_API_KEY or GEMINI_API_KEY.",
+        billing:
+          "Veo needs billing enabled on the key's project and is billed per second of video.",
+        optional: "Optional: VEO_VIDEO_MODEL (default veo-3.1-generate-preview), VEO_BASE_URL.",
+      },
+      seedance: {
+        key: "Paste a BytePlus ModelArk API key, or set ARK_API_KEY. The Seedance model must be activated in the ModelArk console.",
+        optional:
+          "Optional: SEEDANCE_VIDEO_MODEL (the model or endpoint id, default seedance-1-0-pro-250528), SEEDANCE_BASE_URL.",
+      },
+      comfy_cloud: {
+        workflow:
+          "Needs COMFY_VIDEO_WORKFLOW: the path of a ComfyUI workflow saved with Export (API), with {{image}} in its LoadImage node and {{prompt}} / {{negative_prompt}} / {{duration}} where you want them. Restart the app after changing it.",
+        key: "Paste a Comfy Cloud API key (platform.comfy.org), or set COMFY_CLOUD_API_KEY. Runs use your Comfy credits.",
       },
     },
   },
