@@ -29,6 +29,7 @@ import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
 import { BranchCanvas } from "../canvas/BranchCanvas";
 import { VideoCanvas } from "../video/VideoCanvas";
+import { navigateTabs } from "../../components/common/tabNavigation";
 
 export function findSubmittedEnhanceResult(
   projectId: string,
@@ -185,12 +186,18 @@ function CenterArea() {
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
-      <div className="center-tabs" role="tablist" hidden={active === "export"}>
+      <div
+        className="center-tabs"
+        role="tablist"
+        hidden={active === "export"}
+        onKeyDown={navigateTabs}
+      >
         {isCamera && (
           <button
             className="center-tab"
             role="tab"
             aria-selected={view === "director"}
+            tabIndex={view === "director" ? 0 : -1}
             onClick={() => setCenterView("director")}
           >
             <Camera size={14} /> {t("workspace.tabDirector")}
@@ -200,6 +207,7 @@ function CenterArea() {
           className="center-tab"
           role="tab"
           aria-selected={view === "canvas"}
+          tabIndex={view === "canvas" ? 0 : -1}
           onClick={() => setCenterView("canvas")}
         >
           <ImageIcon size={14} /> {isCamera ? t("workspace.tabImage") : t("workspace.tabCanvas")}
@@ -220,6 +228,7 @@ function CenterArea() {
             className="center-tab"
             role="tab"
             aria-selected={view === "contact"}
+            tabIndex={view === "contact" ? 0 : -1}
             onClick={() => setCenterView("contact")}
           >
             <LayoutGrid size={14} /> {t("workspace.tabContact")}
@@ -229,6 +238,7 @@ function CenterArea() {
           className="center-tab"
           role="tab"
           aria-selected={view === "prompt"}
+          tabIndex={view === "prompt" ? 0 : -1}
           onClick={() => setCenterView("prompt")}
         >
           <FileText size={14} /> {t("workspace.tabPrompt")}
