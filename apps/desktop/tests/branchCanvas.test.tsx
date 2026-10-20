@@ -34,6 +34,11 @@ beforeEach(() => {
     run: null,
     jobs: [],
     generateDraft: EMPTY_GENERATE_DRAFT,
+    // V6.1 (ADR-044): the graph is Node mode; its selection lives in the store.
+    workspaceMode: "node",
+    canvasSelection: [],
+    viewer: null,
+    nodeViewport: {},
   });
 });
 
@@ -107,7 +112,11 @@ describe("branch canvas (ADR-041)", () => {
     const out = second.outputAssetIds[1]!;
     await waitFor(() => expect(node(imageNodeId(out))).toBeTruthy());
     fireEvent.click(node(imageNodeId(out))!);
-    fireEvent.click(await screen.findByRole("button", { name: "Use as source" }));
+    // The floating toolbar follows the selection (AI output → image actions).
+    const toolbar = await screen.findByTestId("context-toolbar");
+    expect(toolbar.dataset.selection).toBe("image");
+    expect(useStudio.getState().selectedAssetId).toBe(out);
+    fireEvent.click(screen.getByRole("button", { name: "Variation from this image" }));
     expect(useStudio.getState().generateDraft).toMatchObject({
       source: "sketch",
       purpose: "hero",
@@ -117,26 +126,32 @@ describe("branch canvas (ADR-041)", () => {
     await waitFor(() => expect(node("draft")).toBeTruthy());
 
     fireEvent.click(node(generationNodeId(first.id))!);
+    await waitFor(() =>
+      expect(screen.getByTestId("context-toolbar").dataset.selection).toBe("generation"),
+    );
     fireEvent.click(await screen.findByRole("button", { name: "Reuse presets" }));
     expect(useStudio.getState().workspace?.shotIntent?.presetIds).toEqual(["time.golden_hour"]);
   });
 
-  it("compares two images selected with Shift", async () => {
+  it("compares two images selected with Shift in the large viewer", async () => {
     const { first } = await seedBranches();
     render(<BranchCanvas />);
     const [a, b] = first.outputAssetIds;
     await waitFor(() => expect(node(imageNodeId(a!))).toBeTruthy());
-    const button = screen.getByTestId("branch-compare-button") as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
     fireEvent.click(node(imageNodeId(a!))!);
     fireEvent.keyDown(document, { key: "Shift" });
     fireEvent.click(node(imageNodeId(b!))!, { shiftKey: true });
     fireEvent.keyUp(document, { key: "Shift" });
-    await waitFor(() => expect(button.disabled).toBe(false));
-    fireEvent.click(button);
-    expect(await screen.findByTestId("branch-compare")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Back to branches" }));
-    expect(await screen.findByTestId("branch-canvas")).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByTestId("context-toolbar").dataset.selection).toBe("multi"),
+    );
+    const compare = screen.getByRole("button", { name: "Compare A/B" }) as HTMLButtonElement;
+    expect(compare.disabled).toBe(false);
+    fireEvent.click(compare);
+    expect(useStudio.getState().viewer).toMatchObject({ compareWithId: a });
+    // The canvas is untouched underneath: same selection, still mounted.
+    expect(useStudio.getState().canvasSelection).toEqual([imageNodeId(a!), imageNodeId(b!)]);
+    expect(screen.getByTestId("branch-canvas")).toBeTruthy();
   });
 
   it("saves the layout after Re-arrange (debounced)", async () => {

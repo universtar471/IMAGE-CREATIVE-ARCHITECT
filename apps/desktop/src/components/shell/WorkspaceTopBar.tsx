@@ -19,6 +19,7 @@ import { subtypeLabel } from "../../i18n/knowledge";
 import { ConfirmDialog } from "../common/Dialog";
 import { StatusBadge } from "../common/StatusBadge";
 import { LocaleSwitch } from "./LocaleSwitch";
+import { ModeSwitch } from "./ModeSwitch";
 import { useWorkspaceLayout } from "../../features/workspace/layout";
 
 export function WorkspaceTopBar() {
@@ -78,6 +79,8 @@ export function WorkspaceTopBar() {
           <StatusBadge status={project.status} />
         )}
       </div>
+      <span className="topbar-sep" />
+      <ModeSwitch />
       <span className="spacer" />
       <QueueIndicator />
       <ProviderChip />

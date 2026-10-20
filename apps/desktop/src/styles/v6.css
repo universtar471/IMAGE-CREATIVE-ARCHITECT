@@ -1,0 +1,237 @@
+/*
+ * UX V6.1 surfaces (ADR-044): contextual toolbar, Studio/Node switch, selection inspector,
+ * node badges. Reuses the dark tokens of app.css and the Premium Duotone accents of PR #2.
+ */
+
+/* ---------------------------------------------------------------- contextual toolbar */
+.context-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 10px;
+  background: rgb(13 24 40 / 96%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  white-space: nowrap;
+  max-width: calc(100% - 16px);
+}
+.context-toolbar.is-floating {
+  position: absolute;
+  z-index: 6;
+}
+.context-toolbar.is-static {
+  position: absolute;
+  z-index: 6;
+  left: 8px;
+  top: 48px;
+}
+.context-toolbar-btn {
+  min-height: 36px;
+  min-width: 36px;
+  gap: 6px;
+}
+.context-toolbar-btn.btn-icon {
+  justify-content: center;
+  padding: 0 8px;
+}
+.context-toolbar-more {
+  position: relative;
+}
+.context-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 8px;
+  background: var(--c-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+}
+.context-menu.is-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--c-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.context-menu-item:hover:not(:disabled),
+.context-menu-item:focus-visible {
+  background: var(--c-surface-3);
+}
+.context-menu-item:disabled {
+  color: var(--c-text-3);
+  cursor: not-allowed;
+}
+/* Studio: the toolbar floats over the top edge of the preview, centred. */
+.preview-toolbar-slot {
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+}
+.preview-toolbar-slot .context-toolbar {
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------- Studio / Node */
+.mode-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-bg);
+  flex-shrink: 0;
+}
+.mode-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.mode-switch-btn[aria-pressed="true"] {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+}
+.mode-switch-btn:disabled {
+  color: var(--c-text-3);
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- selection inspector */
+.selection-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--c-surface-2);
+}
+.inspector-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.inspector-crumbs > span {
+  flex-shrink: 0;
+}
+.inspector-crumbs strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text);
+  font-weight: 600;
+}
+.inspector-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.inspector-thumb {
+  position: relative;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 72px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: #20252d;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.inspector-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.inspector-thumb-expand {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 60%);
+  color: white;
+}
+.inspector-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  margin: 0;
+  font-size: 12px;
+  min-width: 0;
+}
+.inspector-meta dt {
+  color: var(--c-text-3);
+}
+.inspector-meta dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inspector-error {
+  color: #fca5a5;
+}
+.inspector-outputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+}
+.inspector-output {
+  position: relative;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background: #20252d;
+  overflow: hidden;
+  cursor: pointer;
+}
+.inspector-output img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------------------------------------------------------------- node badges */
+.branch-role {
+  display: block;
+  padding: 0 8px 6px;
+}
+.branch-pending {
+  padding: 4px 8px;
+  border-top: 1px dashed var(--c-border);
+}

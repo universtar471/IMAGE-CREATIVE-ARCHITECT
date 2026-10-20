@@ -1,43 +1,49 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   Background,
   Controls,
   Handle,
   Position,
   ReactFlow,
+  useInternalNode,
+  useStore,
   type Edge,
   type Node,
   type NodeChange,
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, ArrowLeft, Columns2, LayoutGrid, ScanSearch } from "lucide-react";
-import { AnalysisDialog } from "../analysis/AnalysisDialog";
+import { AlertTriangle, LayoutGrid } from "lucide-react";
 import {
   buildBranchGraph,
   deepAiChain,
   isVideoAsset,
   layoutBranchGraph,
-  setShotPresets,
   type AssetDTO,
   type BranchNode,
   type CanvasLayout,
   type CanvasPosition,
   type GenerationDTO,
-  type ProjectDNA,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
-import { CompareCanvas } from "../../components/canvas/CompareCanvas";
-import { useSpendConfirm } from "../../components/common/SpendConfirm";
+import { RoleBadge } from "../../components/common/StatusBadge";
 import { VideoBadge } from "../../components/common/VideoBadge";
 import { GenerationStatusBadge } from "../generate/GenerationStatusBadge";
 import { call, toBridgeError } from "../../lib/bridge";
 import { fileUrl } from "../../lib/files";
-import { spendRequestForGeneration } from "../../lib/spend";
+import { useElementSize } from "../../lib/useElementSize";
 import { useLocale, useT } from "../../i18n";
 import { presetLabels } from "../presets/labels";
+import { ContextualToolbar } from "../selection/ContextualToolbar";
+import { nodeScreenRect, placeToolbar } from "../selection/placement";
+import { isReferenceAsset } from "../selection/selection";
+import { draftSourceOf, useSelection } from "../selection/useSelection";
+import { viewerSetFor } from "../selection/viewerSet";
+import { useWorkspaceLayout } from "../workspace/layout";
 
 const SAVE_DELAY_MS = 600;
+/** From this many nodes only the visible ones render (large projects stay responsive). */
+const VIRTUALIZE_FROM = 100;
 
 type NodeData = {
   node: BranchNode;
@@ -47,23 +53,28 @@ type NodeData = {
 type FlowNode = Node<NodeData>;
 
 /**
- * Branch canvas (ADR-041): images → generations → outputs, derived from the project's
- * lineage. Clicking an image makes it the next source; the Generate panel on the right still
- * runs everything, so the canvas never spends credit on its own. Dragged positions are saved.
+ * Node Canvas (ADR-041, V6.1 ADR-044): images → generations → outputs, derived from the
+ * project's lineage. Selection lives in the store (`canvasSelection`) so the floating toolbar,
+ * the inspector and the viewer all follow it, and the pan/zoom is kept per project so leaving
+ * and coming back (or opening the viewer) restores the same view. Nothing here spends credit:
+ * actions go through the registry, and paid ones through the spend confirm.
  */
 export function BranchCanvas() {
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
   const draft = useStudio((s) => s.generateDraft);
   const readOnly = useStudio(selectReadOnly);
+  const selection = useStudio((s) => s.canvasSelection);
+  const setSelection = useStudio((s) => s.setCanvasSelection);
   const projectId = ws.project.id;
+  const savedViewport = useStudio((s) => s.nodeViewport[projectId]);
 
   const [layout, setLayout] = useState<CanvasLayout | null>(null);
   const [dragged, setDragged] = useState<Record<string, CanvasPosition>>({});
-  const [selection, setSelection] = useState<string[]>([]);
-  const [compare, setCompare] = useState<[string, string] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Read once: the canvas owns its viewport while mounted; the store only remembers it.
+  const [initialViewport] = useState(savedViewport);
 
   useEffect(() => {
     let alive = true;
@@ -78,10 +89,7 @@ export function BranchCanvas() {
   }, [projectId]);
 
   // What the Generate button would send now (shown dashed after its source).
-  const draftSource =
-    draft.source === "sketch"
-      ? (draft.referenceAssetIds?.[0] ?? null)
-      : (ws.project.activeMasterAssetId ?? null);
+  const draftSource = draftSourceOf(draft, ws.project.activeMasterAssetId ?? null);
   const graph = useMemo(
     () =>
       buildBranchGraph({
@@ -103,25 +111,33 @@ export function BranchCanvas() {
     () => new Map(ws.generations.map((g) => [g.id, g])),
     [ws.generations],
   );
-  const nodes: FlowNode[] = graph.nodes.map((node) => ({
-    id: node.id,
-    type: node.kind,
-    position: dragged[node.id] ?? positions[node.id] ?? { x: 0, y: 0 },
-    selected: selection.includes(node.id),
-    draggable: !readOnly && node.kind !== "draft",
-    data: {
-      node,
-      asset: node.kind === "image" ? assets.get(node.assetId) : undefined,
-      generation: node.kind === "generation" ? generations.get(node.generationId) : undefined,
-    },
-  }));
-  const edges: Edge[] = graph.edges.map((e) => ({
-    id: e.id,
-    source: e.from,
-    target: e.to,
-    className: e.primary ? "branch-edge" : "branch-edge branch-edge-secondary",
-    animated: e.to === "draft",
-  }));
+  const nodes: FlowNode[] = useMemo(
+    () =>
+      graph.nodes.map((node) => ({
+        id: node.id,
+        type: node.kind,
+        position: dragged[node.id] ?? positions[node.id] ?? { x: 0, y: 0 },
+        selected: selection.includes(node.id),
+        draggable: !readOnly && node.kind !== "draft",
+        data: {
+          node,
+          asset: node.kind === "image" ? assets.get(node.assetId) : undefined,
+          generation: node.kind === "generation" ? generations.get(node.generationId) : undefined,
+        },
+      })),
+    [graph, dragged, positions, selection, readOnly, assets, generations],
+  );
+  const edges: Edge[] = useMemo(
+    () =>
+      graph.edges.map((e) => ({
+        id: e.id,
+        source: e.from,
+        target: e.to,
+        className: e.primary ? "branch-edge" : "branch-edge branch-edge-secondary",
+        animated: e.to === "draft",
+      })),
+    [graph],
+  );
 
   const persist = (next: CanvasLayout) => {
     setLayout(next);
@@ -135,6 +151,7 @@ export function BranchCanvas() {
   };
 
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
+    let next = useStudio.getState().canvasSelection;
     for (const change of changes) {
       if (change.type === "position" && change.position) {
         const { id, position } = change;
@@ -144,12 +161,16 @@ export function BranchCanvas() {
         }
       }
       if (change.type === "select") {
-        setSelection((sel) =>
-          change.selected
-            ? [...sel.filter((id) => id !== change.id), change.id]
-            : sel.filter((id) => id !== change.id),
-        );
+        next = change.selected
+          ? [...next.filter((id) => id !== change.id), change.id]
+          : next.filter((id) => id !== change.id);
       }
+    }
+    if (next !== useStudio.getState().canvasSelection) {
+      setSelection(next);
+      // One image node selected: Studio, the tray and the inspector follow it.
+      const only = next.length === 1 && next[0]!.startsWith("asset:") ? next[0]! : null;
+      if (only) useStudio.getState().selectAsset(only.slice("asset:".length), { keepView: true });
     }
   };
 
@@ -158,22 +179,14 @@ export function BranchCanvas() {
     persist({ version: 1, positions: {} });
   };
 
-  const selectedImages = selection.filter((id) => id.startsWith("asset:"));
-  const focused = graph.nodes.find((n) => n.id === selection.at(-1));
-
-  if (compare) {
-    const [a, b] = compare.map((id) => assets.get(id) ?? null);
-    return (
-      <div className="branch-compare" data-testid="branch-compare">
-        <div className="branch-toolbar">
-          <button type="button" className="btn btn-sm" onClick={() => setCompare(null)}>
-            <ArrowLeft size={13} /> {t("branches.back")}
-          </button>
-        </div>
-        <CompareCanvas source={a ?? null} result={b ?? null} projectId={projectId} />
-      </div>
-    );
-  }
+  const openLarge = (node: FlowNode) => {
+    if (node.data.node.kind !== "image") return;
+    const id = node.data.node.assetId;
+    const assetIds = viewerSetFor(id, ws.assets, ws.generations);
+    useStudio
+      .getState()
+      .openViewer({ assetIds, index: Math.max(0, assetIds.indexOf(id)), compareWithId: null });
+  };
 
   return (
     <div className="branch-canvas" data-testid="branch-canvas">
@@ -185,20 +198,6 @@ export function BranchCanvas() {
           onClick={rearrange}
         >
           <LayoutGrid size={13} /> {t("branches.rearrange")}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={selectedImages.length !== 2}
-          data-testid="branch-compare-button"
-          onClick={() =>
-            setCompare([
-              selectedImages[0]!.slice("asset:".length),
-              selectedImages[1]!.slice("asset:".length),
-            ])
-          }
-        >
-          <Columns2 size={13} /> {t("branches.compare")}
         </button>
         <span className="field-hint">{t("branches.hint")}</span>
       </div>
@@ -216,145 +215,76 @@ export function BranchCanvas() {
             edges={edges}
             nodeTypes={NODE_TYPES}
             onNodesChange={onNodesChange}
+            onNodeDoubleClick={(_event, node) => openLarge(node)}
+            onMoveEnd={(_event, viewport) =>
+              useStudio.getState().setNodeViewport(projectId, viewport)
+            }
             nodesConnectable={false}
             multiSelectionKeyCode="Shift"
-            fitView
+            {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
             minZoom={0.2}
+            onlyRenderVisibleElements={graph.nodes.length >= VIRTUALIZE_FROM}
+            zoomOnDoubleClick={false}
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={24} />
             <Controls position="top-right" showInteractive={false} />
+            <FloatingNodeToolbar />
           </ReactFlow>
         </div>
       )}
-      {focused && <NodeActions node={focused} />}
+      {graph.nodes.length === 0 && <StaticToolbar />}
     </div>
   );
 }
 
-/** Actions for the last selected node; nothing here spends credit without the usual confirm. */
-function NodeActions({ node }: { node: BranchNode }) {
-  const t = useT();
-  const ws = useStudio((s) => s.workspace!);
-  const readOnly = useStudio(selectReadOnly);
-  const setDraft = useStudio((s) => s.setGenerateDraft);
-  const setShotIntent = useStudio((s) => s.setShotIntent);
-  const setCenterView = useStudio((s) => s.setCenterView);
-  const notify = useStudio((s) => s.notify);
-  const retry = useStudio((s) => s.retryGeneration);
-  const providers = useStudio((s) => s.providers);
-  const spend = useSpendConfirm();
-  const [analysing, setAnalysing] = useState<AssetDTO | null>(null);
+/** Nothing on the canvas yet: the "nothing selected" actions, pinned top-left. */
+function StaticToolbar() {
+  const selection = useSelection();
+  return <ContextualToolbar selection={selection} className="is-static" />;
+}
 
-  if (node.kind === "image") {
-    const isClip = ws.assets.some((a) => a.id === node.assetId && isVideoAsset(a));
-    return (
-      <div className="branch-actions" data-testid="branch-actions">
-        <strong>
-          {ws.assets.find((a) => a.id === node.assetId)?.originalName ?? node.assetId}
-        </strong>
-        {deepAiChain(node) && (
-          <span className="field-hint branch-warning">
-            <AlertTriangle size={12} /> {t("branches.deepChain")}
-          </span>
-        )}
-        {!isClip && (
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
-            disabled={readOnly}
-            onClick={() => {
-              setDraft({
-                source: "sketch",
-                purpose: "hero",
-                referenceAssetIds: [node.assetId],
-                params: null,
-              });
-              notify("success", t("branches.sourceSet"));
-            }}
-          >
-            {t("branches.useAsSource")}
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={() => {
-            useStudio.setState({ selectedAssetId: node.assetId });
-            setCenterView("canvas");
-          }}
-        >
-          {t("branches.viewLarge")}
-        </button>
-        {!isClip && (
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={readOnly}
-            onClick={() => setAnalysing(ws.assets.find((a) => a.id === node.assetId) ?? null)}
-          >
-            <ScanSearch size={13} /> {t("analysis.open")}
-          </button>
-        )}
-        {analysing && <AnalysisDialog asset={analysing} onClose={() => setAnalysing(null)} />}
-      </div>
+/**
+ * Toolbar over the last selected node (ADR-044): follows pan, zoom and drags, prefers the
+ * space above the node, falls back below, and is clamped inside the canvas. With nothing
+ * selected it sits at the top-left corner, clear of the zoom controls.
+ */
+function FloatingNodeToolbar() {
+  const selection = useSelection();
+  const layout = useWorkspaceLayout();
+  const anchorId = useStudio((s) => s.canvasSelection.at(-1) ?? null);
+  const internal = useInternalNode(anchorId ?? "");
+  const transform = useStore((s) => s.transform);
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
+  const ref = useRef<HTMLDivElement>(null);
+  const size = useElementSize(ref);
+  const maxVisible = layout.tier === "wide" || layout.tier === "regular" ? 4 : 3;
+
+  let style: CSSProperties = { left: 8, top: 8 };
+  let menuUp = false;
+  if (anchorId && internal && selection.kind !== "none") {
+    const rect = nodeScreenRect(
+      internal.internals.positionAbsolute,
+      {
+        width: internal.measured.width ?? 0,
+        height: internal.measured.height ?? 0,
+      },
+      transform,
     );
-  }
-  if (node.kind === "generation") {
-    const g = ws.generations.find((x) => x.id === node.generationId);
-    const canRetry =
-      !!g && (g.status === "cancelled" || (g.status === "failed" && !!g.error?.retryable));
-    return (
-      <div className="branch-actions" data-testid="branch-actions">
-        <GenerationStatusBadge status={node.status} />
-        <span className="field-hint">
-          {node.providerId} · {node.modelId}
-        </span>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={readOnly || node.presetIds.length === 0}
-          onClick={() => {
-            const shot = { ...(ws.shotIntent ?? {}), projectType: ws.project.projectType };
-            const result = setShotPresets(shot, node.presetIds, ws.draftDna as ProjectDNA);
-            setShotIntent(result.shotIntent);
-          }}
-        >
-          {t("branches.reusePresets")}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={!g}
-          onClick={() => {
-            void navigator.clipboard
-              ?.writeText(g!.prompt.positivePrompt)
-              .then(() => notify("success", t("branches.promptCopied")));
-          }}
-        >
-          {t("branches.copyPrompt")}
-        </button>
-        {canRetry && (
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={readOnly}
-            onClick={async () => {
-              if (!(await spend.request(spendRequestForGeneration(g!, providers, t)))) return;
-              await retry(g!);
-            }}
-          >
-            {t("branches.retry")}
-          </button>
-        )}
-        {spend.dialog}
-      </div>
-    );
+    const place = placeToolbar(rect, size, { width, height });
+    style = { left: place.left, top: place.top };
+    menuUp = place.side === "below" && place.top > height / 2;
   }
   return (
-    <div className="branch-actions" data-testid="branch-actions">
-      <span className="field-hint">{t("branches.draftHint")}</span>
-    </div>
+    <ContextualToolbar
+      ref={ref}
+      selection={selection}
+      maxVisible={maxVisible}
+      menuUp={menuUp}
+      className="is-floating"
+      style={style}
+    />
   );
 }
 
@@ -366,7 +296,7 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
     <div className="branch-node branch-node-image" data-node={node.id}>
       <Handle type="target" position={Position.Left} />
       <div className="branch-thumb">
-        {thumb ? <img src={thumb} alt="" /> : null}
+        {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" /> : null}
         {data.asset && isVideoAsset(data.asset) && (
           <VideoBadge durationMs={data.asset.durationMs} />
         )}
@@ -375,6 +305,11 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
         {deepAiChain(node) && <AlertTriangle size={11} aria-label={t("branches.deepChain")} />}{" "}
         {node.label}
       </div>
+      {isReferenceAsset(node) && (
+        <span className="branch-role" data-testid="branch-role">
+          <RoleBadge role={node.role} short />
+        </span>
+      )}
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -391,6 +326,9 @@ function GenerationNodeView({ data }: NodeProps<FlowNode>) {
         <GenerationStatusBadge status={node.status} />
         <span>{t(`labels.purpose.${node.purpose}`)}</span>
       </div>
+      {(node.status === "queued" || node.status === "running") && (
+        <div className="branch-pending field-hint">{t("branches.noResultYet")}</div>
+      )}
       <div className="branch-chips">
         {presetLabels(node.presetIds, locale).map((label) => (
           <span className="branch-chip" key={label}>
@@ -410,7 +348,9 @@ function DraftNodeView({ data }: NodeProps<FlowNode>) {
   return (
     <div className="branch-node branch-node-draft" data-node={node.id}>
       <Handle type="target" position={Position.Left} />
-      <div className="branch-node-head">{t("branches.draft")}</div>
+      <div className="branch-node-head">
+        {t("branches.draft")} <span className="field-hint">· {t("branches.notCreated")}</span>
+      </div>
       <div className="branch-chips">
         {presetLabels(node.presetIds, locale).map((label) => (
           <span className="branch-chip" key={label}>
