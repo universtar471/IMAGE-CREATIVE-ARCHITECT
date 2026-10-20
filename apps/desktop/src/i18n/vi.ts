@@ -2686,4 +2686,7 @@ export const vi: Dict = {
     posterUnknown: "Ảnh bìa",
     empty: "Chưa có ảnh để xem.",
   },
+  help: {
+    open: "Trợ giúp: {topic}",
+  },
 };

@@ -102,7 +102,8 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
                   className="chip premium-preset-card"
                   aria-pressed={selected.includes(preset.id)}
                   disabled={locked}
-                  title={locale === "vi" ? preset.hintVi : preset.hintEn}
+                  // Full name first (labels clamp to two lines), then what the preset does.
+                  title={`${presetLabel(preset, locale)} — ${locale === "vi" ? preset.hintVi : preset.hintEn}`}
                   data-preset={preset.id}
                   onClick={() => apply(togglePreset(selected, preset.id))}
                 >

@@ -2691,4 +2691,7 @@ export const en = {
     posterUnknown: "Poster",
     empty: "No image to show yet.",
   },
+  help: {
+    open: "Help: {topic}",
+  },
 };
