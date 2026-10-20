@@ -473,7 +473,7 @@ describe("SITE & OCCLUSION section keeps every ADR-028 constraint", () => {
   });
 
   it("is versioned pc-1.7.0 and byte-stable", () => {
-    expect(COMPILER_VERSION).toBe("pc-1.9.0");
+    expect(COMPILER_VERSION).toBe("pc-1.10.0");
     const dna = withTopology(CORNER_LEFT);
     expect(JSON.stringify(compile(dna, FRONT_LEFT))).toBe(
       JSON.stringify(compile(structuredClone(dna), FRONT_LEFT)),

@@ -136,9 +136,11 @@ function ProviderCard({
               className="field-hint provider-help"
               aria-label={t("providers.keyHelp", { label: p.label })}
             >
-              <li>
-                {t("providers.getKeyAt")} <span className="provider-help-url">{help.keyUrl}</span>
-              </li>
+              {help.keyUrl && (
+                <li>
+                  {t("providers.getKeyAt")} <span className="provider-help-url">{help.keyUrl}</span>
+                </li>
+              )}
               {help.notes.map((note) => (
                 <li key={note}>{t(note)}</li>
               ))}

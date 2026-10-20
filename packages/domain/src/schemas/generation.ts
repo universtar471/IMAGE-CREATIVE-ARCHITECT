@@ -52,10 +52,8 @@ export const ProviderDescriptorDTOSchema = z.object({
   configured: z.boolean(),
   /** Where the key comes from when configured: OS keychain or environment variable. */
   keySource: z.enum(["keychain", "env"]).nullable(),
-  models: z
-    .array(ModelCapabilitiesSchema)
-    .min(1)
-    .transform((models) => models as ModelCapabilities[]),
+  /** Empty only for a provider that is not set up yet (the custom gateway, ADR-040). */
+  models: z.array(ModelCapabilitiesSchema).transform((models) => models as ModelCapabilities[]),
 });
 export type ProviderDescriptorDTO = z.infer<typeof ProviderDescriptorDTOSchema>;
 

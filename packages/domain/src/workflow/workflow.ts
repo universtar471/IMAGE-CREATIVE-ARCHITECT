@@ -37,6 +37,11 @@ export type WorkflowFacts = {
   approvedAnchorCameraIds: readonly string[];
   /** The contract's minimum facts omit non-anchor cameras; callers may provide them for render. */
   cameraIds?: readonly string[];
+  /**
+   * Quick generate (ADR-039): the request carries a source image (a `structure_sketch` or the
+   * `master_architecture` reference). A hero shot then needs no confirmed DNA steps.
+   */
+  hasSourceImage?: boolean;
 };
 
 export type WorkflowViewStep = {
@@ -233,6 +238,7 @@ export function isGenerationAllowed(
   persisted: readonly WorkflowStepState[],
   facts: WorkflowFacts,
 ): GenerationAllowed {
+  if (purpose === "hero" && facts.hasSourceImage) return { ok: true };
   const first = firstUnconfirmed(persisted);
   if (
     purpose !== "variation" &&

@@ -2,7 +2,7 @@
 
 use rusqlite::Connection;
 
-use crate::domain::GenerationPurpose;
+use crate::domain::{AssetRole, GenerationPurpose};
 use crate::dto::{WorkflowDto, WorkflowStepStateDto};
 use crate::error::{AppError, AppResult};
 use crate::repositories::{self as repo, ProjectRow};
@@ -114,12 +114,23 @@ pub fn reopen(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Work
     Ok(result)
 }
 
+/// Whether references include a source image for quick generate (ADR-039).
+pub(crate) fn is_source_image(role: AssetRole) -> bool {
+    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture)
+}
+
 /// Enforce the generation prerequisites while the caller still holds its transaction/connection.
+/// Quick generate (ADR-039): a hero shot with a source image (`has_source_image`) skips the DNA
+/// steps; anchors, production renders and master-based purposes keep their gates.
 pub(crate) fn ensure_generation_allowed(
     conn: &Connection,
     project: &ProjectRow,
     purpose: GenerationPurpose,
+    has_source_image: bool,
 ) -> AppResult<()> {
+    if purpose == GenerationPurpose::Hero && has_source_image {
+        return Ok(());
+    }
     if matches!(
         purpose,
         GenerationPurpose::Variation
@@ -209,10 +220,26 @@ mod tests {
         let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
 
         for purpose in [GenerationPurpose::Hero, GenerationPurpose::Anchor, GenerationPurpose::Production] {
-            let err = ensure_generation_allowed(&app.conn().unwrap(), &row, purpose).unwrap_err();
+            let err = ensure_generation_allowed(&app.conn().unwrap(), &row, purpose, false).unwrap_err();
             assert!(err.message.contains("dna.context"));
         }
-        ensure_generation_allowed(&app.conn().unwrap(), &row, GenerationPurpose::Variation).unwrap();
+        ensure_generation_allowed(&app.conn().unwrap(), &row, GenerationPurpose::Variation, false).unwrap();
+    }
+
+    #[test]
+    fn quick_hero_with_a_source_image_skips_the_dna_steps_only() {
+        let (_tmp, app) = core();
+        let project = test_create_villa_unconfirmed(&app, "Quick");
+        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
+        let conn = app.conn().unwrap();
+        ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, true).unwrap();
+        assert!(ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, false).is_err());
+        for purpose in [GenerationPurpose::Anchor, GenerationPurpose::Production, GenerationPurpose::Variation] {
+            assert!(ensure_generation_allowed(&conn, &row, purpose, true).is_err());
+        }
+        assert!(is_source_image(AssetRole::StructureSketch));
+        assert!(is_source_image(AssetRole::MasterArchitecture));
+        assert!(!is_source_image(AssetRole::MoodReference));
     }
 
     #[test]

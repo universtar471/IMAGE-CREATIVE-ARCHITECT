@@ -359,6 +359,13 @@ export const vi: Dict = {
 
   modules: {
     navLabel: "Các mô-đun làm việc",
+    groups: {
+      studio: "Studio",
+      dna: "DNA thiết kế",
+      shot: "Chi tiết shot",
+      post: "Hậu kỳ",
+      export: "Xuất bản",
+    },
     futureTitle: "{label} — có ở Giai đoạn {phase}",
     overview: { label: "Tổng quan", description: "Tóm tắt dự án, mức sẵn sàng và xem prompt." },
     design_dna: {
@@ -1105,6 +1112,15 @@ export const vi: Dict = {
   },
 
   generate: {
+    modeLabel: "Chế độ panel",
+    modeSimple: "Đơn giản",
+    modeAdvanced: "Nâng cao",
+    simpleSource: "Ảnh nguồn",
+    simpleSourceHint:
+      "Chọn ảnh viewport, phác thảo hoặc ảnh render. Có ảnh nguồn là tạo được ngay, không cần xác nhận các bước DNA.",
+    quickHint: "Hoặc chọn ảnh nguồn (viewport, phác thảo hoặc master) để tạo ngay.",
+    advancedHint:
+      "Provider, kích thước, ảnh tham chiếu, seed, anchor và render hàng loạt nằm trong Nâng cao.",
     providersFailed: "Không tải được danh sách nhà cung cấp ảnh",
     loadingProviders: "Đang tải nhà cung cấp…",
     dnaIncomplete: "DNA thiết kế chưa đầy đủ.",
@@ -1629,6 +1645,13 @@ export const vi: Dict = {
         optional:
           "Tùy chọn: HHTECH_IMAGE_MODEL (phân tách bằng dấu phẩy; giới hạn danh sách model có sẵn), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (chất lượng Mặc định), HHTECH_CHAT_MODEL (dùng cho Cải thiện prompt).",
       },
+      gateway: {
+        required:
+          "Cần GATEWAY_BASE_URL (VD: https://api.example.com/v1) và GATEWAY_IMAGE_MODEL (các id model, phân tách bằng dấu phẩy) trong biến môi trường hoặc .env; khởi động lại ứng dụng sau khi đổi.",
+        optional:
+          "Tùy chọn: GATEWAY_CHAT_MODEL (bật Cải thiện prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
+        key: "Dán key lấy từ trang quản lý của gateway, hoặc đặt GATEWAY_API_KEY.",
+      },
     },
   },
 
@@ -2083,6 +2106,46 @@ export const vi: Dict = {
     markAnchored: ", đã có Anchor",
     markMove: ". Kéo hoặc dùng phím mũi tên để di chuyển.",
   },
+  sketchup: {
+    receive: "Nhận từ SketchUp ({count})",
+    folder: "Thư mục chờ:",
+    refresh: "Làm mới",
+    empty: "Chưa có view nào. Trong SketchUp chọn Extensions → Arch AI Studio → Gửi view hiện tại.",
+    listLabel: "Các view gửi từ SketchUp",
+    import: "Nhập",
+    importing: "Đang nhập…",
+    imported: "Đã nhập '{name}' làm ảnh phác thảo.",
+    alreadyImported: "'{name}' đã có trong dự án; ảnh này được chọn làm nguồn.",
+  },
+
+  presets: {
+    title: "Preset",
+    selected: "Preset đã chọn",
+    none: "Chưa có preset: bấm một preset bên dưới để thêm.",
+    remove: "Bỏ {label}",
+    lookFree: "miễn phí, áp sau khi tạo",
+    skipped: "Không áp được cho shot này: {list}",
+    sources: "Dòng prompt từ preset: {list}",
+    mine: "Bộ của tôi",
+    mineEmpty: "Chưa có tổ hợp nào được lưu.",
+    saveMine: "Lưu tổ hợp hiện tại",
+    name: "Tên tổ hợp",
+    namePlaceholder: "VD: Phố chạng vạng có người",
+    deleteMine: "Xóa {name}",
+    deleteTitle: "Xóa tổ hợp đã lưu?",
+    deleteMessage: "'{name}' sẽ bị bỏ khỏi Bộ của tôi ở mọi dự án. Bản thân các preset vẫn còn.",
+    deleteConfirm: "Xóa",
+    groups: {
+      render: "Kiểu render",
+      time_light: "Giờ và ánh sáng",
+      weather: "Thời tiết",
+      camera: "Góc máy",
+      people_cars: "Người và xe",
+      effects: "Hiệu ứng",
+      color_look: "Look màu",
+    },
+  },
+
   conflicts: {
     SPACE_NOT_IN_BUILDING: "Không gian đã chọn không thuộc loại công trình này.",
     UNVERIFIED_GEOMETRY: "Yêu cầu kích thước chính xác trong khi dữ liệu chưa được xác minh.",
@@ -2095,7 +2158,9 @@ export const vi: Dict = {
       "Hiệu ứng không có nguồn trong cảnh (ví dụ tia sao mà không có nguồn sáng).",
     EFFECT_MOTION_CONFLICT:
       "Hiệu ứng chuyển động mâu thuẫn với vật thể đứng yên (ví dụ vệt đèn của xe đang đỗ).",
-    LOCKED_LIGHTING_CONFLICT: "Cảnh đêm hoặc hoàng hôn mâu thuẫn với ánh sáng ban ngày đã khóa.",
+    LOCKED_LIGHTING_CONFLICT:
+      "Thời điểm trong ngày được chọn (hoặc chữ cảnh đêm/hoàng hôn) mâu thuẫn với ánh sáng đã khóa.",
+    LOCKED_WEATHER_CONFLICT: "Preset thời tiết mâu thuẫn với thời tiết đã khóa.",
     ENHANCE_PRESERVATION_RISK:
       "Nâng cấp ảnh có thể làm thay đổi vùng đã khóa hoặc hình học công trình.",
     OUTPUT_SIZE_MISMATCH: "Kích thước ảnh xuất không đúng cấu hình đã yêu cầu.",

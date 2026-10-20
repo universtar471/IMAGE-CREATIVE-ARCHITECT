@@ -473,6 +473,15 @@
       "requiresApiKey": true
     },
     {
+      "configured": false,
+      "id": "gateway",
+      "keySource": null,
+      "kind": "remote",
+      "label": "Custom gateway (OpenAI-compatible)",
+      "models": [],
+      "requiresApiKey": true
+    },
+    {
       "configured": true,
       "id": "local_preview",
       "keySource": null,

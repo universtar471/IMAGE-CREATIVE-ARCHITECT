@@ -20,6 +20,8 @@ type Db = NonNullable<Parameters<typeof createMockTransport>[0]>;
 let db: Db;
 
 beforeEach(() => {
+  // These tests drive the full panel (ADR-039: Simple is the default mode).
+  localStorage.setItem("arch.generateMode", "advanced");
   db = { projects: {}, dna: {}, assets: {}, versions: [] };
   setTransport(createMockTransport(db));
   useStudio.setState({ route: { name: "hub" }, workspace: null, workflowView: null });

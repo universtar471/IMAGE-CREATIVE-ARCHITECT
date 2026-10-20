@@ -1,0 +1,7 @@
+{
+  "command": "error",
+  "response": {
+    "code": "VALIDATION_ERROR",
+    "message": "Give the preset combination a name."
+  }
+}

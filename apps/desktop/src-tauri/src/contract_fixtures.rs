@@ -19,7 +19,9 @@ use serde_json::{json, Value};
 use crate::domain::{GenerationStatus, JobStatus};
 use crate::providers::local_preview::{self, LocalPreviewProvider};
 use crate::providers::local_upscale::{self, LocalUpscaleProvider};
-use crate::providers::{gemini::GeminiProvider, hhtech, openai::OpenAiProvider, ProviderErrorKind, ProviderRegistry};
+use crate::providers::{
+    gateway, gemini::GeminiProvider, hhtech, openai::OpenAiProvider, ProviderErrorKind, ProviderRegistry,
+};
 use crate::secrets::{env_var_names, EnvSource, FixedEnv, MemorySecretStore, ProcessEnv};
 use crate::services::anchors::{self, AnchorClearRequest, AnchorSetRequest};
 use crate::services::assets::{self, ImportRequest};
@@ -32,7 +34,7 @@ use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
 };
-use crate::services::{diagram, projects, provider_settings, queue, workflow, AppCore};
+use crate::services::{diagram, projects, provider_settings, queue, sketchup_inbox, user_presets, workflow, AppCore};
 
 const ULID_CHARS: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -74,13 +76,13 @@ impl Normalizer {
         }
     }
 
-    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_/ECK_/PUB_` + 26 ULID chars → counters in order of first appearance.
+    /// `PRJ_/AST_/VER_/GEN_/JOB_/BAT_/ECK_/PUB_/UPR_` + 26 ULID chars → counters in order of first appearance.
     fn stable_ids(&mut self, text: &str) -> String {
         let bytes = text.as_bytes();
         let mut out = String::with_capacity(text.len());
         let mut i = 0;
         while i < bytes.len() {
-            let candidate = ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "ECK_", "PUB_"]
+            let candidate = ["PRJ_", "AST_", "VER_", "GEN_", "JOB_", "BAT_", "ECK_", "PUB_", "UPR_"]
                 .iter()
                 .find(|p| text[i..].starts_with(**p));
             if let Some(prefix) = candidate {
@@ -161,13 +163,15 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
         Arc::new(OpenAiProvider::with_base_url(UNROUTABLE_OPENAI_URL)),
         // Configured from an injected environment (never the process one): default models.
         Arc::new(hhtech::provider(&FixedEnv::with(hhtech::ENV_BASE_URL, UNROUTABLE_HHTECH_URL))),
+        // ADR-040: listed but not configured (no GATEWAY_* settings), so it has no models.
+        Arc::new(gateway::provider(&FixedEnv::default())),
         Arc::new(LocalPreviewProvider),
         Arc::new(LocalUpscaleProvider),
         double.clone(),
     ]);
     let core = AppCore::open_with(&data_root, registry, Arc::new(MemorySecretStore::default())).unwrap();
     drop(ambient);
-    for id in ["gemini", "openai", "hhtech"] {
+    for id in ["gemini", "openai", "hhtech", "gateway"] {
         for name in env_var_names(id) {
             assert!(core.env.var(&name).is_none(), "fixture core must not see an ambient key");
         }
@@ -450,6 +454,41 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
         "error_diagram_ffmpeg_missing",
         &diagram::export_video_with(&core, video, diagram::tests::MISSING_PROGRAM).unwrap_err(),
     );
+
+    // M2 (ADR-040), recorded after everything else so earlier fixtures keep their ids.
+    let saved = user_presets::save(
+        &core,
+        user_presets::SaveRequest {
+            id: None,
+            name: "Dusk street".into(),
+            preset_ids: vec!["time.blue_hour".into(), "people.walking".into()],
+        },
+    )
+    .unwrap();
+    rec.record("user_preset_save", "user_preset_save", &saved);
+    rec.record("user_preset_list", "user_preset_list", &user_presets::list(&core).unwrap());
+    user_presets::delete(&core, &saved.id).unwrap();
+    rec.record("user_preset_delete", "user_preset_delete", &json!({ "deleted": true }));
+    rec.record_error(
+        "error_user_preset_invalid",
+        &user_presets::save(&core, user_presets::SaveRequest { id: None, name: " ".into(), preset_ids: vec![] })
+            .unwrap_err(),
+    );
+    let inbox = sketchup_inbox::inbox_dir(&core);
+    std::fs::create_dir_all(&inbox).unwrap();
+    write_png(&inbox, "street.png", 8, 6, [90, 60, 30]);
+    std::fs::write(
+        inbox.join("street.json"),
+        r#"{"version":1,"model":"C:/projects/nha.skp","scene":"Street","width":8,"height":6,"capturedAt":"2026-10-20T08:00:00Z"}"#,
+    )
+    .unwrap();
+    rec.record("sketchup_inbox_list", "sketchup_inbox_list", &sketchup_inbox::list(&core).unwrap());
+    let imported = sketchup_inbox::import(
+        &core,
+        sketchup_inbox::InboxImportRequest { project_id: p.id.clone(), file_names: vec!["street.png".into()] },
+    )
+    .unwrap();
+    rec.record("sketchup_inbox_import", "sketchup_inbox_import", &imported);
     rec.out
 }
 
@@ -472,8 +511,8 @@ fn fixtures_and_descriptors_ignore_remote_keys_in_the_environment() {
     assert!(!text.contains("ambient-real-looking-key") && !text.contains("hh-ambient-key"));
     let providers = with_key["provider_list"]["response"].as_array().unwrap();
     let ids: Vec<_> = providers.iter().map(|p| p["id"].as_str().unwrap()).collect();
-    assert_eq!(ids[..4], ["gemini", "openai", "hhtech", "local_preview"]);
-    for remote in &providers[..3] {
+    assert_eq!(ids[..5], ["gemini", "openai", "hhtech", "gateway", "local_preview"]);
+    for remote in &providers[..4] {
         assert_eq!(remote["configured"].as_bool(), Some(false), "{remote}");
     }
 }

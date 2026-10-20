@@ -19,7 +19,7 @@ const fixtures = Object.entries(modules).map(([path, f]) => ({
 }));
 
 describe("backend contract fixtures", () => {
-  it("cover every Phase 2, Phase 3 (§10) and publishing (§22) command", () => {
+  it("cover every Phase 2, Phase 3 (§10), publishing (§22) and M2 (ADR-040) command", () => {
     const commands = new Set(fixtures.map((f) => f.command));
     for (const c of [
       "provider_list",
@@ -46,6 +46,11 @@ describe("backend contract fixtures", () => {
       "publication_delete",
       "publication_caption_draft",
       "publication_export_save",
+      "user_preset_list",
+      "user_preset_save",
+      "user_preset_delete",
+      "sketchup_inbox_list",
+      "sketchup_inbox_import",
       "error",
     ]) {
       expect(commands, c).toContain(c);

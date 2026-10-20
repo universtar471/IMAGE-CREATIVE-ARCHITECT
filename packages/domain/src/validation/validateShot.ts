@@ -216,20 +216,56 @@ function lockedDaytime(dna: ProjectDNA, shot: ShotIntent): string | null {
   return preset && DAYTIME_PRESET.test(preset) ? preset : null;
 }
 
-/** Night or dusk requested while the lighting is locked to a daytime setting. */
+/** The time of day of locked lighting, as stored (or its preset id); null when unlocked. */
+function lockedTime(dna: ProjectDNA, shot: ShotIntent): string | null {
+  if (!dna.locks.lighting) return null;
+  const interiorTime = shot.projectType === "interior" ? dna.interior?.timeOfDay : undefined;
+  return interiorTime ?? dna.lighting?.timeOfDay ?? dna.lighting?.presetId ?? "locked";
+}
+
+/**
+ * The lighting is locked and the shot asks for something else:
+ * - the extra prompt asks for night or dusk while the locked setting is daytime;
+ * - a time-of-day preset (`shotIntent.lighting.timeOfDay`, ADR-039) differs from it.
+ */
 const lockedLightingRule: ConflictRule = {
   code: "LOCKED_LIGHTING_CONFLICT",
   check(ctx) {
-    if (!ctx.extra) return [];
-    const daytime = lockedDaytime(ctx.dna, ctx.shot);
-    if (!daytime) return [];
-    const match = firstPhrase(ctx.extra, NIGHT_PHRASES);
-    if (!match) return [];
-    return [
-      {
+    const issues: IssueDraft[] = [];
+    const shotTime = ctx.shot.lighting?.timeOfDay;
+    const locked = shotTime ? lockedTime(ctx.dna, ctx.shot) : null;
+    if (shotTime && locked && locked !== shotTime)
+      issues.push({
+        code: "LOCKED_LIGHTING_CONFLICT",
+        path: "shotIntent.lighting.timeOfDay",
+        params: { phrase: shotTime, locked },
+      });
+    const daytime = ctx.extra ? lockedDaytime(ctx.dna, ctx.shot) : null;
+    const match = daytime ? firstPhrase(ctx.extra!, NIGHT_PHRASES) : null;
+    if (match)
+      issues.push({
         code: "LOCKED_LIGHTING_CONFLICT",
         path: "extraPrompt",
-        params: { phrase: match.text, locked: daytime },
+        params: { phrase: match.text, locked: daytime! },
+      });
+    return issues;
+  },
+};
+
+/** A weather preset (ADR-039) while the Weather DNA is locked to something else. */
+const lockedWeatherRule: ConflictRule = {
+  code: "LOCKED_WEATHER_CONFLICT",
+  check(ctx) {
+    const shotWeather = ctx.shot.lighting?.weather;
+    if (!shotWeather || !ctx.dna.locks.weather) return [];
+    const w = ctx.dna.weather;
+    const locked = w?.preset ?? w?.presetId ?? "locked";
+    if (locked === shotWeather || locked === shotWeather.replaceAll("_", " ")) return [];
+    return [
+      {
+        code: "LOCKED_WEATHER_CONFLICT",
+        path: "shotIntent.lighting.weather",
+        params: { phrase: shotWeather, locked },
       },
     ];
   },
@@ -407,6 +443,7 @@ export const SHOT_RULES: readonly ConflictRule[] = [
   effectsRule,
   unverifiedGeometryRule,
   lockedLightingRule,
+  lockedWeatherRule,
 ];
 
 // ---------------------------------------------------------------- validator

@@ -9,7 +9,7 @@
  * - `escalatesTo`: a WARN code that a rule may raise to BLOCK when the data is confirmed.
  */
 
-export const VALIDATOR_VERSION = "cv-1.2.0";
+export const VALIDATOR_VERSION = "cv-1.3.0";
 
 export type ConflictSeverity = "BLOCK" | "WARN";
 export type ShotVerdict = ConflictSeverity | "ALLOW";
@@ -46,6 +46,7 @@ export const CONFLICT_CODES = {
   EFFECT_SOURCE_MISSING: code("EFFECT_SOURCE_MISSING", "BLOCK", "P2"),
   EFFECT_MOTION_CONFLICT: code("EFFECT_MOTION_CONFLICT", "BLOCK", "P2"),
   LOCKED_LIGHTING_CONFLICT: code("LOCKED_LIGHTING_CONFLICT", "BLOCK", "P0"),
+  LOCKED_WEATHER_CONFLICT: code("LOCKED_WEATHER_CONFLICT", "BLOCK", "P0"),
   ENHANCE_PRESERVATION_RISK: code("ENHANCE_PRESERVATION_RISK", "WARN", "P3", true),
   OUTPUT_SIZE_MISMATCH: code("OUTPUT_SIZE_MISMATCH", "BLOCK", "P3"),
   PAGE_COUNT_MISMATCH: code("PAGE_COUNT_MISMATCH", "BLOCK", "P5"),

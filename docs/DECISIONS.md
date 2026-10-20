@@ -1045,3 +1045,83 @@ Status: accepted (2026-10-16). Basis: SRS §11, AC-16 to AC-19.
 - PDF: page images in a minimal pure-TS PDF writer that embeds JPEG (DCTDecode) at the paper size. Text is rasterised in this MVP.
 - No new npm or cargo dependency unless it is already in a lockfile.
 - Vector-text PDF, bleed, brand kit, flipbook and video are P6.
+
+## ADR-039 — M1: shot presets as the main way to build a shot; quick generate
+
+Status: accepted (2026-10-19). Basis: the user's VizMaker study and plan `docs/plans/VIZMAKER_IMAGE_PLAN.md` (image phase first; video, 3D, accounts later).
+
+**Why.** Users currently walk through nine modules and five DNA confirmations before one image. The goal is the VizMaker-style flow: source image → click presets → Generate, while keeping DNA, the validator and lineage as the source of truth.
+
+**Domain** (`packages/domain/src/presets/`, done in this ADR)
+- `ShotPreset`: `id`, `group` (render, time_light, weather, camera, people_cars, effects, color_look), optional `exclusive` key, `scope` (exterior / interior / any), bilingual label and hint, structured `patch`, optional `promptEn` + `keepEn`, and `source`.
+- Catalog `SHOT_PRESETS` (`ps-1.0.0`, 47 presets). Structured parts reuse the existing catalogs: times of day, visual intents, `EFFECT_CATALOG`, `SCENE_OBJECT_PRESETS`, `GRADE_LOOK_CATALOG`. All sentences are the app's own; nothing is copied from VizMaker (its terms forbid extracting prompts or `.vm` files). The catalog stays in TS like the other catalogs, so a wording change is a reviewed, versioned diff.
+- `ShotIntent` gains `presetIds`, `lighting { timeOfDay, weather }` (this shot only) and `gradeLookId` (free post-production look, never compiled). Rust already passes unknown ShotIntent keys through (`#[serde(flatten)] extra`).
+- `setShotPresets(shot, ids, dna)` materialises a selection: it removes the previous selection's contribution, then applies the new one, so chips are reversible and the Advanced panels keep editing the same fields. Objects go to `SITE_FRONTAGE_TARGET` outdoors or the active space indoors; presets that do not fit are returned as `skipped`. `togglePreset` handles dedupe and exclusive replacement.
+- **Compiler `pc-1.10.0`:**
+  - `shotIntent.lighting` replaces the DNA time of day and weather in the LIGHTING and WEATHER sections. The time-bound sun fields and the lighting preset id are dropped. Interior DNA maps dawn to morning and blue hour to evening.
+  - A locked section is never overridden.
+  - New `PRESETS` section after EFFECTS: one line per preset sentence. A camera preset adds a viewpoint line only when no DNA camera is compiled.
+  - `metadata.presetSources` and `presetCatalogVersion` are present only when such a line exists. `configHash` includes the catalog version only then, so prompts without presets are byte-identical apart from the version string.
+- **Validator `cv-1.3.0`:**
+  - `LOCKED_LIGHTING_CONFLICT` also fires when a shot time differs from the locked lighting.
+  - New `LOCKED_WEATHER_CONFLICT` (BLOCK) for a weather preset against locked weather.
+
+**Desktop (M1 A2–A6, done)**
+- **A2 Preset grid.**
+  - `features/presets/PresetGrid.tsx` shows the presets of `presetsForShot` by group, plus a selected-chip row with ×. The colour-look chip is marked as free and applied after generating.
+  - A click runs `togglePreset`, then `setShotPresets`, then `setShotIntent`. Presets that do not fit the shot are listed.
+  - The Prompt Preview names the presets behind the PRESETS lines (`metadata.presetSources`).
+- **A3.** Visual intent, provider, output, references, anchors and batches move under the panel's Advanced mode. The Effects and Scene objects modules stay; chips and these panels edit the same ShotIntent fields.
+- **A4 Quick generate.**
+  - `WorkflowFacts.hasSourceImage`, and in Rust `ensure_generation_allowed(…, has_source_image)`: a hero whose references include a `structure_sketch` or `master_architecture` asset skips the DNA steps.
+  - Anchor, production and master-based purposes keep their gates.
+  - Rust derives the flag from the reference rows at validation and again when queueing. The mock backend mirrors it.
+- **A5 Generate panel.**
+  - A Simple / Advanced switch, remembered in `localStorage["arch.generateMode"]`. Simple is the default.
+  - **Simple:** Source → Presets → extra prompt → conflicts → Generate with the cost estimate.
+  - **Advanced:** adds the stepper, anchors/batches, visual intent, provider, output and references.
+- **A6 Navigation.**
+  - `ModuleGroup` = studio, dna, shot, post, export.
+  - Order: Overview and Generate, then the DNA steps (Design DNA, Context, References, Camera, Lighting, Detail), Scene objects and Effects, post-production, and publishing. Every group has a label.
+  - This deliberately changes the "do not reorder" navigation; module ids and DNA step numbers are unchanged.
+
+
+## ADR-040 — M2: My presets, SketchUp inbox, custom OpenAI-compatible gateway
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M2. The user asked for all three parts, with the gateway kept generic (no BEAR-specific details are known), and for My presets to be shared by every project.
+
+**My presets**
+- Migration `0010_user_presets.sql`: `user_presets(id UPR_…, name, preset_ids JSON, created_at, updated_at)`. App-wide, with no project foreign key.
+- `services/user_presets.rs` has `list`, `save` (create, or update by id) and `delete`.
+  - **Validation:** the name is trimmed and 1–60 characters; 1–24 unique ids, each matching `[a-z0-9._]{1,64}`.
+  - **Catalog:** the backend does not know the catalog. Unknown ids are skipped by `normalizePresetIds` when a combination is applied, so renaming a preset never breaks a saved row.
+- **Commands:** `user_preset_list`, `user_preset_save`, `user_preset_delete`.
+- **UI:** a "My presets" row in `PresetGrid`.
+  - Clicking a combination replaces the selection.
+  - "Save current combination" names the current chips.
+  - Delete always goes through `ConfirmDialog`.
+
+**SketchUp inbox**
+- **Folder:** `<data-root>/inbox/sketchup/`, holding `<name>.png` and an optional `<name>.json` with `{ version, model, scene, width, height, capturedAt }`.
+- **Listing:** `services/sketchup_inbox.rs::list` returns the waiting views, newest first. A broken sidecar only hides the details.
+- **Import:** `import(projectId, fileNames)`.
+  - **File names:** only plain PNG names inside the inbox are accepted; paths and traversal are refused.
+  - **Asset:** each view goes through `assets::import` with source `sketchup` and role `structure_sketch`.
+  - **Duplicates:** a `DUPLICATE_ASSET` returns the existing asset (`details.existingAssetId`) and is counted in `duplicates`.
+  - **Afterwards:** the pair moves to `imported/` (renamed ` (2)` on a clash). Nothing is deleted, and no model runs.
+- **Asset protocol:** the inbox folder is added to the asset-protocol scope so the UI can show thumbnails.
+- **UI:** "Receive from SketchUp (N)" under the Generate source. An imported view is selected as the sketch source of a hero shot, which allows quick generate (ADR-039).
+- **Extension** (`tools/sketchup/arch_studio_bridge*`):
+  - menu items: Send current view, Send all scenes (transitions off while exporting), Open inbox folder;
+  - the PNG is rendered in `.partial/`, the sidecar is written, then the PNG is moved in, so the app never lists half-written files;
+  - the data folder is `ARCH_STUDIO_DATA_DIR`, else the Tauri app-data folder of `com.archaistudio.desktop`;
+  - `npm run sketchup:rbz` builds the `.rbz` with a dependency-free ZIP writer.
+
+**Custom gateway**
+- `providers/gateway_env.rs::config_from_env(spec, env)` is the shared environment parser. HHTECH now uses it with its catalog and default chat model, and its existing tests are unchanged. `HHTECH_ASSIST_MODEL` is still validated in `hhtech::config`.
+- **Provider** `providers/gateway`: id `gateway`, configured only from `GATEWAY_*`.
+  - **Required:** `GATEWAY_BASE_URL` and `GATEWAY_IMAGE_MODEL` (plain entries, no tiers or prices).
+  - **Optional:** `GATEWAY_CHAT_MODEL`; without it, Enhance prompt is not offered.
+  - **Key:** from the keychain under `gateway`, or `GATEWAY_API_KEY`.
+  - Until it is configured, it is listed with no models and never called.
+- **`ProviderDescriptorDTO.models`:** may now be empty. The UI already falls back to `null` when no model exists.

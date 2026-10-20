@@ -40,11 +40,18 @@ export type ModuleId =
   | "diagram"
   | "export";
 
+export const MODULE_GROUPS = ["studio", "dna", "shot", "post", "export"] as const;
+export type ModuleGroup = (typeof MODULE_GROUPS)[number];
+
 export type WorkspaceModule = {
   id: ModuleId;
   label: string;
   icon: LucideIcon;
-  group: "overview" | "dna" | "generate" | "post" | "export";
+  /**
+   * Navigation group (ADR-039): Studio (the preset-first Generate flow), the DNA steps, the
+   * per-shot detail modules, post-production and publishing.
+   */
+  group: ModuleGroup;
   /** Phase in which the module becomes functional; null = available now. */
   availableIn: number | null;
 };
@@ -54,7 +61,14 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "overview",
     label: "Overview",
     icon: LayoutDashboard,
-    group: "overview",
+    group: "studio",
+    availableIn: null,
+  },
+  {
+    id: "generate",
+    label: "Generate",
+    icon: Sparkles,
+    group: "studio",
     availableIn: null,
   },
   {
@@ -86,6 +100,13 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     availableIn: null,
   },
   {
+    id: "lighting",
+    label: "Lighting",
+    icon: SunMedium,
+    group: "dna",
+    availableIn: null,
+  },
+  {
     id: "detail",
     label: "Architectural detail",
     icon: ScanLine,
@@ -96,28 +117,14 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "scene_objects",
     label: "Scene objects",
     icon: Car,
-    group: "dna",
+    group: "shot",
     availableIn: null,
   },
   {
     id: "effects",
     label: "Effects",
     icon: Aperture,
-    group: "dna",
-    availableIn: null,
-  },
-  {
-    id: "lighting",
-    label: "Lighting",
-    icon: SunMedium,
-    group: "dna",
-    availableIn: null,
-  },
-  {
-    id: "generate",
-    label: "Generate",
-    icon: Sparkles,
-    group: "generate",
+    group: "shot",
     availableIn: null,
   },
   {
@@ -145,7 +152,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "diagram",
     label: "Diagram",
     icon: Shapes,
-    group: "post",
+    group: "export",
     availableIn: null,
   },
   {

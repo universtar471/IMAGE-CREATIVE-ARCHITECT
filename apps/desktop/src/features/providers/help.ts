@@ -7,8 +7,8 @@
 import type { TKey } from "../../i18n";
 
 export interface ProviderKeyHelp {
-  /** Page where the user creates an API key. */
-  keyUrl: string;
+  /** Page where the user creates an API key; absent when it depends on the setup (gateway). */
+  keyUrl?: string;
   /** Account requirements worth knowing before the first paid call. */
   notes: readonly TKey[];
 }
@@ -25,6 +25,14 @@ export const PROVIDER_KEY_HELP: Readonly<Record<string, ProviderKeyHelp>> = {
   hhtech: {
     keyUrl: "hhtechapi.com",
     notes: ["providers.help.hhtech.baseUrl", "providers.help.hhtech.optional"],
+  },
+  // ADR-040: any OpenAI-compatible gateway; the key comes from that gateway's own dashboard.
+  gateway: {
+    notes: [
+      "providers.help.gateway.required",
+      "providers.help.gateway.optional",
+      "providers.help.gateway.key",
+    ],
   },
 };
 

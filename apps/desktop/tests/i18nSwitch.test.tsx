@@ -15,6 +15,8 @@ import { setTransport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 
 beforeEach(() => {
+  // These tests drive the full panel (ADR-039: Simple is the default mode).
+  localStorage.setItem("arch.generateMode", "advanced");
   localStorage.removeItem(LOCALE_STORAGE_KEY);
   setTransport(
     createMockTransport(

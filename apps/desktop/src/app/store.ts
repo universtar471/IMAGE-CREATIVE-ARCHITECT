@@ -612,6 +612,9 @@ export const useStudio = create<State>((set, get) => {
           !shotIntent.targetDetailId &&
           !shotIntent.detailShotCount &&
           !shotIntent.visualIntent &&
+          !shotIntent.presetIds?.length &&
+          !shotIntent.lighting &&
+          !shotIntent.gradeLookId &&
           !hasEffects(shotIntent.effects));
       if (empty) {
         shotIntents.delete(id);

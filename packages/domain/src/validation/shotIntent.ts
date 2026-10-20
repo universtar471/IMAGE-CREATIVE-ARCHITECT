@@ -9,6 +9,8 @@ import { VisualIntentSchema, type VisualIntent } from "../camera/intent";
 import { ProjectTypeSchema, type ProjectType } from "../schemas/enums";
 import { SceneObjectRequestSchema, type SceneObjectRequest } from "../sceneObjects/schemas";
 import { ShotEffectsSchema, type ShotEffects } from "../effects/schemas";
+import { PresetIdListSchema, ShotLightingSchema, type ShotLighting } from "../presets/schemas";
+import { GradeLookIdSchema, type GradeLookId } from "../schemas/future";
 
 export type ShotIntent = {
   projectType: ProjectType;
@@ -26,6 +28,12 @@ export type ShotIntent = {
   visualIntent?: VisualIntent;
   /** P2c: optical and motion effects. Absent, or without a primary effect, adds nothing. */
   effects?: ShotEffects;
+  /** M1 (ADR-039): the selected shot presets, in catalog order. */
+  presetIds?: string[];
+  /** M1: time of day and weather for this shot only; never written into DNA. */
+  lighting?: ShotLighting;
+  /** M1: a free post-production look chosen by a preset; it never reaches the prompt. */
+  gradeLookId?: GradeLookId;
 };
 
 /** Runtime contract of the snapshot (mirrored by the Rust `ShotIntent` DTO). */
@@ -38,4 +46,7 @@ export const ShotIntentSchema = z.object({
   sceneObjects: z.array(SceneObjectRequestSchema).optional(),
   visualIntent: VisualIntentSchema.optional(),
   effects: ShotEffectsSchema.optional(),
+  presetIds: PresetIdListSchema.optional(),
+  lighting: ShotLightingSchema.optional(),
+  gradeLookId: GradeLookIdSchema.optional(),
 });

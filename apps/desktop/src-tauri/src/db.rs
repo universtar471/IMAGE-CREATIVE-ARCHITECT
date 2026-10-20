@@ -20,6 +20,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (7, include_str!("../migrations/0007_luts.sql")),
     (8, include_str!("../migrations/0008_enhance_check.sql")),
     (9, include_str!("../migrations/0009_publications.sql")),
+    (10, include_str!("../migrations/0010_user_presets.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -118,6 +119,7 @@ mod tests {
                 "qc_settings",
                 "regions",
                 "schema_migrations",
+                "user_presets",
                 "versions",
                 "workflow_steps"
             ]
@@ -247,7 +249,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 9);
+            assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
             assert!(tables(&conn).contains(&"publications".to_string()));
             let name: String =
                 conn.query_row("SELECT name FROM projects WHERE id = 'PRJ_V8'", [], |r| r.get(0)).unwrap();
@@ -266,6 +268,51 @@ mod tests {
         )
         .unwrap();
         assert_eq!(publications::list(&core, "PRJ_V8").unwrap()[0].id, saved.id);
+    }
+
+    #[test]
+    fn migration_0010_adds_user_presets_to_a_v9_database() {
+        use crate::services::tests_support::open_test_core;
+        use crate::services::{user_presets, DB_FILE};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        std::fs::create_dir_all(&root).unwrap();
+        {
+            // A database as ADR-038 left it: migrations 1–9 and one project.
+            let conn = Connection::open(root.join(DB_FILE)).unwrap();
+            configure(&conn).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+            )
+            .unwrap();
+            for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v <= 9) {
+                conn.execute_batch(sql).unwrap();
+                conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version])
+                    .unwrap();
+            }
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, project_type, status, created_at, updated_at)
+                   VALUES ('PRJ_V9', 'P5 villa', 'villa', 'draft', 't1', 't1');",
+            )
+            .unwrap();
+            assert!(!tables(&conn).contains(&"user_presets".to_string()));
+        }
+
+        let (core, _) = open_test_core(&root);
+        {
+            let conn = core.conn().unwrap();
+            assert_eq!(schema_version(&conn).unwrap(), 10);
+            let name: String =
+                conn.query_row("SELECT name FROM projects WHERE id = 'PRJ_V9'", [], |r| r.get(0)).unwrap();
+            assert_eq!(name, "P5 villa");
+        }
+        let saved = user_presets::save(
+            &core,
+            user_presets::SaveRequest { id: None, name: "Night".into(), preset_ids: vec!["time.night".into()] },
+        )
+        .unwrap();
+        assert_eq!(user_presets::list(&core).unwrap(), vec![saved]);
     }
 
     #[test]

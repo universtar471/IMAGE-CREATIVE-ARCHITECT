@@ -199,7 +199,7 @@ describe("retry re-validates against the current DNA", () => {
         jobId: job.id,
         validation: {
           verdict: "BLOCK",
-          validatorVersion: "cv-1.2.0",
+          validatorVersion: "cv-1.3.0",
           issueCodes: ["SPACE_NOT_IN_BUILDING"],
           approvedExceptions: [],
         },

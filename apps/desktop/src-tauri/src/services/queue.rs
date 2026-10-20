@@ -984,7 +984,7 @@ mod tests {
         use crate::dto::{ShotValidationSnapshot, ShotVerdict};
         let verdict = |verdict, approved: &[&str]| ShotValidationSnapshot {
             verdict,
-            validator_version: "cv-1.2.0".into(),
+            validator_version: "cv-1.3.0".into(),
             issue_codes: vec!["ADJACENT_BUILDING_CONFLICT".into(), "UNVERIFIED_GEOMETRY".into()],
             approved_exceptions: approved.iter().map(|c| c.to_string()).collect(),
         };

@@ -3,7 +3,8 @@ import type { PromptBundle } from "@arch/domain";
 import { compilePromptPreview } from "../../app/services";
 import { useStudio } from "../../app/store";
 import { toBridgeError } from "../../lib/bridge";
-import { useT } from "../../i18n";
+import { useLocale, useT } from "../../i18n";
+import { presetLabels } from "../presets/labels";
 
 /**
  * What the Generate button will send: compiled from persisted DNA (pending edits are
@@ -16,6 +17,7 @@ export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly
   const flushDna = useStudio((s) => s.flushDna);
   const [result, setResult] = useState<{ key: string; bundle?: PromptBundle; error?: string }>();
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const refsKey = referenceIds.join(",");
   const key = `${projectId}|${revision}|${refsKey}|${JSON.stringify(shotIntent ?? null)}`;
 
@@ -43,6 +45,13 @@ export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly
       <span className="field-hint">{t("prompt.englishNote")}</span>
       <span className="field-label">{t("prompt.shortPositive")}</span>
       <pre lang="en">{b.positivePrompt}</pre>
+      {Array.isArray(b.metadata.presetSources) && b.metadata.presetSources.length > 0 && (
+        <span className="field-hint" data-testid="preset-sources">
+          {t("presets.sources", {
+            list: presetLabels(b.metadata.presetSources as string[], locale).join(", "),
+          })}
+        </span>
+      )}
       <span className="field-label">{t("prompt.shortReferences")}</span>
       <pre lang="en">{b.referenceInstructions}</pre>
       <span className="field-label">{t("prompt.shortPreservation")}</span>

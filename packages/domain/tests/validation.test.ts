@@ -72,6 +72,7 @@ describe("conflict code table (SRS §12.4)", () => {
       "EFFECT_SOURCE_MISSING",
       "EFFECT_MOTION_CONFLICT",
       "LOCKED_LIGHTING_CONFLICT",
+      "LOCKED_WEATHER_CONFLICT",
       "ENHANCE_PRESERVATION_RISK",
       "OUTPUT_SIZE_MISMATCH",
       "PAGE_COUNT_MISMATCH",
@@ -92,6 +93,7 @@ describe("conflict code table (SRS §12.4)", () => {
       ADJACENT_BUILDING_CONFLICT: "BLOCK",
       OBJECT_NO_PLACEMENT_ZONE: "WARN/BLOCK",
       LOCKED_LIGHTING_CONFLICT: "BLOCK",
+      LOCKED_WEATHER_CONFLICT: "BLOCK",
       ENHANCE_PRESERVATION_RISK: "WARN/BLOCK",
       PRINT_READABILITY_LOW: "WARN",
       UNVERIFIED_PUBLICATION_FACT: "BLOCK",
@@ -102,14 +104,14 @@ describe("conflict code table (SRS §12.4)", () => {
   });
 
   it("is versioned", () => {
-    expect(VALIDATOR_VERSION).toBe("cv-1.2.0");
-    expect(run(midBlock()).validatorVersion).toBe("cv-1.2.0");
+    expect(VALIDATOR_VERSION).toBe("cv-1.3.0");
+    expect(run(midBlock()).validatorVersion).toBe("cv-1.3.0");
   });
 });
 
 describe("validateShot — ALLOW", () => {
   it("allows a plain shot with no extra prompt", () => {
-    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.2.0" });
+    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.3.0" });
   });
 
   it("AC-03: allows an oblique corner camera on an attached townhouse (compiled as oblique street)", () => {

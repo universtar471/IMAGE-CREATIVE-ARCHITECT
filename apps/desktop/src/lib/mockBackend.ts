@@ -28,6 +28,8 @@ import {
   resolveUpscaleSize,
   type AppError,
   type AssetDTO,
+  type UserPresetDTO,
+  USER_PRESET_NAME_MAX,
   type AssetRole,
   type BatchDTO,
   type CameraAnchorDTO,
@@ -97,7 +99,33 @@ type Db = {
   regions?: RegionDTO[];
   /** SRS P5b Publishing Studio books (optional so older snapshots still load). */
   publications?: PublicationRecordDTO[];
+  /** ADR-040: saved preset combinations, shared by every project. */
+  userPresets?: UserPresetDTO[];
+  /** ADR-040: views waiting in the SketchUp inbox (the extension cannot run in a browser). */
+  sketchupInbox?: MockInboxView[];
+  /** Inbox views already imported, by file name (the `imported/` folder of the backend). */
+  sketchupImported?: string[];
 };
+
+/** A waiting SketchUp view; `fingerprint` stands in for the PNG's SHA-256. */
+export type MockInboxView = {
+  fileName: string;
+  fingerprint: string;
+  scene?: string;
+  model?: string;
+  width?: number;
+  height?: number;
+  capturedAt?: string;
+};
+
+export const MOCK_INBOX_PATH = "mock://app-data/inbox/sketchup";
+
+/** A neutral grey placeholder standing in for a SketchUp viewport capture. */
+const VIEWPORT_PLACEHOLDER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#cfd4da"/><path d="M60 140 L160 60 L260 140 Z" fill="#9aa3ad"/><rect x="110" y="100" width="100" height="40" fill="#e9ecef"/></svg>',
+  );
 
 /** A job plus what the mock needs to run and retry it (never sent to the UI). */
 type RegionOrGenerationRequest = GenerationSubmitRequest | RegionGenerationSubmitRequest;
@@ -283,6 +311,14 @@ const MOCK_PROVIDERS_BASE: readonly MockProvider[] = [
     kind: "remote",
     requiresApiKey: true,
     models: HHTECH_MODELS,
+  },
+  {
+    // ADR-040: listed but not configured until GATEWAY_BASE_URL / GATEWAY_IMAGE_MODEL are set.
+    id: "gateway",
+    label: "Custom gateway (OpenAI-compatible)",
+    kind: "remote",
+    requiresApiKey: true,
+    models: [],
   },
   {
     id: "local_preview",
@@ -517,6 +553,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   db.workflow ??= {};
   db.regions ??= [];
   const publications = (db.publications ??= []);
+  const userPresets = (db.userPresets ??= []);
   // Migration stand-in: projects that already had an approved master are grandfathered in.
   const workflowMigrationTime = new Date().toISOString();
   for (const [projectId, project] of Object.entries(db.projects)) {
@@ -620,7 +657,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const hasKey = !!providerKeys[p.id];
     return {
       ...p,
-      configured: !p.requiresApiKey || hasKey,
+      // A provider without models is not set up (the custom gateway before GATEWAY_*).
+      configured: (!p.requiresApiKey || hasKey) && p.models.length > 0,
       keySource: p.requiresApiKey && hasKey ? "keychain" : null,
     };
   };
@@ -741,7 +779,14 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
   const validateRequest = (req: RegionOrGenerationRequest) => {
     writable(req.projectId);
-    const facts = workflowFacts(req.projectId);
+    // Quick generate (ADR-039): a source image among the references, as in Rust.
+    const sourceRoles = ["structure_sketch", "master_architecture"];
+    const facts = {
+      ...workflowFacts(req.projectId),
+      hasSourceImage: projectAssets(req.projectId).some(
+        (a) => req.referenceAssetIds.includes(a.id) && sourceRoles.includes(a.role),
+      ),
+    };
     const purpose = req.purpose as string;
     // Repairs came only from QC reports; QC was removed (ADR-033), so none are created now.
     if (purpose === "repair")
@@ -1885,6 +1930,134 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       refreshStatus(req.projectId);
       save();
       return projectAnchors(req.projectId);
+    },
+
+    // ---- ADR-040: my presets (mirrors services/user_presets.rs)
+    user_preset_list: () =>
+      [...userPresets].sort(
+        (a, b) =>
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase()) ||
+          a.createdAt.localeCompare(b.createdAt) ||
+          a.id.localeCompare(b.id),
+      ),
+
+    user_preset_save: (req) => {
+      const name = req.name.trim();
+      if (!name) fail("VALIDATION_ERROR", "Give the preset combination a name.");
+      if ([...name].length > USER_PRESET_NAME_MAX)
+        fail("VALIDATION_ERROR", `The name is longer than ${USER_PRESET_NAME_MAX} characters.`);
+      const ids: string[] = [];
+      for (const id of req.presetIds) {
+        if (!/^[a-z0-9._]{1,64}$/.test(id))
+          fail("VALIDATION_ERROR", `'${id}' is not a valid preset id.`);
+        if (!ids.includes(id)) ids.push(id);
+      }
+      if (!ids.length)
+        fail("VALIDATION_ERROR", "Select at least one preset before saving the combination.");
+      if (ids.length > 24) fail("VALIDATION_ERROR", "A combination holds at most 24 presets.");
+      const t = now();
+      if (req.id) {
+        const existing =
+          userPresets.find((p) => p.id === req.id) ??
+          fail("NOT_FOUND", `Saved preset '${req.id}' was not found.`);
+        Object.assign(existing, { name, presetIds: ids, updatedAt: t });
+        save();
+        return existing;
+      }
+      const created: UserPresetDTO = {
+        id: newId("UPR"),
+        name,
+        presetIds: ids,
+        createdAt: t,
+        updatedAt: t,
+      };
+      userPresets.push(created);
+      save();
+      return created;
+    },
+
+    user_preset_delete: (req) => {
+      const index = userPresets.findIndex((p) => p.id === req.id);
+      if (index < 0) fail("NOT_FOUND", `Saved preset '${req.id}' was not found.`);
+      userPresets.splice(index, 1);
+      save();
+      return { deleted: true as const };
+    },
+
+    // ---- ADR-040: SketchUp inbox (mirrors services/sketchup_inbox.rs)
+    sketchup_inbox_list: () => ({
+      path: MOCK_INBOX_PATH,
+      entries: [...(db.sketchupInbox ?? [])].reverse().map((view) => ({
+        fileName: view.fileName,
+        absolutePath: VIEWPORT_PLACEHOLDER,
+        sizeBytes: 1024,
+        ...(view.scene ? { scene: view.scene } : {}),
+        ...(view.model ? { model: view.model } : {}),
+        ...(view.width ? { width: view.width } : {}),
+        ...(view.height ? { height: view.height } : {}),
+        ...(view.capturedAt ? { capturedAt: view.capturedAt } : {}),
+      })),
+    }),
+
+    sketchup_inbox_import: (req) => {
+      if (!req.fileNames.length) fail("VALIDATION_ERROR", "Pick at least one view to import.");
+      writable(req.projectId);
+      const inbox = (db.sketchupInbox ??= []);
+      const views = req.fileNames.map((name) => {
+        if (!/^[^/\\]+\.png$/i.test(name) || name.includes(".."))
+          fail("VALIDATION_ERROR", `'${name}' is not a view in the SketchUp inbox.`);
+        return (
+          inbox.find((v) => v.fileName === name) ??
+          fail("NOT_FOUND", `SketchUp view '${name}' was not found.`)
+        );
+      });
+      const result = { assets: [] as AssetDTO[], duplicates: 0 };
+      for (const view of views) {
+        const sha256 = `sketchup-${view.fingerprint}`;
+        const existing = projectAssets(req.projectId).find((a) => a.sha256 === sha256);
+        if (existing) {
+          result.duplicates++;
+          result.assets.push(existing);
+        } else {
+          const id = newId("AST");
+          const t = now();
+          db.assets[id] = {
+            id,
+            projectId: req.projectId,
+            source: "sketchup",
+            role: "structure_sketch",
+            status: "ready",
+            originalName: view.fileName,
+            managedRelPath: `assets/original/${id}.png`,
+            absolutePath: VIEWPORT_PLACEHOLDER,
+            thumbnailPath: VIEWPORT_PLACEHOLDER,
+            mimeType: "image/png",
+            fileSizeBytes: 1024,
+            widthPx: view.width ?? 1920,
+            heightPx: view.height ?? 1080,
+            sha256,
+            parentAssetId: null,
+            operation: "import",
+            createdAt: t,
+            updatedAt: t,
+          };
+          db.versions.push({
+            id: newId("VER"),
+            projectId: req.projectId,
+            assetId: id,
+            parentVersionId: null,
+            label: view.fileName,
+            operation: "import",
+            generationId: null,
+            createdAt: t,
+          });
+          result.assets.push(db.assets[id]!);
+        }
+        inbox.splice(inbox.indexOf(view), 1);
+        (db.sketchupImported ??= []).push(view.fileName);
+      }
+      save();
+      return result;
     },
   };
 
