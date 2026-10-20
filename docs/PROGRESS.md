@@ -1,5 +1,13 @@
 # Progress
 
+## M3 — Branch canvas (ADR-041)
+- **Done:**
+  - Branch graph derived from generation lineage (domain, deterministic) and a depth-column layout with saved positions (migration 11).
+  - "Branches" tab with "Use as source", "Reuse presets", "Copy prompt", "Retry", and A/B compare.
+  - Quick generate also accepts AI outputs, with a warning after 3 AI images in a row.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy, `cargo test` and the contract fixtures pass.
+- **Not yet verified:** the native Windows window, and large projects (hundreds of generations) for canvas performance.
+
 ## M2 — My presets, SketchUp inbox, custom gateway (ADR-040)
 - **Done:**
   - **My presets:** SQLite migration 10, commands, and a UI row with save, apply and delete (with confirmation).

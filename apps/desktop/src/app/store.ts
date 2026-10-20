@@ -69,7 +69,7 @@ import { clearShotIntent, loadShotIntent, saveShotIntent } from "../lib/shotInte
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
-export type CenterView = "canvas" | "prompt" | "director" | "contact";
+export type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
 export type SaveStatus = "saved" | "dirty" | "saving" | "invalid" | "error";
 
 export type SaveState = {

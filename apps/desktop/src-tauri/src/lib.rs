@@ -126,6 +126,8 @@ pub fn run() {
             commands::user_preset_delete,
             commands::sketchup_inbox_list,
             commands::sketchup_inbox_import,
+            commands::canvas_layout_get,
+            commands::canvas_layout_save,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");

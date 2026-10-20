@@ -18,6 +18,7 @@ import {
   anchorViews,
   costHintText,
   dnaReadiness,
+  isQuickSourceImage,
   type AssetDTO,
   type GenerationParams,
   type ModelCapabilities,
@@ -95,9 +96,10 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
-  const hasSourceImage = form.referenceIds.some((id) =>
-    SOURCE_ROLES.includes(ws.assets.find((a) => a.id === id)?.role ?? "regular_image"),
-  );
+  const hasSourceImage = form.referenceIds.some((id) => {
+    const asset = ws.assets.find((a) => a.id === id);
+    return !!asset && isQuickSourceImage(asset);
+  });
   const workflowGate = form.purpose
     ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
         masterApproved: ["master_approved", "anchor_generation", "production"].includes(
@@ -834,9 +836,6 @@ function ReferenceRow({
     </li>
   );
 }
-
-/** Roles that make a request a quick generate (mirrors Rust `workflow::is_source_image`). */
-const SOURCE_ROLES: readonly string[] = ["structure_sketch", "master_architecture"];
 
 const MODE_STORAGE_KEY = "arch.generateMode";
 type PanelMode = "simple" | "advanced";

@@ -46,6 +46,7 @@ export * from "./detail";
 export * from "./sceneObjects";
 export * from "./effects";
 export * from "./presets";
+export * from "./canvas";
 export * from "./prompt/sections/presets";
 export * from "./contextLibrary";
 export * from "./publishing";

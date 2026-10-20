@@ -14,8 +14,8 @@ use crate::dto::{
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
-    anchors, assets, batches, diagram, dna, dna_assist, generations, grade, luts, projects, prompt_enhance,
-    provider_settings, publications, queue, regions, sketchup_inbox, user_presets, workflow, AppCore,
+    anchors, assets, batches, canvas_layouts, diagram, dna, dna_assist, generations, grade, luts, projects,
+    prompt_enhance, provider_settings, publications, queue, regions, sketchup_inbox, user_presets, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -642,4 +642,19 @@ pub async fn sketchup_inbox_import(
     request: sketchup_inbox::InboxImportRequest,
 ) -> AppResult<sketchup_inbox::InboxImportResult> {
     blocking(&core, move |c| sketchup_inbox::import(c, request)).await
+}
+
+// ------------------------------------------------------------------ branch canvas (ADR-041)
+
+#[tauri::command]
+pub async fn canvas_layout_get(core: Core<'_>, request: ProjectRef) -> AppResult<canvas_layouts::CanvasLayoutDto> {
+    blocking(&core, move |c| canvas_layouts::get(c, &request.project_id)).await
+}
+
+#[tauri::command]
+pub async fn canvas_layout_save(
+    core: Core<'_>,
+    request: canvas_layouts::SaveRequest,
+) -> AppResult<canvas_layouts::CanvasLayoutDto> {
+    blocking(&core, move |c| canvas_layouts::save(c, request)).await
 }

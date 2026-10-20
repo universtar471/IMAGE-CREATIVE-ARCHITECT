@@ -1125,3 +1125,30 @@ Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M2. Th
   - **Key:** from the keychain under `gateway`, or `GATEWAY_API_KEY`.
   - Until it is configured, it is listed with no models and never called.
 - **`ProviderDescriptorDTO.models`:** may now be empty. The UI already falls back to `null` when no model exists.
+
+
+## ADR-041 — M3: branch canvas derived from lineage
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M3 (A8 + A9).
+
+**Decision.** The node canvas is a view of data that already exists, not a second store of runs. Every generation records its `referenceAssetIds`, `parentAssetId`, `outputAssetIds` and `prompt.shotIntent.presetIds`. The domain `buildBranchGraph` turns them into image → generation → image nodes:
+- the result is pure and deterministic;
+- it is acyclic by construction, because a generation's depth is greater than that of its references.
+
+Runs stay the immutable generation records they already are. The planned `recipe_graphs` / `recipe_runs` tables are therefore not needed.
+
+**Graph and layout**
+- **Image nodes:** every asset a generation used or produced, plus standalone `structure_sketch` and `master_architecture` sources.
+- **Generation nodes:** status, purpose, provider/model and preset labels.
+- **Edges:** reference → generation (dashed unless it is the lineage parent), and generation → output.
+- **Draft node:** dashed, after the source the Generate panel would use, showing the current presets. It has no run button, because every run still goes through the Generate panel and its spend confirm.
+- **Layout:** `layoutBranchGraph` places nodes in depth columns. Dragged positions are stored per project in migration `0011_canvas_layouts` (`{ version: 1, positions }`, at most 512 KB) through `canvas_layout_get` and `canvas_layout_save`; a row that no longer parses reads as empty. Re-arrange clears the stored positions.
+
+**UI.** "Branches" is a centre tab of the Generate module, so the right panel stays the Generate panel.
+- **Image nodes:** "Use as source" makes the image the hero source; "View large" opens it in the image tab.
+- **Generation nodes:** "Reuse presets" (`setShotPresets` with that run's ids), "Copy prompt", and "Retry" for failed or cancelled runs, behind the usual spend confirm.
+- **Compare:** Shift-select two images, then "Compare A/B" opens the existing `CompareCanvas`.
+
+**Quick generate from outputs.** `is_source_image(role, source)` in Rust, and `isQuickSourceImage` in the domain and mock, also accept `ai_generated` images of the project. This lets a branch continue from an output without confirmed DNA. To guard against drift, `aiDepth` counts AI images in a row on the primary lineage; from `AI_CHAIN_WARNING_DEPTH` (3) the node shows a warning to go back to the original source.
+
+**Dependency.** `@xyflow/react` 12.12.0 (React Flow, MIT) provides pan, zoom, drag and selection. It is the only new dependency, pinned exactly.

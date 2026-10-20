@@ -4359,3 +4359,108 @@ div.pub-slot {
   flex: 1;
   min-width: 0;
 }
+
+/* ---------------------------------------------------------------- branch canvas (ADR-041) */
+.branch-canvas,
+.branch-compare {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.branch-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-border);
+}
+.branch-flow {
+  flex: 1;
+  min-height: 0;
+}
+.branch-empty {
+  padding: 24px;
+}
+.branch-node {
+  width: 200px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 8px;
+  background: var(--c-surface, #111827);
+  color: var(--c-text);
+  font-size: 11px;
+  padding: 6px;
+}
+.react-flow__node.selected .branch-node {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 2px var(--c-primary);
+}
+.branch-thumb {
+  height: 112px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--c-border);
+}
+.branch-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.branch-node-label {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branch-node-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.branch-node-draft {
+  border-style: dashed;
+  opacity: 0.85;
+}
+.branch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+.branch-chip {
+  border-radius: 999px;
+  background: var(--c-primary);
+  color: white;
+  padding: 1px 6px;
+}
+.branch-edge-secondary path {
+  stroke-dasharray: 4 3;
+}
+.branch-actions {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 8px;
+  background: var(--c-surface, #111827);
+  z-index: 5;
+}
+.branch-warning {
+  color: var(--c-warning);
+}
+.branch-flow .react-flow__controls button {
+  background: var(--c-surface-2);
+  border-bottom-color: var(--c-border);
+  color: var(--c-text);
+  fill: var(--c-text);
+}

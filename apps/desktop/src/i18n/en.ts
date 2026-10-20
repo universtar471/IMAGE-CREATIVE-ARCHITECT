@@ -587,6 +587,7 @@ export const en = {
     tabImage: "Image",
     tabCanvas: "Canvas",
     tabContact: "Contact Sheet",
+    tabBranches: "Branches",
     tabPrompt: "Prompt Preview",
     goToReferences: "Go to References",
     generateEmpty:
@@ -2107,6 +2108,25 @@ export const en = {
     markMove: ". Drag or use arrow keys to move.",
   },
   /** Unified conflict validator messages, one per SRS §12.4 code (ADR-034). */
+  branches: {
+    rearrange: "Re-arrange",
+    compare: "Compare A/B",
+    back: "Back to branches",
+    hint: "Click an image to continue from it; Shift-click two images to compare. Generate runs only from the panel on the right.",
+    empty: "No branch yet: import a source image or generate a first image.",
+    useAsSource: "Use as source",
+    sourceSet: "Selected as the source of the next image.",
+    viewLarge: "View large",
+    deepChain:
+      "Several AI images in a row: details may drift. Consider going back to the original source.",
+    reusePresets: "Reuse presets",
+    copyPrompt: "Copy prompt",
+    promptCopied: "Prompt copied.",
+    retry: "Retry",
+    draft: "Next image (draft)",
+    draftHint: "This is what the Generate button will send. Nothing runs until you press Generate.",
+  },
+
   sketchup: {
     receive: "Receive from SketchUp ({count})",
     folder: "Inbox folder:",

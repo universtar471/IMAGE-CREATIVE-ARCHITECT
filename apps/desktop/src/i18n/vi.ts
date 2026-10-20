@@ -585,6 +585,7 @@ export const vi: Dict = {
     tabImage: "Ảnh",
     tabCanvas: "Khung xem",
     tabContact: "Bảng ảnh",
+    tabBranches: "Sơ đồ nhánh",
     tabPrompt: "Xem Prompt",
     goToReferences: "Đến Tham chiếu",
     generateEmpty:
@@ -2106,6 +2107,24 @@ export const vi: Dict = {
     markAnchored: ", đã có Anchor",
     markMove: ". Kéo hoặc dùng phím mũi tên để di chuyển.",
   },
+  branches: {
+    rearrange: "Xếp lại",
+    compare: "So sánh A/B",
+    back: "Quay lại sơ đồ",
+    hint: "Bấm một ảnh để tạo tiếp từ ảnh đó; giữ Shift bấm hai ảnh để so sánh. Chỉ tạo ảnh từ panel bên phải.",
+    empty: "Chưa có nhánh nào: hãy nhập ảnh nguồn hoặc tạo ảnh đầu tiên.",
+    useAsSource: "Dùng làm nguồn",
+    sourceSet: "Đã chọn làm nguồn cho ảnh tiếp theo.",
+    viewLarge: "Xem lớn",
+    deepChain: "Nhiều ảnh AI nối tiếp nhau: chi tiết dễ bị lệch. Nên quay về ảnh gốc.",
+    reusePresets: "Dùng lại preset",
+    copyPrompt: "Sao chép prompt",
+    promptCopied: "Đã sao chép prompt.",
+    retry: "Thử lại",
+    draft: "Ảnh tiếp theo (nháp)",
+    draftHint: "Đây là những gì nút Tạo sẽ gửi. Chưa có gì chạy cho tới khi bạn bấm Tạo.",
+  },
+
   sketchup: {
     receive: "Nhận từ SketchUp ({count})",
     folder: "Thư mục chờ:",
