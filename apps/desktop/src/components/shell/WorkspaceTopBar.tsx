@@ -7,6 +7,7 @@ import {
   Check,
   ListChecks,
   Loader2,
+  PanelRight,
   PencilLine,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -18,6 +19,7 @@ import { subtypeLabel } from "../../i18n/knowledge";
 import { ConfirmDialog } from "../common/Dialog";
 import { StatusBadge } from "../common/StatusBadge";
 import { LocaleSwitch } from "./LocaleSwitch";
+import { useWorkspaceLayout } from "../../features/workspace/layout";
 
 export function WorkspaceTopBar() {
   const project = useStudio((s) => s.workspace!.project);
@@ -28,6 +30,9 @@ export function WorkspaceTopBar() {
   const notify = useStudio((s) => s.notify);
   const setModule = useStudio((s) => s.setModule);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const layout = useWorkspaceLayout();
+  const inspectorOpen = useStudio((s) => s.inspectorOpen);
+  const setInspectorOpen = useStudio((s) => s.setInspectorOpen);
   const t = useT();
   const archived = !!project.archivedAt;
 
@@ -50,12 +55,12 @@ export function WorkspaceTopBar() {
         onClick={() => void goToHub()}
         title={t("topbar.backToHub")}
       >
-        <ArrowLeft size={15} /> {t("topbar.projects")}
+        <ArrowLeft size={15} /> <span className="topbar-label">{t("topbar.projects")}</span>
       </button>
       <span className="topbar-sep" />
       <div className="topbar-title">
         <strong title={project.name}>{project.name}</strong>
-        <span className="badge badge-neutral">
+        <span className="badge badge-neutral topbar-type">
           {t(`labels.projectType.${project.projectType}`)}
           {project.subtype ? ` · ${subtypeLabel(project.projectType, project.subtype)}` : ""}
         </span>
@@ -82,12 +87,32 @@ export function WorkspaceTopBar() {
       <LocaleSwitch />
       <span className="topbar-sep" />
       {archived ? (
-        <button className="btn btn-sm" onClick={() => void setArchived(false)}>
-          <ArchiveRestore size={14} /> {t("common.restore")}
+        <button
+          className="btn btn-sm"
+          onClick={() => void setArchived(false)}
+          title={t("common.restore")}
+        >
+          <ArchiveRestore size={14} /> <span className="topbar-label">{t("common.restore")}</span>
         </button>
       ) : (
-        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmArchive(true)}>
-          <Archive size={14} /> {t("common.archive")}
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => setConfirmArchive(true)}
+          title={t("common.archive")}
+        >
+          <Archive size={14} /> <span className="topbar-label">{t("common.archive")}</span>
+        </button>
+      )}
+      {layout.drawer && (
+        <button
+          className="btn btn-sm topbar-inspector"
+          aria-pressed={inspectorOpen}
+          aria-label={t("workspace.toggleInspector")}
+          title={t("workspace.toggleInspector")}
+          onClick={() => setInspectorOpen(!inspectorOpen)}
+          data-testid="toggle-inspector"
+        >
+          <PanelRight size={15} />
         </button>
       )}
       {confirmArchive && (
@@ -117,7 +142,9 @@ function QueueIndicator() {
       data-testid="queue-indicator"
     >
       {running > 0 ? <Loader2 size={14} className="spin" /> : <ListChecks size={14} />}
-      {busy ? t("topbar.queueBusy", { running, queued }) : t("topbar.queueIdle")}
+      <span className="topbar-label">
+        {busy ? t("topbar.queueBusy", { running, queued }) : t("topbar.queueIdle")}
+      </span>
     </button>
   );
 }

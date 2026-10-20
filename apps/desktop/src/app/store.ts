@@ -183,6 +183,8 @@ type State = {
   contactBatchId: string | null;
   trayTab: TrayTabId;
   trayCollapsed: boolean;
+  /** Inspector drawer open (only used when the layout makes the inspector a drawer). */
+  inspectorOpen: boolean;
   save: SaveState;
   toasts: Toast[];
   /** Bumped whenever persisted project data changes (prompt preview, hub refresh). */
@@ -210,6 +212,7 @@ type State = {
   selectCamera: (id: string | null) => void;
   setTrayTab: (t: TrayTabId) => void;
   toggleTray: () => void;
+  setInspectorOpen: (open: boolean) => void;
   editDna: (path: string, value: unknown) => void;
   /** Replace the camera list (add / delete / duplicate / reorder). */
   setCameras: (cameras: CameraDNA[]) => void;
@@ -463,6 +466,7 @@ export const useStudio = create<State>((set, get) => {
     contactBatchId: null,
     trayTab: "assets",
     trayCollapsed: false,
+    inspectorOpen: false,
     save: SAVED,
     toasts: [],
     dataRevision: 0,
@@ -585,6 +589,7 @@ export const useStudio = create<State>((set, get) => {
     selectCamera: (id) => set({ selectedCameraId: id }),
     setTrayTab: (t) => set({ trayTab: t, trayCollapsed: false }),
     toggleTray: () => set((s) => ({ trayCollapsed: !s.trayCollapsed })),
+    setInspectorOpen: (open) => set({ inspectorOpen: open }),
 
     editDna: (path, value) => {
       const ws = get().workspace;

@@ -18,12 +18,14 @@ export function ProviderChip() {
       data-testid="provider-chip"
     >
       <Sparkles size={14} />
-      {providers
-        ? t("providers.ready", { ready: ready.length, total: providers.length })
-        : t("providers.providers")}
+      <span className="topbar-label">
+        {providers
+          ? t("providers.ready", { ready: ready.length, total: providers.length })
+          : t("providers.providers")}
+      </span>
       {needsKey.length > 0 && (
         <span className="badge badge-warning">
-          <KeyRound size={10} /> {t("providers.setApiKey")}
+          <KeyRound size={11} /> <span className="topbar-label">{t("providers.setApiKey")}</span>
         </span>
       )}
     </button>
