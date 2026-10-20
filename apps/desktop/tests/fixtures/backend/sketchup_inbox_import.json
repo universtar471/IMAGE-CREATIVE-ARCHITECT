@@ -15,6 +15,7 @@
         "operation": "import",
         "originalName": "street.png",
         "parentAssetId": null,
+        "posterSource": null,
         "projectId": "PRJ_00000000000000000000000001",
         "role": "structure_sketch",
         "sha256": "3481ef55be42227206da39e308ad62f27bd9b5ca5b1a08fd5a099ba4219d9514",

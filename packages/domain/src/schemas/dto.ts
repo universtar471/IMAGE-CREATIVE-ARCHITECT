@@ -55,6 +55,8 @@ export const AssetDTOSchema = z.object({
   mediaKind: z.enum(["image", "video"]).optional(),
   /** Clip length of a video. */
   durationMs: z.number().int().nonnegative().nullable().optional(),
+  /** Clip poster origin (ADR-044): first frame via FFmpeg, or the source image; null = unknown. */
+  posterSource: z.enum(["frame", "source"]).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

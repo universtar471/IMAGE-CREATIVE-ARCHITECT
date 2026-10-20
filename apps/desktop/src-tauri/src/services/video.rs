@@ -48,6 +48,20 @@ pub fn duration_of(asset: &AssetRow) -> Option<i64> {
     json.get("durationMs").and_then(Value::as_i64)
 }
 
+/// `frame` (first frame of the clip via FFmpeg) or `source` (the source image) for a clip's
+/// poster; `None` for images, for clips without a poster and for clips stored before ADR-044.
+pub fn poster_source_of(asset: &AssetRow) -> Option<&'static str> {
+    if !is_video_asset(asset) {
+        return None;
+    }
+    let json: Value = serde_json::from_str(asset.operation_json.as_deref()?).ok()?;
+    match json.get("posterSource").and_then(Value::as_str)? {
+        "frame" => Some("frame"),
+        "source" => Some("source"),
+        _ => None,
+    }
+}
+
 /// Purpose and provider must agree: video purposes run on video providers only, and a video
 /// takes exactly one first frame and a clip length.
 pub(crate) fn validate_purpose(
@@ -281,13 +295,15 @@ fn store(core: &AppCore, prepared: &Prepared, bytes: &[u8], clock: &Instant) -> 
         let _ = fs::remove_file(&managed_abs);
         let _ = fs::remove_file(&thumb_abs);
     };
-    let poster = first_frame(&managed_abs).or_else(|| {
+    // Where the poster came from is recorded, so the UI never calls the source image a frame
+    // of the clip (ADR-044).
+    let poster = first_frame(&managed_abs).map(|img| (img, "frame")).or_else(|| {
         let source = prepared.references.first()?;
         let info = imaging::inspect(&source.bytes, "source image").ok()?;
-        imaging::decode(&source.bytes, info.format).ok()
+        imaging::decode(&source.bytes, info.format).ok().map(|img| (img, "source"))
     });
-    let thumbnail_rel = poster.and_then(|img| match imaging::save_thumbnail(&img, &thumb_abs) {
-        Ok(()) => Some(thumb_rel.clone()),
+    let poster = poster.and_then(|(img, from)| match imaging::save_thumbnail(&img, &thumb_abs) {
+        Ok(()) => Some((thumb_rel.clone(), from)),
         Err(e) => {
             eprintln!("[video] poster failed for {asset_id}: {e}");
             None
@@ -295,7 +311,7 @@ fn store(core: &AppCore, prepared: &Prepared, bytes: &[u8], clock: &Instant) -> 
     });
     let requested_ms = parse_duration(prepared.snapshot.params.image_size.as_deref()).map(|s| i64::from(s) * 1000);
     let duration_ms = mp4_duration_ms(bytes).or(requested_ms);
-    let result = commit(core, prepared, &asset_id, &managed_rel, thumbnail_rel, mime, bytes, duration_ms, clock);
+    let result = commit(core, prepared, &asset_id, &managed_rel, poster, mime, bytes, duration_ms, clock);
     if result.is_err() {
         cleanup();
     }
@@ -308,7 +324,7 @@ fn commit(
     prepared: &Prepared,
     asset_id: &str,
     managed_rel: &str,
-    thumbnail_rel: Option<String>,
+    poster: Option<(String, &'static str)>,
     mime: &str,
     bytes: &[u8],
     duration_ms: Option<i64>,
@@ -346,6 +362,7 @@ fn commit(
         "modelId": generation.model_id,
         "params": prepared.snapshot.params,
         "durationMs": duration_ms,
+        "posterSource": poster.as_ref().map(|(_, from)| *from),
         "outputIndex": 0,
     })
     .to_string();
@@ -360,7 +377,7 @@ fn commit(
             status: "ready".into(),
             original_name: Some(name.clone()),
             managed_rel_path: managed_rel.to_string(),
-            thumbnail_rel_path: thumbnail_rel,
+            thumbnail_rel_path: poster.map(|(rel, _)| rel),
             mime_type: Some(mime.to_string()),
             file_size_bytes: Some(bytes.len() as i64),
             width_px: None,

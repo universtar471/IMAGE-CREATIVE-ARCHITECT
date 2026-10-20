@@ -65,6 +65,7 @@ pub(crate) fn asset_dto(storage: &Storage, a: &AssetRow) -> AppResult<AssetDto> 
         operation: a.operation.clone(),
         media_kind: if crate::services::video::is_video_asset(a) { "video" } else { "image" },
         duration_ms: crate::services::video::duration_of(a),
+        poster_source: crate::services::video::poster_source_of(a),
         created_at: a.created_at.clone(),
         updated_at: a.updated_at.clone(),
     })
