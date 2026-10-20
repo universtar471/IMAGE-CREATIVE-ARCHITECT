@@ -1,11 +1,4 @@
-import {
-  Camera,
-  FileText,
-  GitBranch,
-  Image as ImageIcon,
-  ImagePlus,
-  LayoutGrid,
-} from "lucide-react";
+import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
@@ -18,7 +11,7 @@ import { BottomTray } from "../assets/BottomTray";
 import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
-import { moduleById } from "./modules";
+import { hasOwnCenter, moduleById } from "./modules";
 import { WorkspaceLayoutContext, workspaceLayout } from "./layout";
 import { useElementSize } from "../../lib/useElementSize";
 import { useT } from "../../i18n";
@@ -151,10 +144,10 @@ function CenterArea() {
   const mod = moduleById(active);
   const isCamera = active === "camera";
   // The Camera Director only exists in the Camera module.
+  // "branches" was the old centre tab of the graph; the graph is Node mode now (ADR-044).
   const view =
-    (centerView === "director" && !isCamera) || (centerView === "branches" && active !== "generate")
-      ? "canvas"
-      : centerView;
+    (centerView === "director" && !isCamera) || centerView === "branches" ? "canvas" : centerView;
+  const nodeMode = useStudio((s) => s.workspaceMode) === "node" && !hasOwnCenter(active);
 
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
@@ -215,7 +208,7 @@ function CenterArea() {
       <div
         className="center-tabs"
         role="tablist"
-        hidden={active === "export"}
+        hidden={active === "export" || nodeMode}
         onKeyDown={navigateTabs}
       >
         {isCamera && (
@@ -238,17 +231,6 @@ function CenterArea() {
         >
           <ImageIcon size={14} /> {isCamera ? t("workspace.tabImage") : t("workspace.tabCanvas")}
         </button>
-        {active === "generate" && (
-          <button
-            className="center-tab"
-            role="tab"
-            aria-selected={view === "branches"}
-            onClick={() => setCenterView("branches")}
-            data-testid="tab-branches"
-          >
-            <GitBranch size={14} /> {t("workspace.tabBranches")}
-          </button>
-        )}
         {(isCamera || hasBatches || view === "contact") && (
           <button
             className="center-tab"
@@ -280,14 +262,14 @@ function CenterArea() {
           />
         ) : active === "export" ? (
           <PublishingStudio />
+        ) : nodeMode ? (
+          <BranchCanvas />
         ) : view === "prompt" ? (
           <PromptPreview />
         ) : view === "director" ? (
           <CameraDirector />
         ) : view === "contact" ? (
           <ContactSheet />
-        ) : view === "branches" ? (
-          <BranchCanvas />
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (

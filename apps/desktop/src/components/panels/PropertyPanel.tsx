@@ -22,6 +22,7 @@ import { DiagramPanel } from "../../features/diagram/DiagramPanel";
 import { VideoPanel } from "../../features/video/VideoPanel";
 import { EffectsPanel } from "../../features/effects/EffectsPanel";
 import { NextStepBar } from "../../features/workflow/NextStepBar";
+import { SelectionInspector } from "../../features/selection/SelectionInspector";
 import {
   clampPanelWidth,
   DEFAULT_PANEL_WIDTH,
@@ -159,6 +160,8 @@ export function PropertyPanel() {
             <Archive size={14} /> {t("workspace.readOnly")}
           </div>
         )}
+        {/* References has its own full asset panel; elsewhere the selection block leads. */}
+        {active !== "references" && <SelectionInspector />}
         {active === "overview" && <OverviewPanel />}
         {active === "design_dna" && (
           <StepFrame stepId="dna.building">
