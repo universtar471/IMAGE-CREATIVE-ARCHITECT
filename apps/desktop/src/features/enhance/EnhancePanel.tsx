@@ -1,12 +1,11 @@
-import { isImageProvider } from "@arch/domain";
-import { AlertTriangle, ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
+import { isImageProvider, isVideoAsset } from "@arch/domain";
+import { ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ConflictCode, GenerationParams } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { FieldGroup, SelectField } from "../../components/panels/fields";
 import { useT } from "../../i18n";
-import { isMasterApproved } from "../camera/labels";
 import { EnhanceBatchDialog } from "./EnhanceBatchDialog";
 import {
   DEFAULT_ENHANCE_PARAMS,
@@ -48,7 +47,9 @@ export function EnhancePanel() {
   const readOnly = useStudio(selectReadOnly);
   const selectedId = useStudio((s) => s.selectedAssetId) ?? ws.project.activeMasterAssetId;
   const source =
-    ws.assets.find((asset) => asset.id === selectedId && asset.status === "ready") ?? null;
+    ws.assets.find(
+      (asset) => asset.id === selectedId && asset.status === "ready" && !isVideoAsset(asset),
+    ) ?? null;
   const [baseParams, setParams] = useState<EnhanceParams>(DEFAULT_ENHANCE_PARAMS);
   // Allowed regions belong to the source they were drawn on, so they are kept per asset and
   // only apply while that asset is the source (never in strict mode).
@@ -75,7 +76,6 @@ export function EnhancePanel() {
   const spend = useSpendConfirm();
   const fixConflict = useConflictFix();
 
-  const approved = isMasterApproved(ws.project.status);
   const sourceEdge = source ? sourceLongEdge(source) : 0;
   const validation = validateEnhanceParams(params, sourceEdge);
   const size = enhanceSizeFor(params, source);
@@ -119,7 +119,6 @@ export function EnhancePanel() {
       : null;
   const disabled =
     readOnly ||
-    !approved ||
     !source ||
     !!validation ||
     size?.action === "skip" ||
@@ -173,11 +172,6 @@ export function EnhancePanel() {
 
   return (
     <div className="enhance-panel" data-testid="enhance-panel">
-      {!approved && (
-        <div className="callout callout-warning" role="status">
-          <AlertTriangle size={14} /> {t("enhance.needsMaster")}
-        </div>
-      )}
       <SectionPanel title={t("enhance.source")}>
         {source ? (
           <div className="enhance-source">

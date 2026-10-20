@@ -497,6 +497,142 @@
   --fs-secondary: 12px;
   --fs-badge: 11px;
 }
+
+/* Tray cards include their checkbox and metadata in the available height. */
+.tray {
+  min-height: 0;
+  min-width: 0;
+}
+.tray-tabs {
+  flex: 0 0 var(--tray-tabs-h);
+}
+.tray-body {
+  flex: 0 1 var(--tray-h);
+  min-height: 0;
+}
+.tray-body-large {
+  flex-basis: min(270px, 42vh);
+}
+.asset-strip {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.asset-select-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 168px;
+  height: 100%;
+  min-height: 0;
+  gap: 4px;
+}
+.asset-select-check {
+  flex: 0 0 auto;
+}
+.asset-select-wrap .asset-thumb {
+  flex: 1 1 0;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+.asset-thumb-meta {
+  flex: 0 0 auto;
+}
+.asset-thumb-img {
+  overflow: hidden;
+}
+.asset-thumb-img img {
+  display: block;
+  max-height: 100%;
+  min-height: 0;
+}
+.branch-thumb img {
+  object-fit: contain;
+}
+.workspace[data-short] {
+  --tray-h: 160px;
+}
+.workspace[data-short] .asset-strip-large {
+  grid-auto-rows: 168px;
+}
+.workspace[data-short] .asset-strip-large .asset-select-wrap,
+.workspace[data-short] .asset-strip-large .asset-import-tile {
+  height: 168px;
+}
+.field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.field-heading .field-label {
+  margin-bottom: 0;
+}
+.generate-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.preset-selected:empty {
+  display: none;
+}
+.brand-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.brand-identity .brand-mark {
+  flex: 0 0 auto;
+  border-radius: 10px;
+}
+.brand-wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.08;
+  white-space: nowrap;
+}
+.brand-wordmark > span {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #edf5ff;
+}
+.brand-wordmark > strong {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, #15c9ff, #6488ff 50%, #ec55f0);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.workspace-brand .brand-wordmark > span {
+  font-size: 9px;
+}
+.workspace-brand .brand-wordmark > strong {
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+.workspace:not([data-tier="wide"]) .workspace-brand .brand-wordmark {
+  display: none;
+}
+.workspace[data-tier="narrow"] .topbar,
+.workspace[data-tier="tight"] .topbar {
+  gap: 4px;
+  padding-inline: 8px;
+}
+.workspace[data-tier="narrow"] .topbar-sep,
+.workspace[data-tier="tight"] .topbar-sep {
+  display: none;
+}
+.panel .segmented button {
+  min-height: 28px;
+  height: auto;
+  white-space: normal;
+}
 body {
   font: var(--fs-body) / 1.5 var(--font);
 }

@@ -117,12 +117,13 @@ pub fn reopen(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Work
 /// Whether a reference is a source image for quick generate: a structure sketch or the master
 /// (ADR-039), or an AI image of this project so the branch canvas can continue a branch (ADR-041).
 pub(crate) fn is_source_image(role: AssetRole, source: AssetSource) -> bool {
-    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture) || source == AssetSource::AiGenerated
+    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture | AssetRole::RegularImage)
+        || source == AssetSource::AiGenerated
 }
 
 /// Enforce the generation prerequisites while the caller still holds its transaction/connection.
-/// Quick generate (ADR-039): a hero shot with a source image (`has_source_image`) skips the DNA
-/// steps; anchors, production renders and master-based purposes keep their gates.
+/// A selected, validated image enables hero and editing without Master approval. Anchors and
+/// production retain the full DNA/Master gates. The caller validates files and ownership first.
 pub(crate) fn ensure_generation_allowed(
     conn: &Connection,
     project: &ProjectRow,
@@ -130,6 +131,11 @@ pub(crate) fn ensure_generation_allowed(
     has_source_image: bool,
 ) -> AppResult<()> {
     if purpose == GenerationPurpose::Hero && has_source_image {
+        return Ok(());
+    }
+    if has_source_image
+        && matches!(purpose, GenerationPurpose::Variation | GenerationPurpose::Enhance | GenerationPurpose::RegionEdit)
+    {
         return Ok(());
     }
     // Image to video (ADR-043) animates an image the user picked; it adds no design, so no
@@ -240,14 +246,27 @@ mod tests {
         let conn = app.conn().unwrap();
         ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, true).unwrap();
         assert!(ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, false).is_err());
-        for purpose in [GenerationPurpose::Anchor, GenerationPurpose::Production, GenerationPurpose::Variation] {
+        for purpose in [GenerationPurpose::Anchor, GenerationPurpose::Production] {
             assert!(ensure_generation_allowed(&conn, &row, purpose, true).is_err());
         }
         assert!(is_source_image(AssetRole::StructureSketch, AssetSource::Sketchup));
         assert!(is_source_image(AssetRole::MasterArchitecture, AssetSource::External));
         assert!(is_source_image(AssetRole::RegularImage, AssetSource::AiGenerated), "branch from an output");
         assert!(!is_source_image(AssetRole::MoodReference, AssetSource::External));
-        assert!(!is_source_image(AssetRole::RegularImage, AssetSource::External));
+        assert!(is_source_image(AssetRole::RegularImage, AssetSource::External));
+    }
+
+    #[test]
+    fn edits_a_selected_image_without_promoting_it_to_master() {
+        let (_tmp, app) = core();
+        let project = test_create_villa_unconfirmed(&app, "Imported edit");
+        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
+        let conn = app.conn().unwrap();
+        for purpose in [GenerationPurpose::Variation, GenerationPurpose::Enhance, GenerationPurpose::RegionEdit] {
+            ensure_generation_allowed(&conn, &row, purpose, true).unwrap();
+            assert!(ensure_generation_allowed(&conn, &row, purpose, false).is_err());
+        }
+        assert!(ensure_generation_allowed(&conn, &row, GenerationPurpose::Production, true).is_err());
     }
 
     #[test]

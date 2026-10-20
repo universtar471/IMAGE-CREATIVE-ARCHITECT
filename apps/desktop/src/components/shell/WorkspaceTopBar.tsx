@@ -21,6 +21,7 @@ import { StatusBadge } from "../common/StatusBadge";
 import { LocaleSwitch } from "./LocaleSwitch";
 import { ModeSwitch } from "./ModeSwitch";
 import { useWorkspaceLayout } from "../../features/workspace/layout";
+import { BrandIdentity } from "./BrandMark";
 
 export function WorkspaceTopBar() {
   const project = useStudio((s) => s.workspace!.project);
@@ -51,6 +52,9 @@ export function WorkspaceTopBar() {
 
   return (
     <header className="topbar">
+      <span className="workspace-brand">
+        <BrandIdentity compact />
+      </span>
       <button
         className="btn btn-ghost btn-sm"
         onClick={() => void goToHub()}

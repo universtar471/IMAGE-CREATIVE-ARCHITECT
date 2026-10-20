@@ -33,7 +33,7 @@ try {
     window.qaWrites = [];
     setTransport(async (command, args) => {
       if (
-        /^(generation_submit|dna_update|asset_|job_retry|job_cancel|canvas_layout_save)/.test(
+        /^(generation_submit|dna_update|asset_(import|update_role|set_master|remove)|job_retry|job_cancel|canvas_layout_save)/.test(
           command,
         )
       )
@@ -89,28 +89,20 @@ try {
       ],
     ])
       db.assets[id] = asset(p.id, id, { absolutePath: image, thumbnailPath: image, ...extra });
+    const portrait =
+      "data:image/svg+xml," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="1600"><rect width="480" height="1600" fill="white"/><rect width="480" height="80" fill="#20bfff"/><path d="M80 1400V400L240 220l160 180v1000z" fill="#1c3d5a"/><rect y="1520" width="480" height="80" fill="#d45cff"/></svg>',
+      );
+    db.assets.AST_TALL = asset(p.id, "AST_TALL", {
+      role: "regular_image",
+      source: "external",
+      widthPx: 480,
+      heightPx: 1600,
+      absolutePath: portrait,
+      thumbnailPath: portrait,
+    });
     await useStudio.getState().openProject(p.id);
-    useStudio.setState((s) => ({
-      workspace: {
-        ...s.workspace,
-        generations: [
-          {
-            id: "GEN_QA",
-            projectId: p.id,
-            providerId: "local_preview",
-            modelId: "placeholder-v1",
-            purpose: "video",
-            status: "completed",
-            referenceAssetIds: ["AST_IMG", "AST_REF"],
-            parentAssetId: "AST_IMG",
-            outputAssetIds: ["AST_CLIP"],
-            prompt: { positivePrompt: "Mock QA", shotIntent: { presetIds: [] } },
-            createdAt: "2026-01-01T00:00:00Z",
-            error: null,
-          },
-        ],
-      },
-    }));
     useStudio.getState().setWorkspaceMode("node");
     useStudio.getState().setModule("generate");
     window.qaWrites = [];
@@ -122,6 +114,47 @@ try {
   });
   assert(await page.evaluate(() => document.fonts.check('400 14px "Be Vietnam Pro"')));
   const result = { fontLoaded: true, selection: [], resize: [] };
+  await page.waitForFunction(
+    () => {
+      const flow = document.querySelector(".branch-flow");
+      const nodes = [...flow.querySelectorAll(".react-flow__node")];
+      const box = flow.getBoundingClientRect();
+      return (
+        nodes.length === 4 &&
+        nodes.every((node) => {
+          const r = node.getBoundingClientRect();
+          return r.width > 0 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+        })
+      );
+    },
+    null,
+    { timeout: 3000 },
+  );
+  const initialNodesFit = await page.locator(".branch-flow").evaluate((flow) => {
+    const box = flow.getBoundingClientRect();
+    return [...flow.querySelectorAll(".react-flow__node")].every((node) => {
+      const r = node.getBoundingClientRect();
+      return (
+        r.top >= box.top - 1 &&
+        r.bottom <= box.bottom + 1 &&
+        r.left >= box.left - 1 &&
+        r.right <= box.right + 1
+      );
+    });
+  });
+  assert(initialNodesFit, "Initial graph must fit imported nodes after layout loads");
+  result.initialNodesFit = true;
+  // No generations and no master: ordinary imports must still exist in Node mode.
+  await page.locator('[data-node="asset:AST_TALL"]').waitFor();
+  await page.locator('[data-testid="asset-thumb"][title="AST_TALL.jpg"]').click();
+  assert.deepEqual(
+    await page.evaluate(
+      async () => (await import("/src/app/store.ts")).useStudio.getState().canvasSelection,
+    ),
+    ["asset:AST_TALL"],
+  );
+  result.standaloneImportsVisible = true;
+  result.traySelectsNode = true;
   for (const [id, module, kind] of [
     ["AST_CLIP", "video", "video"],
     ["AST_REF", "references", "reference"],
@@ -159,6 +192,15 @@ try {
         (width >= 1600 ? "wide" : width >= 1280 ? "regular" : width >= 1000 ? "compact" : "narrow")
       );
     }, width);
+    await page.waitForFunction(() => {
+      const shell = document.querySelector('[data-testid="workspace"]');
+      const panel = document.querySelector('[data-testid="property-panel"]');
+      return (
+        !shell.hasAttribute("data-drawer") ||
+        shell.hasAttribute("data-inspector-open") ||
+        getComputedStyle(panel).visibility === "hidden"
+      );
+    });
     const measured = await page.evaluate(async () => {
       const s = (await import("/src/app/store.ts")).useStudio.getState();
       return {
@@ -170,6 +212,19 @@ try {
     assert.equal(measured.horizontalScroll, false);
     assert.equal(measured.draft, "Giữ nguyên bản nháp");
     assert.equal(measured.selection, "AST_IMG");
+    const cards = await page.getByTestId("asset-thumb").evaluateAll((tiles) =>
+      tiles.map((tile) => {
+        const r = tile.getBoundingClientRect();
+        const strip = tile.closest(".asset-strip").getBoundingClientRect();
+        const image = tile.querySelector(".asset-thumb-img").getBoundingClientRect();
+        return {
+          fits: r.bottom <= strip.bottom + 1,
+          visibleImage: image.height > 0,
+          contain: getComputedStyle(tile.querySelector("img")).objectFit === "contain",
+        };
+      }),
+    );
+    assert(cards.every((card) => card.fits && card.visibleImage && card.contain));
     result.resize.push({ width, height, ...measured });
     await page.screenshot({ path: resolve(output, `r2-resize-${width}x${height}.png`) });
   }
@@ -192,6 +247,29 @@ try {
   await page.getByTestId("viewer-close").click();
   assert.equal(await page.locator(".panel-body").evaluate((el) => el.scrollTop), scroll);
   result.inspectorScrollKept = scroll;
+  // Imported images unlock editing without approving/promoting a Master.
+  await page.evaluate(async () =>
+    (await import("/src/app/store.ts")).useStudio.getState().setModule("enhance"),
+  );
+  assert.equal(await page.locator('[data-testid="enhance-panel"] .btn-primary').isEnabled(), true);
+  await page.evaluate(async () =>
+    (await import("/src/app/store.ts")).useStudio.getState().setModule("mood_grade"),
+  );
+  assert.equal(await page.locator('[data-step-id="post.grade"] fieldset').isDisabled(), false);
+  assert.equal(
+    await page.evaluate(
+      async () =>
+        (await import("/src/app/store.ts")).useStudio.getState().workspace.project
+          .activeMasterAssetId,
+    ),
+    null,
+  );
+  result.editingWithoutMaster = true;
+  result.trayPortraitFits = true;
+  await page.screenshot({ path: resolve(output, "imported-image-editing.png") });
+  await page.evaluate(async () =>
+    (await import("/src/app/store.ts")).useStudio.getState().setModule("generate"),
+  );
   // A playing workspace video is paused before the viewer's separate player opens.
   await page.evaluate(async () => {
     const s = (await import("/src/app/store.ts")).useStudio.getState();

@@ -5,6 +5,7 @@ import { call, toBridgeError } from "../../lib/bridge";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { useLocale, useT } from "../../i18n";
 import { presetLabels } from "./labels";
+import { HelpPopover } from "../../components/common/HelpPopover";
 
 /**
  * "My presets" (ADR-040): saved preset combinations shared by every project. A click replaces
@@ -71,9 +72,11 @@ export function UserPresetsRow({
 
   return (
     <div className="preset-group user-presets" data-testid="user-presets">
-      <span className="field-label">{t("presets.mine")}</span>
+      <div className="field-heading">
+        <span className="field-label">{t("presets.mine")}</span>
+        <HelpPopover topic={t("presets.mine")}>{t("presets.mineEmpty")}</HelpPopover>
+      </div>
       <div className="preset-options">
-        {items?.length === 0 && <span className="field-hint">{t("presets.mineEmpty")}</span>}
         {items?.map((preset) => (
           <span className="user-preset" key={preset.id}>
             <button

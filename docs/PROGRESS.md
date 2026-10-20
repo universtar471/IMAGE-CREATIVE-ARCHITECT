@@ -1,5 +1,14 @@
 # Progress
 
+## Imported-image review and Blueprint branding (ADR-045)
+- Imports appear in Node before any generation; initial fit waits for layout, tray selection follows the node.
+- Portrait tray cards fit their allocated height. Field instructions move to accessible help buttons.
+- Imported images support enhancement, region edit, grading and variation without Master promotion;
+  Rust/mock/UI agree, while production and safety guards remain.
+- Branding follows the owner's Blueprint logo board across header, title, favicon and native icons.
+- Validation: 1141 Vitest tests, 367 Rust tests (6 live tests ignored), lint/typecheck/format/build,
+  clippy and browser resize/import/edit/fullscreen checks. See `docs/design/imported-image-review/QA.md`.
+
 ## V6.1-R2 — node panel routing, fullscreen and verification
 - Node selection now routes the editing module as well as the toolbar; video drafts survive panel changes.
 - The viewer supports real fullscreen, pauses background playback and restores video sources after StrictMode cleanup.

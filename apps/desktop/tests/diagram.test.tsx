@@ -109,7 +109,9 @@ describe("DiagramPanel (SRS §10.2 flow)", () => {
     expect(
       (within(evidence).getByRole("option", { name: "Đã xác minh" }) as HTMLOptionElement).disabled,
     ).toBe(true);
-    expect(step.textContent).toContain("dữ liệu không gian đã xác nhận");
+    fireEvent.click(within(step).getByRole("button", { name: "Trợ giúp: Mức căn cứ" }));
+    expect(screen.getByRole("note").textContent).toContain("dữ liệu không gian đã xác nhận");
+    fireEvent.click(within(step).getByRole("button", { name: "Trợ giúp: Mức căn cứ" }));
 
     // Export is locked until every step is approved.
     expect(screen.getByTestId("diagram-export-hint").textContent).toBe(

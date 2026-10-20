@@ -130,7 +130,7 @@ export function VideoPanel() {
               value: asset.id,
               label: asset.originalName ?? asset.id,
             }))}
-            onChange={(id) => id && selectAsset(id)}
+            onChange={(id) => id && selectAsset(id, { keepView: true })}
           />
         )}
         {source && (

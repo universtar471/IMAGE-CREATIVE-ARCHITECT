@@ -187,7 +187,15 @@ describe("SceneObjectsPanel (SRS §7.1 flow)", () => {
     // A garage is parking only: moving is disabled with its reason.
     const state = within(panel).getByLabelText("6. Đứng yên hay chuyển động") as HTMLSelectElement;
     expect([...state.options].find((o) => o.value === "moving")!.disabled).toBe(true);
-    expect(within(panel).getByText("Xe chỉ có thể di chuyển trên đường hiện hữu.")).toBeTruthy();
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Trợ giúp: 6. Đứng yên hay chuyển động" }),
+    );
+    expect(screen.getByRole("note").textContent).toContain(
+      "Xe chỉ có thể di chuyển trên đường hiện hữu.",
+    );
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Trợ giúp: 6. Đứng yên hay chuyển động" }),
+    );
 
     fireEvent.change(within(panel).getByLabelText("Màu sơn / màu sắc"), {
       target: { value: "silver" },
@@ -223,11 +231,11 @@ describe("SceneObjectsPanel (SRS §7.1 flow)", () => {
     fireEvent.click(within(panel).getByRole("button", { name: "Ô tô" }));
     const zone = within(panel).getByLabelText("5. Vị trí đặt") as HTMLSelectElement;
     expect([...zone.options].every((o) => o.disabled)).toBe(true);
-    expect(
-      within(panel).getByText(
-        "Vị trí này chưa có trong dữ liệu dự án. Ứng dụng không bao giờ tự tạo lối xe vào, gara hay đường.",
-      ),
-    ).toBeTruthy();
+    fireEvent.click(within(panel).getByRole("button", { name: "Trợ giúp: 5. Vị trí đặt" }));
+    expect(screen.getByRole("note").textContent).toContain(
+      "Vị trí này chưa có trong dữ liệu dự án. Ứng dụng không bao giờ tự tạo lối xe vào, gara hay đường.",
+    );
+    fireEvent.click(within(panel).getByRole("button", { name: "Trợ giúp: 5. Vị trí đặt" }));
     expect(
       (within(panel).getByRole("button", { name: "Thêm vào cảnh" }) as HTMLButtonElement).disabled,
     ).toBe(true);

@@ -926,7 +926,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
     const facts = {
       ...workflowFacts(req.projectId),
       hasSourceImage: projectAssets(req.projectId).some(
-        (a) => req.referenceAssetIds.includes(a.id) && isQuickSourceImage(a),
+        (a) =>
+          req.referenceAssetIds.includes(a.id) &&
+          a.status === "ready" &&
+          !isVideoAsset(a) &&
+          (["variation", "enhance", "region_edit"].includes(req.purpose) || isQuickSourceImage(a)),
       ),
     };
     const purpose = req.purpose as string;
@@ -938,16 +942,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       fail("VALIDATION_ERROR", "The conflict check blocked this shot; fix the selection first.", {
         issueCodes: req.prompt.validation.issueCodes,
       });
-    const gate =
-      purpose === "enhance"
-        ? facts.masterApproved
-          ? { ok: true as const }
-          : { ok: false as const, blockedBy: "generate.master" as const }
-        : isGenerationAllowed(
-            req.purpose === "region_edit" ? "variation" : req.purpose,
-            workflowRows(req.projectId),
-            facts,
-          );
+    const gate = isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
     if (!gate.ok) {
       fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
     }

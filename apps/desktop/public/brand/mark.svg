@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="arch" x1="50" y1="75" x2="210" y2="216" gradientUnits="userSpaceOnUse"><stop stop-color="#53edff"/><stop offset=".43" stop-color="#0798ff"/><stop offset=".72" stop-color="#a36aff"/><stop offset="1" stop-color="#ef61ef"/></linearGradient>
+    <linearGradient id="tower" x1="120" y1="98" x2="185" y2="215" gradientUnits="userSpaceOnUse"><stop stop-color="#c9b6ff"/><stop offset=".5" stop-color="#8d53ff"/><stop offset="1" stop-color="#ed5de9"/></linearGradient>
+    <radialGradient id="spark"><stop stop-color="#fff4ff"/><stop offset=".6" stop-color="#ee9aff"/><stop offset="1" stop-color="#c066f0"/></radialGradient>
+  </defs>
+  <g stroke="#2ab7ee" stroke-width=".8" opacity=".5">
+    <circle cx="128" cy="131" r="96" stroke-dasharray="5 4"/>
+    <path d="M24 216H232M32 131H232M128 24V238M52 34V231M202 30V232M20 216l23 22M20 238l23-22M166 28l66 35"/>
+  </g>
+  <path d="M52 216V128a76 76 0 0 1 76-76v29a47 47 0 0 0-47 47v88z" fill="url(#arch)" stroke="#82e8ff" stroke-width="1.2"/>
+  <path d="M128 52a76 76 0 0 1 76 76v88M128 81a47 47 0 0 1 47 47" stroke="#c593ff" stroke-width="1"/>
+  <path d="M94 216v-60l22-17v77z" fill="url(#arch)"/>
+  <path d="M128 216V84l30 25v107z" fill="url(#tower)" stroke="#c4a7ff" stroke-width=".7"/>
+  <path d="M174 216v-68l22 18v50z" fill="url(#tower)"/>
+  <path d="M187 32c4 23 10 30 29 34-19 4-25 12-29 34-4-22-10-30-29-34 19-4 25-11 29-34z" fill="url(#spark)" stroke="#edbcff" stroke-width=".8"/>
+  <path d="M43 216h169" stroke="#bc9dff" stroke-width="1.2"/>
+  <g fill="#6be8ff"><circle cx="52" cy="128" r="2.2"/><circle cx="128" cy="52" r="2.2"/><circle cx="128" cy="216" r="2.2"/><circle cx="52" cy="216" r="2.2"/></g>
+</svg>

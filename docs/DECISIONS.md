@@ -1296,3 +1296,20 @@ Status: proposed for review (2026-10-20). Basis: `UX_UI_V6_CLAUDE_SPEC.md` V6.1 
 - From V6.2–V6.5: the Draft Workflow graph, the Context Picker V6, Reference Node editing, Edit Detail, and undo/redo.
 - A native "open file / folder" action, because no Tauri command exists for it.
 - Pin Preview.
+
+## ADR-045 — Imported images are editable sources; compact help and Blueprint branding
+
+Accepted for implementation, 2026-10-21, based on the owner's follow-up screenshot and logo board.
+
+- Node includes every imported project asset before generation. It mounts only after positions
+  load, so the initial fit uses the real layout. Tray/import selection updates graph selection.
+- Ordinary ready images can be quick-generate sources. A validated image reference enables
+  variation, Enhance and Region edit without Master approval; local grading follows the selected
+  ready image. Rust and mock enforce matching rules. Anchor/production prerequisites remain.
+- Viewing or selecting does not promote a Master or change source bytes. Archived projects,
+  videos, missing files, cross-project references and paid confirmation retain their existing guards.
+- Shared field guidance uses `?` popovers. Validation errors, billing and task state remain visible.
+- The supplied Blueprint board defines the cyan/violet arch, three towers and sparkle, with the
+  name IMAGE-CREATIVE-ARCHITECT. SVG mark/icon, wordmark, favicon, native icons and installer name
+  follow it. The app identifier and data directory remain unchanged.
+- Verification and screenshots: `docs/design/imported-image-review/QA.md`.

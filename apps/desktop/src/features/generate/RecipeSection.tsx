@@ -10,6 +10,7 @@ import {
 import { useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
 import { useLocale, useT } from "../../i18n";
+import { HelpPopover } from "../../components/common/HelpPopover";
 
 /**
  * Image recipes (ADR-042): pick a recipe, untick variants you do not want, then run them all
@@ -68,7 +69,9 @@ export function RecipeSection({
       </div>
       {recipe && (
         <>
-          <span className="field-hint">{locale === "vi" ? recipe.hintVi : recipe.hintEn}</span>
+          <HelpPopover topic={locale === "vi" ? recipe.labelVi : recipe.labelEn}>
+            {locale === "vi" ? recipe.hintVi : recipe.hintEn}
+          </HelpPopover>
           <ul className="recipe-variants" aria-label={t("recipes.variants")}>
             {recipe.variants.map((v) => (
               <li key={v.id}>

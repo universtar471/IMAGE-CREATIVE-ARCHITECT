@@ -234,27 +234,29 @@ export function BranchCanvas() {
         <div className="branch-empty field-hint">{t("branches.empty")}</div>
       ) : (
         <div className="branch-flow">
-          <ReactFlow<FlowNode>
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={NODE_TYPES}
-            onNodesChange={onNodesChange}
-            onNodeDoubleClick={(_event, node) => openLarge(node)}
-            onMoveEnd={(_event, viewport) =>
-              useStudio.getState().setNodeViewport(projectId, viewport)
-            }
-            nodesConnectable={false}
-            multiSelectionKeyCode="Shift"
-            {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
-            minZoom={0.2}
-            onlyRenderVisibleElements={graph.nodes.length >= VIRTUALIZE_FROM}
-            zoomOnDoubleClick={false}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={24} />
-            <Controls position="top-right" showInteractive={false} />
-            <FloatingNodeToolbar />
-          </ReactFlow>
+          {layout && (
+            <ReactFlow<FlowNode>
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={NODE_TYPES}
+              onNodesChange={onNodesChange}
+              onNodeDoubleClick={(_event, node) => openLarge(node)}
+              onMoveEnd={(_event, viewport) =>
+                useStudio.getState().setNodeViewport(projectId, viewport)
+              }
+              nodesConnectable={false}
+              multiSelectionKeyCode="Shift"
+              {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
+              minZoom={0.2}
+              onlyRenderVisibleElements={graph.nodes.length >= VIRTUALIZE_FROM}
+              zoomOnDoubleClick={false}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background gap={24} />
+              <Controls position="top-right" showInteractive={false} />
+              <FloatingNodeToolbar />
+            </ReactFlow>
+          )}
         </div>
       )}
       {graph.nodes.length === 0 && <StaticToolbar />}

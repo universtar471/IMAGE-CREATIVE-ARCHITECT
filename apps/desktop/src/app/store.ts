@@ -637,10 +637,15 @@ export const useStudio = create<State>((set, get) => {
       if (v === "prompt") void get().flushDna();
       set({ centerView: v });
     },
-    selectAsset: (id, options) =>
+    selectAsset: (id, options) => {
       set(
         options?.keepView ? { selectedAssetId: id } : { selectedAssetId: id, centerView: "canvas" },
-      ),
+      );
+      // Selecting an imported image or a tray tile must also select its graph node.
+      // Graph/toolbar callers use keepView and manage their own (possibly multi-)selection.
+      if (get().workspaceMode === "node" && !options?.keepView)
+        get().setCanvasSelection(id ? [`asset:${id}`] : []);
+    },
     setWorkspaceMode: (mode) => {
       writeWorkspaceMode(mode);
       set({ workspaceMode: mode });

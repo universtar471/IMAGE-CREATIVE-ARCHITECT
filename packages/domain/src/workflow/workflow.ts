@@ -38,8 +38,8 @@ export type WorkflowFacts = {
   /** The contract's minimum facts omit non-anchor cameras; callers may provide them for render. */
   cameraIds?: readonly string[];
   /**
-   * Quick generate (ADR-039): the request carries a source image (a `structure_sketch` or the
-   * `master_architecture` reference). A hero shot then needs no confirmed DNA steps.
+   * The request carries a validated source image. Hero and image-editing operations then
+   * need neither confirmed DNA nor Master approval; camera production keeps its gates.
    */
   hasSourceImage?: boolean;
 };
@@ -233,13 +233,20 @@ export function reopenStep(
 
 /**
  * Whether a reference counts as the source image of a quick generate (mirrors Rust
- * `workflow::is_source_image`): a structure sketch or the master (ADR-039), or an AI image of
- * the project, so the branch canvas can continue a branch (ADR-041).
+ * `workflow::is_source_image`): sketches, ordinary imported images, the master and AI outputs.
+ * Reference images keep their reference role unless explicitly used by an editing operation.
  */
-export function isQuickSourceImage(asset: { role: string; source: string }): boolean {
+export function isQuickSourceImage(asset: {
+  role: string;
+  source: string;
+  mediaKind?: string;
+  mimeType?: string | null;
+}): boolean {
+  if (asset.mediaKind === "video" || asset.mimeType?.startsWith("video/")) return false;
   return (
     asset.role === "structure_sketch" ||
     asset.role === "master_architecture" ||
+    asset.role === "regular_image" ||
     asset.source === "ai_generated"
   );
 }
@@ -252,6 +259,12 @@ export function isGenerationAllowed(
   facts: WorkflowFacts,
 ): GenerationAllowed {
   if (purpose === "hero" && facts.hasSourceImage) return { ok: true };
+  // Editing an explicitly chosen image does not promote it to the project's Master.
+  if (
+    (purpose === "variation" || purpose === "enhance" || purpose === "region_edit") &&
+    facts.hasSourceImage
+  )
+    return { ok: true };
   // Image to video animates an image the user picked; no DNA step gates it (ADR-043).
   if (purpose === "video") return { ok: true };
   const first = firstUnconfirmed(persisted);
