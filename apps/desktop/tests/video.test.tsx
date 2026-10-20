@@ -141,9 +141,9 @@ describe("video helpers (ADR-043)", () => {
     expect(form.candidates.map((a) => a.id)).not.toContain("AST_V");
   });
 
-  it("has a Video module in the Studio group", () => {
+  it("has a Video module in the Video group", () => {
     expect(WORKSPACE_MODULES.find((m) => m.id === "video")).toMatchObject({
-      group: "studio",
+      group: "video",
       availableIn: null,
     });
   });

@@ -66,9 +66,10 @@ async function openTownhouse() {
 }
 
 describe("Diagram module", () => {
-  it("is registered after Region edit and enabled", () => {
+  it("is registered in Publish, before Publishing Studio, and enabled", () => {
     const ids = WORKSPACE_MODULES.map((m) => m.id);
-    expect(ids.indexOf("diagram")).toBe(ids.indexOf("regions") + 1);
+    expect(ids.indexOf("diagram")).toBe(ids.indexOf("export") - 1);
+    expect(WORKSPACE_MODULES.find((m) => m.id === "diagram")!.group).toBe("publish");
     expect(WORKSPACE_MODULES.find((m) => m.id === "diagram")!.availableIn).toBeNull();
   });
 

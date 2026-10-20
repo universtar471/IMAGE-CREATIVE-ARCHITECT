@@ -8,22 +8,22 @@ import { knowledge } from "../src/lib/knowledge";
 import { getIn, setIn } from "../src/lib/path";
 
 describe("workspace information architecture", () => {
-  it("keeps the required left-navigation order (regrouped in ADR-039, Video in ADR-043)", () => {
+  it("keeps the required left-navigation order (four groups since ADR-044)", () => {
     expect(WORKSPACE_MODULES.map((m) => m.label)).toEqual([
       "Overview",
       "Generate",
-      "Video",
       "Design DNA",
       "Context",
       "References",
       "Camera",
       "Lighting",
-      "Architectural detail",
       "Scene objects",
       "Effects",
-      "Mood / Grade",
       "Enhance",
       "Region edit",
+      "Mood / Grade",
+      "Architectural detail",
+      "Video",
       "Diagram",
       "Publishing Studio",
     ]);
@@ -33,24 +33,22 @@ describe("workspace information architecture", () => {
     expect(WORKSPACE_MODULES.every((m) => m.availableIn === null)).toBe(true);
   });
 
-  it("keeps navigation groups explicit", () => {
+  it("keeps navigation groups explicit, the DNA steps under Advanced", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
-      "studio",
-      "studio",
-      "studio",
-      "dna",
-      "dna",
-      "dna",
-      "dna",
-      "dna",
-      "dna",
-      "shot",
-      "shot",
-      "post",
-      "post",
-      "post",
-      "export",
-      "export",
+      ...Array(9).fill("create"),
+      ...Array(4).fill("edit"),
+      "video",
+      "publish",
+      "publish",
+    ]);
+    expect(WORKSPACE_MODULES.filter((m) => m.advanced).map((m) => m.id)).toEqual([
+      "design_dna",
+      "context",
+      "references",
+      "camera",
+      "lighting",
+      "scene_objects",
+      "effects",
     ]);
   });
 
