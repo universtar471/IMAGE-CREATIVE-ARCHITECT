@@ -366,10 +366,7 @@
   border-radius: 12px;
 }
 
-/* Cap the rendered panel width without changing the saved resize preference. */
-.workspace {
-  grid-template-columns: var(--nav-w) minmax(0, 1fr) min(var(--panel-w), 48vw);
-}
+/* The panel width is capped by the responsive shell (ADR-044, responsive.css). */
 .workspace .topbar {
   overflow-x: auto;
 }
@@ -421,9 +418,6 @@
 }
 
 @media (max-width: 900px) {
-  .workspace {
-    grid-template-columns: 176px minmax(0, 1fr) min(var(--panel-w), 40vw);
-  }
   .center-tab {
     padding-inline: 8px;
   }
@@ -440,30 +434,11 @@
   justify-content: center;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 11px;
   background: #452a80;
 }
 #root:has(> .preview-banner) > :is(.workspace, .hub) {
   height: calc(100% - 24px);
-}
-
-/* Small windows retain both canvas and properties in independently scrollable rows. */
-@media (max-width: 700px) {
-  .workspace {
-    grid-template-columns: 148px minmax(0, 1fr);
-    grid-template-rows: var(--topbar-h) minmax(100px, 1fr) minmax(0, 1.2fr) auto;
-    grid-template-areas: "top top" "nav center" "nav panel" "tray tray";
-  }
-  .workspace .panel {
-    border-top: 1px solid var(--pd-line);
-  }
-  .panel-resize-handle {
-    display: none;
-  }
-  .nav .nav-item {
-    gap: 5px;
-    padding-inline: 5px;
-  }
 }
 
 @media (forced-colors: active) {

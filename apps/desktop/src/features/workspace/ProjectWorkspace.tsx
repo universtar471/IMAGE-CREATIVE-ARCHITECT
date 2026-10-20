@@ -6,7 +6,7 @@ import {
   ImagePlus,
   LayoutGrid,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
@@ -19,6 +19,8 @@ import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
 import { moduleById } from "./modules";
+import { WorkspaceLayoutContext, workspaceLayout } from "./layout";
+import { useElementSize } from "../../lib/useElementSize";
 import { useT } from "../../i18n";
 import { GradeCanvas } from "../mood/GradeCanvas";
 import type { AssetDTO, ColorGradeDNA, GenerationDTO } from "@arch/domain";
@@ -101,14 +103,38 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     );
   }
 
+  return <WorkspaceShell />;
+}
+
+/**
+ * Responsive shell (ADR-044): measures itself and exposes the layout tier to CSS
+ * (`data-tier`, `data-short`, `data-drawer`) and to components (WorkspaceLayoutContext). The
+ * five areas stay mounted at every size, so a resize never drops form state or selection.
+ */
+function WorkspaceShell() {
+  const ref = useRef<HTMLDivElement>(null);
+  const size = useElementSize(ref);
+  const layout = useMemo(() => workspaceLayout(size.width, size.height), [size.width, size.height]);
+  const inspectorOpen = useStudio((s) => s.inspectorOpen);
   return (
-    <div className="workspace" data-testid="workspace">
-      <WorkspaceTopBar />
-      <WorkspaceNav />
-      <CenterArea />
-      <PropertyPanel />
-      <BottomTray />
-    </div>
+    <WorkspaceLayoutContext.Provider value={layout}>
+      <div
+        className="workspace"
+        data-testid="workspace"
+        ref={ref}
+        data-tier={layout.tier}
+        data-short={layout.short || undefined}
+        data-icon-nav={layout.iconNav || undefined}
+        data-drawer={layout.drawer || undefined}
+        data-inspector-open={(layout.drawer && inspectorOpen) || undefined}
+      >
+        <WorkspaceTopBar />
+        <WorkspaceNav />
+        <CenterArea />
+        <PropertyPanel />
+        <BottomTray />
+      </div>
+    </WorkspaceLayoutContext.Provider>
   );
 }
 

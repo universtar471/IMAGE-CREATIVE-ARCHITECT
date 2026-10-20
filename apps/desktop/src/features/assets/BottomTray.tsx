@@ -161,6 +161,7 @@ function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
   return (
     <div style={{ display: "flex", height: "100%" }} className={dropping ? "is-dropping" : ""}>
       <div
+        className="tray-side"
         style={{
           display: "flex",
           flexDirection: "column",

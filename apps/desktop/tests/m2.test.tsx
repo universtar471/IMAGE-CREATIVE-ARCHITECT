@@ -90,7 +90,7 @@ describe("My presets (ADR-040)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Warm street" })).toBeNull());
     expect(db.userPresets).toHaveLength(0);
-  });
+  }, 15_000); // renders the full Generate panel twice; ~3 s alone, slower under 4 workers
 
   it("validates names and ids like the backend", async () => {
     await expect(

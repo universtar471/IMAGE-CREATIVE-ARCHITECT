@@ -5,6 +5,7 @@ import { WORKSPACE_MODULES, type ModuleId } from "../../features/workspace/modul
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS } from "../../lib/workflow";
 import { PremiumIcon, type PremiumIconId } from "../common/PremiumIcon";
+import { useWorkspaceLayout } from "../../features/workspace/layout";
 
 const MODULE_PREMIUM_ICONS: Record<ModuleId, PremiumIconId> = {
   overview: "preset-grid",
@@ -31,6 +32,8 @@ const MODULE_PREMIUM_ICONS: Record<ModuleId, PremiumIconId> = {
 export function WorkspaceNav() {
   const active = useStudio((s) => s.activeModule);
   const setModule = useStudio((s) => s.setModule);
+  const setInspectorOpen = useStudio((s) => s.setInspectorOpen);
+  const layout = useWorkspaceLayout();
   const t = useT();
   const workflow = useStudio((s) => s.workflowView);
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
@@ -51,7 +54,12 @@ export function WorkspaceNav() {
             <button
               className={`nav-item ${m.availableIn ? "is-future" : ""}`}
               aria-current={active === m.id ? "page" : undefined}
-              onClick={() => setModule(m.id)}
+              aria-label={layout.iconNav ? label : undefined}
+              onClick={() => {
+                setModule(m.id);
+                // Narrow windows: the module's panel is the inspector drawer, so show it.
+                if (layout.drawer) setInspectorOpen(true);
+              }}
               title={
                 m.availableIn
                   ? t("modules.futureTitle", { label, phase: m.availableIn })
