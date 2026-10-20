@@ -9,6 +9,8 @@ import {
   AppErrorSchema,
   AssetDTOSchema,
   UserPresetDTOSchema,
+  CanvasLayoutSchema,
+  type CanvasLayout,
   BatchDTOSchema,
   CameraAnchorDTOSchema,
   ColorGradeDNASchema,
@@ -165,6 +167,14 @@ export type PublicationExportFormat = (typeof PUBLICATION_EXPORT_FORMATS)[number
 export const PublicationDeleteResultSchema = z.object({ deleted: z.literal(true) });
 export const UserPresetDeleteResultSchema = z.object({ deleted: z.literal(true) });
 
+/** ADR-041: node positions of the branch canvas (`layout` is a domain `CanvasLayout`). */
+export const CanvasLayoutDTOSchema = z.object({
+  projectId: z.string(),
+  layout: CanvasLayoutSchema,
+  updatedAt: z.string().optional(),
+});
+export type CanvasLayoutDTO = z.infer<typeof CanvasLayoutDTOSchema>;
+
 /** ADR-040: a view the SketchUp extension left in the inbox (sidecar fields are optional). */
 export const SketchupInboxEntrySchema = z.object({
   fileName: z.string(),
@@ -202,7 +212,8 @@ export type Requests = {
   dna_assist: {
     projectId: string;
     mode: "brief" | "images" | "master" | "translate";
-    scope: "interior" | "building" | "context" | "lighting";
+    /** `analysis`: the evidence board of one image (ADR-042). */
+    scope: "interior" | "building" | "context" | "lighting" | "analysis";
     brief?: string;
     referenceAssetIds?: string[];
     catalog: {
@@ -305,6 +316,8 @@ export type Requests = {
   user_preset_delete: { id: string };
   sketchup_inbox_list: Record<string, never>;
   sketchup_inbox_import: { projectId: string; fileNames: string[] };
+  canvas_layout_get: { projectId: string };
+  canvas_layout_save: { projectId: string; layout: CanvasLayout };
 };
 
 /** Response schemas per command. */
@@ -378,6 +391,8 @@ export const responses = {
   user_preset_delete: UserPresetDeleteResultSchema,
   sketchup_inbox_list: SketchupInboxListingSchema,
   sketchup_inbox_import: SketchupInboxImportResultSchema,
+  canvas_layout_get: CanvasLayoutDTOSchema,
+  canvas_layout_save: CanvasLayoutDTOSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;
@@ -578,7 +593,9 @@ export async function binaryPreview<C extends BinaryCommand>(
   }
   const notBinary = () =>
     new BridgeError({ code: "IO_ERROR", message: tr("errors.badResponse", { command }) });
-  if (raw instanceof Blob) return new Blob([raw], { type: mime });
+  // A Blob comes only from the mock backend; keep its own image type (its placeholders are SVG).
+  if (raw instanceof Blob)
+    return raw.type.startsWith("image/") ? raw : new Blob([raw], { type: mime });
   if (raw instanceof ArrayBuffer) return new Blob([raw], { type: mime });
   if (ArrayBuffer.isView(raw)) {
     const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);

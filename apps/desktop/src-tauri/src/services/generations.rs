@@ -202,7 +202,7 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
             .iter()
             .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
-        let has_source = assets.iter().any(|a| workflow::is_source_image(a.role));
+        let has_source = assets.iter().any(|a| workflow::is_source_image(a.role, a.source));
         workflow::ensure_generation_allowed(&conn, &project, purpose, has_source)?;
         let camera_name = match &req.camera_id {
             Some(id) => Some(camera_name(&repo::get_dna(&conn, &project.id)?, id)?),
@@ -590,7 +590,8 @@ pub(crate) fn insert_queued(
     let project = repo::get_project(conn, &v.project_id)?;
     let mut has_source = false;
     for id in &v.snapshot.reference_asset_ids {
-        has_source |= workflow::is_source_image(check_reference(core, conn, &v.project_id, id)?.role);
+        let reference = check_reference(core, conn, &v.project_id, id)?;
+        has_source |= workflow::is_source_image(reference.role, reference.source);
     }
     workflow::ensure_generation_allowed(conn, &project, v.purpose, has_source)?;
     if let Some(id) = &v.camera_id {

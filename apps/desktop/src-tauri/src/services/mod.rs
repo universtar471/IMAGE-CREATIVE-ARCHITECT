@@ -4,6 +4,7 @@
 pub mod anchors;
 pub mod assets;
 pub mod batches;
+pub mod canvas_layouts;
 pub mod diagram;
 pub mod dna;
 pub mod dna_assist;

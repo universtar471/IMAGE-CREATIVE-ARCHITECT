@@ -587,6 +587,7 @@ export const en = {
     tabImage: "Image",
     tabCanvas: "Canvas",
     tabContact: "Contact Sheet",
+    tabBranches: "Branches",
     tabPrompt: "Prompt Preview",
     goToReferences: "Go to References",
     generateEmpty:
@@ -2107,6 +2108,59 @@ export const en = {
     markMove: ". Drag or use arrow keys to move.",
   },
   /** Unified conflict validator messages, one per SRS §12.4 code (ADR-034). */
+  branches: {
+    rearrange: "Re-arrange",
+    compare: "Compare A/B",
+    back: "Back to branches",
+    hint: "Click an image to continue from it; Shift-click two images to compare. Generate runs only from the panel on the right.",
+    empty: "No branch yet: import a source image or generate a first image.",
+    useAsSource: "Use as source",
+    sourceSet: "Selected as the source of the next image.",
+    viewLarge: "View large",
+    deepChain:
+      "Several AI images in a row: details may drift. Consider going back to the original source.",
+    reusePresets: "Reuse presets",
+    copyPrompt: "Copy prompt",
+    promptCopied: "Prompt copied.",
+    retry: "Retry",
+    draft: "Next image (draft)",
+    draftHint: "This is what the Generate button will send. Nothing runs until you press Generate.",
+  },
+
+  recipes: {
+    title: "Recipes (several variants)",
+    variants: "Variants",
+    notForShot: "does not fit this shot",
+    run: "Run {count} variants ({images} images)",
+    costNote:
+      "One confirmation for the total cost, then one generation per variant. Nothing runs before you confirm.",
+  },
+
+  analysis: {
+    open: "Analyse image",
+    title: "Evidence analysis",
+    explain:
+      "One AI call reads this image (HHTECH assist model, text tokens only). The app draws the board itself; everything on it is inferred from the image, not measured.",
+    run: "Analyse",
+    running: "Analysing…",
+    badReply: "The model's answer could not be read. Try again.",
+    save: "Save as image",
+    saved: "The analysis board was saved as a new image.",
+    assetLabel: "Analysis — {name}",
+    boardTitle: "Image analysis",
+    inferred: "Inferred from the image by AI — not measured",
+    materials: "Materials seen",
+    palette: "Colour palette",
+    composition: "Composition",
+    viewpoint: "Viewpoint",
+    lighting: "Lighting",
+    focus: "Focus",
+    observations: "Observations",
+    confidence: { low: "unclear", medium: "fairly clear", high: "clearly visible" },
+    footer:
+      "Arch AI Studio · AI inference from one image; not a survey, measurement or certification.",
+  },
+
   sketchup: {
     receive: "Receive from SketchUp ({count})",
     folder: "Inbox folder:",
@@ -2141,6 +2195,7 @@ export const en = {
       render: "Render",
       time_light: "Time & light",
       weather: "Weather",
+      palette: "Facade colour",
       camera: "Camera angle",
       people_cars: "People & cars",
       effects: "Effects",

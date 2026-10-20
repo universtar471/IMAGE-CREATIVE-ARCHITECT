@@ -21,6 +21,7 @@ pub const MIGRATIONS: &[(i64, &str)] = &[
     (8, include_str!("../migrations/0008_enhance_check.sql")),
     (9, include_str!("../migrations/0009_publications.sql")),
     (10, include_str!("../migrations/0010_user_presets.sql")),
+    (11, include_str!("../migrations/0011_canvas_layouts.sql")),
 ];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
@@ -107,6 +108,7 @@ mod tests {
                 "assets",
                 "batches",
                 "camera_anchors",
+                "canvas_layouts",
                 "generation_outputs",
                 "generations",
                 "jobs",
@@ -302,7 +304,7 @@ mod tests {
         let (core, _) = open_test_core(&root);
         {
             let conn = core.conn().unwrap();
-            assert_eq!(schema_version(&conn).unwrap(), 10);
+            assert_eq!(schema_version(&conn).unwrap(), MIGRATIONS.last().unwrap().0);
             let name: String =
                 conn.query_row("SELECT name FROM projects WHERE id = 'PRJ_V9'", [], |r| r.get(0)).unwrap();
             assert_eq!(name, "P5 villa");
@@ -313,6 +315,46 @@ mod tests {
         )
         .unwrap();
         assert_eq!(user_presets::list(&core).unwrap(), vec![saved]);
+    }
+
+    #[test]
+    fn migration_0011_adds_canvas_layouts_to_a_v10_database() {
+        use crate::services::tests_support::open_test_core;
+        use crate::services::{canvas_layouts, DB_FILE};
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("data");
+        std::fs::create_dir_all(&root).unwrap();
+        {
+            // A database as ADR-040 left it: migrations 1–10 and one project.
+            let conn = Connection::open(root.join(DB_FILE)).unwrap();
+            configure(&conn).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+            )
+            .unwrap();
+            for (version, sql) in MIGRATIONS.iter().filter(|(v, _)| *v <= 10) {
+                conn.execute_batch(sql).unwrap();
+                conn.execute("INSERT INTO schema_migrations (version, applied_at) VALUES (?1, 't0')", [version])
+                    .unwrap();
+            }
+            conn.execute_batch(
+                "INSERT INTO projects (id, name, project_type, status, created_at, updated_at)
+                   VALUES ('PRJ_V10', 'M2 villa', 'villa', 'draft', 't1', 't1');",
+            )
+            .unwrap();
+            assert!(!tables(&conn).contains(&"canvas_layouts".to_string()));
+        }
+
+        let (core, _) = open_test_core(&root);
+        assert_eq!(schema_version(&core.conn().unwrap()).unwrap(), 11);
+        let layout = serde_json::json!({ "version": 1, "positions": { "asset:AST_A": { "x": 1, "y": 2 } } });
+        canvas_layouts::save(
+            &core,
+            canvas_layouts::SaveRequest { project_id: "PRJ_V10".into(), layout: layout.clone() },
+        )
+        .unwrap();
+        assert_eq!(canvas_layouts::get(&core, "PRJ_V10").unwrap().layout, layout);
     }
 
     #[test]

@@ -51,6 +51,8 @@ describe("backend contract fixtures", () => {
       "user_preset_delete",
       "sketchup_inbox_list",
       "sketchup_inbox_import",
+      "canvas_layout_get",
+      "canvas_layout_save",
       "error",
     ]) {
       expect(commands, c).toContain(c);

@@ -2,7 +2,7 @@
 
 use rusqlite::Connection;
 
-use crate::domain::{AssetRole, GenerationPurpose};
+use crate::domain::{AssetRole, AssetSource, GenerationPurpose};
 use crate::dto::{WorkflowDto, WorkflowStepStateDto};
 use crate::error::{AppError, AppResult};
 use crate::repositories::{self as repo, ProjectRow};
@@ -114,9 +114,10 @@ pub fn reopen(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Work
     Ok(result)
 }
 
-/// Whether references include a source image for quick generate (ADR-039).
-pub(crate) fn is_source_image(role: AssetRole) -> bool {
-    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture)
+/// Whether a reference is a source image for quick generate: a structure sketch or the master
+/// (ADR-039), or an AI image of this project so the branch canvas can continue a branch (ADR-041).
+pub(crate) fn is_source_image(role: AssetRole, source: AssetSource) -> bool {
+    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture) || source == AssetSource::AiGenerated
 }
 
 /// Enforce the generation prerequisites while the caller still holds its transaction/connection.
@@ -237,9 +238,11 @@ mod tests {
         for purpose in [GenerationPurpose::Anchor, GenerationPurpose::Production, GenerationPurpose::Variation] {
             assert!(ensure_generation_allowed(&conn, &row, purpose, true).is_err());
         }
-        assert!(is_source_image(AssetRole::StructureSketch));
-        assert!(is_source_image(AssetRole::MasterArchitecture));
-        assert!(!is_source_image(AssetRole::MoodReference));
+        assert!(is_source_image(AssetRole::StructureSketch, AssetSource::Sketchup));
+        assert!(is_source_image(AssetRole::MasterArchitecture, AssetSource::External));
+        assert!(is_source_image(AssetRole::RegularImage, AssetSource::AiGenerated), "branch from an output");
+        assert!(!is_source_image(AssetRole::MoodReference, AssetSource::External));
+        assert!(!is_source_image(AssetRole::RegularImage, AssetSource::External));
     }
 
     #[test]

@@ -1,4 +1,11 @@
-import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
+import {
+  Camera,
+  FileText,
+  GitBranch,
+  Image as ImageIcon,
+  ImagePlus,
+  LayoutGrid,
+} from "lucide-react";
 import { useEffect } from "react";
 import { useStudio } from "../../app/store";
 import { WorkspaceCanvas } from "../../components/canvas/WorkspaceCanvas";
@@ -20,6 +27,7 @@ import { EnhanceCheckBadge } from "../enhance/EnhanceControls";
 import { RegionCanvas } from "../regions/RegionCanvas";
 import { DiagramCanvas } from "../diagram/DiagramCanvas";
 import { PublishingStudio } from "../publishing/PublishingStudio";
+import { BranchCanvas } from "../canvas/BranchCanvas";
 import { navigateTabs } from "../../components/common/tabNavigation";
 
 export function findSubmittedEnhanceResult(
@@ -116,7 +124,10 @@ function CenterArea() {
   const mod = moduleById(active);
   const isCamera = active === "camera";
   // The Camera Director only exists in the Camera module.
-  const view = centerView === "director" && !isCamera ? "canvas" : centerView;
+  const view =
+    (centerView === "director" && !isCamera) || (centerView === "branches" && active !== "generate")
+      ? "canvas"
+      : centerView;
 
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
   const asset =
@@ -174,12 +185,7 @@ function CenterArea() {
 
   return (
     <main className="center" aria-label={t("workspace.canvasLabel")}>
-      <div
-        className="center-tabs"
-        role="tablist"
-        hidden={active === "export"}
-        onKeyDown={navigateTabs}
-      >
+      <div className="center-tabs" role="tablist" hidden={active === "export"} onKeyDown={navigateTabs}>
         {isCamera && (
           <button
             className="center-tab"
@@ -200,6 +206,18 @@ function CenterArea() {
         >
           <ImageIcon size={14} /> {isCamera ? t("workspace.tabImage") : t("workspace.tabCanvas")}
         </button>
+        {active === "generate" && (
+          <button
+            className="center-tab"
+            role="tab"
+            aria-selected={view === "branches"}
+            tabIndex={view === "branches" ? 0 : -1}
+            onClick={() => setCenterView("branches")}
+            data-testid="tab-branches"
+          >
+            <GitBranch size={14} /> {t("workspace.tabBranches")}
+          </button>
+        )}
         {(isCamera || hasBatches || view === "contact") && (
           <button
             className="center-tab"
@@ -237,6 +255,8 @@ function CenterArea() {
           <CameraDirector />
         ) : view === "contact" ? (
           <ContactSheet />
+        ) : view === "branches" ? (
+          <BranchCanvas />
         ) : active === "mood_grade" ? (
           <GradeCanvas asset={asset} grade={grade} />
         ) : active === "enhance" ? (

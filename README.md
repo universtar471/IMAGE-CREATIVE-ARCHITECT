@@ -204,6 +204,18 @@ In the Generate panel, **Save current combination** stores the selected preset c
 name (SQLite table `user_presets`, shared by every project). Clicking a saved combination
 replaces the current chips; presets that no longer exist or do not fit the shot are skipped.
 
+## Branch canvas
+
+**Generate → Branches** draws the project as image → generation → image branches, read from the existing generation history (nothing new is generated or stored except node positions).
+- **Click an image** and choose **Use as source** to continue from it with the presets in the right panel. AI outputs count as quick-generate sources; after three AI images in a row the node warns that details may drift.
+- **Shift-click two images** and choose **Compare A/B** for the split view.
+- **Drag nodes** to arrange them; positions are saved per project (**Re-arrange** resets them).
+
+## Recipes and evidence analysis
+
+- **Generate → Recipes:** pick a recipe (6 lighting scenarios, weather set, facade colour options, material moodboard) and untick the variants you do not need. One cost confirmation covers all of them; each variant then runs as a normal generation on top of your current preset chips.
+- **Branches → an image → Analyse image:** one AI call (HHTECH assist model) reads the image, and the app draws a board of the materials, palette, composition and observations. Everything on it is marked as inferred from the image, not measured. **Save as image** stores the board as a new asset linked to the analysed image.
+
 ### `.env`
 
 Copy `.env.example` to `.env` (gitignored) and fill it in. At startup the app loads, without

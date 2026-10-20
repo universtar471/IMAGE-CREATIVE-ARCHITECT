@@ -1,5 +1,21 @@
 # Progress
 
+## M4 — Recipes and evidence analysis (ADR-042)
+- **Done:**
+  - **Recipes:** 4 recipes (lighting × 6, weather × 4, facade colours × 4, moodboard). They run behind one spend confirm, with one generation per variant.
+  - **Presets:** a facade palette group and a material moodboard preset (`ps-1.1.0`).
+  - **Evidence board:** the vision call goes through the `dna_assist` `analysis` scope; the SVG board is drawn by the app, every item labelled inferred, and can be saved as a derived image.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy and `cargo test` pass.
+- **Not yet verified:** a live HHTECH vision call, the image quality of the palette and moodboard prompts, and the native window.
+
+## M3 — Branch canvas (ADR-041)
+- **Done:**
+  - Branch graph derived from generation lineage (domain, deterministic) and a depth-column layout with saved positions (migration 11).
+  - "Branches" tab with "Use as source", "Reuse presets", "Copy prompt", "Retry", and A/B compare.
+  - Quick generate also accepts AI outputs, with a warning after 3 AI images in a row.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy, `cargo test` and the contract fixtures pass.
+- **Not yet verified:** the native Windows window, and large projects (hundreds of generations) for canvas performance.
+
 ## M2 — My presets, SketchUp inbox, custom gateway (ADR-040)
 - **Done:**
   - **My presets:** SQLite migration 10, commands, and a UI row with save, apply and delete (with confirmation).

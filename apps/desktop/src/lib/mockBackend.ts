@@ -28,6 +28,9 @@ import {
   resolveUpscaleSize,
   type AppError,
   type AssetDTO,
+  type CanvasLayout,
+  CanvasLayoutSchema,
+  isQuickSourceImage,
   type UserPresetDTO,
   USER_PRESET_NAME_MAX,
   type AssetRole,
@@ -101,6 +104,8 @@ type Db = {
   publications?: PublicationRecordDTO[];
   /** ADR-040: saved preset combinations, shared by every project. */
   userPresets?: UserPresetDTO[];
+  /** ADR-041: branch canvas node positions per project. */
+  canvasLayouts?: Record<string, { layout: CanvasLayout; updatedAt: string }>;
   /** ADR-040: views waiting in the SketchUp inbox (the extension cannot run in a browser). */
   sketchupInbox?: MockInboxView[];
   /** Inbox views already imported, by file name (the `imported/` folder of the backend). */
@@ -119,6 +124,26 @@ export type MockInboxView = {
 };
 
 export const MOCK_INBOX_PATH = "mock://app-data/inbox/sketchup";
+
+/** The mock's answer to an evidence-board request (ADR-042). */
+export const MOCK_ANALYSIS = {
+  materials: [
+    { name: "Painted render", location: "main facade walls", confidence: "high" },
+    { name: "Timber louvres", location: "upper floor screen", confidence: "medium" },
+    { name: "Clear glazing", location: "ground floor shopfront", confidence: "high" },
+  ],
+  palette: [
+    { hex: "#E9E4DA", name: "Warm white" },
+    { hex: "#9C7A5B", name: "Timber" },
+    { hex: "#4B5563", name: "Dark frames" },
+  ],
+  composition: {
+    viewpoint: "Street-level oblique view of the front facade",
+    lighting: "Soft daylight from the left",
+    focus: "Entrance and upper-floor louvres",
+  },
+  observations: ["Planting at the base softens the street edge."],
+};
 
 /** A neutral grey placeholder standing in for a SketchUp viewport capture. */
 const VIEWPORT_PLACEHOLDER =
@@ -780,11 +805,10 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   const validateRequest = (req: RegionOrGenerationRequest) => {
     writable(req.projectId);
     // Quick generate (ADR-039): a source image among the references, as in Rust.
-    const sourceRoles = ["structure_sketch", "master_architecture"];
     const facts = {
       ...workflowFacts(req.projectId),
       hasSourceImage: projectAssets(req.projectId).some(
-        (a) => req.referenceAssetIds.includes(a.id) && sourceRoles.includes(a.role),
+        (a) => req.referenceAssetIds.includes(a.id) && isQuickSourceImage(a),
       ),
     };
     const purpose = req.purpose as string;
@@ -1165,7 +1189,8 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           providerId: provider.id,
         });
       return {
-        raw: JSON.stringify({ fields: [] }),
+        // ADR-042: a fixed, plausible analysis so the evidence board can be tried offline.
+        raw: JSON.stringify(req.scope === "analysis" ? MOCK_ANALYSIS : { fields: [] }),
         modelId: "mock-assist",
         generationId: newId("GEN"),
       };
@@ -1930,6 +1955,27 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       refreshStatus(req.projectId);
       save();
       return projectAnchors(req.projectId);
+    },
+
+    // ---- ADR-041: branch canvas node positions (mirrors services/canvas_layouts.rs)
+    canvas_layout_get: (req) => {
+      getProject(req.projectId);
+      const row = db.canvasLayouts?.[req.projectId];
+      return {
+        projectId: req.projectId,
+        layout: row?.layout ?? { version: 1 as const, positions: {} },
+        ...(row ? { updatedAt: row.updatedAt } : {}),
+      };
+    },
+
+    canvas_layout_save: (req) => {
+      const parsed = CanvasLayoutSchema.safeParse(req.layout);
+      if (!parsed.success) fail("VALIDATION_ERROR", "The canvas layout is invalid.");
+      writable(req.projectId);
+      const row = { layout: parsed.data!, updatedAt: now() };
+      (db.canvasLayouts ??= {})[req.projectId] = row;
+      save();
+      return { projectId: req.projectId, layout: row.layout, updatedAt: row.updatedAt };
     },
 
     // ---- ADR-040: my presets (mirrors services/user_presets.rs)

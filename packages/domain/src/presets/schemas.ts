@@ -13,11 +13,12 @@ import type { EffectId, EffectIntensity } from "../effects/schemas";
 import type { SceneObjectState, SceneObjectVisibility } from "../sceneObjects/schemas";
 import type { VisualIntentView } from "../camera/intent";
 
-/** The seven preset groups, in display order. */
+/** The preset groups, in display order (`palette` added by ADR-042). */
 export const PRESET_GROUPS = [
   "render",
   "time_light",
   "weather",
+  "palette",
   "camera",
   "people_cars",
   "effects",
