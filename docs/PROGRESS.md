@@ -1,5 +1,14 @@
 # Progress
 
+## V6.1-R2 — node panel routing, fullscreen and verification
+- Node selection now routes the editing module as well as the toolbar; video drafts survive panel changes.
+- The viewer supports real fullscreen, pauses background playback and restores video sources after StrictMode cleanup.
+- Be Vietnam Pro is bundled offline under SIL OFL 1.1; `.github/workflows/verify.yml` adds frontend/browser/backend checks.
+- Windows validation: 1136 Vitest tests, 366 Rust tests (6 live tests ignored), typecheck, lint, format, build, rustfmt and clippy.
+- Chromium acceptance checks verify node panels, resize, fullscreen, real WebM playback, inspector scroll and zero writes.
+- Evidence and remaining native WebView2/display-scale limitations: `docs/design/v6-1/QA_R2.md`.
+- The R1 notes below are historical; R2 resolves their unbundled-font and unmeasured-scroll gaps.
+
 ## V6.1-R1 — Studio shell, contextual selection, large viewer (ADR-044), branch `claude/ux-v6-1`
 - **Done:**
   - **PR #2:** merged into the V6 branch (not into `main`).

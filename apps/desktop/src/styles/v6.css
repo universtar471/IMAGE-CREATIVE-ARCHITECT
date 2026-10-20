@@ -329,6 +329,12 @@
   background: #050c17;
   overflow: hidden;
 }
+.media-viewer-backdrop:fullscreen {
+  padding: 0;
+}
+.media-viewer-backdrop:fullscreen .media-viewer {
+  border-radius: 0;
+}
 .media-viewer-bar {
   display: flex;
   align-items: center;
@@ -448,11 +454,38 @@
 }
 
 /* ---------------------------------------------------------------- typography tokens (V6.1) */
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("/fonts/be-vietnam-pro/BeVietnamPro-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("/fonts/be-vietnam-pro/BeVietnamPro-Medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("/fonts/be-vietnam-pro/BeVietnamPro-SemiBold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  src: url("/fonts/be-vietnam-pro/BeVietnamPro-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
 /*
  * Type scale from the V6 spec: page 20/700, panel 16/600, section 14/600, body 14/400,
  * field 13–14/500, secondary 12/400, badge 11–12/500. Be Vietnam Pro is preferred when the
- * machine has it; it is not bundled yet (licence and offline font files pending), so Inter /
- * Segoe UI render today. No main content is below 11 px.
+ * machine has it or loads the bundled SIL OFL fonts above. No main content is below 11 px.
  */
 :root {
   --font: "Be Vietnam Pro", "Inter", "Segoe UI", system-ui, sans-serif;

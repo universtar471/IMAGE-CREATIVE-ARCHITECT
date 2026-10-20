@@ -1,5 +1,8 @@
 # UX/UI V6.1-R1: Báo cáo QA
 
+> Báo cáo dưới đây là kết quả lịch sử của R1. Xem [QA_R2.md](QA_R2.md) cho lần sửa tiếp theo:
+> panel theo node, fullscreen thật, video StrictMode, font offline và kiểm chứng scroll.
+
 Nhánh: `claude/ux-v6-1`. Gốc là `main` 7fa825c, đã gộp thêm nhánh PR #2 (`feature/premium-duotone-preset-ui-20261020`). Kiến trúc được mô tả trong ADR-044.
 
 ## Môi trường kiểm tra

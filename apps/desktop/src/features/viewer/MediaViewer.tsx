@@ -8,7 +8,7 @@
  * and the canvas, selection, prompt draft and Node Canvas transform stay mounted underneath.
  * Esc closes and gives focus back to the element that opened it.
  */
-import { ChevronLeft, ChevronRight, Columns2, Square, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns2, Maximize, Minimize, Square, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isVideoAsset, type AssetDTO } from "@arch/domain";
@@ -58,6 +58,27 @@ function ViewerLayer() {
   const close = useStudio((s) => s.closeViewer);
   const layer = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState(false);
+  useEffect(() => {
+    const element = layer.current;
+    const sync = () => setFullscreen(document.fullscreenElement === element);
+    document.addEventListener("fullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      if (element && document.fullscreenElement && element.contains(document.fullscreenElement))
+        void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  const toggleFullscreen = async () => {
+    setFullscreenError(false);
+    try {
+      if (document.fullscreenElement === layer.current) await document.exitFullscreen();
+      else await layer.current?.requestFullscreen();
+    } catch {
+      setFullscreenError(true);
+    }
+  };
   const items = viewer.assetIds
     .map((id) => assets.find((a) => a.id === id))
     .filter((a): a is AssetDTO => !!a);
@@ -149,6 +170,17 @@ function ViewerLayer() {
             </span>
           )}
           <span className="spacer" />
+          {document.fullscreenEnabled && (
+            <button
+              type="button"
+              className="btn btn-sm btn-icon"
+              onClick={() => void toggleFullscreen()}
+              aria-label={t(fullscreen ? "viewer.exitFullscreen" : "viewer.enterFullscreen")}
+              title={t(fullscreen ? "viewer.exitFullscreen" : "viewer.enterFullscreen")}
+            >
+              {fullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            </button>
+          )}
           {!video && parent && !compareWith && (
             <button type="button" className="btn btn-sm" onClick={() => setCompare(parent.id)}>
               <Columns2 size={14} /> {t("viewer.compareSource")}
@@ -171,6 +203,11 @@ function ViewerLayer() {
             <X size={16} />
           </button>
         </header>
+        {fullscreenError && (
+          <p role="alert" className="field-hint">
+            {t("viewer.fullscreenError")}
+          </p>
+        )}
         <div className="media-viewer-body">
           {!asset ? (
             <div className="media-viewer-state">{t("viewer.empty")}</div>
@@ -266,13 +303,19 @@ export function ViewerVideo({ asset }: { asset: AssetDTO }) {
 
   useEffect(() => {
     const el = ref.current;
+    // StrictMode replays setup after cleanup on the same element. Restore the source that
+    // cleanup released, otherwise the viewer remains stuck at Loading with no playable URL.
+    if (el && src && el.getAttribute("src") !== src) {
+      el.src = src;
+      el.load();
+    }
     return () => {
       if (!el) return;
       el.pause();
       el.removeAttribute("src");
       el.load();
     };
-  }, [attempt]);
+  }, [attempt, src]);
 
   const posterLabel =
     asset.posterSource === "frame"

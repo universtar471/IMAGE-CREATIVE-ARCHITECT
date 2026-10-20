@@ -2667,6 +2667,9 @@ export const vi: Dict = {
   },
   viewer: {
     label: "Trình xem lớn",
+    enterFullscreen: "Xem toàn màn hình",
+    exitFullscreen: "Thoát toàn màn hình",
+    fullscreenError: "Chưa mở được toàn màn hình. Bạn vẫn có thể dùng trình xem lớn.",
     close: "Đóng (Esc)",
     previous: "Ảnh trước (←)",
     next: "Ảnh sau (→)",

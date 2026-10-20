@@ -2673,6 +2673,9 @@ export const en = {
   },
   viewer: {
     label: "Large viewer",
+    enterFullscreen: "Enter fullscreen",
+    exitFullscreen: "Exit fullscreen",
+    fullscreenError: "Fullscreen is unavailable. You can continue using the large viewer.",
     close: "Close (Esc)",
     previous: "Previous (←)",
     next: "Next (→)",

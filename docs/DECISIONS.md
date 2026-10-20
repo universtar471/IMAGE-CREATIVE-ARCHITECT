@@ -1224,6 +1224,13 @@ Status: accepted (2026-10-20). Basis: phase B of `docs/plans/VIZMAKER_IMAGE_PLAN
 
 ## ADR-044 — V6.1-R1: responsive Studio shell, contextual selection and the large viewer
 
+R2 follow-up (2026-10-20, direct owner request): graph selection also routes the active editing
+module without flushing DNA or changing image/video drafts. Video draft choices are session state
+and reset on project open. The viewer now uses the browser Fullscreen API when supported, pauses
+workspace playback and restores its source after StrictMode cleanup. Be Vietnam Pro is bundled
+under SIL OFL 1.1. Windows test and browser evidence: `docs/design/v6-1/QA_R2.md`.
+The remaining text records the original R1 proposal and its limits at that time.
+
 Status: proposed for review (2026-10-20). Basis: `UX_UI_V6_CLAUDE_SPEC.md` V6.1 and `ADDENDUM_RESPONSIVE_NODE_PREVIEW.md` (P0), supplied by the project owner. Branch `claude/ux-v6-1`, not merged into `main`.
 
 **PR #2 (Premium Duotone UI).** Branch `feature/premium-duotone-preset-ui-20261020` (e1e94d6) was merged into the V6 branch, not into `main`. The only conflict was two imports in `ProjectWorkspace.tsx`; both were kept. Its viewport-based overrides were replaced by the tiers below: the `48vw`/`40vw` panel caps and the stacked grid under 700 px. PR #2 itself stays open. The uncommitted Typography V2 work on the owner's Windows machine was not available here and is not included.

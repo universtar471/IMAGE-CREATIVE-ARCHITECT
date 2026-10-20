@@ -66,7 +66,8 @@ import {
   withValidation,
 } from "../features/validation/gate";
 import { clearShotIntent, loadShotIntent, saveShotIntent } from "../lib/shotIntentStorage";
-import type { WorkspaceMode } from "../features/selection/selection";
+import { nodeSelectionModule, type WorkspaceMode } from "../features/selection/selection";
+import { EMPTY_VIDEO_DRAFT, type VideoDraft } from "../features/video/video";
 
 export type Route = { name: "hub" } | { name: "workspace"; projectId: string };
 /** `director` = Camera Director (Camera module); `contact` = Contact Sheet. */
@@ -230,6 +231,7 @@ type State = {
   /** Provider settings dialog; `focus` = provider to highlight. */
   providerDialog: { focus: string | null } | null;
   generateDraft: GenerateDraft;
+  videoDraft: VideoDraft;
   run: GenerationRun | null;
   /** The exact enhance submission whose completed output may be auto-selected. */
   enhanceSubmission: { projectId: string; generationId: string } | null;
@@ -275,6 +277,7 @@ type State = {
   openProviderDialog: (focus?: string | null) => void;
   closeProviderDialog: () => void;
   setGenerateDraft: (patch: Partial<GenerateDraft>) => void;
+  setVideoDraft: (patch: Partial<VideoDraft>) => void;
   /** Load a past generation's provider/model/params/references into the Generate panel. */
   reuseGeneration: (g: GenerationDTO) => void;
   refreshGenerations: () => Promise<void>;
@@ -519,6 +522,7 @@ export const useStudio = create<State>((set, get) => {
     providersError: null,
     providerDialog: null,
     generateDraft: EMPTY_GENERATE_DRAFT,
+    videoDraft: EMPTY_VIDEO_DRAFT,
     run: null,
     enhanceSubmission: null,
     jobs: [],
@@ -540,6 +544,7 @@ export const useStudio = create<State>((set, get) => {
         contactBatchId: null,
         save: SAVED,
         generateDraft: EMPTY_GENERATE_DRAFT,
+        videoDraft: EMPTY_VIDEO_DRAFT,
         enhanceSubmission: null,
         workflowView: null,
       });
@@ -640,7 +645,25 @@ export const useStudio = create<State>((set, get) => {
       writeWorkspaceMode(mode);
       set({ workspaceMode: mode });
     },
-    setCanvasSelection: (ids) => set({ canvasSelection: ids }),
+    setCanvasSelection: (ids) =>
+      set((s) => {
+        // Re-selecting the same node must not override a tool chosen from its toolbar.
+        const changed = ids.join("\n") !== s.canvasSelection.join("\n");
+        const ws = s.workspace;
+        const activeModule =
+          changed && ws && s.workspaceMode === "node"
+            ? nodeSelectionModule(ids, ws.assets, ws.generations, s.activeModule)
+            : s.activeModule;
+        const assetId = ids.length === 1 && ids[0]!.startsWith("asset:") ? ids[0]!.slice(6) : null;
+        return {
+          canvasSelection: ids,
+          activeModule,
+          ...(assetId && ws?.assets.some((a) => a.id === assetId)
+            ? { selectedAssetId: assetId }
+            : {}),
+        };
+      }),
+    setVideoDraft: (patch) => set((s) => ({ videoDraft: { ...s.videoDraft, ...patch } })),
     setNodeViewport: (projectId, viewport) =>
       set((s) => ({ nodeViewport: { ...s.nodeViewport, [projectId]: viewport } })),
     openViewer: (viewer) => set({ viewer }),

@@ -14,6 +14,31 @@ import {
   type AssetRole,
   type GenerationDTO,
 } from "@arch/domain";
+import { hasOwnCenter, type ModuleId } from "../workspace/modules";
+
+/** Route a newly selected graph node without saving DNA or changing a generation draft. */
+export function nodeSelectionModule(
+  ids: readonly string[],
+  assets: readonly AssetDTO[],
+  generations: readonly GenerationDTO[],
+  current: ModuleId,
+): ModuleId {
+  if (ids.length !== 1 || hasOwnCenter(current)) return current;
+  const id = ids[0]!;
+  if (id === "draft") return "generate";
+  if (id.startsWith("gen:")) {
+    const generation = generations.find((g) => g.id === id.slice(4));
+    return generation ? (generation.purpose === "video" ? "video" : "generate") : current;
+  }
+  const asset = id.startsWith("asset:") ? assets.find((a) => a.id === id.slice(6)) : null;
+  if (!asset) return current;
+  if (isVideoAsset(asset)) return "video";
+  if (isReferenceAsset(asset)) return "references";
+  // Preserve an explicitly chosen image editing tool when moving between image nodes.
+  return current === "video" || current === "references" || current === "overview"
+    ? "generate"
+    : current;
+}
 
 export type WorkspaceMode = "studio" | "node";
 

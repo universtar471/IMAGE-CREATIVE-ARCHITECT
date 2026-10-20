@@ -5,12 +5,18 @@ import { fileUrl } from "../../lib/files";
 import { formatClipDuration } from "../../lib/format";
 import { ErrorState } from "../common/states";
 import { useT } from "../../i18n";
+import { useStudio } from "../../app/store";
 
 export function VideoPlayer({ asset, extra }: { asset: AssetDTO; extra?: ReactNode }) {
   const t = useT();
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
   const src = fileUrl(asset.absolutePath);
+  const viewerOpen = useStudio((s) => s.viewer !== null);
+  // The workspace remains mounted behind the viewer; never let its audio play underneath.
+  useEffect(() => {
+    if (viewerOpen) ref.current?.pause();
+  }, [viewerOpen]);
   // Leaving the clip (another selection, module or mode) stops it: no sound in the background.
   useEffect(() => {
     const el = ref.current;

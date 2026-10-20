@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AssetDTO } from "@arch/domain";
 import { createProject } from "../src/app/services";
@@ -113,6 +114,50 @@ function renderStudio() {
 }
 
 describe("large image viewer (ADR-044)", () => {
+  it("enters real fullscreen, exits it on close, and reports rejected requests", async () => {
+    await openProject();
+    useStudio.getState().selectAsset("AST_B");
+    let fullscreen: Element | null = null;
+    Object.defineProperty(document, "fullscreenEnabled", { configurable: true, value: true });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreen,
+    });
+    const enter = vi.fn(async function (this: HTMLElement) {
+      fullscreen = document.querySelector('[data-testid="media-viewer"]');
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    const exit = vi.fn(async () => {
+      fullscreen = null;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: enter,
+    });
+    Object.defineProperty(document, "exitFullscreen", { configurable: true, value: exit });
+    renderStudio();
+    fireEvent.click(screen.getByTestId("preview-expand"));
+    fireEvent.click(await screen.findByRole("button", { name: "Enter fullscreen" }));
+    await screen.findByRole("button", { name: "Exit fullscreen" });
+    expect(enter).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByTestId("viewer-close"));
+    await waitFor(() => expect(exit).toHaveBeenCalledOnce());
+    expect(fullscreen).toBeNull();
+
+    enter.mockRejectedValueOnce(new Error("Denied"));
+    fireEvent.click(screen.getByTestId("preview-expand"));
+    fireEvent.click(await screen.findByRole("button", { name: "Enter fullscreen" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Fullscreen is unavailable");
+    // A failed fullscreen request must leave the in-app viewer usable.
+    expect(screen.getByTestId("media-viewer")).toBeTruthy();
+    expect(commands.filter((c) => WRITES.includes(c))).toEqual([]);
+    delete (HTMLElement.prototype as Partial<HTMLElement>).requestFullscreen;
+    delete (document as Partial<Document>).exitFullscreen;
+    Reflect.deleteProperty(document, "fullscreenEnabled");
+    Reflect.deleteProperty(document, "fullscreenElement");
+  });
+
   it("opens from View large, zooms with keys, steps through the set and closes with Esc", async () => {
     await openProject();
     useStudio.getState().selectAsset("AST_B");
@@ -178,6 +223,33 @@ describe("large image viewer (ADR-044)", () => {
 });
 
 describe("large video viewer (ADR-044)", () => {
+  it("keeps a playable source after StrictMode's effect cleanup and setup", async () => {
+    await openProject();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    useStudio.getState().openViewer({ assetIds: ["AST_V"], index: 0 });
+    render(
+      <StrictMode>
+        <MediaViewer />
+      </StrictMode>,
+    );
+    const video = await screen.findByLabelText("Video player");
+    expect(video.getAttribute("src")).toBe("blob:AST_V");
+  });
+
+  it("pauses the workspace player when the large viewer opens", async () => {
+    await openProject();
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    useStudio.getState().selectAsset("AST_V");
+    renderStudio();
+    const background = screen.getByLabelText("Video player");
+    pause.mockClear();
+    fireEvent.click(screen.getByTestId("preview-expand"));
+    await screen.findByTestId("media-viewer");
+    expect(pause.mock.contexts).toContain(background);
+  });
+
   it("shows the real player without autoplay and stops it on close", async () => {
     await openProject();
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);

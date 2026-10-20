@@ -12,7 +12,6 @@ import {
   durationSize,
   estimateVideoCost,
   formatVnd,
-  type MotionPresetId,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
@@ -46,14 +45,9 @@ export function VideoPanel() {
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const spend = useSpendConfirm();
   const t = useT();
-  const [motion, setMotion] = useState<MotionPresetId>("dolly_in");
-  const [note, setNote] = useState("");
-  const [choice, setChoice] = useState<VideoChoice>({
-    providerId: null,
-    modelId: null,
-    durationSec: null,
-    aspectRatio: null,
-  });
+  const { motion, note, choice } = useStudio((s) => s.videoDraft);
+  const setDraft = useStudio((s) => s.setVideoDraft);
+  const setChoice = (value: VideoChoice) => setDraft({ choice: value });
   const [sentHere, setSentHere] = useState(false);
 
   if (!providers) return <LoadingState label={t("generate.loadingProviders")} />;
@@ -158,7 +152,7 @@ export function VideoPanel() {
               aria-pressed={motion === preset.id}
               disabled={readOnly}
               title={preset.motionEn}
-              onClick={() => setMotion(preset.id)}
+              onClick={() => setDraft({ motion: preset.id })}
             >
               {t(`videoModule.motions.${preset.id}`)}
             </button>
@@ -169,7 +163,7 @@ export function VideoPanel() {
           value={note}
           placeholder={t("videoModule.notePlaceholder")}
           disabled={readOnly}
-          onChange={(value) => setNote(value.slice(0, 400))}
+          onChange={(value) => setDraft({ note: value.slice(0, 400) })}
         />
       </SectionPanel>
 

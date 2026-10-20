@@ -36,6 +36,7 @@ npm run build          # production build + installer
 npm run typecheck      # TypeScript (all workspaces)
 npm run lint           # ESLint
 npm test               # Vitest (domain + desktop UI logic)
+    npm run test:ui        # Chromium acceptance checks (first: npx playwright install chromium)
 npm run test:rust      # cargo test (migrations, repositories, services)
 npm run check:rust     # cargo check
 npm run verify         # typecheck + lint + test + test:rust
