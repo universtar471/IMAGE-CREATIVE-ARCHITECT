@@ -179,13 +179,20 @@ describe("round 1 workflow UI regressions", () => {
     expect((screen.getByLabelText("Building type") as HTMLInputElement).disabled).toBe(false);
   });
 
-  it("renders visible DNA and post group headers", async () => {
+  it("renders the four group headers and a collapsible Advanced DNA (ADR-044)", async () => {
     await openProject();
+    localStorage.removeItem("arch.navAdvancedOpen");
     useStudio.setState({ activeModule: "overview" });
     render(createElement(WorkspaceNav));
-    expect(screen.getByText("Design DNA")).toBeTruthy();
+    for (const header of ["Create image", "Edit", "Publish"])
+      expect(screen.getByText(header)).toBeTruthy();
+    const toggle = screen.getByTestId("nav-advanced");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Architecture")).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("Architecture")).toBeTruthy();
-    expect(screen.getByText("Post-production")).toBeTruthy();
+    localStorage.removeItem("arch.navAdvancedOpen");
   });
 
   it("uses Architecture for the first DNA step and resets the property scroll on module change", async () => {

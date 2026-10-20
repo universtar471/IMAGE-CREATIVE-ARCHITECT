@@ -235,3 +235,54 @@
   padding: 4px 8px;
   border-top: 1px dashed var(--c-border);
 }
+
+/* ---------------------------------------------------------------- nav: Advanced DNA */
+.nav-advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.nav-advanced-toggle:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+.nav-advanced-toggle .chev {
+  transition: transform 0.12s ease;
+}
+.nav-advanced-toggle[aria-expanded="true"] .chev {
+  transform: rotate(90deg);
+}
+.nav-advanced-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--c-text-3);
+}
+.nav .nav-item.is-advanced {
+  padding-left: 22px;
+}
+.workspace[data-icon-nav] .nav-advanced-toggle {
+  justify-content: center;
+  padding: 0;
+  min-height: 40px;
+}
+.workspace[data-icon-nav] .nav-advanced-toggle .nav-label,
+.workspace[data-icon-nav] .nav-advanced-count {
+  display: none;
+}
+.workspace[data-icon-nav] .nav .nav-item.is-advanced {
+  padding-left: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-advanced-toggle .chev {
+    transition: none;
+  }
+}

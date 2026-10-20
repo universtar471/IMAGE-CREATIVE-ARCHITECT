@@ -362,12 +362,15 @@ export const vi: Dict = {
   modules: {
     navLabel: "Các mô-đun làm việc",
     groups: {
-      studio: "Studio",
-      dna: "DNA thiết kế",
-      shot: "Chi tiết shot",
-      post: "Hậu kỳ",
-      export: "Xuất bản",
+      create: "Tạo ảnh",
+      edit: "Chỉnh sửa",
+      video: "Video",
+      publish: "Xuất bản",
     },
+    advanced: "DNA nâng cao",
+    advancedHint:
+      "Các bước DNA thiết kế và chi tiết shot (không bắt buộc khi tạo nhanh từ ảnh nguồn)",
+    advancedSteps: "{done}/{total}",
     futureTitle: "{label} — có ở Giai đoạn {phase}",
     video: {
       label: "Tạo video",

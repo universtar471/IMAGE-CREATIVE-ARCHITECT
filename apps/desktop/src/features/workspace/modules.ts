@@ -42,7 +42,7 @@ export type ModuleId =
   | "diagram"
   | "export";
 
-export const MODULE_GROUPS = ["studio", "dna", "shot", "post", "export"] as const;
+export const MODULE_GROUPS = ["create", "edit", "video", "publish"] as const;
 export type ModuleGroup = (typeof MODULE_GROUPS)[number];
 
 export type WorkspaceModule = {
@@ -50,10 +50,11 @@ export type WorkspaceModule = {
   label: string;
   icon: LucideIcon;
   /**
-   * Navigation group (ADR-039): Studio (the preset-first Generate flow), the DNA steps, the
-   * per-shot detail modules, post-production and publishing.
+   * Navigation group (V6.1, ADR-044, after ADR-039): Create image, Edit, Video, Publish.
    */
   group: ModuleGroup;
+  /** Inside "Advanced DNA" of the Create group (collapsible; the DNA steps live here). */
+  advanced?: boolean;
   /** Phase in which the module becomes functional; null = available now. */
   availableIn: number | null;
 };
@@ -63,112 +64,119 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
     id: "overview",
     label: "Overview",
     icon: LayoutDashboard,
-    group: "studio",
+    group: "create",
     availableIn: null,
   },
   {
     id: "generate",
     label: "Generate",
     icon: Sparkles,
-    group: "studio",
-    availableIn: null,
-  },
-  {
-    id: "video",
-    label: "Video",
-    icon: Clapperboard,
-    group: "studio",
+    group: "create",
     availableIn: null,
   },
   {
     id: "design_dna",
     label: "Design DNA",
     icon: Dna,
-    group: "dna",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "context",
     label: "Context",
     icon: MapPinned,
-    group: "dna",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "references",
     label: "References",
     icon: Images,
-    group: "dna",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "camera",
     label: "Camera",
     icon: Camera,
-    group: "dna",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "lighting",
     label: "Lighting",
     icon: SunMedium,
-    group: "dna",
-    availableIn: null,
-  },
-  {
-    id: "detail",
-    label: "Architectural detail",
-    icon: ScanLine,
-    group: "dna",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "scene_objects",
     label: "Scene objects",
     icon: Car,
-    group: "shot",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "effects",
     label: "Effects",
     icon: Aperture,
-    group: "shot",
-    availableIn: null,
-  },
-  {
-    id: "mood_grade",
-    label: "Mood / Grade",
-    icon: Palette,
-    group: "post",
+    group: "create",
+    advanced: true,
     availableIn: null,
   },
   {
     id: "enhance",
     label: "Enhance",
     icon: Wand2,
-    group: "post",
+    group: "edit",
     availableIn: null,
   },
   {
     id: "regions",
     label: "Region edit",
     icon: ScanSearch,
-    group: "post",
+    group: "edit",
+    availableIn: null,
+  },
+  {
+    id: "mood_grade",
+    label: "Mood / Grade",
+    icon: Palette,
+    group: "edit",
+    availableIn: null,
+  },
+  {
+    id: "detail",
+    label: "Architectural detail",
+    icon: ScanLine,
+    group: "edit",
+    availableIn: null,
+  },
+  {
+    id: "video",
+    label: "Video",
+    icon: Clapperboard,
+    group: "video",
     availableIn: null,
   },
   {
     id: "diagram",
     label: "Diagram",
     icon: Shapes,
-    group: "export",
+    group: "publish",
     availableIn: null,
   },
   {
     id: "export",
     label: "Publishing Studio",
     icon: BookOpen,
-    group: "export",
+    group: "publish",
     availableIn: null,
   },
 ];

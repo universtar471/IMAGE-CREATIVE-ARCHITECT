@@ -364,12 +364,14 @@ export const en = {
   modules: {
     navLabel: "Workspace modules",
     groups: {
-      studio: "Studio",
-      dna: "Design DNA",
-      shot: "Shot details",
-      post: "Post-production",
-      export: "Publish",
+      create: "Create image",
+      edit: "Edit",
+      video: "Video",
+      publish: "Publish",
     },
+    advanced: "Advanced DNA",
+    advancedHint: "Design DNA steps and shot details (optional for a quick image from a source)",
+    advancedSteps: "{done}/{total}",
     futureTitle: "{label} — coming in Phase {phase}",
     video: {
       label: "Video",
