@@ -1125,3 +1125,58 @@ Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M2. Th
   - **Key:** from the keychain under `gateway`, or `GATEWAY_API_KEY`.
   - Until it is configured, it is listed with no models and never called.
 - **`ProviderDescriptorDTO.models`:** may now be empty. The UI already falls back to `null` when no model exists.
+
+
+## ADR-041 — M3: branch canvas derived from lineage
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M3 (A8 + A9).
+
+**Decision.** The node canvas is a view of data that already exists, not a second store of runs. Every generation records its `referenceAssetIds`, `parentAssetId`, `outputAssetIds` and `prompt.shotIntent.presetIds`. The domain `buildBranchGraph` turns them into image → generation → image nodes:
+- the result is pure and deterministic;
+- it is acyclic by construction, because a generation's depth is greater than that of its references.
+
+Runs stay the immutable generation records they already are. The planned `recipe_graphs` / `recipe_runs` tables are therefore not needed.
+
+**Graph and layout**
+- **Image nodes:** every asset a generation used or produced, plus standalone `structure_sketch` and `master_architecture` sources.
+- **Generation nodes:** status, purpose, provider/model and preset labels.
+- **Edges:** reference → generation (dashed unless it is the lineage parent), and generation → output.
+- **Draft node:** dashed, after the source the Generate panel would use, showing the current presets. It has no run button, because every run still goes through the Generate panel and its spend confirm.
+- **Layout:** `layoutBranchGraph` places nodes in depth columns. Dragged positions are stored per project in migration `0011_canvas_layouts` (`{ version: 1, positions }`, at most 512 KB) through `canvas_layout_get` and `canvas_layout_save`; a row that no longer parses reads as empty. Re-arrange clears the stored positions.
+
+**UI.** "Branches" is a centre tab of the Generate module, so the right panel stays the Generate panel.
+- **Image nodes:** "Use as source" makes the image the hero source; "View large" opens it in the image tab.
+- **Generation nodes:** "Reuse presets" (`setShotPresets` with that run's ids), "Copy prompt", and "Retry" for failed or cancelled runs, behind the usual spend confirm.
+- **Compare:** Shift-select two images, then "Compare A/B" opens the existing `CompareCanvas`.
+
+**Quick generate from outputs.** `is_source_image(role, source)` in Rust, and `isQuickSourceImage` in the domain and mock, also accept `ai_generated` images of the project. This lets a branch continue from an output without confirmed DNA. To guard against drift, `aiDepth` counts AI images in a row on the primary lineage; from `AI_CHAIN_WARNING_DEPTH` (3) the node shows a warning to go back to the original source.
+
+**Dependency.** `@xyflow/react` 12.12.0 (React Flow, MIT) provides pan, zoom, drag and selection. It is the only new dependency, pinned exactly.
+
+
+## ADR-042 — M4: image recipes and the evidence analysis board
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M4 (A10 + A11).
+
+**Recipes** (`packages/domain/src/recipes/`)
+- A recipe is a list of variants, and each variant is a list of preset ids. `planRecipe(recipe, baseShot, dna, variantIds?)` puts each variant on top of the user's current chips through `setShotPresets`, so the variant wins every exclusive key (time, weather, palette…) and the other chips stay.
+- A variant whose own presets do not fit the shot is left out; for example, facade colours are dropped for an interior shot.
+- **Built-in recipes:**
+  - 6 lighting scenarios (morning, midday, golden hour, overcast, blue hour, night);
+  - weather set (4);
+  - facade colour options (4);
+  - material moodboard (1).
+- **New presets** (catalog `ps-1.1.0`): a `palette` group with five wall colours (exterior only). The sentence changes only painted wall surfaces and keeps every other material. `render.material_moodboard` creates a flat-lay board of the materials visible in the source, with no text.
+- **Running:**
+  - The Generate panel lists the variants with checkboxes.
+  - One spend confirm covers the total (variants × images per run), then each variant is submitted as an ordinary generation with its own shot intent.
+  - Every run stays an immutable record with lineage and appears on the branch canvas; nothing runs on the recipe's own.
+
+**Evidence analysis board** (`packages/domain/src/analysis/`)
+- One vision call through the existing DNA-assist path. Rust `dna_assist` accepts the new scope `analysis` (mode `images`); the call uses the HHTECH assist model and is recorded as an `assist` generation.
+- **Model output:** `ANALYSIS_SYSTEM_PROMPT` (the app's own wording) asks for strict JSON describing only what is visible: materials with a visibility confidence, up to 6 hex colours, composition, and up to 5 observations. Dimensions, prices, brands, standards and performance claims are forbidden. The instructions stay in English; the findings are written in the UI language (`analysisSystemPrompt`), because they are shown to the user, not sent to a model.
+- **Parsing:** `parseImageAnalysis` accepts a ```json fence and validates against `ImageAnalysisSchema`.
+- **Drawing:** `analysisBoardSvg` draws the board itself (escaped, deterministic, image on the left), so the text is sharp and no number is painted by the model. Every board says "inferred from the image by AI — not measured", and the confidence words describe visibility, not quality.
+- **UI:** "Analyse image" on an image node of the branch canvas.
+  - "Analyse" runs only on click.
+  - "Save as image" rasterises the board (2400 px) through `diagram_image_save`, as a new asset derived from the analysed image.

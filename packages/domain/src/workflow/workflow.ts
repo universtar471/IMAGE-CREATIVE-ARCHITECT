@@ -231,6 +231,19 @@ export function reopenStep(
   });
 }
 
+/**
+ * Whether a reference counts as the source image of a quick generate (mirrors Rust
+ * `workflow::is_source_image`): a structure sketch or the master (ADR-039), or an AI image of
+ * the project, so the branch canvas can continue a branch (ADR-041).
+ */
+export function isQuickSourceImage(asset: { role: string; source: string }): boolean {
+  return (
+    asset.role === "structure_sketch" ||
+    asset.role === "master_architecture" ||
+    asset.source === "ai_generated"
+  );
+}
+
 export type GenerationAllowed = { ok: true } | { ok: false; blockedBy: WorkflowStepId };
 
 export function isGenerationAllowed(

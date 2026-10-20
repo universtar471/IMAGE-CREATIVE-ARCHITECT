@@ -1,0 +1,10 @@
+{
+  "command": "canvas_layout_get",
+  "response": {
+    "layout": {
+      "positions": {},
+      "version": 1
+    },
+    "projectId": "PRJ_00000000000000000000000001"
+  }
+}

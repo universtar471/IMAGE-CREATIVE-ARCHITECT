@@ -34,7 +34,9 @@ use crate::services::tests_support::{
     run_queue, set_cameras, submit_and_run, test_create_villa, write_png, TestBehavior, TestProvider, CAM_A, CAM_B,
     CAM_C, TEST_PROVIDER,
 };
-use crate::services::{diagram, projects, provider_settings, queue, sketchup_inbox, user_presets, workflow, AppCore};
+use crate::services::{
+    canvas_layouts, diagram, projects, provider_settings, queue, sketchup_inbox, user_presets, workflow, AppCore,
+};
 
 const ULID_CHARS: &[u8] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -489,6 +491,18 @@ fn build_fixtures(ambient: Arc<dyn EnvSource>) -> BTreeMap<String, Value> {
     )
     .unwrap();
     rec.record("sketchup_inbox_import", "sketchup_inbox_import", &imported);
+
+    // M3 (ADR-041): branch canvas node positions.
+    rec.record("canvas_layout_get_empty", "canvas_layout_get", &canvas_layouts::get(&core, &p.id).unwrap());
+    let layout = canvas_layouts::save(
+        &core,
+        canvas_layouts::SaveRequest {
+            project_id: p.id.clone(),
+            layout: json!({ "version": 1, "positions": { "asset:AST_X": { "x": 280, "y": 190 } } }),
+        },
+    )
+    .unwrap();
+    rec.record("canvas_layout_save", "canvas_layout_save", &layout);
     rec.out
 }
 

@@ -1,0 +1,16 @@
+{
+  "command": "canvas_layout_save",
+  "response": {
+    "layout": {
+      "positions": {
+        "asset:AST_X": {
+          "x": 280,
+          "y": 190
+        }
+      },
+      "version": 1
+    },
+    "projectId": "PRJ_00000000000000000000000001",
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  }
+}
