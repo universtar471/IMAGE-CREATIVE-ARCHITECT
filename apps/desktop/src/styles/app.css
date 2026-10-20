@@ -4305,3 +4305,57 @@ div.pub-slot {
   display: block;
   margin-top: 2px;
 }
+
+/* ---------------------------------------------------------------- my presets, SketchUp inbox (ADR-040) */
+.user-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+.user-preset .preset-chip-remove {
+  color: var(--c-text-3);
+}
+.user-preset-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.user-preset-form .input {
+  flex: 1;
+  min-width: 0;
+}
+.sketchup-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.sketchup-inbox > .btn {
+  align-self: flex-start;
+}
+.sketchup-inbox-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.sketchup-inbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.sketchup-inbox-head code {
+  word-break: break-all;
+}
+.sketchup-inbox .ref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sketchup-inbox .ref-meta {
+  flex: 1;
+  min-width: 0;
+}

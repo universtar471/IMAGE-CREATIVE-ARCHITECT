@@ -162,6 +162,48 @@ line to get the whole catalog.
 compiled DNA prompt to `POST {BASE}/chat/completions` and shows the rewrite to Accept or
 Discard. It is disabled until HHTECH is configured.
 
+### Custom gateway (any other OpenAI-compatible gateway, e.g. BEAR)
+
+`gateway` uses the same adapter as HHTECH for a gateway you choose (ADR-040). It is configured
+only from the environment or `.env`, and the key goes in Provider settings (OS credential store)
+or `GATEWAY_API_KEY`:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `GATEWAY_BASE_URL` | — (required) | e.g. `https://api.example.com/v1`; https only (http only for localhost) |
+| `GATEWAY_IMAGE_MODEL` | — (required) | comma-separated image model ids, offered in that order (no tiers or prices) |
+| `GATEWAY_IMAGE_SIZE` | `1024x1024` | size sent without an aspect ratio; `auto` omits it |
+| `GATEWAY_IMAGE_QUALITY` | `medium` | `quality` sent when the Quality control is on Default |
+| `GATEWAY_CHAT_MODEL` | — | chat model for **Enhance prompt**; unset = not offered for this gateway |
+| `GATEWAY_TIMEOUT_SECS` | `600` | seconds one images call may take (30–3600) |
+
+The gateway must serve `POST {BASE}/images/generations` and, for references,
+`POST {BASE}/images/edits` in the OpenAI shape. Until both required variables are set it is
+listed as "not configured" and never called.
+
+## SketchUp → app (ADR-040)
+
+`tools/sketchup/` holds a small SketchUp extension that sends views to the app; nothing is
+uploaded anywhere and no model runs from SketchUp.
+
+1. `npm run sketchup:rbz` writes `tools/sketchup/dist/arch_studio_bridge.rbz`.
+2. In SketchUp: **Extensions → Extension Manager → Install Extension…** and pick the `.rbz`.
+3. **Extensions → Arch AI Studio → Gửi view hiện tại / Gửi tất cả scene** writes
+   `<model>_<scene>_<time>.png` plus a `.json` sidecar into
+   `%APPDATA%\com.archaistudio.desktop\inbox\sketchup` (or `ARCH_STUDIO_DATA_DIR/inbox/sketchup`
+   when that variable is set for both programs). The long edge is 2048 px, the viewport's ratio
+   is kept.
+4. In the app: **Generate → Source image → Receive from SketchUp (N)** → **Import**. The view
+   becomes a `structure_sketch` asset (source `sketchup`) and is selected as the hero source.
+   Imported files move to `inbox/sketchup/imported/`; sending the same view again reuses the
+   existing asset instead of creating a copy.
+
+## My presets
+
+In the Generate panel, **Save current combination** stores the selected preset chips under a
+name (SQLite table `user_presets`, shared by every project). Clicking a saved combination
+replaces the current chips; presets that no longer exist or do not fit the shot are skipped.
+
 ### `.env`
 
 Copy `.env.example` to `.env` (gitignored) and fill it in. At startup the app loads, without

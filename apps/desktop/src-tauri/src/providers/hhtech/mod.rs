@@ -32,9 +32,8 @@ pub mod catalog;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
-
-use super::openai::{Config, Flavor, OpenAiProvider, Route};
+use super::gateway_env::{self, GatewaySpec};
+use super::openai::{OpenAiProvider, Route};
 use super::ModelCapabilities;
 use crate::secrets::EnvSource;
 
@@ -51,130 +50,57 @@ pub const ENV_CHAT_MODEL: &str = "HHTECH_CHAT_MODEL";
 pub const ENV_ASSIST_MODEL: &str = "HHTECH_ASSIST_MODEL";
 pub const ENV_TIMEOUT_SECS: &str = "HHTECH_TIMEOUT_SECS";
 
-pub const DEFAULT_IMAGE_SIZE: &str = "1024x1024";
-pub const DEFAULT_QUALITY: &str = "medium";
-/// A live 1024x1024 medium image took about 100 s through the gateway (2026-10-09); allow for
-/// a busy gateway and larger sizes.
-pub const DEFAULT_TIMEOUT_SECS: u64 = 600;
+pub const DEFAULT_IMAGE_SIZE: &str = gateway_env::DEFAULT_IMAGE_SIZE;
+pub const DEFAULT_QUALITY: &str = gateway_env::DEFAULT_QUALITY;
+pub const DEFAULT_TIMEOUT_SECS: u64 = gateway_env::DEFAULT_TIMEOUT_SECS;
 pub const DEFAULT_CHAT_MODEL: &str = "claude-sonnet-5";
 pub const DEFAULT_ASSIST_MODEL: &str = "gemini-3.8-flash";
 
 const SETUP_HINT: &str = "Check HHTECH_BASE_URL (usually ends in /v1) and the model names in HHTECH_IMAGE_MODEL / \
                           HHTECH_CHAT_MODEL / HHTECH_ASSIST_MODEL.";
 
+/// The full [`catalog`] in its default order (used when `HHTECH_IMAGE_MODEL` is unset).
+fn catalog_models() -> Vec<(ModelCapabilities, Route)> {
+    catalog::CATALOG.iter().map(|e| (e.capabilities(), e.route())).collect()
+}
+
+/// A catalog entry with its tiers and prices, or a plain entry for an id outside it.
+fn model(id: &str) -> (ModelCapabilities, Route) {
+    match catalog::find(id) {
+        Some(entry) => (entry.capabilities(), entry.route()),
+        None => (catalog::plain_capabilities(id), Route::default()),
+    }
+}
+
+pub const SPEC: GatewaySpec = GatewaySpec {
+    id: ID,
+    label: LABEL,
+    vendor: VENDOR,
+    env_base_url: ENV_BASE_URL,
+    env_image_model: ENV_IMAGE_MODEL,
+    env_image_size: ENV_IMAGE_SIZE,
+    env_image_quality: ENV_IMAGE_QUALITY,
+    env_chat_model: ENV_CHAT_MODEL,
+    env_timeout_secs: ENV_TIMEOUT_SECS,
+    base_url_example: "https://hhtechapi.com/v1",
+    default_models: catalog_models,
+    model,
+    default_chat_model: Some(DEFAULT_CHAT_MODEL),
+    setup_hint: SETUP_HINT,
+};
+
 pub fn provider(env: &dyn EnvSource) -> OpenAiProvider {
     OpenAiProvider::from_config(config(env))
 }
 
-/// Build the adapter config. Invalid settings never panic: the first problem becomes the
-/// provider's "not configured" reason, and the model list falls back to the full catalog so the
-/// provider can still be listed.
-pub fn config(env: &dyn EnvSource) -> Config {
-    let var = |name: &str| env.var(name).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
-    let mut problems = Vec::new();
-
-    let base_url = match var(ENV_BASE_URL) {
-        None => Err(format!(
-            "HHTECH needs a base URL: set {ENV_BASE_URL} (e.g. https://hhtechapi.com/v1) in the environment or in .env, \
-             then restart the app."
-        )),
-        Some(url) => parse_base_url(&url),
-    };
-
-    let ids: Vec<String> = match var(ENV_IMAGE_MODEL) {
-        None => Vec::new(),
-        Some(list) => {
-            let mut ids: Vec<String> = Vec::new();
-            for id in list.split(',').map(str::trim).filter(|id| !id.is_empty()) {
-                if !valid_id(id) {
-                    problems.push(format!("{ENV_IMAGE_MODEL} contains an invalid model id."));
-                } else if !ids.iter().any(|known| known == id) {
-                    ids.push(id.to_string());
-                }
-            }
-            ids
-        }
-    };
-    // Unset (or nothing valid in it): the full catalog in its default order.
-    let models: Vec<(ModelCapabilities, Route)> = if ids.is_empty() {
-        catalog::CATALOG.iter().map(|e| (e.capabilities(), e.route())).collect()
-    } else {
-        ids.iter()
-            .map(|id| match catalog::find(id) {
-                Some(entry) => (entry.capabilities(), entry.route()),
-                None => (catalog::plain_capabilities(id), Route::default()),
-            })
-            .collect()
-    };
-
-    let default_size = match var(ENV_IMAGE_SIZE).as_deref() {
-        None => Some(DEFAULT_IMAGE_SIZE.to_string()),
-        Some(size) if size.eq_ignore_ascii_case("auto") => None,
-        Some(size) if valid_size(size) => Some(size.to_ascii_lowercase()),
-        Some(_) => {
-            problems.push(format!("{ENV_IMAGE_SIZE} must look like 1024x1024 (or auto)."));
-            Some(DEFAULT_IMAGE_SIZE.to_string())
-        }
-    };
-
-    let quality = match var(ENV_IMAGE_QUALITY) {
-        None => DEFAULT_QUALITY.to_string(),
-        Some(q) if q.len() <= 16 && q.chars().all(|c| c.is_ascii_alphanumeric()) => q.to_ascii_lowercase(),
-        Some(_) => {
-            problems.push(format!("{ENV_IMAGE_QUALITY} must be a single word such as low, medium or high."));
-            DEFAULT_QUALITY.to_string()
-        }
-    };
-
-    let chat_model = match var(ENV_CHAT_MODEL) {
-        None => DEFAULT_CHAT_MODEL.to_string(),
-        Some(id) if valid_id(&id) => id,
-        Some(_) => {
-            problems.push(format!("{ENV_CHAT_MODEL} is not a valid model id."));
-            DEFAULT_CHAT_MODEL.to_string()
-        }
-    };
-    let _assist_model = match var(ENV_ASSIST_MODEL) {
-        None => DEFAULT_ASSIST_MODEL.to_string(),
-        Some(id) if valid_id(&id) => id,
-        Some(_) => {
-            problems.push(format!("{ENV_ASSIST_MODEL} is not a valid model id."));
-            DEFAULT_ASSIST_MODEL.to_string()
-        }
-    };
-
-    let timeout_secs = match var(ENV_TIMEOUT_SECS) {
-        None => DEFAULT_TIMEOUT_SECS,
-        Some(v) => match v.parse::<u64>() {
-            Ok(secs) if (30..=3600).contains(&secs) => secs,
-            _ => {
-                problems.push(format!("{ENV_TIMEOUT_SECS} must be a number of seconds from 30 to 3600."));
-                DEFAULT_TIMEOUT_SECS
-            }
-        },
-    };
-
-    // A bad optional setting blocks the provider too: silently using a default the user did
-    // not ask for would bill the wrong model.
-    let base_url = match (base_url, problems.into_iter().next()) {
-        (Ok(_), Some(problem)) => Err(format!("{problem} Fix it in the environment or .env, then restart the app.")),
-        (base_url, _) => base_url,
-    };
-
-    Config {
-        id: ID,
-        label: LABEL,
-        vendor: VENDOR,
-        base_url,
-        flavor: Flavor::Gateway,
-        routes: models.iter().map(|(m, route)| (m.id.clone(), *route)).collect::<HashMap<_, _>>(),
-        models: models.into_iter().map(|(m, _)| m).collect(),
-        default_size,
-        quality,
-        chat_model: Some(chat_model),
-        setup_hint: SETUP_HINT,
-        generate_timeout: std::time::Duration::from_secs(timeout_secs),
+/// Build the adapter config (see [`gateway_env::config_from_env`]). The `HHTECH_ASSIST_MODEL`
+/// setting is checked here too, so a typo there also shows as "not configured".
+pub fn config(env: &dyn EnvSource) -> super::openai::Config {
+    let mut config = gateway_env::config_from_env(&SPEC, env);
+    if let (Ok(_), Err(problem)) = (&config.base_url, assist_model(env)) {
+        config.base_url = Err(format!("{problem} Fix it in the environment or .env, then restart the app."));
     }
+    config
 }
 
 /// Resolve the AI DNA assistance model without changing prompt enhancement.
@@ -182,37 +108,7 @@ pub fn assist_model(env: &dyn EnvSource) -> Result<String, String> {
     let value = env.var(ENV_ASSIST_MODEL).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     match value {
         None => Ok(DEFAULT_ASSIST_MODEL.to_string()),
-        Some(id) if valid_id(&id) => Ok(id),
+        Some(id) if gateway_env::valid_id(&id) => Ok(id),
         Some(_) => Err(format!("{ENV_ASSIST_MODEL} is not a valid model id.")),
     }
-}
-
-/// Trimmed, without a trailing `/`; https, or http only to a loopback host (tests).
-fn parse_base_url(raw: &str) -> Result<String, String> {
-    let trimmed = raw.trim().trim_end_matches('/');
-    let invalid = || format!("{ENV_BASE_URL} is not a valid https URL (e.g. https://hhtechapi.com/v1).");
-    let url = reqwest::Url::parse(trimmed).map_err(|_| invalid())?;
-    let loopback = matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"));
-    match url.scheme() {
-        "https" if url.host_str().is_some() => {}
-        "http" if loopback => {}
-        "http" => return Err(format!("{ENV_BASE_URL} must use https (plain http is only allowed for localhost).")),
-        _ => return Err(invalid()),
-    }
-    if url.query().is_some() || url.fragment().is_some() || !url.username().is_empty() || url.password().is_some() {
-        return Err(invalid());
-    }
-    Ok(trimmed.to_string())
-}
-
-fn valid_id(id: &str) -> bool {
-    !id.is_empty() && id.len() <= 128 && id.chars().all(|c| c.is_ascii_alphanumeric() || "-._:/".contains(c))
-}
-
-/// `WIDTHxHEIGHT`, each edge 256..=4096.
-fn valid_size(size: &str) -> bool {
-    let Some((w, h)) = size.to_ascii_lowercase().split_once('x').map(|(w, h)| (w.to_string(), h.to_string())) else {
-        return false;
-    };
-    [w, h].iter().all(|edge| edge.parse::<u32>().is_ok_and(|n| (256..=4096).contains(&n)))
 }

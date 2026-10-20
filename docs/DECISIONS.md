@@ -1084,3 +1084,44 @@ Status: accepted (2026-10-19). Basis: the user's VizMaker study and plan `docs/p
   - `ModuleGroup` = studio, dna, shot, post, export.
   - Order: Overview and Generate, then the DNA steps (Design DNA, Context, References, Camera, Lighting, Detail), Scene objects and Effects, post-production, and publishing. Every group has a label.
   - This deliberately changes the "do not reorder" navigation; module ids and DNA step numbers are unchanged.
+
+
+## ADR-040 — M2: My presets, SketchUp inbox, custom OpenAI-compatible gateway
+
+Status: accepted (2026-10-20). Basis: `docs/plans/VIZMAKER_IMAGE_PLAN.md` M2. The user asked for all three parts, with the gateway kept generic (no BEAR-specific details are known), and for My presets to be shared by every project.
+
+**My presets**
+- Migration `0010_user_presets.sql`: `user_presets(id UPR_…, name, preset_ids JSON, created_at, updated_at)`. App-wide, with no project foreign key.
+- `services/user_presets.rs` has `list`, `save` (create, or update by id) and `delete`.
+  - **Validation:** the name is trimmed and 1–60 characters; 1–24 unique ids, each matching `[a-z0-9._]{1,64}`.
+  - **Catalog:** the backend does not know the catalog. Unknown ids are skipped by `normalizePresetIds` when a combination is applied, so renaming a preset never breaks a saved row.
+- **Commands:** `user_preset_list`, `user_preset_save`, `user_preset_delete`.
+- **UI:** a "My presets" row in `PresetGrid`.
+  - Clicking a combination replaces the selection.
+  - "Save current combination" names the current chips.
+  - Delete always goes through `ConfirmDialog`.
+
+**SketchUp inbox**
+- **Folder:** `<data-root>/inbox/sketchup/`, holding `<name>.png` and an optional `<name>.json` with `{ version, model, scene, width, height, capturedAt }`.
+- **Listing:** `services/sketchup_inbox.rs::list` returns the waiting views, newest first. A broken sidecar only hides the details.
+- **Import:** `import(projectId, fileNames)`.
+  - **File names:** only plain PNG names inside the inbox are accepted; paths and traversal are refused.
+  - **Asset:** each view goes through `assets::import` with source `sketchup` and role `structure_sketch`.
+  - **Duplicates:** a `DUPLICATE_ASSET` returns the existing asset (`details.existingAssetId`) and is counted in `duplicates`.
+  - **Afterwards:** the pair moves to `imported/` (renamed ` (2)` on a clash). Nothing is deleted, and no model runs.
+- **Asset protocol:** the inbox folder is added to the asset-protocol scope so the UI can show thumbnails.
+- **UI:** "Receive from SketchUp (N)" under the Generate source. An imported view is selected as the sketch source of a hero shot, which allows quick generate (ADR-039).
+- **Extension** (`tools/sketchup/arch_studio_bridge*`):
+  - menu items: Send current view, Send all scenes (transitions off while exporting), Open inbox folder;
+  - the PNG is rendered in `.partial/`, the sidecar is written, then the PNG is moved in, so the app never lists half-written files;
+  - the data folder is `ARCH_STUDIO_DATA_DIR`, else the Tauri app-data folder of `com.archaistudio.desktop`;
+  - `npm run sketchup:rbz` builds the `.rbz` with a dependency-free ZIP writer.
+
+**Custom gateway**
+- `providers/gateway_env.rs::config_from_env(spec, env)` is the shared environment parser. HHTECH now uses it with its catalog and default chat model, and its existing tests are unchanged. `HHTECH_ASSIST_MODEL` is still validated in `hhtech::config`.
+- **Provider** `providers/gateway`: id `gateway`, configured only from `GATEWAY_*`.
+  - **Required:** `GATEWAY_BASE_URL` and `GATEWAY_IMAGE_MODEL` (plain entries, no tiers or prices).
+  - **Optional:** `GATEWAY_CHAT_MODEL`; without it, Enhance prompt is not offered.
+  - **Key:** from the keychain under `gateway`, or `GATEWAY_API_KEY`.
+  - Until it is configured, it is listed with no models and never called.
+- **`ProviderDescriptorDTO.models`:** may now be empty. The UI already falls back to `null` when no model exists.

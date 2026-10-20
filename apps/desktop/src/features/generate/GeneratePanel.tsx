@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { PresetGrid } from "../presets/PresetGrid";
+import { SketchupInbox } from "./SketchupInbox";
 import {
   anchorViews,
   costHintText,
@@ -704,6 +705,12 @@ function SourceFields({ form, disabled }: { form: GenerateForm; disabled: boolea
           )}
         </FieldGroup>
       )}
+      <SketchupInbox
+        disabled={disabled}
+        onImported={(id) =>
+          setDraft({ source: "sketch", purpose: "hero", referenceAssetIds: [id], params: null })
+        }
+      />
     </>
   );
 }

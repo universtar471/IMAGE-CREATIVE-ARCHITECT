@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   AppErrorSchema,
   AssetDTOSchema,
+  UserPresetDTOSchema,
   BatchDTOSchema,
   CameraAnchorDTOSchema,
   ColorGradeDNASchema,
@@ -162,6 +163,29 @@ export const RegionDeleteResultSchema = z.object({ deleted: z.literal(true) });
 export const PUBLICATION_EXPORT_FORMATS = ["pdf", "png", "jpeg"] as const;
 export type PublicationExportFormat = (typeof PUBLICATION_EXPORT_FORMATS)[number];
 export const PublicationDeleteResultSchema = z.object({ deleted: z.literal(true) });
+export const UserPresetDeleteResultSchema = z.object({ deleted: z.literal(true) });
+
+/** ADR-040: a view the SketchUp extension left in the inbox (sidecar fields are optional). */
+export const SketchupInboxEntrySchema = z.object({
+  fileName: z.string(),
+  absolutePath: z.string(),
+  sizeBytes: z.number(),
+  scene: z.string().optional(),
+  model: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  capturedAt: z.string().optional(),
+});
+export type SketchupInboxEntry = z.infer<typeof SketchupInboxEntrySchema>;
+export const SketchupInboxListingSchema = z.object({
+  path: z.string(),
+  entries: z.array(SketchupInboxEntrySchema),
+});
+export type SketchupInboxListing = z.infer<typeof SketchupInboxListingSchema>;
+export const SketchupInboxImportResultSchema = z.object({
+  assets: z.array(AssetDTOSchema),
+  duplicates: z.number(),
+});
 export const PublicationCaptionDraftResultSchema = z.object({ raw: z.string() });
 export const PublicationExportSaveResultSchema = z.object({
   saved: z.boolean(),
@@ -275,6 +299,12 @@ export type Requests = {
   diagram_image_save: DiagramImageSaveRequestInput;
   diagram_ffmpeg_status: Record<string, never>;
   diagram_video_export: DiagramVideoExportRequest;
+  /** ADR-040: saved preset combinations, shared by every project. */
+  user_preset_list: Record<string, never>;
+  user_preset_save: { id?: string; name: string; presetIds: string[] };
+  user_preset_delete: { id: string };
+  sketchup_inbox_list: Record<string, never>;
+  sketchup_inbox_import: { projectId: string; fileNames: string[] };
 };
 
 /** Response schemas per command. */
@@ -343,6 +373,11 @@ export const responses = {
   diagram_image_save: AssetDTOSchema,
   diagram_ffmpeg_status: FfmpegStatusSchema,
   diagram_video_export: DiagramVideoExportResultSchema,
+  user_preset_list: z.array(UserPresetDTOSchema),
+  user_preset_save: UserPresetDTOSchema,
+  user_preset_delete: UserPresetDeleteResultSchema,
+  sketchup_inbox_list: SketchupInboxListingSchema,
+  sketchup_inbox_import: SketchupInboxImportResultSchema,
 } satisfies Record<keyof Requests, z.ZodType>;
 
 export type CommandName = keyof Requests;

@@ -4,7 +4,7 @@ import { compilePromptPreview } from "../../app/services";
 import { useStudio } from "../../app/store";
 import { toBridgeError } from "../../lib/bridge";
 import { useLocale, useT } from "../../i18n";
-import { presetLabels } from "../presets/PresetGrid";
+import { presetLabels } from "../presets/labels";
 
 /**
  * What the Generate button will send: compiled from persisted DNA (pending edits are

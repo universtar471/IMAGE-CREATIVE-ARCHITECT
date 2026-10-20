@@ -18,7 +18,9 @@ pub mod provider_settings;
 pub mod publications;
 pub mod queue;
 pub mod regions;
+pub mod sketchup_inbox;
 pub mod status;
+pub mod user_presets;
 pub mod workflow;
 
 use std::path::Path;

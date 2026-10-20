@@ -2,27 +2,18 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import {
   PRESET_GROUPS,
+  normalizePresetIds,
   presetShotIsInterior,
   presetsForShot,
   setShotPresets,
   shotPreset,
   togglePreset,
   type ProjectDNA,
-  type ShotPreset,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
-import { useLocale, useT, type Locale } from "../../i18n";
-
-export const presetLabel = (preset: ShotPreset, locale: Locale) =>
-  locale === "vi" ? preset.labelVi : preset.labelEn;
-
-/** Labels of preset ids in the current language (unknown ids are shown as they are). */
-export function presetLabels(ids: readonly string[], locale: Locale): string[] {
-  return ids.map((id) => {
-    const preset = shotPreset(id);
-    return preset ? presetLabel(preset, locale) : id;
-  });
-}
+import { useLocale, useT } from "../../i18n";
+import { UserPresetsRow } from "./UserPresetsRow";
+import { presetLabel, presetLabels } from "./labels";
 
 /**
  * Preset studio (ADR-039): one click adds a chip that writes structured choices into the
@@ -84,6 +75,11 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
           {t("presets.skipped", { list: presetLabels(skipped, locale).join(", ") })}
         </span>
       )}
+      <UserPresetsRow
+        selected={selected}
+        disabled={locked}
+        onApply={(ids) => apply(normalizePresetIds(ids))}
+      />
       {PRESET_GROUPS.map((group) => {
         const items = offered.filter((p) => p.group === group);
         if (!items.length) return null;

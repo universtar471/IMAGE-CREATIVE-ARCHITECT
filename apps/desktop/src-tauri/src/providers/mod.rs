@@ -8,6 +8,8 @@
 //! Adapters are blocking (they run inside `spawn_blocking`) and must enforce their own
 //! network timeout.
 
+pub mod gateway;
+pub mod gateway_env;
 pub mod gemini;
 pub mod hhtech;
 pub mod local_preview;
@@ -383,6 +385,7 @@ impl ProviderRegistry {
             Arc::new(gemini::GeminiProvider::new()),
             Arc::new(openai::OpenAiProvider::new()),
             Arc::new(hhtech::provider(env)),
+            Arc::new(gateway::provider(env)),
             Arc::new(local_preview::LocalPreviewProvider),
             Arc::new(local_upscale::LocalUpscaleProvider),
         ])

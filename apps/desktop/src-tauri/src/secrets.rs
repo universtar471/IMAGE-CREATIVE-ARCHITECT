@@ -145,11 +145,14 @@ pub fn env_var_name(provider_id: &str) -> String {
 }
 
 /// Environment variables holding a provider's key, in lookup order: a vendor's own name where
-/// one is conventional (`HHTECH_API_KEY`), then `ARCH_STUDIO_<PROVIDER_ID>_API_KEY`.
+/// one is conventional (`HHTECH_API_KEY`, `GATEWAY_API_KEY`), then `ARCH_STUDIO_<PROVIDER_ID>_API_KEY`.
 pub fn env_var_names(provider_id: &str) -> Vec<String> {
     let mut names = Vec::new();
     if provider_id == crate::providers::hhtech::ID {
         names.push(crate::providers::hhtech::ENV_API_KEY.to_string());
+    }
+    if provider_id == crate::providers::gateway::ID {
+        names.push(crate::providers::gateway::ENV_API_KEY.to_string());
     }
     names.push(env_var_name(provider_id));
     names

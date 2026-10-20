@@ -34,6 +34,7 @@ pub mod prefix {
     pub const REGION: &str = "RGN";
     pub const ENHANCE_CHECK: &str = "ECK";
     pub const PUBLICATION: &str = "PUB";
+    pub const USER_PRESET: &str = "UPR";
 }
 
 #[cfg(test)]

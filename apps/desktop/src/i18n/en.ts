@@ -1645,6 +1645,13 @@ export const en = {
         optional:
           "Optional: HHTECH_IMAGE_MODEL (comma-separated; restricts the built-in model list), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (the Default quality), HHTECH_CHAT_MODEL (used by Enhance prompt).",
       },
+      gateway: {
+        required:
+          "Needs GATEWAY_BASE_URL (e.g. https://api.example.com/v1) and GATEWAY_IMAGE_MODEL (comma-separated model ids) in the environment or .env; restart the app after changing them.",
+        optional:
+          "Optional: GATEWAY_CHAT_MODEL (turns on Enhance prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
+        key: "Paste the key from the gateway's own dashboard, or set GATEWAY_API_KEY.",
+      },
     },
   },
 
@@ -2100,6 +2107,18 @@ export const en = {
     markMove: ". Drag or use arrow keys to move.",
   },
   /** Unified conflict validator messages, one per SRS §12.4 code (ADR-034). */
+  sketchup: {
+    receive: "Receive from SketchUp ({count})",
+    folder: "Inbox folder:",
+    refresh: "Refresh",
+    empty: "No view waiting. In SketchUp use Extensions → Arch AI Studio → Send current view.",
+    listLabel: "Views sent from SketchUp",
+    import: "Import",
+    importing: "Importing…",
+    imported: "Imported '{name}' as a structure sketch.",
+    alreadyImported: "'{name}' is already in this project; it is selected as the source.",
+  },
+
   presets: {
     title: "Presets",
     selected: "Selected presets",
@@ -2108,6 +2127,16 @@ export const en = {
     lookFree: "free, applied after generating",
     skipped: "Not applied to this shot: {list}",
     sources: "Preset lines: {list}",
+    mine: "My presets",
+    mineEmpty: "No saved combination yet.",
+    saveMine: "Save current combination",
+    name: "Combination name",
+    namePlaceholder: "e.g. Dusk street with people",
+    deleteMine: "Delete {name}",
+    deleteTitle: "Delete saved combination?",
+    deleteMessage:
+      "'{name}' will be removed from My presets in every project. The presets themselves stay.",
+    deleteConfirm: "Delete",
     groups: {
       render: "Render",
       time_light: "Time & light",

@@ -1,0 +1,18 @@
+{
+  "command": "sketchup_inbox_list",
+  "response": {
+    "entries": [
+      {
+        "absolutePath": "/data/inbox/sketchup/street.png",
+        "capturedAt": "2026-01-01T00:00:00.000Z",
+        "fileName": "street.png",
+        "height": 6,
+        "model": "C:/projects/nha.skp",
+        "scene": "Street",
+        "sizeBytes": 137,
+        "width": 8
+      }
+    ],
+    "path": "/data/inbox/sketchup"
+  }
+}

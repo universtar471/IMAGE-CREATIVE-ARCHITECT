@@ -53,6 +53,10 @@ pub fn run() {
             core.storage.ensure_projects_root().map_err(|e| e.message)?;
             // Only managed project files may be served to the webview.
             app.asset_protocol_scope().allow_directory(core.storage.projects_root(), true)?;
+            // The SketchUp inbox, so waiting views show as thumbnails before import (ADR-040).
+            let inbox = services::sketchup_inbox::inbox_dir(&core);
+            std::fs::create_dir_all(&inbox).map_err(|e| format!("Cannot create the SketchUp inbox: {e}"))?;
+            app.asset_protocol_scope().allow_directory(&inbox, true)?;
             let core = Arc::new(core);
             app.manage(Arc::clone(&core));
             // Resumes jobs left `queued`/`retrying` by the previous run (ADR-017).
@@ -117,6 +121,11 @@ pub fn run() {
             commands::diagram_image_save,
             commands::diagram_ffmpeg_status,
             commands::diagram_video_export,
+            commands::user_preset_list,
+            commands::user_preset_save,
+            commands::user_preset_delete,
+            commands::sketchup_inbox_list,
+            commands::sketchup_inbox_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Arch AI Studio");

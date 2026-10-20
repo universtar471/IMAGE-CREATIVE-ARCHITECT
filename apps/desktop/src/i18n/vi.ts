@@ -1645,6 +1645,13 @@ export const vi: Dict = {
         optional:
           "Tùy chọn: HHTECH_IMAGE_MODEL (phân tách bằng dấu phẩy; giới hạn danh sách model có sẵn), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (chất lượng Mặc định), HHTECH_CHAT_MODEL (dùng cho Cải thiện prompt).",
       },
+      gateway: {
+        required:
+          "Cần GATEWAY_BASE_URL (VD: https://api.example.com/v1) và GATEWAY_IMAGE_MODEL (các id model, phân tách bằng dấu phẩy) trong biến môi trường hoặc .env; khởi động lại ứng dụng sau khi đổi.",
+        optional:
+          "Tùy chọn: GATEWAY_CHAT_MODEL (bật Cải thiện prompt), GATEWAY_IMAGE_SIZE, GATEWAY_IMAGE_QUALITY, GATEWAY_TIMEOUT_SECS.",
+        key: "Dán key lấy từ trang quản lý của gateway, hoặc đặt GATEWAY_API_KEY.",
+      },
     },
   },
 
@@ -2099,6 +2106,18 @@ export const vi: Dict = {
     markAnchored: ", đã có Anchor",
     markMove: ". Kéo hoặc dùng phím mũi tên để di chuyển.",
   },
+  sketchup: {
+    receive: "Nhận từ SketchUp ({count})",
+    folder: "Thư mục chờ:",
+    refresh: "Làm mới",
+    empty: "Chưa có view nào. Trong SketchUp chọn Extensions → Arch AI Studio → Gửi view hiện tại.",
+    listLabel: "Các view gửi từ SketchUp",
+    import: "Nhập",
+    importing: "Đang nhập…",
+    imported: "Đã nhập '{name}' làm ảnh phác thảo.",
+    alreadyImported: "'{name}' đã có trong dự án; ảnh này được chọn làm nguồn.",
+  },
+
   presets: {
     title: "Preset",
     selected: "Preset đã chọn",
@@ -2107,6 +2126,15 @@ export const vi: Dict = {
     lookFree: "miễn phí, áp sau khi tạo",
     skipped: "Không áp được cho shot này: {list}",
     sources: "Dòng prompt từ preset: {list}",
+    mine: "Bộ của tôi",
+    mineEmpty: "Chưa có tổ hợp nào được lưu.",
+    saveMine: "Lưu tổ hợp hiện tại",
+    name: "Tên tổ hợp",
+    namePlaceholder: "VD: Phố chạng vạng có người",
+    deleteMine: "Xóa {name}",
+    deleteTitle: "Xóa tổ hợp đã lưu?",
+    deleteMessage: "'{name}' sẽ bị bỏ khỏi Bộ của tôi ở mọi dự án. Bản thân các preset vẫn còn.",
+    deleteConfirm: "Xóa",
     groups: {
       render: "Kiểu render",
       time_light: "Giờ và ánh sáng",

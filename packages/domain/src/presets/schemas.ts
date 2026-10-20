@@ -104,3 +104,18 @@ export type ShotPreset = {
 };
 
 export const PresetIdListSchema = z.array(z.string().trim().min(1)).max(24);
+
+/**
+ * "My presets" (M2, ADR-040): a saved combination of preset ids, shared by every project.
+ * Ids the catalog no longer knows are skipped when the combination is applied.
+ */
+export const UserPresetDTOSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  presetIds: z.array(z.string()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type UserPresetDTO = z.infer<typeof UserPresetDTOSchema>;
+
+export const USER_PRESET_NAME_MAX = 60;

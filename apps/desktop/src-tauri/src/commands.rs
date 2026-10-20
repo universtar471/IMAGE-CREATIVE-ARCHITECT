@@ -15,7 +15,7 @@ use crate::error::{AppError, AppResult, ErrorCode};
 use crate::services::regions::{RegionDto, RegionInput};
 use crate::services::{
     anchors, assets, batches, diagram, dna, dna_assist, generations, grade, luts, projects, prompt_enhance,
-    provider_settings, publications, queue, regions, workflow, AppCore,
+    provider_settings, publications, queue, regions, sketchup_inbox, user_presets, workflow, AppCore,
 };
 
 type Core<'a> = State<'a, Arc<AppCore>>;
@@ -601,4 +601,45 @@ mod tests {
         let err = parse_validation::<i32>(serde_json::json!(40.5)).unwrap_err();
         assert_eq!(err.code, ErrorCode::ValidationError);
     }
+}
+
+// ------------------------------------------------------------------ my presets (ADR-040)
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPresetRef {
+    id: String,
+}
+
+#[tauri::command]
+pub async fn user_preset_list(core: Core<'_>) -> AppResult<Vec<user_presets::UserPresetDto>> {
+    blocking(&core, user_presets::list).await
+}
+
+#[tauri::command]
+pub async fn user_preset_save(
+    core: Core<'_>,
+    request: user_presets::SaveRequest,
+) -> AppResult<user_presets::UserPresetDto> {
+    blocking(&core, move |c| user_presets::save(c, request)).await
+}
+
+#[tauri::command]
+pub async fn user_preset_delete(core: Core<'_>, request: UserPresetRef) -> AppResult<Value> {
+    blocking(&core, move |c| user_presets::delete(c, &request.id).map(|_| serde_json::json!({"deleted": true}))).await
+}
+
+// ------------------------------------------------------------------ SketchUp inbox (ADR-040)
+
+#[tauri::command]
+pub async fn sketchup_inbox_list(core: Core<'_>) -> AppResult<sketchup_inbox::InboxListing> {
+    blocking(&core, sketchup_inbox::list).await
+}
+
+#[tauri::command]
+pub async fn sketchup_inbox_import(
+    core: Core<'_>,
+    request: sketchup_inbox::InboxImportRequest,
+) -> AppResult<sketchup_inbox::InboxImportResult> {
+    blocking(&core, move |c| sketchup_inbox::import(c, request)).await
 }

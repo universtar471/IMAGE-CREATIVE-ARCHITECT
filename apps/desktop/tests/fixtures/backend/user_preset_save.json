@@ -1,0 +1,13 @@
+{
+  "command": "user_preset_save",
+  "response": {
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "id": "UPR_0000000000000000000000001F",
+    "name": "Dusk street",
+    "presetIds": [
+      "time.blue_hour",
+      "people.walking"
+    ],
+    "updatedAt": "2026-01-01T00:00:00.000Z"
+  }
+}

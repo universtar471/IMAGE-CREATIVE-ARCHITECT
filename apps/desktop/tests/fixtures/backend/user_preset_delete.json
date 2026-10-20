@@ -1,0 +1,6 @@
+{
+  "command": "user_preset_delete",
+  "response": {
+    "deleted": true
+  }
+}

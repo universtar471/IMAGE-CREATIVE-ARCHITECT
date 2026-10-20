@@ -1,5 +1,14 @@
 # Progress
 
+## M2 — My presets, SketchUp inbox, custom gateway (ADR-040)
+- **Done:**
+  - **My presets:** SQLite migration 10, commands, and a UI row with save, apply and delete (with confirmation).
+  - **SketchUp inbox:** service and commands with path checks, deduplication and `imported/`; "Receive from SketchUp" in Generate.
+  - **SketchUp extension:** Ruby extension and `.rbz` packer.
+  - **Gateway:** generic `gateway` provider on a shared environment parser.
+- **Checks in the cloud container:** typecheck, lint, Prettier, Vitest, rustfmt, clippy and `cargo test` pass; contract fixtures regenerated; `ruby -c` passes for the extension.
+- **Not yet verified:** the extension inside SketchUp on Windows, the inbox thumbnails in the native window, and a real gateway such as BEAR.
+
 ## M1 — Preset-first Studio (ADR-039), branch `claude/vizmaker-m1-presets`
 - **A1 domain:** 47 shot presets, `setShotPresets`/`togglePreset`, ShotIntent `presetIds` / `lighting` / `gradeLookId`, compiler `pc-1.10.0` (PRESETS section, per-shot time and weather), validator `cv-1.3.0` (`LOCKED_WEATHER_CONFLICT`).
 - **A2–A6 desktop:** preset grid and chips, Simple / Advanced Generate panel, quick generate from a source image (domain, Rust and mock), regrouped left navigation.
