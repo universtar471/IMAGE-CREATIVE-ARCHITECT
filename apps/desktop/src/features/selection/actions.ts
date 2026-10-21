@@ -42,7 +42,7 @@ export type ActionEnv = {
   /** Select an asset without leaving the current view; in Node mode also its node. */
   focusAsset: (assetId: string) => void;
   /** Make the asset the hero source of the Generate draft (as "Use as source" did). */
-  useAsSource: (assetId: string) => void;
+  useAsSource: (assetId: string, variation?: boolean) => void;
   toggleDraftReference: (assetId: string, include: boolean) => void;
   showLibrary: () => void;
   importImages: () => void;
@@ -155,7 +155,7 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     applies: isAiImage,
     disabledReason: writable,
     run: (s, env) => {
-      env.useAsSource(assetOf(s)!.id);
+      env.useAsSource(assetOf(s)!.id, true);
       env.setModule("generate");
     },
   },
@@ -356,9 +356,9 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     icon: PencilLine,
     risk: "view",
     applies: (s) => s.kind === "draft",
-    run: (_s, env) => {
+    run: (s, env) => {
       env.setMode("studio");
-      env.setModule("generate");
+      env.setModule(s.kind === "draft" && s.purpose === "video" ? "video" : "generate");
     },
   },
   // ------------------------------------------------------------------ several nodes

@@ -34,14 +34,23 @@ export function useSelectionActions(selection: Selection): {
       s.selectAsset(assetId, { keepView: true });
       if (s.workspaceMode === "node") s.setCanvasSelection([`asset:${assetId}`]);
     },
-    useAsSource: (assetId) => {
+    useAsSource: (assetId, variation = false) => {
       const s = useStudio.getState();
       s.setGenerateDraft({
         source: "sketch",
-        purpose: "hero",
+        purpose: variation ? "variation" : "hero",
         referenceAssetIds: [assetId],
         params: null,
       });
+      if (variation && s.workspace) {
+        s.setShotIntent(
+          setShotPresets(
+            { projectType: s.workspace.project.projectType },
+            [],
+            s.workspace.draftDna as ProjectDNA,
+          ).shotIntent,
+        );
+      }
       s.notify("success", t("branches.sourceSet"));
     },
     toggleDraftReference: (assetId, include) => {

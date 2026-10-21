@@ -200,6 +200,8 @@ pub struct SceneObjectRequest {
     pub target_space_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub placement_zone_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_placement: Option<bool>,
     pub state: SceneObjectState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance_overrides: Option<Map<String, Value>>,

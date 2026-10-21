@@ -104,14 +104,14 @@ describe("conflict code table (SRS §12.4)", () => {
   });
 
   it("is versioned", () => {
-    expect(VALIDATOR_VERSION).toBe("cv-1.3.0");
-    expect(run(midBlock()).validatorVersion).toBe("cv-1.3.0");
+    expect(VALIDATOR_VERSION).toBe("cv-1.4.0");
+    expect(run(midBlock()).validatorVersion).toBe("cv-1.4.0");
   });
 });
 
 describe("validateShot — ALLOW", () => {
   it("allows a plain shot with no extra prompt", () => {
-    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.3.0" });
+    expect(run(midBlock())).toEqual({ verdict: "ALLOW", issues: [], validatorVersion: "cv-1.4.0" });
   });
 
   it("AC-03: allows an oblique corner camera on an attached townhouse (compiled as oblique street)", () => {

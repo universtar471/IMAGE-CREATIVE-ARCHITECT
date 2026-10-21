@@ -22,7 +22,13 @@ import { groupVisualId, presetVisualId } from "./presetVisuals";
  * per-shot ShotIntent. Exclusive presets (one time of day, one weather, one view…) replace
  * each other. Nothing here edits the project DNA.
  */
-export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
+export function PresetGrid({
+  disabled = false,
+  variation = false,
+}: {
+  disabled?: boolean;
+  variation?: boolean;
+}) {
   const ws = useStudio((s) => s.workspace!);
   const setShotIntent = useStudio((s) => s.setShotIntent);
   const readOnly = useStudio(selectReadOnly);
@@ -34,7 +40,9 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
   const dna = ws.draftDna as ProjectDNA;
   const shot = ws.shotIntent;
   const selected = shot?.presetIds ?? [];
-  const offered = presetsForShot(presetShotIsInterior(dna, projectType));
+  const offered = presetsForShot(presetShotIsInterior(dna, projectType)).filter(
+    (p) => !variation || p.group !== "render",
+  );
   const locked = disabled || readOnly;
 
   const apply = (ids: string[]) => {
@@ -74,12 +82,17 @@ export function PresetGrid({ disabled = false }: { disabled?: boolean }) {
           {t("presets.skipped", { list: presetLabels(skipped, locale).join(", ") })}
         </span>
       )}
-      <UserPresetsRow
-        selected={selected}
-        disabled={locked}
-        onApply={(ids) => apply(normalizePresetIds(ids))}
-      />
-      {PRESET_GROUPS.map((group) => {
+      {!variation && (
+        <UserPresetsRow
+          selected={selected}
+          disabled={locked}
+          onApply={(ids) => apply(normalizePresetIds(ids))}
+        />
+      )}
+      {(variation
+        ? ["camera" as const, ...PRESET_GROUPS.filter((g) => g !== "camera")]
+        : PRESET_GROUPS
+      ).map((group) => {
         const items = offered.filter((p) => p.group === group);
         if (!items.length) return null;
         return (

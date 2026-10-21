@@ -13,7 +13,7 @@ import type { GradeLookId, TimeOfDay } from "../schemas/future";
 import type { VisualIntentView } from "../camera/intent";
 import type { PresetGroup, PresetObject, PresetScope, ShotPreset, ShotWeather } from "./schemas";
 
-export const PRESET_CATALOG_VERSION = "ps-1.1.0";
+export const PRESET_CATALOG_VERSION = "ps-1.2.0";
 
 const GEOMETRY_KEEP =
   "Keep the building geometry, camera viewpoint, openings, floor count and proportions of the source image exactly.";

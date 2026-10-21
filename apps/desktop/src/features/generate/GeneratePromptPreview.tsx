@@ -14,18 +14,23 @@ export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly
   const projectId = useStudio((s) => s.workspace!.project.id);
   const revision = useStudio((s) => s.dataRevision);
   const shotIntent = useStudio((s) => s.workspace!.shotIntent);
+  const draft = useStudio((s) => s.generateDraft);
+  const sourceAssetId = draft.source === "sketch" ? draft.referenceAssetIds?.[0] : undefined;
+  const variation = draft.purpose === "variation";
   const flushDna = useStudio((s) => s.flushDna);
   const [result, setResult] = useState<{ key: string; bundle?: PromptBundle; error?: string }>();
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const refsKey = referenceIds.join(",");
-  const key = `${projectId}|${revision}|${refsKey}|${JSON.stringify(shotIntent ?? null)}`;
+  const key = `${projectId}|${revision}|${refsKey}|${JSON.stringify(shotIntent ?? null)}|${sourceAssetId}|${variation}`;
 
   useEffect(() => {
     let alive = true;
     const ids = refsKey ? refsKey.split(",") : [];
     void flushDna()
-      .then(() => compilePromptPreview(projectId, ids, undefined, shotIntent))
+      .then(() =>
+        compilePromptPreview(projectId, ids, undefined, shotIntent, { sourceAssetId, variation }),
+      )
       .then(
         (bundle) => alive && setResult({ key, bundle }),
         (e: unknown) => alive && setResult({ key, error: toBridgeError(e).message }),
@@ -33,7 +38,7 @@ export function GeneratePromptPreview({ referenceIds }: { referenceIds: readonly
     return () => {
       alive = false;
     };
-  }, [flushDna, projectId, refsKey, key, shotIntent]);
+  }, [flushDna, projectId, refsKey, key, shotIntent, sourceAssetId, variation]);
 
   // Older results stay visible (dimmed) while the new compile runs.
   const stale = result?.key !== key;

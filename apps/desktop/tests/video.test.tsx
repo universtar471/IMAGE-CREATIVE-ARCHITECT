@@ -192,6 +192,7 @@ describe("Video module (ADR-043)", () => {
   it("the free local preview needs no confirm", async () => {
     await openProject();
     render(<VideoPanel />);
+    expect(screen.getByRole("combobox", { name: "Model" })).toBeTruthy();
     fireEvent.change(screen.getByRole("combobox", { name: "Video provider" }), {
       target: { value: "local_video_preview" },
     });

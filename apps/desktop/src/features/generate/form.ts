@@ -68,9 +68,8 @@ export function resolveGenerateForm(
     : null;
   const ready = assets.filter((a) => a.status === "ready");
   const source = draft.source ?? "dna";
-  // Variations need an approved master (ADR-022), so a project without one starts on Hero:
-  // the first good hero image becomes the master.
-  const purpose = source === "sketch" ? "hero" : (draft.purpose ?? "hero");
+  // A selected image can be the source of either a first render or a variation.
+  const purpose = draft.purpose ?? "hero";
   const readySketches = ready
     .filter(isQuickSourceImage)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));

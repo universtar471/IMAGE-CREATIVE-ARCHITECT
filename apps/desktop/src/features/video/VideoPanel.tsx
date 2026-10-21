@@ -4,7 +4,18 @@
  * The prompt is compiled from the saved DNA with `compileVideoPrompt`; nothing runs without
  * the user's click and the confirm.
  */
-import { Clapperboard, Play, Settings2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Clapperboard,
+  CloudMoon,
+  MoveHorizontal,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Settings2,
+} from "lucide-react";
 import { useState } from "react";
 import {
   MOTION_PRESETS,
@@ -33,6 +44,16 @@ import {
 
 /** Select value of "the provider follows the first frame" (aspect ratio null). */
 const FOLLOW_IMAGE = "follow";
+const MOTION_ICONS = {
+  dolly_in: ArrowUp,
+  dolly_out: ArrowDown,
+  orbit_left: RotateCcw,
+  orbit_right: RotateCw,
+  drone_rise: ArrowUp,
+  parallax_pan: MoveHorizontal,
+  cinemagraph: Pause,
+  day_to_night: CloudMoon,
+};
 
 export function VideoPanel() {
   const providers = useStudio((s) => s.providers);
@@ -113,61 +134,6 @@ export function VideoPanel() {
     <div className="video-panel" data-testid="video-panel">
       {spend.dialog}
       <SectionPanel
-        title={t("videoModule.source")}
-        aside={
-          <HelpPopover topic={t("videoModule.source")}>{t("videoModule.sourceHint")}</HelpPopover>
-        }
-      >
-        {sources.length === 0 ? (
-          <p className="field-hint">{t("videoModule.noSource")}</p>
-        ) : (
-          <SelectField
-            label={t("videoModule.source")}
-            allowEmpty={false}
-            disabled={readOnly}
-            value={source?.id}
-            options={sources.map((asset) => ({
-              value: asset.id,
-              label: asset.originalName ?? asset.id,
-            }))}
-            onChange={(id) => id && selectAsset(id, { keepView: true })}
-          />
-        )}
-        {source && (
-          <img
-            className="video-source-thumb"
-            src={fileUrl(source.thumbnailPath ?? source.absolutePath) ?? undefined}
-            alt={source.originalName ?? source.id}
-          />
-        )}
-      </SectionPanel>
-
-      <SectionPanel title={t("videoModule.motion")}>
-        <div className="motion-grid" role="group" aria-label={t("videoModule.motion")}>
-          {MOTION_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className="motion-chip"
-              aria-pressed={motion === preset.id}
-              disabled={readOnly}
-              title={preset.motionEn}
-              onClick={() => setDraft({ motion: preset.id })}
-            >
-              {t(`videoModule.motions.${preset.id}`)}
-            </button>
-          ))}
-        </div>
-        <TextAreaField
-          label={t("videoModule.note")}
-          value={note}
-          placeholder={t("videoModule.notePlaceholder")}
-          disabled={readOnly}
-          onChange={(value) => setDraft({ note: value.slice(0, 400) })}
-        />
-      </SectionPanel>
-
-      <SectionPanel
         title={t("videoModule.provider")}
         aside={
           <button
@@ -204,7 +170,7 @@ export function VideoPanel() {
             })
           }
         />
-        {form.provider && form.provider.models.length > 1 && (
+        {form.provider && (
           <SelectField
             label={t("videoModule.model")}
             allowEmpty={false}
@@ -251,6 +217,65 @@ export function VideoPanel() {
         </FieldGroup>
       </SectionPanel>
 
+      <SectionPanel
+        title={t("videoModule.source")}
+        aside={
+          <HelpPopover topic={t("videoModule.source")}>{t("videoModule.sourceHint")}</HelpPopover>
+        }
+      >
+        {sources.length === 0 ? (
+          <p className="field-hint">{t("videoModule.noSource")}</p>
+        ) : (
+          <SelectField
+            label={t("videoModule.source")}
+            allowEmpty={false}
+            disabled={readOnly}
+            value={source?.id}
+            options={sources.map((asset) => ({
+              value: asset.id,
+              label: asset.originalName ?? asset.id,
+            }))}
+            onChange={(id) => id && selectAsset(id, { keepView: true })}
+          />
+        )}
+        {source && (
+          <img
+            className="video-source-thumb"
+            src={fileUrl(source.thumbnailPath ?? source.absolutePath) ?? undefined}
+            alt={source.originalName ?? source.id}
+          />
+        )}
+      </SectionPanel>
+
+      <SectionPanel title={t("videoModule.motion")}>
+        <div className="motion-grid" role="group" aria-label={t("videoModule.motion")}>
+          {MOTION_PRESETS.map((preset) => {
+            const Icon = MOTION_ICONS[preset.id];
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className="motion-chip premium-preset-card"
+                aria-pressed={motion === preset.id}
+                disabled={readOnly}
+                title={preset.motionEn}
+                onClick={() => setDraft({ motion: preset.id })}
+              >
+                <Icon size={26} aria-hidden="true" />
+                <span>{t(`videoModule.motions.${preset.id}`)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <TextAreaField
+          label={t("videoModule.note")}
+          value={note}
+          placeholder={t("videoModule.notePlaceholder")}
+          disabled={readOnly}
+          onChange={(value) => setDraft({ note: value.slice(0, 400) })}
+        />
+      </SectionPanel>
+
       {prompt && (
         <SectionPanel title={t("videoModule.promptPreview")} defaultOpen={false}>
           <p className="prompt-text" data-testid="video-prompt">
@@ -271,7 +296,7 @@ export function VideoPanel() {
           {submitting ? t("videoModule.creating") : t("videoModule.create")}
         </button>
         {reason && <span className="field-hint">{t(`videoModule.${reason}`)}</span>}
-        <span className="field-hint">{t("videoModule.cancelWarning")}</span>
+        <HelpPopover topic={t("videoModule.create")}>{t("videoModule.cancelWarning")}</HelpPopover>
         {error && (
           <div className="callout callout-error" role="alert">
             {error.message}

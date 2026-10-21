@@ -43,6 +43,7 @@ export type DraftNode = {
   sourceAssetId: string;
   presetIds: string[];
   depth: number;
+  purpose?: "video";
 };
 
 export type BranchNode = ImageNode | GenerationNode | DraftNode;
@@ -78,7 +79,7 @@ const byTimeThenId = <T extends { createdAt: string; id: string }>(a: T, b: T) =
 export function buildBranchGraph(input: {
   assets: readonly AssetDTO[];
   generations: readonly GenerationDTO[];
-  draft?: { sourceAssetId: string; presetIds: readonly string[] } | null;
+  draft?: { sourceAssetId: string; presetIds: readonly string[]; purpose?: "video" } | null;
 }): BranchGraph {
   const assets = new Map(input.assets.map((a) => [a.id, a]));
   const generations = [...input.generations].sort(byTimeThenId);
@@ -159,6 +160,7 @@ export function buildBranchGraph(input: {
       kind: "draft",
       sourceAssetId: input.draft.sourceAssetId,
       presetIds: [...input.draft.presetIds],
+      ...(input.draft.purpose ? { purpose: input.draft.purpose } : {}),
       depth: source.depth + 1,
     });
     edges.push({

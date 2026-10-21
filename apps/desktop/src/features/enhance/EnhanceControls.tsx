@@ -1,4 +1,16 @@
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Wand2,
+  Box,
+  Palette,
+  Trees,
+  Camera,
+  Expand,
+} from "lucide-react";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { useEffect, useState } from "react";
 import type { EnhanceCheck } from "@arch/domain";
 import { FieldGroup } from "../../components/panels/fields";
@@ -44,19 +56,25 @@ export function PreservationModeSelector({
   return (
     <>
       <div className="segmented enhance-segmented" role="group" aria-label={t("enhance.mode")}>
-        {PRESERVATION_MODES.map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            aria-pressed={value === mode}
-            data-testid={`enhance-mode-${mode}`}
-            onClick={() => onChange(mode)}
-          >
-            {modeLabel(t, mode)}
-          </button>
-        ))}
+        {PRESERVATION_MODES.map((mode) => {
+          const Icon = mode === "strict" ? ShieldCheck : mode === "balanced" ? Sparkles : Wand2;
+          return (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={value === mode}
+              title={modeHint(t, mode)}
+              aria-label={modeLabel(t, mode)}
+              data-testid={`enhance-mode-${mode}`}
+              onClick={() => onChange(mode)}
+            >
+              <Icon size={23} aria-hidden="true" />
+              {t(`enhance.${mode}Short`)}
+            </button>
+          );
+        })}
       </div>
-      <p className="field-hint">{modeHint(t, value)}</p>
+      <HelpPopover topic={t("enhance.mode")}>{modeHint(t, value)}</HelpPopover>
     </>
   );
 }
@@ -77,30 +95,34 @@ export function LockToggles({
       hint={strict ? t("enhance.strictLocked") : t("enhance.locksHint")}
     >
       <div className="field-row">
-        {LOCK_KEYS.map((lock) => (
-          <label key={lock} className="toggle-row">
-            <input
-              type="checkbox"
-              disabled={strict}
-              data-testid={`enhance-lock-${lock}`}
-              checked={strict || (params.locks?.[lock] ?? true)}
-              onChange={(event) =>
-                onChange({
-                  ...params,
-                  locks: {
-                    geometry: true,
-                    material: true,
-                    context: true,
-                    camera: true,
-                    ...params.locks,
-                    [lock]: event.target.checked,
-                  },
-                })
-              }
-            />{" "}
-            {lockLabel(t, lock)}
-          </label>
-        ))}
+        {LOCK_KEYS.map((lock) => {
+          const Icon = { geometry: Box, material: Palette, context: Trees, camera: Camera }[lock];
+          return (
+            <label key={lock} className="toggle-row">
+              <input
+                type="checkbox"
+                disabled={strict}
+                data-testid={`enhance-lock-${lock}`}
+                checked={strict || (params.locks?.[lock] ?? true)}
+                onChange={(event) =>
+                  onChange({
+                    ...params,
+                    locks: {
+                      geometry: true,
+                      material: true,
+                      context: true,
+                      camera: true,
+                      ...params.locks,
+                      [lock]: event.target.checked,
+                    },
+                  })
+                }
+              />{" "}
+              <Icon size={16} aria-hidden="true" />
+              {lockLabel(t, lock)}
+            </label>
+          );
+        })}
       </div>
     </FieldGroup>
   );
@@ -159,6 +181,7 @@ export function SizeTargetSelector({
               )
             }
           >
+            <Expand size={18} aria-hidden="true" />
             {sizeLabel(t, item)}
           </button>
         ))}

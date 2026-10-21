@@ -129,6 +129,9 @@ export function validateObjectPlacement(
       blocked(r, "type_not_allowed");
       continue;
     }
+    // Preset objects use the image and prompt to find a suitable existing surface.
+    // Explicit placement requests still receive the measured-zone checks below.
+    if (r.request.autoPlacement && !r.request.placementZoneId) continue;
     if (!r.zone || !SCENE_OBJECT_TABLE[r.target.kind][r.type]!.includes(r.zone)) {
       noZone(r, "BLOCK", "zone_not_in_space");
       continue;

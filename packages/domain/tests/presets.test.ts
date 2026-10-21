@@ -48,6 +48,15 @@ const compile = (dna: ProjectDNA, intent?: ShotIntent) =>
   });
 
 describe("preset catalog", () => {
+  it("automatically places preset people and vehicles without requiring site facts", () => {
+    const dna = baseDna();
+    const intent = withPresets(["people.few_adults", "cars.city_car"], dna);
+    const result = validateShot({ dna, shotIntent: intent });
+    expect(result.issues.filter((i) => i.code === "OBJECT_NO_PLACEMENT_ZONE")).toEqual([]);
+    const prompt = compile(dna, intent);
+    expect(prompt.positivePrompt).toContain("Choose a physically plausible position");
+    expect(prompt.positivePrompt).toContain("existing street");
+  });
   it("has unique ids, known groups and bilingual labels", () => {
     const ids = SHOT_PRESETS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);

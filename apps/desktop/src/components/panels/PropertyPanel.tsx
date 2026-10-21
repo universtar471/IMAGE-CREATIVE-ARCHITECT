@@ -34,6 +34,11 @@ import { effectivePanelWidth, useWorkspaceLayout } from "../../features/workspac
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
   const active = useStudio((s) => s.activeModule);
+  const variationSource = useStudio((s) =>
+    s.activeModule === "generate" && s.generateDraft.purpose === "variation"
+      ? s.generateDraft.referenceAssetIds?.[0]
+      : undefined,
+  );
   const readOnly = useStudio(selectReadOnly);
   const mod = moduleById(active);
   const t = useT();
@@ -87,7 +92,7 @@ export function PropertyPanel() {
 
   useEffect(() => {
     if (panelBody.current) panelBody.current.scrollTop = 0;
-  }, [active]);
+  }, [active, variationSource]);
 
   return (
     <aside

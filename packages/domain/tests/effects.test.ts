@@ -400,7 +400,7 @@ describe("effect rules in the single validator", () => {
 describe("EFFECTS compiler section", () => {
   it("keeps the versions", () => {
     expect(COMPILER_VERSION).toBe("pc-1.10.0");
-    expect(VALIDATOR_VERSION).toBe("cv-1.3.0");
+    expect(VALIDATOR_VERSION).toBe("cv-1.4.0");
   });
 
   it("leaves the prompt byte-identical without a selected effect", () => {

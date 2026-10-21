@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createProject } from "../src/app/services";
 import { EMPTY_GENERATE_DRAFT, useStudio } from "../src/app/store";
 import { GeneratePanel } from "../src/features/generate/GeneratePanel";
@@ -73,6 +73,32 @@ async function openPanel(projectType: "villa" | "interior" = "villa") {
 const shot = () => useStudio.getState().workspace?.shotIntent;
 
 describe("Generate panel modes (ADR-039)", () => {
+  it("keeps a variation source across model changes and shows camera choices instead of render setup", async () => {
+    await openPanel();
+    const projectId = useStudio.getState().workspace!.project.id;
+    const original = asset(projectId, "AST_VARIANT", {
+      source: "ai_generated",
+      role: "regular_image",
+    });
+    await act(async () => {
+      await useStudio.getState().adoptAssets(projectId, [original]);
+      useStudio.getState().setGenerateDraft({
+        source: "sketch",
+        purpose: "variation",
+        referenceAssetIds: [original.id],
+      });
+    });
+    expect(screen.getByTestId("variation-source")).toBeTruthy();
+    expect(document.querySelector('[data-preset="render.sketch_to_photo"]')).toBeNull();
+    expect(document.querySelector('[data-preset="camera.detail"]')).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Provider" }), {
+      target: { value: "gemini" },
+    });
+    const model = screen.getByRole("combobox", { name: "Model" }) as HTMLSelectElement;
+    fireEvent.change(model, { target: { value: model.options[model.options.length - 1]!.value } });
+    expect(useStudio.getState().generateDraft.referenceAssetIds).toEqual([original.id]);
+    expect(screen.getByTestId("variation-source")).toBeTruthy();
+  });
   it("opens in Simple mode with provider selection, source and presets", async () => {
     await openPanel();
     expect(screen.getByTestId("generate-mode-simple").getAttribute("aria-pressed")).toBe("true");

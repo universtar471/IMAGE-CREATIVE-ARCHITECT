@@ -79,6 +79,8 @@ export const SceneObjectRequestSchema = z.object({
   targetSpaceId: z.string().trim().min(1),
   /** Absent: the target's default zone for the object type. */
   placementZoneId: PlacementZoneIdSchema.optional(),
+  /** Let the renderer locate a suitable existing surface from the image and prompt. */
+  autoPlacement: z.boolean().optional(),
   state: SceneObjectStateSchema,
   appearanceOverrides: SceneObjectAppearanceSchema.optional(),
   visibility: SceneObjectVisibilitySchema.optional(),
