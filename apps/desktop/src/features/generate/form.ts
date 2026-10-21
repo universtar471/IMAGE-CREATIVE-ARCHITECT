@@ -91,7 +91,12 @@ export function resolveGenerateForm(
       : [];
   const sketchChosen = chosen.filter((id) => {
     const asset = ready.find((candidate) => candidate.id === id);
-    return asset?.role !== "master_architecture" && asset?.role !== "structure_sketch";
+    // The source is pinned separately, including ordinary imported/AI images.
+    return (
+      id !== sketch?.id &&
+      asset?.role !== "master_architecture" &&
+      asset?.role !== "structure_sketch"
+    );
   });
   const referenceIds = sketch
     ? [sketch.id, ...sketchChosen.slice(0, Math.max(0, (model?.maxReferenceImages ?? 0) - 1))]
