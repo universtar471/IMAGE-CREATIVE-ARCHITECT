@@ -250,6 +250,7 @@ export type Requests = {
     role: AssetRole;
     allowDuplicate?: boolean;
   };
+  asset_download: { projectId: string; assetIds: string[] };
   asset_list: { projectId: string };
   asset_update_role: { projectId: string; assetId: string; role: AssetRole };
   asset_set_master: { projectId: string; assetId: string | null };
@@ -338,6 +339,7 @@ export const responses = {
   dna_get: ProjectDNAResponseSchema,
   dna_update: ProjectDTOSchema,
   asset_import: AssetDTOSchema,
+  asset_download: z.array(z.string()),
   asset_list: z.array(AssetDTOSchema),
   asset_update_role: z.array(AssetDTOSchema),
   asset_set_master: z.array(AssetDTOSchema),

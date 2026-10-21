@@ -185,7 +185,7 @@ export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
  * Modules whose centre is their own work surface (publishing layout, diagram, region drawing):
  * Node mode does not replace it, and the Studio/Node switch says why (ADR-044).
  */
-export const OWN_CENTER_MODULES: readonly ModuleId[] = ["export", "diagram", "regions"];
+export const OWN_CENTER_MODULES: readonly ModuleId[] = ["regions"];
 export const hasOwnCenter = (id: ModuleId) => OWN_CENTER_MODULES.includes(id);
 
 export const moduleById = (id: ModuleId) => WORKSPACE_MODULES.find((m) => m.id === id)!;

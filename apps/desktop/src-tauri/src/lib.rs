@@ -78,6 +78,7 @@ pub fn run() {
             commands::workflow_reopen_step,
             commands::asset_import,
             commands::asset_list,
+            commands::asset_download,
             commands::asset_update_role,
             commands::asset_set_master,
             commands::asset_remove,

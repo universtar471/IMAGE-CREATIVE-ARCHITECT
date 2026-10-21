@@ -17,7 +17,8 @@ export function nodeSelectionModule(
   generations: readonly GenerationDTO[],
   current: ModuleId,
 ): ModuleId {
-  if (ids.length !== 1 || hasOwnCenter(current)) return current;
+  if (ids.length !== 1 || hasOwnCenter(current) || current === "diagram" || current === "export")
+    return current;
   const id = ids[0]!;
   if (id === "draft") return current === "video" ? "video" : "generate";
   if (id.startsWith("gen:")) {

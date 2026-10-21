@@ -218,6 +218,7 @@ export function BatchGradeDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog
       title={t("moodGrade.batchDialog.title")}
+      className="batch-grade-dialog"
       onClose={closeSafely}
       footer={
         <>

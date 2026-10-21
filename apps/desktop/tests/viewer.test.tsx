@@ -304,7 +304,7 @@ describe("Studio / Node switch (ADR-044)", () => {
 
   it("keeps Studio for modules with their own work surface", async () => {
     await openProject();
-    useStudio.setState({ activeModule: "export" });
+    useStudio.setState({ activeModule: "regions" });
     render(<ModeSwitch />);
     expect((screen.getByTestId("mode-node") as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByTestId("mode-studio").getAttribute("aria-pressed")).toBe("true");

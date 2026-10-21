@@ -1077,6 +1077,8 @@ export const en = {
   },
 
   assets: {
+    download: "Download {count} files",
+    downloaded: "Saved {count} files",
     noneSelected: "No asset selected",
     noneSelectedHint: "Select an image in the Assets tray to see its metadata and role.",
     masterUpdated: "Master architecture image updated.",
@@ -1499,6 +1501,7 @@ export const en = {
   },
 
   regions: {
+    drawHint: "Choose a tool, then draw directly on the image.",
     howToUse:
       "Draw a region, label it or link a scene object, then choose an edit and run it. Everything outside the mask stays untouched; AI edits use credits.",
     needsMaster: "Approve a Master image before editing a region.",

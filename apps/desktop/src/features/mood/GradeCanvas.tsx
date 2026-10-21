@@ -150,7 +150,10 @@ export function GradeCanvas({ asset, grade }: { asset: AssetDTO | null; grade: C
         // overload to restore exactly the left section of the original image.
         context.putImageData(original, 0, 0, 0, 0, cut, height);
         context.fillStyle = "rgba(255,255,255,.8)";
-        context.fillRect(Math.max(0, cut - 1), 0, 2, height);
+        // Keep the divider visible even when a high-resolution portrait is fitted small.
+        const scale = Math.min(canvas.clientWidth / width, canvas.clientHeight / height) || 1;
+        const divider = Math.max(2, Math.ceil(2 / scale));
+        context.fillRect(Math.max(0, cut - divider / 2), 0, divider, height);
       };
       if (v2) {
         // Until the first backend render for this asset arrives, show the original.
@@ -196,9 +199,18 @@ export function GradeCanvas({ asset, grade }: { asset: AssetDTO | null; grade: C
       className="grade-preview"
       data-testid="grade-preview"
       data-engine={v2 ? "v2" : "v1"}
+      data-mode={mode}
       aria-busy={v2Pending}
     >
-      <canvas ref={canvasRef} aria-label={t("moodGrade.grade")} />
+      <div className="grade-preview-image">
+        <canvas ref={canvasRef} aria-label={t("moodGrade.grade")} />
+        {mode === "split" && (
+          <div className="grade-split-labels">
+            <span>{t("moodGrade.before")}</span>
+            <span>{t("moodGrade.after")}</span>
+          </div>
+        )}
+      </div>
       {previewError && (
         <div className="state" data-testid="grade-preview-error">
           {t("moodGrade.previewError")}

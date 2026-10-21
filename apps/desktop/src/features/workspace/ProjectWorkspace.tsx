@@ -262,10 +262,10 @@ function CenterArea() {
             phase={mod.availableIn}
             description={t(`modules.${mod.id}.description`)}
           />
-        ) : active === "export" ? (
-          <PublishingStudio />
         ) : nodeMode ? (
           <BranchCanvas />
+        ) : active === "export" ? (
+          <PublishingStudio />
         ) : view === "prompt" ? (
           <PromptPreview />
         ) : view === "director" ? (

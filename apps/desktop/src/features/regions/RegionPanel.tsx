@@ -1,5 +1,6 @@
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { ImageModelPicker } from "../../components/panels/ImageModelPicker";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Paintbrush, WandSparkles } from "lucide-react";
 import { isVideoAsset } from "@arch/domain";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AssetDTO, ConflictCode, GenerationDTO, ProjectDNA } from "@arch/domain";
@@ -98,6 +99,18 @@ export function RegionPanel() {
       tokenRef.current++;
     };
   }, [load]);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ projectId: string; assetId: string; region?: RegionDTO }>
+      ).detail;
+      if (detail.projectId !== ws.project.id || detail.assetId !== selectedId) return;
+      void load();
+      if (detail.region) setSelectedRegions((ids) => new Set(ids).add(detail.region!.id));
+    };
+    window.addEventListener("studio-regions-changed", changed);
+    return () => window.removeEventListener("studio-regions-changed", changed);
+  }, [load, selectedId, ws.project.id]);
   useEffect(() => {
     if (!providers.length) void loadProviders();
   }, [loadProviders, providers.length]);
@@ -215,12 +228,22 @@ export function RegionPanel() {
     setRegions((items) =>
       items.map((item) => (item.id === region.id ? (saved as RegionDTO) : item)),
     );
+    window.dispatchEvent(
+      new CustomEvent("studio-regions-changed", {
+        detail: { projectId: ws.project.id, assetId: selectedId },
+      }),
+    );
   };
   const deleteRegion = async (region: RegionDTO) => {
     await call("region_delete", { projectId: ws.project.id, regionId: region.id }).catch(
       () => undefined,
     );
     setRegions((items) => items.filter((item) => item.id !== region.id));
+    window.dispatchEvent(
+      new CustomEvent("studio-regions-changed", {
+        detail: { projectId: ws.project.id, assetId: selectedId },
+      }),
+    );
     setSelectedRegions((ids) => {
       const next = new Set(ids);
       next.delete(region.id);
@@ -264,9 +287,10 @@ export function RegionPanel() {
   return (
     <div className="region-panel" data-testid="region-panel">
       {spend.dialog}
-      <SectionPanel title={t("regions.howToUse")} defaultOpen={false}>
-        <p className="field-hint">{t("regions.howToUse")}</p>
-      </SectionPanel>
+      <div className="region-panel-help">
+        <span>{t("regions.edit")}</span>
+        <HelpPopover topic={t("regions.edit")}>{t("regions.howToUse")}</HelpPopover>
+      </div>
       <ImageModelPicker
         providers={imageProviders}
         provider={provider ? { ...provider, models } : null}
@@ -280,7 +304,9 @@ export function RegionPanel() {
       />
       {!selected && <p className="field-hint">{t("regions.noSource")}</p>}
       <SectionPanel title={t("regions.regions")}>
-        {!regions.length && <p className="field-hint">{t("regions.noSource")}</p>}
+        {!regions.length && (
+          <p className="field-hint">{t(selected ? "regions.drawHint" : "regions.noSource")}</p>
+        )}
         {regions.map((region) => (
           <div className="region-list-row" key={region.id}>
             <input
@@ -297,6 +323,7 @@ export function RegionPanel() {
               aria-label={region.label}
             />
             <input
+              className="input"
               value={region.label}
               aria-label={t("regions.label")}
               disabled={readOnly || !selected}
@@ -307,6 +334,7 @@ export function RegionPanel() {
               onBlur={() => void saveRegion(region, { label: region.label })}
             />
             <select
+              className="select"
               value={region.kind}
               aria-label={t("regions.kind")}
               disabled={readOnly || !selected}
@@ -319,6 +347,7 @@ export function RegionPanel() {
               <option value="material">{t("regions.material")}</option>
             </select>
             <select
+              className="select"
               value={region.objectId ?? ""}
               aria-label={t("regions.linkedObject")}
               disabled={readOnly || !selected}
@@ -352,12 +381,14 @@ export function RegionPanel() {
         {scene.objects.map((object) => (
           <div className="scene-object-row" key={object.id}>
             <input
+              className="input"
               value={object.name}
               aria-label={t("regions.objectName")}
               disabled={readOnly}
               onChange={(event) => updateObject(object.id, { name: event.target.value })}
             />
             <select
+              className="select"
               value={object.category}
               aria-label={t("regions.category")}
               disabled={readOnly}
@@ -372,6 +403,7 @@ export function RegionPanel() {
               ))}
             </select>
             <input
+              className="input"
               value={object.material ?? ""}
               aria-label={t("regions.objectMaterial")}
               disabled={readOnly}
@@ -405,6 +437,7 @@ export function RegionPanel() {
               {object.relations.map((relation, index) => (
                 <div className="scene-relation" key={`${object.id}-${index}`}>
                   <select
+                    className="select"
                     aria-label={t("regions.relation")}
                     value={relation.type}
                     disabled={readOnly}
@@ -421,6 +454,7 @@ export function RegionPanel() {
                     ))}
                   </select>
                   <select
+                    className="select"
                     aria-label={t("regions.relationTarget")}
                     value={relation.targetId}
                     disabled={readOnly}
@@ -461,19 +495,20 @@ export function RegionPanel() {
       <SectionPanel title={t("regions.edit")}>
         <div className="segmented" role="group" aria-label={t("regions.mode")}>
           <button className={mode === "edit" ? "is-active" : ""} onClick={() => setMode("edit")}>
-            {t("regions.freeEdit")}
+            <Pencil size={13} /> {t("regions.freeEdit")}
           </button>
           <button
             className={mode === "material_replace" ? "is-active" : ""}
             onClick={() => setMode("material_replace")}
           >
-            {t("regions.materialReplace")}
+            <Paintbrush size={13} /> {t("regions.materialReplace")}
           </button>
         </div>
         {mode === "edit" ? (
           <label className="field">
             <span>{t("regions.instruction")}</span>
             <textarea
+              className="textarea"
               id="region-instruction"
               value={instruction}
               onChange={(event) => {
@@ -487,6 +522,7 @@ export function RegionPanel() {
           <label className="field">
             <span>{t("regions.materialField")}</span>
             <input
+              className="input"
               id="region-material"
               value={material}
               onChange={(event) => {
@@ -502,7 +538,10 @@ export function RegionPanel() {
             {supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask")}
           </span>
         )}
-        <p className="field-hint">{t("regions.cost")}</p>
+        <HelpPopover topic={t("regions.mode")}>
+          {t("regions.cost")}{" "}
+          {model && (supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask"))}
+        </HelpPopover>
         <details>
           <summary>{t("regions.promptPreview")}</summary>
           <pre className="prompt-preview">
@@ -521,7 +560,7 @@ export function RegionPanel() {
           disabled={busy || readOnly || !selected || !selectedRegions.size || !provider || !model}
           onClick={() => void submit()}
         >
-          {t("regions.run")}
+          <WandSparkles size={14} /> {t("regions.run")}
         </button>
       </SectionPanel>
       <RegionResult
