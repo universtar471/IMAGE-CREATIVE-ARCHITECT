@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::domain::{AssetRole, AssetSource, GenerationPurpose, GenerationStatus, JobStatus};
-use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle, ShotVerdict};
+use crate::dto::{GenerationDto, GenerationErrorDto, PromptBundle};
 use crate::error::{AppError, AppResult, ErrorCode};
 use crate::imaging::{self, Inspection};
 use crate::providers::{
@@ -163,18 +163,6 @@ pub fn parse_purpose(s: &str) -> AppResult<GenerationPurpose> {
 
 // ------------------------------------------------------------------ validation
 
-/// ADR-034: the desktop conflict gate records its verdict in the snapshot. A BLOCK verdict
-/// is never queued; a snapshot without the field (older clients, tests) is accepted.
-fn ensure_not_blocked(prompt: &PromptBundle) -> AppResult<()> {
-    match &prompt.validation {
-        Some(v) if v.verdict == ShotVerdict::Block => {
-            Err(AppError::validation("The conflict check blocked this shot; fix the selection before generating.")
-                .with_details(json!({ "issueCodes": v.issue_codes })))
-        }
-        _ => Ok(()),
-    }
-}
-
 /// Every check of API_CONTRACTS §9/§10, before any row is written. Reads no image bytes and
 /// does not keep the key: both are fetched again when the job runs.
 pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Validated> {
@@ -184,7 +172,6 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
     if purpose == GenerationPurpose::Repair {
         return Err(AppError::validation("Repair generations can no longer be submitted."));
     }
-    ensure_not_blocked(&req.prompt)?;
     let provider = find_provider(core, &req.provider_id)?;
     let info = provider.info();
     let model = info
@@ -1249,6 +1236,7 @@ mod tests {
 
     use super::*;
     use crate::domain::ProjectType;
+    use crate::dto::ShotVerdict;
     use crate::dto::{AssetDto, EffectIntensity, SceneObjectState};
     use crate::providers::local_preview;
     use crate::providers::local_upscale;
@@ -1441,10 +1429,9 @@ mod tests {
         assert_eq!(count(&core, "jobs"), 0);
     }
 
-    /// ADR-034 P0-B: a snapshot whose conflict verdict is BLOCK is refused before any row is
-    /// written; ALLOW (with accepted exceptions) and old snapshots without the field pass.
+    /// Creative findings are advisory, including legacy BLOCK snapshots.
     #[test]
-    fn block_verdict_snapshot_is_refused_with_validation_error() {
+    fn creative_findings_are_preserved_without_blocking_submission() {
         let (tmp, core, _) = core_with_double();
         let p = test_create_villa(&core, "Conflict gate");
         let master = import(&core, tmp.path(), &p.id, "m.png", "master_architecture", [9, 9, 9]);
@@ -1457,12 +1444,10 @@ mod tests {
 
         let mut blocked = local(&p.id, &[&master.id], 1);
         blocked.prompt.validation = Some(snapshot(ShotVerdict::Block));
-        let err = validate(&core, blocked).unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert!(err.message.contains("conflict check blocked"), "{}", err.message);
-        assert_eq!(err.details.unwrap()["issueCodes"], json!(["ADJACENT_BUILDING_CONFLICT"]));
-        assert_eq!(count(&core, "jobs"), 0);
-        assert_eq!(count(&core, "generations"), 0);
+        let finding = blocked.prompt.validation.clone();
+        let generated = submit(&core, blocked).unwrap();
+        assert_eq!(generated.status, GenerationStatus::Completed);
+        assert_eq!(generated.prompt.validation, finding, "do not auto-approve or erase creative findings");
 
         let mut allowed = local(&p.id, &[&master.id], 1);
         let mut accepted = snapshot(ShotVerdict::Allow);

@@ -57,9 +57,7 @@ import { isActiveGeneration } from "../features/generate/labels";
 import { withExtraPrompt } from "../features/generate/extraPrompt";
 import { compileFromBundle } from "./services";
 import {
-  canSubmit,
   checkShot,
-  conflictError,
   conflictOf,
   gateBatch,
   validationSnapshot,
@@ -437,8 +435,8 @@ export const useStudio = create<State>((set, get) => {
   /**
    * ADR-034: a retry resends a stored snapshot, so it passes the gate again against the
    * CURRENT DNA with the shot intent it was compiled with. WARN codes accepted for the
-   * original submit stay accepted; any other WARN, and every BLOCK, refuses the retry and is
-   * queued in `retryConflicts`. Null when the job is unknown here (the backend then reports it).
+   * original submit stay recorded. New findings are advisory and included in the retry snapshot.
+   * Null when the job is unknown here (the backend then reports it).
    */
   const revalidateRetry = async (jobId: string, accepted: readonly ConflictCode[]) => {
     const job =
@@ -457,15 +455,6 @@ export const useStudio = create<State>((set, get) => {
       shotIntent: generation.prompt.shotIntent,
       approvedExceptions: [...before, ...accepted],
     });
-    if (!canSubmit(validation)) {
-      set({
-        retryConflicts: [
-          ...get().retryConflicts.filter((c) => c.jobId !== jobId),
-          { jobId, label: job.label, validation },
-        ],
-      });
-      throw conflictError(validation);
-    }
     return validation;
   };
 
@@ -914,7 +903,6 @@ export const useStudio = create<State>((set, get) => {
             approvedExceptions,
             shotIntent: shotIntent ?? prompt.shotIntent,
           });
-          if (!canSubmit(validation)) throw conflictError(validation);
           request = { ...submitInput, cameraId, prompt: withValidation(prompt, validation) };
         } else {
           // flushDna saves the open project, which is `projectId` at this point (checked above).
@@ -942,7 +930,6 @@ export const useStudio = create<State>((set, get) => {
             approvedExceptions,
             shotIntent: selectedShotIntent,
           });
-          if (!canSubmit(validation)) throw conflictError(validation);
           const compiled = withExtraPrompt(
             withValidation(
               compileFromBundle(bundle, {

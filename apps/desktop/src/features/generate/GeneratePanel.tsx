@@ -50,7 +50,7 @@ import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { HelpPopover } from "../../components/common/HelpPopover";
 import { BlockedExplainer } from "../workflow/BlockedExplainer";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
-import { canSubmit, checkShot } from "../validation/gate";
+import { checkShot } from "../validation/gate";
 import { VisualIntentSelector } from "../camera/VisualIntentSelector";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
@@ -100,7 +100,7 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
-  // Conflict gate (ADR-034): the live view checks the draft; submit re-checks saved data.
+  // Advisory creative check: the live view checks the draft; submit re-checks saved data.
   const conflicts = checkShot({
     dna: ws.draftDna,
     projectType: project.projectType,
@@ -109,10 +109,7 @@ export function GeneratePanel() {
     approvedExceptions: draft.approvedExceptions,
     shotIntent: ws.shotIntent,
   });
-  const conflictReason = canSubmit(conflicts)
-    ? null
-    : t(conflicts.verdict === "BLOCK" ? "conflictUi.refusedBlock" : "conflictUi.refusedWarn");
-  const disabledReason = reason ?? conflictReason;
+  const disabledReason = reason;
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.

@@ -252,22 +252,19 @@ describe("SceneObjectsPanel (SRS §7.1 flow)", () => {
 });
 
 describe("conflict gate with scene objects", () => {
-  it("AC-06: blocks a classic car in a bedroom before any bridge submit", async () => {
+  it("submits an unusual object placement with an advisory finding", async () => {
     const { project, masterId } = await openVilla();
     useStudio.getState().setShotIntent({
       projectType: "villa",
       sceneObjects: [request({ targetSpaceId: BEDROOM, placementZoneId: undefined })],
     });
     const g = await useStudio.getState().submitGeneration(hero(project.id, masterId));
-    expect(g).toBeUndefined();
-    const run = useStudio.getState().run;
-    expect(run?.status === "error" && run.validation?.verdict).toBe("BLOCK");
-    expect(run?.status === "error" && run.validation?.issues[0]).toMatchObject({
-      code: "OBJECT_NOT_ALLOWED_IN_SPACE",
-      severity: "BLOCK",
-      exceptionAllowed: false,
+    expect(g?.status).toBe("queued");
+    expect(g?.prompt.validation).toMatchObject({
+      verdict: "BLOCK",
+      issueCodes: expect.arrayContaining(["OBJECT_NOT_ALLOWED_IN_SPACE"]),
     });
-    expect(sent).not.toContain("generation_submit");
+    expect(sent).toContain("generation_submit");
   });
 
   it("AC-07: submits a 300 SL in the verified garage and snapshots the shot intent", async () => {

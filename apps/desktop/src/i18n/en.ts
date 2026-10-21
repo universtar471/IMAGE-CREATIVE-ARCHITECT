@@ -2273,13 +2273,14 @@ export const en = {
   },
 
   conflictUi: {
-    title: "Constraint check",
+    advisoryHint: "Creative suggestions only. You can generate with the current choices.",
+    title: "Creative suggestions",
     block: "Blocked",
     warn: "Warning",
     allow: "OK",
     fix: "Fix selection",
-    approveException: "Approve exception",
-    accepted: "Exception approved",
+    approveException: "Acknowledge warnings",
+    accepted: "Acknowledged",
     fromExtraPrompt: "extra prompt",
     fromCamera: "camera",
     fromSpace: "space catalog",

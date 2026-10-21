@@ -320,10 +320,10 @@ Capabilities and params added for priced gateways (HHTECH, §11):
   (an empty list means the provider decides, so the value must be `null`), `seed` set on a model without seed support,
   `quality` not in the model's `qualityOptions` (empty = only `null`), references on a
   model without image-to-image, no references on a model without text-to-image
-  - ADR-034 P0-B: `prompt.validation` (optional `{ verdict: "BLOCK" | "WARN" | "ALLOW",
-    validatorVersion, issueCodes, approvedExceptions }`, written by the desktop conflict gate
-    and stored verbatim) with `verdict: "BLOCK"` is refused (details: `{ issueCodes }`); the
-    same check runs for every `batch_create` item. A request without the field is accepted.
+  - ADR-047: `prompt.validation` (optional `{ verdict: "BLOCK" | "WARN" | "ALLOW",
+    validatorVersion, issueCodes, approvedExceptions }`) is an advisory creative assessment,
+    stored verbatim. Findings do not refuse generation, skip batch items or block retries.
+    `approvedExceptions` contains only explicit acknowledgements, never automatic approvals.
 - `PROVIDER_NOT_CONFIGURED` — provider needs a key and none is available
 
 Provider errors after the call started are returned as a `failed` `GenerationDTO` with
@@ -357,7 +357,7 @@ New commands:
 | `batch_list` | `{ projectId }` | `BatchDTO[]`, newest first |
 | `job_list` | `{ projectId: string \| null }` (null = all projects) | `JobDTO[]`: all non-terminal + the 100 most recent terminal, newest first |
 | `job_cancel` | `{ jobId }` | `JobDTO` (`INVALID_STATE` if already terminal) |
-| `job_retry` | `{ jobId, validation? }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`). `validation` is the desktop gate's fresh `ShotValidationSnapshot` for the stored snapshot against the current DNA (ADR-034); it replaces the stored one and sets `resolvedWarnings` to its `approvedExceptions`. A `BLOCK` verdict is refused with `VALIDATION_ERROR`. |
+| `job_retry` | `{ jobId, validation? }` | new `JobDTO` (copies the request into a new generation + job; only for `failed`/`cancelled`/`interrupted`). `validation` is the desktop gate's fresh `ShotValidationSnapshot` for the stored snapshot against the current DNA (ADR-034); it replaces the stored one and sets `resolvedWarnings` to its `approvedExceptions`. Creative findings are advisory; the fresh assessment is preserved without blocking retries (ADR-047). |
 | `camera_anchor_list` | `{ projectId }` | `CameraAnchorDTO[]` |
 | `camera_anchor_set` | `{ projectId, cameraId, assetId }` | `CameraAnchorDTO[]` (camera must be an anchor view in the DNA; asset ready, same project) |
 | `camera_anchor_clear` | `{ projectId, cameraId }` | `CameraAnchorDTO[]` |

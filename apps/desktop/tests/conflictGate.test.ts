@@ -1,10 +1,4 @@
-/**
- * ADR-034 P0-B: the conflict gate runs before every paid submit, at the store level.
- * - AC-22: an extra prompt asking to open the side of an attached townhouse is BLOCKED and
- *   nothing reaches the bridge (`generation_submit` is never called).
- * - WARN: refused until the exception is accepted; then the snapshot records it.
- * - Batch: items that are not ALLOW are skipped and reported, never sent.
- */
+/** Creative findings remain advisory through single, batch and retry submission. */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProjectDNASchema, type BatchCreateRequest, type PromptBundle } from "@arch/domain";
 import { createProject } from "../src/app/services";
@@ -83,7 +77,7 @@ const hero = (projectId: string, masterId: string, over: Partial<GenerationInput
 
 describe("conflict gate — single submit (AC-22)", () => {
   it.each(["mở mặt hông bên trái", "Reveal the left side of the building"])(
-    "blocks %j on an attached townhouse before any bridge submit",
+    "submits %j while preserving its attached-townhouse finding",
     async (text) => {
       const { project, masterId } = await midBlockTownhouse();
       const g = await useStudio.getState().submitGeneration(
@@ -92,38 +86,37 @@ describe("conflict gate — single submit (AC-22)", () => {
           approvedExceptions: ["ADJACENT_BUILDING_CONFLICT"],
         }),
       );
-      expect(g).toBeUndefined();
-      const run = useStudio.getState().run;
-      expect(run).toMatchObject({ status: "error", code: "VALIDATION_ERROR" });
-      expect(run?.status === "error" && run.validation?.verdict).toBe("BLOCK");
-      expect(run?.status === "error" && run.validation?.issues[0]).toMatchObject({
-        code: "ADJACENT_BUILDING_CONFLICT",
-        path: "extraPrompt",
-        exceptionAllowed: false,
+      expect(g?.status).toBe("queued");
+      expect(g?.prompt.validation).toMatchObject({
+        verdict: "BLOCK",
+        issueCodes: ["ADJACENT_BUILDING_CONFLICT"],
+        approvedExceptions: [],
       });
-      expect(sent).not.toContain("generation_submit");
-      expect(await call("job_list", { projectId: project.id })).toEqual([]);
+      expect(sent).toContain("generation_submit");
+      expect(await call("job_list", { projectId: project.id })).toHaveLength(1);
     },
   );
 
-  it("refuses an unaccepted WARN, then submits once the exception is approved", async () => {
+  it("submits unacknowledged warnings and records only explicitly accepted exceptions", async () => {
     const { project, masterId } = await midBlockTownhouse();
     const extraPrompt = "exactly 5 m wide";
-    expect(
-      await useStudio.getState().submitGeneration(hero(project.id, masterId, { extraPrompt })),
-    ).toBeUndefined();
-    const refused = useStudio.getState().run;
-    expect(refused?.status === "error" && refused.validation?.verdict).toBe("WARN");
-    expect(refused?.status === "error" && refused.message).toBe(t("conflictUi.refusedWarn"));
-    expect(sent).not.toContain("generation_submit");
-
+    const unacknowledged = await useStudio
+      .getState()
+      .submitGeneration(hero(project.id, masterId, { extraPrompt }));
+    expect(unacknowledged?.status).toBe("queued");
+    expect(unacknowledged?.prompt.validation).toMatchObject({
+      verdict: "WARN",
+      issueCodes: ["UNVERIFIED_GEOMETRY"],
+      approvedExceptions: [],
+    });
+    expect(unacknowledged?.prompt.resolvedWarnings ?? []).not.toContain("UNVERIFIED_GEOMETRY");
     const queued = await useStudio
       .getState()
       .submitGeneration(
         hero(project.id, masterId, { extraPrompt, approvedExceptions: ["UNVERIFIED_GEOMETRY"] }),
       );
     expect(queued?.status).toBe("queued");
-    expect(sent.filter((c) => c === "generation_submit")).toHaveLength(1);
+    expect(sent.filter((c) => c === "generation_submit")).toHaveLength(2);
     const stored = await call("generation_get", {
       projectId: project.id,
       generationId: queued!.id,
@@ -183,36 +176,36 @@ describe("conflict gate — batch", () => {
     })),
   });
 
-  it("skips BLOCK items, reports them and sends only the rest", async () => {
+  it("sends every batch item and preserves each item assessment", async () => {
     const { project, masterId } = await midBlockTownhouse();
     const created = await useStudio
       .getState()
       .createBatch(batch(project.id, masterId, [SIDE_LEFT, FRONT_LEFT]));
-    expect(created?.jobIds).toHaveLength(1);
+    expect(created?.jobIds).toHaveLength(2);
     const jobs = await call("job_list", { projectId: project.id });
-    expect(jobs.map((j) => j.cameraId)).toEqual([FRONT_LEFT]);
+    expect(jobs.map((j) => j.cameraId)).toEqual(expect.arrayContaining([SIDE_LEFT, FRONT_LEFT]));
     const g = await call("generation_get", {
       projectId: project.id,
       generationId: jobs[0]!.generationId,
     });
-    expect(g.prompt.validation?.verdict).toBe("ALLOW");
-    expect(useStudio.getState().toasts.map((x) => x.message)).toContain(
+    expect(g.prompt.validation).toBeTruthy();
+    expect(useStudio.getState().toasts.map((x) => x.message)).not.toContain(
       t("conflictUi.batchSkipped", { list: "Left side" }),
     );
   });
 
-  it("sends nothing when every item is blocked", async () => {
+  it("sends a batch even when every item has creative findings", async () => {
     const { project, masterId } = await midBlockTownhouse();
     expect(
       await useStudio.getState().createBatch(batch(project.id, masterId, [SIDE_LEFT])),
-    ).toBeUndefined();
-    expect(sent).not.toContain("batch_create");
-    expect(useStudio.getState().toasts.map((x) => x.message)).toContain(
+    ).toBeTruthy();
+    expect(sent).toContain("batch_create");
+    expect(useStudio.getState().toasts.map((x) => x.message)).not.toContain(
       t("conflictUi.batchAllBlocked"),
     );
   });
 
-  it("the mock backend refuses a BLOCK snapshot like Rust does", async () => {
+  it("the mock backend accepts a finding snapshot like Rust does", async () => {
     const { project, masterId } = await midBlockTownhouse();
     await expect(
       call("generation_submit", {
@@ -228,7 +221,7 @@ describe("conflict gate — batch", () => {
           },
         },
       }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-    expect(await call("job_list", { projectId: project.id })).toEqual([]);
+    ).resolves.toMatchObject({ status: "queued", prompt: { validation: { verdict: "BLOCK" } } });
+    expect(await call("job_list", { projectId: project.id })).toHaveLength(1);
   });
 });

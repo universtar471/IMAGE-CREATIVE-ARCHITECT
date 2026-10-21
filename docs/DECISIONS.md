@@ -1328,3 +1328,21 @@ Accepted 2026-10-21 on the owner's request to remove step locks and expose image
   the missing key, and settings opens that provider. Advanced retains detailed output controls.
 - Persisted workflow IDs, timestamps and project approval history remain compatible. Existing
   progress is not deleted or automatically confirmed. This supersedes sequencing in ADR-022/045.
+
+## ADR-047 — Creative conflicts are advisory across image submission
+
+Accepted 2026-10-21 after the owner's Dawn + City car + Vehicle light trails screenshot.
+The effect checks marked a parked car plus long-exposure motion as a conflict and disabled
+Generate even after workflow sequencing was removed in ADR-046.
+
+- Keep the creative assessment and its original verdict/codes for guidance and history.
+  Do not refuse or disable image generation, region editing, generative enhance, batches or
+  retries because of creative findings. Do not drop individual batch items for such findings.
+- Conflicts render as amber Creative suggestions with an explicit non-blocking explanation.
+  Fixes and acknowledgement of warnings remain optional. Never automatically approve findings.
+- Remove enforcement from both UI/store and Rust/mock validation. An advisory BLOCK snapshot
+  remains compatible with old history and is preserved when submitting or retrying.
+- Actual provider/key, file readiness/ownership, model parameter, archive, operation-input and
+  spend-confirmation requirements remain. This does not change publishing/export fact checks.
+- Browser and unit regressions use the exact supplied preset combination. Rust completes a
+  local generation carrying creative findings and verifies batch/retry acceptance.

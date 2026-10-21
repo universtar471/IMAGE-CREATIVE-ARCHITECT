@@ -304,6 +304,20 @@ try {
   result.simpleModelSelection = true;
   result.dnaOnlyWithoutConfirmation = true;
   await page.screenshot({ path: resolve(output, "free-generation-models.png") });
+  // The owner's preset combination raises a motion finding but must remain generatable.
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setGenerateDraft({ source: "sketch", referenceAssetIds: ["AST_IMG"] });
+  });
+  for (const name of ["Dawn", "City car", "Vehicle light trails"])
+    await page.getByRole("button", { name, exact: true }).click();
+  assert.equal(await page.locator(".generate-btn").isEnabled(), true);
+  const creativeHint = page.getByTestId("conflict-panel");
+  assert.match(await creativeHint.innerText(), /You can generate with the current choices/);
+  assert.equal(await creativeHint.getAttribute("role"), "status");
+  await creativeHint.scrollIntoViewIfNeeded();
+  result.creativeConflictDoesNotBlock = true;
+  await page.screenshot({ path: resolve(output, "advisory-creative-conflicts.png") });
   // A playing workspace video is paused before the viewer's separate player opens.
   await page.evaluate(async () => {
     const s = (await import("/src/app/store.ts")).useStudio.getState();

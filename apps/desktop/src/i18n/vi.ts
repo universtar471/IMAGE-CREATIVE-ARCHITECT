@@ -2267,13 +2267,14 @@ export const vi: Dict = {
   },
 
   conflictUi: {
-    title: "Kiểm tra ràng buộc",
+    advisoryHint: "Gợi ý sáng tạo để tham khảo. Bạn vẫn có thể tạo ảnh với lựa chọn hiện tại.",
+    title: "Gợi ý sáng tạo",
     block: "Bị chặn",
     warn: "Cảnh báo",
     allow: "Hợp lệ",
     fix: "Sửa lựa chọn",
-    approveException: "Duyệt ngoại lệ",
-    accepted: "Đã duyệt ngoại lệ",
+    approveException: "Ghi nhận cảnh báo",
+    accepted: "Đã ghi nhận",
     fromExtraPrompt: "lời nhắc bổ sung",
     fromCamera: "góc máy",
     fromSpace: "danh mục không gian",
