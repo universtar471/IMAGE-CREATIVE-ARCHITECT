@@ -17,6 +17,8 @@ pub struct GatewaySpec {
     /// Name in user messages ("HHTECH").
     pub vendor: &'static str,
     pub env_base_url: &'static str,
+    /// Official endpoint when unset; custom gateways must supply their own URL.
+    pub default_base_url: Option<&'static str>,
     pub env_image_model: &'static str,
     pub env_image_size: &'static str,
     pub env_image_quality: &'static str,
@@ -43,7 +45,7 @@ pub fn config_from_env(spec: &GatewaySpec, env: &dyn EnvSource) -> Config {
     let var = |name: &str| env.var(name).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     let mut problems = Vec::new();
 
-    let base_url = match var(spec.env_base_url) {
+    let base_url = match var(spec.env_base_url).or_else(|| spec.default_base_url.map(String::from)) {
         None => Err(format!(
             "{} needs a base URL: set {} (e.g. {}) in the environment or in .env, then restart the app.",
             spec.vendor, spec.env_base_url, spec.base_url_example

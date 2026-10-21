@@ -1346,3 +1346,17 @@ Generate even after workflow sequencing was removed in ADR-046.
   spend-confirmation requirements remain. This does not change publishing/export fact checks.
 - Browser and unit regressions use the exact supplied preset combination. Rust completes a
   local generation carrying creative findings and verifies batch/retry acceptance.
+
+## ADR-048 — HHTECH has an official default endpoint
+
+Accepted 2026-10-21 after a saved key could not connect because HHTECH_BASE_URL was missing.
+
+- HHTECH defaults to https://hhtechapi.com/v1, the existing documented provider endpoint.
+  Missing/blank environment values use this default; a nonblank explicit URL still overrides it.
+- Explicit invalid/unsafe URLs remain errors, never silently redirected to a fallback host.
+  Custom OpenAI-compatible gateways continue to require their own base URL.
+- A saved OS credential or environment key now suffices to configure HHTECH. Missing keys
+  still block calls. No key values are added to provider descriptors, logs or SQLite.
+- Setup help and .env.example describe URL configuration as optional. No migration is needed.
+- Regression checks cover missing/blank URL, explicit overrides, invalid configuration,
+  saved-key detection and deletion, with existing mock HTTP tests covering /models and images.

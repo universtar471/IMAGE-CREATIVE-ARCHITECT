@@ -236,10 +236,17 @@ fn model_list_size_quality_and_chat_come_from_the_environment() {
 }
 
 #[test]
-fn missing_or_unsafe_settings_make_the_provider_not_configured() {
+fn official_endpoint_is_available_without_environment_configuration() {
+    for pairs in [vec![], vec![(ENV_BASE_URL, "   ")]] {
+        let cfg = config(&env(&pairs));
+        assert_eq!(cfg.base_url.as_deref(), Ok("https://hhtechapi.com/v1"));
+        assert!(provider(&env(&pairs)).config_problem().is_none());
+    }
+}
+
+#[test]
+fn explicit_unsafe_settings_make_the_provider_not_configured() {
     let problem = |pairs: &[(&str, &str)]| config(&env(pairs)).base_url.unwrap_err();
-    assert!(problem(&[]).contains("HHTECH_BASE_URL"));
-    assert!(problem(&[(ENV_BASE_URL, "   ")]).contains("HHTECH_BASE_URL"));
     assert!(problem(&[(ENV_BASE_URL, "http://gw.example.com/v1")]).contains("https"));
     assert!(problem(&[(ENV_BASE_URL, "ftp://gw.example.com/v1")]).contains("https"));
     assert!(problem(&[(ENV_BASE_URL, "not a url")]).contains("https"));
@@ -254,7 +261,7 @@ fn missing_or_unsafe_settings_make_the_provider_not_configured() {
     assert!(config(&env(&[(ENV_BASE_URL, "http://localhost:8080/v1")])).base_url.is_ok());
 
     // A provider that is not set up never makes a request, and says why.
-    let p = provider(&env(&[]));
+    let p = provider(&env(&[(ENV_BASE_URL, "http://unsafe.example/v1")]));
     assert!(p.config_problem().unwrap().contains("HHTECH_BASE_URL"));
     let err = p.generate(&request(vec![])).unwrap_err();
     assert!(err.message.contains("HHTECH_BASE_URL"), "{err:?}");

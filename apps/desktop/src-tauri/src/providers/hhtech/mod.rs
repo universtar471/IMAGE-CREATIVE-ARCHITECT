@@ -2,7 +2,7 @@
 //! base URL. It reuses the OpenAI adapter in [`Flavor::Gateway`] mode; this module only turns
 //! environment variables into an adapter [`Config`].
 //!
-//! The gateway's docs cannot be checked from here. Facts from the lead's real calls
+//! Image adapter facts from the lead's real calls
 //! (2026-10-09, base `https://hhtechapi.com/v1`):
 //! - `GET /models` → 200, OpenAI list shape `{ data: [{ id, object, owned_by, … }] }`. The
 //!   gateway also encodes resolution and edit variants in model ids (`gpt-image-2-2k`,
@@ -21,7 +21,7 @@
 //! | Variable | Default | Meaning |
 //! |---|---|---|
 //! | `HHTECH_API_KEY` (or `ARCH_STUDIO_HHTECH_API_KEY`) | — | Bearer key |
-//! | `HHTECH_BASE_URL` | — (required) | e.g. `https://hhtechapi.com/v1` |
+//! | `HHTECH_BASE_URL` | `https://hhtechapi.com/v1` | optional explicit server override |
 //! | `HHTECH_IMAGE_MODEL` | — (the full [`catalog`]) | comma-separated base ids that restrict and order the picker; ids outside the catalog become plain entries without tiers |
 //! | `HHTECH_IMAGE_SIZE` | `1024x1024` | size sent when no tier is chosen, without an aspect ratio (and for its ratio); `auto` omits it |
 //! | `HHTECH_IMAGE_QUALITY` | `medium` | `quality` sent to GPT models when the request leaves it null (never sent to Gemini) |
@@ -43,6 +43,7 @@ pub const VENDOR: &str = "HHTECH";
 
 pub const ENV_API_KEY: &str = "HHTECH_API_KEY";
 pub const ENV_BASE_URL: &str = "HHTECH_BASE_URL";
+pub const DEFAULT_BASE_URL: &str = "https://hhtechapi.com/v1";
 pub const ENV_IMAGE_MODEL: &str = "HHTECH_IMAGE_MODEL";
 pub const ENV_IMAGE_SIZE: &str = "HHTECH_IMAGE_SIZE";
 pub const ENV_IMAGE_QUALITY: &str = "HHTECH_IMAGE_QUALITY";
@@ -77,6 +78,7 @@ pub const SPEC: GatewaySpec = GatewaySpec {
     label: LABEL,
     vendor: VENDOR,
     env_base_url: ENV_BASE_URL,
+    default_base_url: Some(DEFAULT_BASE_URL),
     env_image_model: ENV_IMAGE_MODEL,
     env_image_size: ENV_IMAGE_SIZE,
     env_image_quality: ENV_IMAGE_QUALITY,

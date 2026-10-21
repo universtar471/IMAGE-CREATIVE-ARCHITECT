@@ -85,7 +85,7 @@ describe("extra prompt helpers", () => {
       ({ id: "hhtech", configured }) as unknown as ProviderDescriptorDTO;
     const opts = { readOnly: false, busy: false };
     expect(enhanceDisabledReason([], "x", opts)).toMatch(/HHTECH provider/);
-    expect(enhanceDisabledReason([hh(false)], "x", opts)).toMatch(/HHTECH_BASE_URL/);
+    expect(enhanceDisabledReason([hh(false)], "x", opts)).toMatch(/API key/);
     expect(enhanceDisabledReason([hh(true)], " ", opts)).toMatch(/Write an extra prompt/);
     expect(enhanceDisabledReason([hh(true)], "x", { ...opts, readOnly: true })).toMatch(/archived/);
     expect(enhanceDisabledReason([hh(true)], "x", opts)).toBeNull();
@@ -117,7 +117,7 @@ describe("ExtraPromptSection", () => {
     render(<ExtraPromptSection referenceIds={[]} disabled={false} />);
     const button = screen.getByTestId("enhance-button") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
-    expect(button.parentElement!.getAttribute("title")).toMatch(/HHTECH_BASE_URL/);
+    expect(button.parentElement!.getAttribute("title")).toMatch(/API key/);
   });
 
   it("previews, accepts (undo-able) and discards an enhancement", async () => {
