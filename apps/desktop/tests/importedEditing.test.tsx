@@ -75,6 +75,21 @@ it("syncs tray/import selection with the node selection", async () => {
   expect(useStudio.getState().canvasSelection).toEqual(["asset:AST_IMPORT"]);
 });
 
+it("enables Create hero for a single ordinary image selected as source", async () => {
+  await setup();
+  useStudio.getState().setGenerateDraft({
+    source: "sketch",
+    purpose: "hero",
+    providerId: "local_preview",
+    referenceAssetIds: ["AST_IMPORT"],
+  });
+  render(<GeneratePanel />);
+  const generate = screen.getByRole<HTMLButtonElement>("button", { name: /Generate hero/i });
+  expect(generate.disabled).toBe(false);
+  expect(screen.queryByText(/reference image is listed twice/i)).toBeNull();
+  expect(useStudio.getState().workspace?.project.activeMasterAssetId).toBeNull();
+});
+
 it("keeps source instructions inside help instead of showing long text in the form", async () => {
   await setup();
   useStudio.getState().setGenerateDraft({ source: "sketch", purpose: "hero" });

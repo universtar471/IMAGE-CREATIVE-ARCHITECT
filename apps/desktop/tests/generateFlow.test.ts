@@ -81,6 +81,50 @@ const finished = (id: string) =>
   }, `generation ${id} to finish`);
 
 describe("generation flow through the store (queued, events)", () => {
+  it("generates from a regular import selected as source without Master or confirmed DNA", async () => {
+    const project = await createProject({
+      name: "Imported source",
+      projectType: "villa",
+      subtype: "tropical",
+      starter: { floors: 2 },
+    });
+    const source = asset(project.id, "AST_import", { role: "regular_image" });
+    db.assets[source.id] = source;
+    await useStudio.getState().openProject(project.id);
+    const form = resolveGenerateForm(
+      { ...EMPTY_GENERATE_DRAFT, source: "sketch", referenceAssetIds: [source.id] },
+      MOCK_PROVIDERS.filter((p) => p.id === "local_preview").map((p) => ({
+        ...p,
+        configured: true,
+        keySource: null,
+      })),
+      [source],
+      null,
+    );
+    expect(
+      generateDisabledReason(form, {
+        readOnly: false,
+        submitting: false,
+        dnaInvalid: false,
+        assets: [source],
+      }),
+    ).toBeNull();
+    const queued = await useStudio.getState().submitGeneration({
+      projectId: project.id,
+      providerId: form.provider!.id,
+      modelId: form.model!.id,
+      purpose: form.purpose,
+      referenceAssetIds: form.referenceIds,
+      params: form.params,
+    });
+    expect(queued?.status).toBe("queued");
+    const result = await finished(queued!.id);
+    expect(result.status).toBe("completed");
+    expect(result.referenceAssetIds).toEqual([source.id]);
+    expect(result.prompt.metadata.referenceCount).toBe(1);
+    expect(useStudio.getState().workspace!.project.activeMasterAssetId).toBeNull();
+  });
+
   it("submit returns queued; events land the outputs, history and selection", async () => {
     useMock(20);
     const { project, masterId } = await projectWithMaster();
@@ -380,6 +424,37 @@ describe("Generate form derivation", () => {
     expect(chosen.referenceIds[0]).toBe(oldSketch.id);
     expect(chosen.params.aspectRatio).toBe("9:16");
   });
+
+  it.each(["external", "ai_generated"] as const)(
+    "pins a %s regular image only once and leaves room for other references",
+    (sourceKind) => {
+      const source = asset("P", "AST_source", { role: "regular_image", source: sourceKind });
+      const sourceOnly = resolveGenerateForm(
+        { ...EMPTY_GENERATE_DRAFT, source: "sketch", referenceAssetIds: [source.id] },
+        providers(true),
+        [source],
+        null,
+      );
+      expect(sourceOnly.referenceIds).toEqual([source.id]);
+      expect(generateDisabledReason(sourceOnly, { ...ctx, assets: [source] })).toBeNull();
+      const refs = [source, ...["A", "B", "C"].map((id) => asset("P", `AST_${id}`))];
+      const form = resolveGenerateForm(
+        {
+          ...EMPTY_GENERATE_DRAFT,
+          source: "sketch",
+          providerId: "gemini",
+          modelId: "gemini-2.5-flash-image",
+          referenceAssetIds: refs.map((a) => a.id),
+        },
+        providers(true),
+        refs,
+        null,
+      );
+      expect(form.referenceIds).toEqual([source.id, "AST_A", "AST_B"]);
+      expect(form.pinnedIds).toEqual([source.id]);
+      expect(generateDisabledReason(form, { ...ctx, assets: refs })).toBeNull();
+    },
+  );
 
   it("explains sketch-mode blockers", () => {
     const missing = resolveGenerateForm(

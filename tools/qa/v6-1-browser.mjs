@@ -270,6 +270,12 @@ try {
   await page.evaluate(async () =>
     (await import("/src/app/store.ts")).useStudio.getState().setModule("generate"),
   );
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setGenerateDraft({ source: "sketch", referenceAssetIds: ["AST_IMG"] });
+  });
+  assert.equal(await page.locator(".generate-btn").isEnabled(), true);
+  result.importedSourceCanGenerate = true;
   // A playing workspace video is paused before the viewer's separate player opens.
   await page.evaluate(async () => {
     const s = (await import("/src/app/store.ts")).useStudio.getState();
