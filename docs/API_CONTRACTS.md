@@ -508,39 +508,33 @@ Each step gets `status`:
 
 A locked step also gets `blockedBy: StepId`.
 
-Unlock rules:
-- `dna.building` is always unlocked.
-- Each later `dna.*` step unlocks when the previous `dna.*` step is `confirmed`. `needs_review` does not count.
-- `generate.master` is `locked` (blocked by the first unconfirmed DNA step) whenever any `dna.*` step is open or `needs_review`; otherwise it is `done` when the project has an approved master and `available` when it does not.
-- `generate.anchors` and `generate.render` are `locked` while DNA is incomplete (blocked by the first unconfirmed DNA step); once DNA is complete, their existing master/anchor/camera rules apply. Anchors are `skipped` when there are no anchor-view cameras, and Render is `skipped` when there are no cameras.
-- `post.grade` unlocks when `masterApproved`.
+Advisory progress rules (ADR-046):
+- Every DNA section is available independently. Confirmations record progress without disabling editing.
+- `generate.master` is `done` when approved and `available` otherwise, regardless of DNA progress.
+- Anchors are `skipped` with no anchor cameras, `done` when all are approved, otherwise `available`.
+- Render is `skipped` with no cameras and `available` otherwise. Post-production is available;
+  operations that need an image still validate their selected input.
+- The derived view no longer emits workflow `locked` or `blockedBy` values. Persisted IDs/states
+  and the legacy view enum remain compatible with existing projects.
 
 Stage summary: `{ dna | generate | post: { unlocked: boolean, complete: boolean } }`.
 
-Helpers (also used by the mock backend):
-- `confirmStep(persisted, stepId, now)`: allowed only when the step is unlocked.
-- `reopenStep(persisted, stepId)`: sets the step `open` and every later `confirmed` dna step to `needs_review`.
-
-Both return a new `persisted` value and throw a clear error on an invalid step or a locked step.
-`needs_review` is read-only until `reopenStep` changes it to `open`; only then may the user review and confirm it again.
+Helpers: `confirmStep` accepts any open DNA step in any order. Reconfirming a confirmed or
+legacy `needs_review` row still requires explicitly reopening that row. `reopenStep` changes
+only that row and preserves later confirmations. These actions never gate generation or editing.
 
 ### 13.3 Commands
 
-- `workflow_get { projectId } -> { steps: WorkflowStepState[] }`. Always returns all five dna steps, filling missing rows as `open`.
-- `workflow_confirm_step { projectId, stepId } -> same shape`
-  - `validation_error` for a non-dna step id or a locked step: previous dna step not confirmed.
-  - Archived project → the existing archived error.
-- `workflow_reopen_step { projectId, stepId } -> same shape`
-  - Semantics as `reopenStep`.
-  - `validation_error` if the step is not `confirmed` / `needs_review`.
+- `workflow_get { projectId } -> { steps: WorkflowStepState[] }`: all five DNA rows, missing rows open.
+- `workflow_confirm_step { projectId, stepId }`: accepts any open DNA row. Rejects invalid IDs,
+  duplicate confirmations and archived projects; no previous-step requirement.
+- `workflow_reopen_step { projectId, stepId }`: accepts confirmed/needs_review DNA rows only.
 
-### 13.4 Backend generation gating
+### 13.4 Generation validation
 
-`generation_submit` and `batch_create` check the workflow before queuing any job. The error is `validation_error` with a message naming the step to finish first.
-- purpose `hero` needs all dna steps confirmed
-- `anchor` needs all dna steps confirmed + approved master
-- `production` needs all dna steps confirmed + approved master + every anchor-view camera anchored
-- `variation` needs an approved master
+`generation_submit` and `batch_create` no longer require confirmed DNA, approved Master or
+approved Anchors. Provider/model capabilities, credentials, image ownership/readiness, actual
+operation-specific input requirements, archive guards, conflict validation and spend confirmation remain.
 
 ### 13.5 Migration
 
@@ -619,7 +613,7 @@ Unsharp mask:
 
 ### 14.4 Gating
 
-ADR-022 §13.4 is extended: `enhance` needs an approved master, like `variation`.
+ADR-046 supersedes approval gating: `enhance` needs its actual input image, not an approved Master.
 
 ## 15. Phase 6 contracts — Vision QC (ADR-024)
 

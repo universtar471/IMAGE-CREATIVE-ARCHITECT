@@ -305,7 +305,7 @@ describe("phase 7 region prompts and scene pinning", () => {
     expect(COMPILER_VERSION).toBe("pc-1.10.0");
   });
 
-  it("gates region edits like variations", () => {
+  it("does not gate region edits on approval", () => {
     expect(
       isGenerationAllowed("region_edit", [], {
         masterApproved: true,
@@ -319,6 +319,6 @@ describe("phase 7 region prompts and scene pinning", () => {
         anchorCameraIds: [],
         approvedAnchorCameraIds: [],
       }),
-    ).toEqual({ ok: false, blockedBy: "generate.master" });
+    ).toEqual({ ok: true });
   });
 });

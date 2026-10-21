@@ -512,7 +512,7 @@ export const vi: Dict = {
       generate: {
         master: {
           name: "Ảnh Master",
-          guide: "Tạo và duyệt ảnh Master trước khi tạo Anchor hoặc biến thể.",
+          guide: "Tạo ảnh mới hoặc chọn ảnh nguồn có sẵn. Duyệt Master là tùy chọn.",
         },
         anchors: {
           name: "Anchor",
@@ -1141,7 +1141,7 @@ export const vi: Dict = {
       "Chọn ảnh viewport, phác thảo hoặc ảnh render. Có ảnh nguồn là tạo được ngay, không cần xác nhận các bước DNA.",
     quickHint: "Hoặc chọn ảnh nguồn (viewport, phác thảo hoặc master) để tạo ngay.",
     advancedHint:
-      "Provider, kích thước, ảnh tham chiếu, seed, anchor và render hàng loạt nằm trong Nâng cao.",
+      "Chọn nhà cung cấp và model ở trên. Nâng cao có thêm kích thước, ảnh tham chiếu, seed, anchor và render hàng loạt.",
     providersFailed: "Không tải được danh sách nhà cung cấp ảnh",
     loadingProviders: "Đang tải nhà cung cấp…",
     dnaIncomplete: "DNA thiết kế chưa đầy đủ.",
@@ -1185,8 +1185,7 @@ export const vi: Dict = {
       "Biến thể luôn gửi kèm ảnh Master làm ảnh 1 để giữ đúng công trình; không bỏ chọn được.",
     reasonVariationNeedsRefs:
       "Biến thể cần model nhận ảnh tham chiếu để giữ ảnh Master — {model} không nhận ảnh. Chọn model khác.",
-    variationNoMaster:
-      "Biến thể: cần ảnh Master đã duyệt — tạo ảnh Hero, bấm 'Dùng làm Master' rồi duyệt.",
+    variationNoMaster: "Biến thể: chọn ảnh nguồn; có thể dùng ảnh Master hiện có làm tham chiếu.",
     heroNoMaster:
       "Hero: ảnh trình bày chính. Chưa có Master — ảnh Hero ưng ý đầu tiên sẽ làm Master.",
     aspectRatio: "Tỉ lệ khung",
@@ -1565,7 +1564,7 @@ export const vi: Dict = {
     lastAttempt: "Lần thử gần nhất:",
     nowMaster: "Ảnh vừa tạo giờ là ảnh kiến trúc Master.",
     nowMasterApproved: "Ảnh vừa tạo đã thành ảnh kiến trúc Master và được duyệt.",
-    masterApproved: "Đã duyệt Master — Anchor, biến thể và Hậu kỳ đã mở.",
+    masterApproved: "Đã duyệt Master — lưu làm ảnh tham chiếu của dự án.",
     last: "Kết quả gần nhất",
     outputsRemoved: "Các ảnh đầu ra của lần tạo này đã bị gỡ.",
     useAsMaster: "Dùng làm Master",

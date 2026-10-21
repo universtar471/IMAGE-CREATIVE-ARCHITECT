@@ -1313,3 +1313,18 @@ Accepted for implementation, 2026-10-21, based on the owner's follow-up screensh
   name IMAGE-CREATIVE-ARCHITECT. SVG mark/icon, wordmark, favicon, native icons and installer name
   follow it. The app identifier and data directory remain unchanged.
 - Verification and screenshots: `docs/design/imported-image-review/QA.md`.
+
+## ADR-046 — Workflow progress is advisory; model selection is always visible
+
+Accepted 2026-10-21 on the owner's request to remove step locks and expose image model selection.
+
+- All DNA sections can be edited independently, including confirmed/review rows. Confirmation
+  records progress only; no prior confirmation is required. Reopening never relocks generation.
+- Image submission and batch queue insertion no longer gate on DNA, Master or Anchor approval.
+  Keep archived-project, credential, ownership, file readiness, model capability, operation input,
+  conflict and cost confirmation validation. Explicit user DNA section locks remain intentional.
+- Provider and model selectors are always shown at the top of Generate, including Simple mode
+  and single-model providers. Unconfigured providers can be selected; Generate then explains
+  the missing key, and settings opens that provider. Advanced retains detailed output controls.
+- Persisted workflow IDs, timestamps and project approval history remain compatible. Existing
+  progress is not deleted or automatically confirmed. This supersedes sequencing in ADR-022/045.

@@ -88,14 +88,13 @@ describe("legacy repair generations", () => {
     ).toThrow(/no longer be submitted/);
   });
 
-  it("still gates the legacy purpose like variation", () => {
+  it("keeps legacy purpose independent of workflow progress", () => {
     const facts = { anchorCameraIds: [], approvedAnchorCameraIds: [] };
     expect(isGenerationAllowed("repair", [], { ...facts, masterApproved: true })).toEqual({
       ok: true,
     });
     expect(isGenerationAllowed("repair", [], { ...facts, masterApproved: false })).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
+      ok: true,
     });
   });
 });

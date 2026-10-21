@@ -367,7 +367,7 @@ function WorkflowQuickEdit({ step, ws }: { step: DerivedWorkflowStep; ws: Worksp
   const selectedCameraId = useStudio((s) => s.selectedCameraId);
   const selectCamera = useStudio((s) => s.selectCamera);
   const adoptAssets = useStudio((s) => s.adoptAssets);
-  const editable = step.status === "available" && !ws.project.archivedAt;
+  const editable = !ws.project.archivedAt;
 
   if (step.id === "dna.building") {
     const disabled = !editable || ws.draftDna.locks.building;

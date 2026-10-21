@@ -44,7 +44,20 @@ async function openProject() {
 }
 
 describe("round 1 workflow UI regressions", () => {
-  it("locks generation after reopening DNA even when the master was approved", async () => {
+  it("edits a confirmed DNA section without reopening or confirming earlier sections", async () => {
+    await openProject();
+    expect(await useStudio.getState().confirmWorkflowStep("dna.context")).toBe(true);
+    render(
+      createElement(StepFrame, {
+        stepId: "dna.context",
+        children: createElement("input", { "aria-label": "Context input" }),
+      }),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Context input" }).closest("fieldset")?.disabled,
+    ).toBe(false);
+  });
+  it("keeps generation accessible after reopening DNA", async () => {
     const project = await openProject();
     const master = asset(project.id, "MASTER", { role: "master_architecture" });
     db.assets.MASTER = master;
@@ -53,25 +66,8 @@ describe("round 1 workflow UI regressions", () => {
     await useStudio.getState().openProject(project.id);
     await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.context" });
     await useStudio.getState().refreshWorkflow();
-    const locked = useStudio.getState().workflowView!;
-    expect(locked.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "generate.master",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-        expect.objectContaining({
-          id: "generate.anchors",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-        expect.objectContaining({
-          id: "generate.render",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-      ]),
+    expect(useStudio.getState().workflowView!.steps.some((step) => step.status === "locked")).toBe(
+      false,
     );
     await call("workflow_confirm_step", { projectId: project.id, stepId: "dna.context" });
     await call("workflow_reopen_step", { projectId: project.id, stepId: "dna.references" });
@@ -85,7 +81,7 @@ describe("round 1 workflow UI regressions", () => {
       expect.arrayContaining([expect.objectContaining({ id: "generate.master", status: "done" })]),
     );
   });
-  it("does not move a camera in the director when dna.camera is confirmed", async () => {
+  it("allows moving a camera even when dna.camera is confirmed", async () => {
     await openProject();
     const ws = useStudio.getState().workspace!;
     const camera = {
@@ -110,7 +106,7 @@ describe("round 1 workflow UI regressions", () => {
     });
     render(createElement(CameraDirector));
     fireEvent.keyDown(screen.getByTestId("director-camera"), { key: "ArrowRight" });
-    expect(useStudio.getState().workspace!.draftDna.cameras[0]!.azimuthDeg).toBe(before);
+    expect(useStudio.getState().workspace!.draftDna.cameras[0]!.azimuthDeg).not.toBe(before);
   });
 
   it("keeps anchor/render actions in Generate, not the camera DNA panel", async () => {

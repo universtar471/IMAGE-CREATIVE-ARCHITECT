@@ -276,6 +276,34 @@ try {
   });
   assert.equal(await page.locator(".generate-btn").isEnabled(), true);
   result.importedSourceCanGenerate = true;
+  await page.getByTestId("generate-mode-simple").click();
+  const providerPicker = page.getByRole("combobox", { name: "Provider", exact: true });
+  await providerPicker.selectOption("gemini");
+  await page
+    .getByRole("combobox", { name: "Model", exact: true })
+    .selectOption("gemini-2.5-flash-image");
+  assert.equal(
+    await page.locator(".generate-btn").isDisabled(),
+    true,
+    "Missing API key still blocks submission",
+  );
+  await providerPicker.selectOption("local_preview");
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setGenerateDraft({ source: "dna", referenceAssetIds: [] });
+  });
+  assert.equal(await page.locator(".generate-btn").isEnabled(), true);
+  assert.equal(
+    await page.evaluate(async () =>
+      (await import("/src/app/store.ts")).useStudio
+        .getState()
+        .workflowView.steps.some((step) => step.status === "locked"),
+    ),
+    false,
+  );
+  result.simpleModelSelection = true;
+  result.dnaOnlyWithoutConfirmation = true;
+  await page.screenshot({ path: resolve(output, "free-generation-models.png") });
   // A playing workspace video is paused before the viewer's separate player opens.
   await page.evaluate(async () => {
     const s = (await import("/src/app/store.ts")).useStudio.getState();

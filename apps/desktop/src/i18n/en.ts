@@ -515,7 +515,7 @@ export const en = {
       generate: {
         master: {
           name: "Master image",
-          guide: "Create and approve the Master image before making anchors or variations.",
+          guide: "Create an image or select an existing source. Master approval is optional.",
         },
         anchors: {
           name: "Anchors",
@@ -1139,7 +1139,8 @@ export const en = {
     simpleSourceHint:
       "Pick a viewport, sketch or render. With a source image you can generate straight away, without confirming the DNA steps.",
     quickHint: "Or pick a source image (viewport, sketch or master) to generate straight away.",
-    advancedHint: "Provider, size, references, seed, anchors and batch renders are under Advanced.",
+    advancedHint:
+      "Choose provider and model above. Advanced adds size, references, seed, anchors and batch renders.",
     providersFailed: "Could not load image providers",
     loadingProviders: "Loading providers…",
     dnaIncomplete: "Design DNA is incomplete.",
@@ -1184,7 +1185,7 @@ export const en = {
     reasonVariationNeedsRefs:
       "Variations need a model that accepts reference images to keep the master — {model} does not. Pick another model.",
     variationNoMaster:
-      "Variation: needs an approved master — generate a hero, press 'Use as master', then approve it.",
+      "Variation: select a source image; an existing Master can be used as a reference.",
     heroNoMaster:
       "Hero: the main presentation image. No master yet — the first good hero becomes the master.",
     aspectRatio: "Aspect ratio",
@@ -1564,7 +1565,7 @@ export const en = {
     lastAttempt: "Last attempt:",
     nowMaster: "Generated image is now the master architecture image.",
     nowMasterApproved: "Generated image is now the approved master architecture image.",
-    masterApproved: "Master approved — anchors, variations and post-production are unlocked.",
+    masterApproved: "Master approved — saved as the project reference image.",
     last: "Last result",
     outputsRemoved: "The outputs of this generation were removed.",
     useAsMaster: "Use as master",

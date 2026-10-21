@@ -99,3 +99,24 @@ it("keeps source instructions inside help instead of showing long text in the fo
   fireEvent.click(help);
   await waitFor(() => expect(screen.getByRole("note").textContent).toMatch(/SketchUp/));
 });
+
+it("shows provider and model selection in simple mode and allows DNA-only generation", async () => {
+  localStorage.setItem("arch.generateMode", "simple");
+  await setup();
+  useStudio.getState().setGenerateDraft({
+    source: "dna",
+    purpose: "hero",
+    providerId: "local_preview",
+    referenceAssetIds: [],
+  });
+  render(<GeneratePanel />);
+  const provider = screen.getByRole<HTMLSelectElement>("combobox", { name: "Provider" });
+  fireEvent.change(provider, { target: { value: "gemini" } });
+  expect(useStudio.getState().generateDraft.providerId).toBe("gemini");
+  const model = screen.getByRole<HTMLSelectElement>("combobox", { name: "Model" });
+  fireEvent.change(model, { target: { value: "gemini-2.5-flash-image" } });
+  expect(useStudio.getState().generateDraft.modelId).toBe("gemini-2.5-flash-image");
+  expect(screen.getByTestId("generate-disabled-reason").textContent).toMatch(/API key/);
+  fireEvent.change(provider, { target: { value: "local_preview" } });
+  expect(screen.getByTestId<HTMLButtonElement>("generate-button").disabled).toBe(false);
+});

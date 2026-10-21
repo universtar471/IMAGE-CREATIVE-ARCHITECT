@@ -32,17 +32,6 @@ const facts = (over: Partial<WorkflowFacts> = {}): WorkflowFacts => ({
   ...over,
 });
 
-it("edits a selected input image without a Master or confirmed DNA", () => {
-  for (const purpose of ["variation", "enhance", "region_edit"] as const) {
-    expect(isGenerationAllowed(purpose, [], facts({ hasSourceImage: true }))).toEqual({ ok: true });
-    expect(isGenerationAllowed(purpose, [], facts())).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
-    });
-  }
-  expect(isGenerationAllowed("production", [], facts({ hasSourceImage: true })).ok).toBe(false);
-});
-
 describe("workflow schemas", () => {
   it("accepts exactly the stable step ids and persisted DNA states", () => {
     expect(WorkflowStepIdSchema.options).toHaveLength(9);
@@ -71,287 +60,82 @@ describe("workflow schemas", () => {
   });
 });
 
-describe("derived workflow", () => {
-  it("starts a new project with only Building available", () => {
-    const view = deriveWorkflow([], facts());
-    expect(view.steps.map(({ id, status, blockedBy }) => [id, status, blockedBy])).toEqual([
-      ["dna.building", "available", undefined],
-      ["dna.context", "locked", "dna.building"],
-      ["dna.references", "locked", "dna.context"],
-      ["dna.camera", "locked", "dna.references"],
-      ["dna.lighting", "locked", "dna.camera"],
-      ["generate.master", "locked", "dna.building"],
-      ["generate.anchors", "locked", "dna.building"],
-      ["generate.render", "locked", "dna.building"],
-      ["post.grade", "locked", "generate.master"],
-    ]);
-    expect(view.stages).toEqual({
-      dna: { unlocked: true, complete: false },
-      generate: { unlocked: false, complete: false },
-      post: { unlocked: false, complete: false },
-    });
-  });
-
-  it("unlocks the chain one confirmed DNA step at a time", () => {
-    const one = deriveWorkflow(
-      [{ stepId: "dna.building", status: "confirmed", confirmedAt: "now" }],
-      facts(),
+describe("advisory workflow", () => {
+  it("keeps every section accessible, including pending anchors and unapproved Master", () => {
+    const view = deriveWorkflow([], facts({ anchorCameraIds: ["CAM_1"], cameraIds: ["CAM_1"] }));
+    expect(view.steps.every((step) => step.status === "available" && !step.blockedBy)).toBe(true);
+    expect(Object.values(view.stages).every((stage) => stage.unlocked && !stage.complete)).toBe(
+      true,
     );
-    expect(one.steps[1]).toMatchObject({ id: "dna.context", status: "available" });
-    expect(one.steps[2]).toMatchObject({
-      id: "dna.references",
-      status: "locked",
-      blockedBy: "dna.context",
-    });
-
-    const completeDna = deriveWorkflow(allConfirmed(), facts());
-    expect(completeDna.steps[4]).toMatchObject({ id: "dna.lighting", status: "confirmed" });
-    expect(completeDna.steps[5]).toMatchObject({ id: "generate.master", status: "available" });
-    expect(completeDna.stages.dna).toEqual({ unlocked: true, complete: true });
-    expect(completeDna.stages.generate).toEqual({ unlocked: true, complete: false });
   });
-
-  it("does not treat needs_review as confirmed", () => {
+  it("preserves confirmed/reviewed progress without locking later sections", () => {
+    const rows = allConfirmed().map((row) =>
+      row.stepId === "dna.context" ? { ...row, status: "needs_review" as const } : row,
+    );
     const view = deriveWorkflow(
-      [{ stepId: "dna.building", status: "needs_review", confirmedAt: "old" }],
-      facts(),
+      rows,
+      facts({ masterApproved: true, anchorCameraIds: ["CAM_1"], cameraIds: ["CAM_1"] }),
     );
-    expect(view.steps[0]).toMatchObject({ status: "needs_review" });
-    expect(view.steps[1]).toMatchObject({ status: "locked", blockedBy: "dna.building" });
+    expect(view.steps[1]?.status).toBe("needs_review");
+    expect(view.steps.find((step) => step.id === "generate.master")?.status).toBe("done");
+    expect(view.steps.find((step) => step.id === "generate.render")?.status).toBe("available");
+    expect(view.steps.some((step) => step.status === "locked")).toBe(false);
   });
-
-  it("derives anchors and render, including the no-camera skips", () => {
-    const noCameras = deriveWorkflow(allConfirmed(), facts({ masterApproved: true }));
-    expect(noCameras.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "generate.master", status: "done" }),
-        expect.objectContaining({ id: "generate.anchors", status: "skipped" }),
-        expect.objectContaining({ id: "generate.render", status: "skipped" }),
-        expect.objectContaining({ id: "post.grade", status: "available" }),
-      ]),
-    );
-
-    const nonAnchorCamera = deriveWorkflow(
-      allConfirmed(),
-      facts({ masterApproved: true, cameraIds: ["CAM_1"] }),
-    );
-    expect(nonAnchorCamera.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "generate.anchors", status: "skipped" }),
-        expect.objectContaining({ id: "generate.render", status: "available" }),
-      ]),
-    );
-
-    const pendingAnchor = deriveWorkflow(
-      allConfirmed(),
-      facts({
-        masterApproved: true,
-        anchorCameraIds: ["CAM_1", "CAM_2"],
-        approvedAnchorCameraIds: ["CAM_1"],
-      }),
-    );
-    expect(pendingAnchor.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "generate.anchors", status: "available" }),
-        expect.objectContaining({
-          id: "generate.render",
-          status: "locked",
-          blockedBy: "generate.anchors",
-        }),
-      ]),
-    );
-
-    const allAnchored = deriveWorkflow(
-      allConfirmed(),
-      facts({
-        masterApproved: true,
-        anchorCameraIds: ["CAM_1"],
-        approvedAnchorCameraIds: ["CAM_1"],
-      }),
-    );
-    expect(allAnchored.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "generate.anchors", status: "done" }),
-        expect.objectContaining({ id: "generate.render", status: "available" }),
-      ]),
-    );
-  });
-
-  it("locks every generate step behind reopened DNA even when the master is approved", () => {
-    const reopened = reopenStep(allConfirmed(), "dna.context");
-    const view = deriveWorkflow(
-      reopened,
-      facts({
-        masterApproved: true,
-        anchorCameraIds: ["CAM_1"],
-        cameraIds: ["CAM_1"],
-        approvedAnchorCameraIds: ["CAM_1"],
-      }),
-    );
-    expect(view.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "generate.master",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-        expect.objectContaining({
-          id: "generate.anchors",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-        expect.objectContaining({
-          id: "generate.render",
-          status: "locked",
-          blockedBy: "dna.context",
-        }),
-      ]),
-    );
-    for (const purpose of ["hero", "anchor", "production"] as const) {
-      expect(
-        isGenerationAllowed(purpose, reopened, {
-          masterApproved: true,
-          anchorCameraIds: ["CAM_1"],
-          cameraIds: ["CAM_1"],
-          approvedAnchorCameraIds: ["CAM_1"],
-        }),
-      ).toEqual({ ok: false, blockedBy: "dna.context" });
-    }
-    expect(isGenerationAllowed("variation", reopened, facts({ masterApproved: true }))).toEqual({
-      ok: true,
-    });
-
-    let reconfirmed = confirmStep(reopened, "dna.context", "later");
-    for (const stepId of ["dna.references", "dna.camera", "dna.lighting"] as const) {
-      reconfirmed = confirmStep(reopenStep(reconfirmed, stepId), stepId, "later");
-    }
-    expect(deriveWorkflow(reconfirmed, facts({ masterApproved: true })).steps).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "generate.master", status: "done" })]),
-    );
-  });
-});
-
-describe("workflow persistence helpers", () => {
-  it("confirms only the currently available DNA step and returns a new array", () => {
-    const persisted: WorkflowStepState[] = [];
-    const next = confirmStep(persisted, "dna.building", "2026-10-10T01:02:03.000Z");
-    expect(next).toEqual([
-      { stepId: "dna.building", status: "confirmed", confirmedAt: "2026-10-10T01:02:03.000Z" },
+  it("retains no-camera skips and completed anchor summaries", () => {
+    const view = deriveWorkflow(allConfirmed(), facts());
+    expect(view.steps.filter((step) => step.status === "skipped").map((step) => step.id)).toEqual([
+      "generate.anchors",
+      "generate.render",
     ]);
-    expect(next).not.toBe(persisted);
-    expect(persisted).toEqual([]);
-    expect(confirmStep(next, "dna.context", "later")).toEqual([
-      next[0],
-      { stepId: "dna.context", status: "confirmed", confirmedAt: "later" },
-    ]);
+    const anchored = deriveWorkflow(
+      [],
+      facts({ anchorCameraIds: ["CAM_1"], approvedAnchorCameraIds: ["CAM_1"] }),
+    );
+    expect(anchored.steps.find((step) => step.id === "generate.anchors")?.status).toBe("done");
   });
-
-  it("reopens only the selected step and preserves later confirmations", () => {
-    const persisted = allConfirmed();
-    const next = reopenStep(persisted, "dna.context");
-    expect(next).toEqual([
-      persisted[0],
-      { stepId: "dna.context", status: "open", confirmedAt: null },
-      { stepId: "dna.references", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
-      { stepId: "dna.camera", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
-      { stepId: "dna.lighting", status: "confirmed", confirmedAt: "2026-10-10T00:00:00.000Z" },
-    ]);
-    expect(next).not.toBe(persisted);
-    expect(persisted.every((row) => row.status === "confirmed")).toBe(true);
+  it("confirms in any order without mutating the source rows", () => {
+    const rows: WorkflowStepState[] = [];
+    const next = confirmStep(rows, "dna.lighting", "now");
+    expect(rows).toEqual([]);
+    expect(next).toEqual([{ stepId: "dna.lighting", status: "confirmed", confirmedAt: "now" }]);
   });
-
-  it("reports invalid, locked, and non-reopenable operations", () => {
+  it("reopening preserves later confirmations and never relocks generation", () => {
+    const rows = allConfirmed();
+    const reopened = reopenStep(rows, "dna.context");
+    expect(rows.every((row) => row.status === "confirmed")).toBe(true);
+    expect(reopened.slice(2)).toEqual(rows.slice(2));
+    expect(deriveWorkflow(reopened, facts()).steps.some((step) => step.status === "locked")).toBe(
+      false,
+    );
+    expect(confirmStep(reopened, "dna.context", "later")[1]?.status).toBe("confirmed");
+  });
+  it("rejects invalid ids, duplicate confirmations and reopening open steps", () => {
     expect(() => confirmStep([], "generate.master", "now")).toThrow(/DNA step/i);
-    expect(() => confirmStep([], "dna.context", "now")).toThrow(/locked|previous/i);
-    expect(() =>
-      confirmStep(
-        [{ stepId: "dna.building", status: "confirmed", confirmedAt: "now" }],
-        "dna.building",
-        "later",
-      ),
-    ).toThrow(/locked|confirmed/i);
-    expect(() => reopenStep([], "dna.building")).toThrow(/confirmed|needs_review/i);
+    expect(() => confirmStep(allConfirmed(), "dna.building", "now")).toThrow(/reopen/i);
+    expect(() => reopenStep([], "dna.camera")).toThrow(/confirmed|needs_review/i);
     expect(() => reopenStep([], "generate.master")).toThrow(/DNA step/i);
   });
-
-  it("keeps legacy needs_review rows visible and requires reopening before confirm", () => {
-    const legacy = allConfirmed().map((row) =>
-      row.stepId === "dna.references" ? { ...row, status: "needs_review" as const } : row,
+  it("keeps legacy needs_review confirmations explicit", () => {
+    const rows = [
+      { stepId: "dna.context" as const, status: "needs_review" as const, confirmedAt: "old" },
+    ];
+    expect(() => confirmStep(rows, "dna.context", "now")).toThrow(/reopen/i);
+    expect(confirmStep(reopenStep(rows, "dna.context"), "dna.context", "now")[0]?.status).toBe(
+      "confirmed",
     );
-    expect(deriveWorkflow(legacy, facts()).steps[2]).toMatchObject({
-      id: "dna.references",
-      status: "needs_review",
-    });
-    expect(() => confirmStep(legacy, "dna.references", "later")).toThrow(/reopen/i);
-    const reopened = reopenStep(legacy, "dna.references");
-    expect(confirmStep(reopened, "dna.references", "reviewed")[2]).toMatchObject({
-      status: "confirmed",
-      confirmedAt: "reviewed",
-    });
   });
-});
-
-describe("generation workflow gating", () => {
   it.each([
-    ["hero", "dna.building"],
-    ["anchor", "dna.building"],
-    ["production", "dna.building"],
-  ] as const)("blocks %s on the first unfinished DNA step", (purpose, blockedBy) => {
-    expect(isGenerationAllowed(purpose, [], facts())).toEqual({ ok: false, blockedBy });
-  });
-
-  it("gates each purpose at its own prerequisite", () => {
-    const masterFacts = facts({
-      masterApproved: true,
-      anchorCameraIds: ["CAM_1"],
-      approvedAnchorCameraIds: [],
-    });
-    expect(isGenerationAllowed("hero", allConfirmed(), masterFacts)).toEqual({ ok: true });
-    expect(isGenerationAllowed("variation", [], masterFacts)).toEqual({ ok: true });
-    expect(isGenerationAllowed("anchor", allConfirmed(), facts())).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
-    });
-    expect(isGenerationAllowed("production", allConfirmed(), masterFacts)).toEqual({
-      ok: false,
-      blockedBy: "generate.anchors",
-    });
+    "hero",
+    "variation",
+    "anchor",
+    "production",
+    "enhance",
+    "region_edit",
+    "video",
+  ] as const)("%s does not depend on workflow progress", (purpose) => {
+    expect(isGenerationAllowed(purpose, [], facts())).toEqual({ ok: true });
     expect(
-      isGenerationAllowed(
-        "production",
-        allConfirmed(),
-        facts({
-          masterApproved: true,
-          anchorCameraIds: ["CAM_1"],
-          approvedAnchorCameraIds: ["CAM_1"],
-        }),
-      ),
+      isGenerationAllowed(purpose, reopenStep(allConfirmed(), "dna.context"), facts()),
     ).toEqual({ ok: true });
-  });
-
-  it("lets a quick hero with a source image skip the DNA steps only (ADR-039)", () => {
-    const quick = facts({ hasSourceImage: true });
-    expect(isGenerationAllowed("hero", [], quick)).toEqual({ ok: true });
-    expect(isGenerationAllowed("anchor", [], quick)).toEqual({
-      ok: false,
-      blockedBy: "dna.building",
-    });
-    expect(isGenerationAllowed("production", [], quick)).toEqual({
-      ok: false,
-      blockedBy: "dna.building",
-    });
-    expect(isGenerationAllowed("variation", [], quick)).toEqual({
-      ok: true,
-    });
-  });
-
-  it("allows variation with an approved master even when DNA is not confirmed", () => {
-    expect(isGenerationAllowed("variation", [], facts({ masterApproved: true }))).toEqual({
-      ok: true,
-    });
-    expect(isGenerationAllowed("variation", [], facts())).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
-    });
   });
 });

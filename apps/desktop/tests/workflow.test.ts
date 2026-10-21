@@ -20,7 +20,7 @@ const open = (): WorkflowStepState[] =>
   DNA_STEP_IDS.map((stepId) => ({ stepId, status: "open", confirmedAt: null }));
 
 describe("guided workflow contract", () => {
-  it("keeps the stable ordered ids and unlocks only the next DNA step", () => {
+  it("keeps the stable ordered ids and makes all DNA steps available", () => {
     expect(WORKFLOW_STEPS.map((step) => step.id)).toEqual([
       "dna.building",
       "dna.context",
@@ -34,20 +34,21 @@ describe("guided workflow contract", () => {
     ]);
     const view = deriveWorkflow(open(), facts);
     expect(view.steps.find((step) => step.id === "dna.building")?.status).toBe("available");
-    expect(view.steps.find((step) => step.id === "dna.context")?.status).toBe("locked");
-    expect(view.steps.find((step) => step.id === "dna.context")?.blockedBy).toBe("dna.building");
+    expect(view.steps.find((step) => step.id === "dna.context")?.status).toBe("available");
+    expect(view.steps.find((step) => step.id === "dna.context")?.blockedBy).toBeUndefined();
   });
 
-  it("confirms an unlocked step and rejects a locked step", () => {
+  it("confirms DNA sections independently", () => {
     const confirmed = confirmStep(open(), "dna.building", "2026-10-10T00:00:00.000Z");
     expect(confirmed.find((step) => step.stepId === "dna.building")).toEqual({
       stepId: "dna.building",
       status: "confirmed",
       confirmedAt: "2026-10-10T00:00:00.000Z",
     });
-    expect(() => confirmStep(open(), "dna.context", "2026-10-10T00:00:00.000Z")).toThrow(
-      /dna\.building/,
-    );
+    expect(
+      confirmStep(open(), "dna.context", "now").find((step) => step.stepId === "dna.context")
+        ?.status,
+    ).toBe("confirmed");
   });
 
   it("reopening leaves later confirmed DNA steps confirmed", () => {
@@ -75,7 +76,7 @@ describe("guided workflow contract", () => {
     const master = deriveWorkflow(allConfirmed, { ...facts, masterApproved: true });
     expect(master.steps.find((step) => step.id === "generate.master")?.status).toBe("done");
     expect(master.steps.find((step) => step.id === "generate.anchors")?.status).toBe("available");
-    expect(master.steps.find((step) => step.id === "generate.render")?.status).toBe("locked");
+    expect(master.steps.find((step) => step.id === "generate.render")?.status).toBe("available");
     expect(master.steps.find((step) => step.id === "post.grade")?.status).toBe("available");
 
     const anchored = deriveWorkflow(allConfirmed, {
@@ -103,14 +104,12 @@ describe("guided workflow contract", () => {
     );
   });
 
-  it("enforces generation prerequisites by purpose", () => {
+  it("keeps generation independent of workflow approvals", () => {
     expect(isGenerationAllowed("variation", open(), facts)).toEqual({
-      ok: false,
-      blockedBy: "generate.master",
+      ok: true,
     });
     expect(isGenerationAllowed("hero", open(), facts)).toEqual({
-      ok: false,
-      blockedBy: "dna.building",
+      ok: true,
     });
     const allConfirmed = DNA_STEP_IDS.map((stepId) => ({
       stepId,
