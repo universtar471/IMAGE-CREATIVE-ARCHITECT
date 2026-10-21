@@ -191,10 +191,9 @@ mod tests {
         (n("batches"), n("generations"), n("jobs"))
     }
 
-    /// ADR-034 P0-B: a batch item whose snapshot verdict is BLOCK fails the whole batch
-    /// (all-or-nothing); the desktop gate skips such items before sending.
+    /// Advisory creative findings do not remove or reject batch items.
     #[test]
-    fn refuses_a_batch_item_whose_snapshot_is_blocked() {
+    fn accepts_batch_items_with_advisory_findings() {
         let h = queue_harness();
         let p = test_create_villa(&h.core, "Blocked batch");
         set_cameras(&h.core, &p.id, &[(CAM_A, "Front corner", true)]);
@@ -203,10 +202,9 @@ mod tests {
         let mut blocked = item("Front corner — anchor", Some(CAM_A), &[&master.id]);
         blocked["prompt"]["validation"] = json!({ "verdict": "BLOCK", "validatorVersion": "cv-1.0.0",
             "issueCodes": ["ADJACENT_BUILDING_CONFLICT"], "approvedExceptions": [] });
-        let err = create(&h.core, request(&p.id, TEST_LOCAL_PROVIDER, vec![blocked])).unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert!(err.message.contains("conflict check blocked"), "{}", err.message);
-        assert_eq!(rows(&h), (0, 0, 0));
+        let batch = create(&h.core, request(&p.id, TEST_LOCAL_PROVIDER, vec![blocked])).unwrap();
+        assert_eq!(batch.job_ids.len(), 1);
+        assert_eq!(rows(&h), (1, 1, 1));
     }
 
     #[test]

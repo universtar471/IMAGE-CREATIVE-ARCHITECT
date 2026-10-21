@@ -114,8 +114,10 @@ describe("branch canvas (ADR-041)", () => {
     fireEvent.click(node(imageNodeId(out))!);
     // The floating toolbar follows the selection (AI output → image actions).
     const toolbar = await screen.findByTestId("context-toolbar");
-    expect(toolbar.dataset.selection).toBe("image");
-    expect(useStudio.getState().selectedAssetId).toBe(out);
+    await waitFor(() => {
+      expect(toolbar.dataset.selection).toBe("image");
+      expect(useStudio.getState().selectedAssetId).toBe(out);
+    });
     fireEvent.click(screen.getByRole("button", { name: "Variation from this image" }));
     expect(useStudio.getState().generateDraft).toMatchObject({
       source: "sketch",

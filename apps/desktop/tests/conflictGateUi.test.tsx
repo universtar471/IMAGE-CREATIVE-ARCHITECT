@@ -50,7 +50,7 @@ async function openMidBlock() {
 }
 
 describe("Generate panel conflict gate", () => {
-  it("BLOCK disables Generate and offers only 'Fix selection'", async () => {
+  it("creative findings do not disable Generate; fixing remains optional", async () => {
     await openMidBlock();
     render(<GeneratePanel />);
     const button = screen.getByTestId("generate-button") as HTMLButtonElement;
@@ -60,24 +60,23 @@ describe("Generate panel conflict gate", () => {
     fireEvent.change(screen.getByTestId("extra-prompt"), {
       target: { value: "mở mặt hông bên trái" },
     });
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
     const panel = screen.getByTestId("conflict-panel");
     expect(panel.textContent).toContain(t("conflicts.ADJACENT_BUILDING_CONFLICT"));
     expect(screen.getByTestId("conflict-fix").textContent).toContain(t("conflictUi.fix"));
     expect(screen.queryByTestId("conflict-approve")).toBeNull();
-    expect(screen.getByTestId("generate-disabled-reason").textContent).toContain(
-      t("conflictUi.refusedBlock"),
-    );
+    expect(screen.queryByTestId("generate-disabled-reason")).toBeNull();
+    expect(panel.textContent).toContain(t("conflictUi.advisoryHint"));
     fireEvent.click(screen.getByTestId("conflict-fix"));
     expect(document.activeElement).toBe(screen.getByTestId("extra-prompt"));
   });
 
-  it("WARN is cleared by 'Approve exception' and re-armed by new text", async () => {
+  it("warnings stay advisory before and after optional acknowledgement", async () => {
     await openMidBlock();
     render(<GeneratePanel />);
     const button = screen.getByTestId("generate-button") as HTMLButtonElement;
     fireEvent.change(screen.getByTestId("extra-prompt"), { target: { value: "exactly 5 m wide" } });
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
     fireEvent.click(screen.getByTestId("conflict-approve"));
     expect(screen.queryByTestId("conflict-approve")).toBeNull();
     expect(useStudio.getState().generateDraft.approvedExceptions).toEqual(["UNVERIFIED_GEOMETRY"]);
@@ -85,6 +84,6 @@ describe("Generate panel conflict gate", () => {
     expect(screen.getByTestId("conflict-panel").textContent).toContain(t("conflictUi.accepted"));
 
     fireEvent.change(screen.getByTestId("extra-prompt"), { target: { value: "exactly 6 m wide" } });
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
   });
 });

@@ -446,8 +446,8 @@ pub fn retry(core: &AppCore, job_id: &str) -> AppResult<JobDto> {
 /// `retry` with the desktop conflict gate's fresh verdict (ADR-034). The gate re-runs
 /// `validateShot` on the stored snapshot against the CURRENT DNA; its verdict replaces the
 /// snapshot's own, and `resolvedWarnings` becomes the codes accepted now. The request is then
-/// validated like a new submit, so a verdict that is now BLOCK is refused (`VALIDATION_ERROR`)
-/// before any row is written. Without a verdict (older clients) the stored one is checked.
+/// validated like a new submit. Creative findings are advisory, preserved without automatic
+/// approval. Without a fresh verdict, older clients keep the stored assessment.
 pub fn retry_with(core: &AppCore, job_id: &str, validation: Option<ShotValidationSnapshot>) -> AppResult<JobDto> {
     let (job, mut request) = {
         let conn = core.conn()?;
@@ -983,7 +983,7 @@ mod tests {
     }
 
     #[test]
-    fn retry_with_a_fresh_verdict_refuses_block_and_records_the_accepted_codes() {
+    fn retry_records_findings_and_only_explicitly_accepted_codes() {
         use crate::dto::{ShotValidationSnapshot, ShotVerdict};
         let verdict = |verdict, approved: &[&str]| ShotValidationSnapshot {
             verdict,
@@ -998,10 +998,11 @@ mod tests {
         assert_eq!(job(&h, &id).status, JobStatus::Failed);
         let jobs_before = count(&h, "jobs");
 
-        // The stored snapshot would pass, but against the current DNA the shot is now BLOCK.
-        let err = retry_with(&h.core, &id, Some(verdict(ShotVerdict::Block, &[]))).unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert_eq!(count(&h, "jobs"), jobs_before, "a refused retry writes no row");
+        let retried = retry_with(&h.core, &id, Some(verdict(ShotVerdict::Block, &[]))).unwrap();
+        assert_eq!(count(&h, "jobs"), jobs_before + 1);
+        let snapshot = generation(&h, &retried).prompt.validation.unwrap();
+        assert_eq!(snapshot.verdict, ShotVerdict::Block);
+        assert!(snapshot.approved_exceptions.is_empty());
 
         let again = retry_with(&h.core, &id, Some(verdict(ShotVerdict::Allow, &["UNVERIFIED_GEOMETRY"]))).unwrap();
         let prompt = generation(&h, &again).prompt;

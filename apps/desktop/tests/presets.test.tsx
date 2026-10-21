@@ -143,3 +143,18 @@ describe("Quick generate", () => {
     expect((screen.getByTestId("generate-button") as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+describe("Advisory preset conflicts", () => {
+  it("keeps Generate enabled for Dawn, City car and Vehicle light trails", async () => {
+    await openPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Dawn" }));
+    fireEvent.click(screen.getByRole("button", { name: "City car" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vehicle light trails" }));
+    expect(screen.getByTestId("conflict-panel")).toBeTruthy();
+    expect((screen.getByTestId("generate-button") as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId("generate-button"));
+    expect(await screen.findByRole("dialog", { name: "Confirm cost" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(submits).toBe(0);
+  });
+});

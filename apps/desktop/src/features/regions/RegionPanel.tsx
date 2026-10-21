@@ -22,7 +22,7 @@ import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { spendRequestForGeneration } from "../../lib/spend";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
-import { canSubmit, checkShot, withValidation } from "../validation/gate";
+import { checkShot, withValidation } from "../validation/gate";
 
 const CATEGORIES: SceneObjectCategory[] = [
   "wall",
@@ -234,8 +234,7 @@ export function RegionPanel() {
       !model ||
       readOnly ||
       !selectedRegions.size ||
-      (mode === "edit" ? !instruction.trim() : !material.trim()) ||
-      !canSubmit(conflicts)
+      (mode === "edit" ? !instruction.trim() : !material.trim())
     )
       return;
     setBusy(true);
@@ -535,15 +534,7 @@ export function RegionPanel() {
         />
         <button
           className="btn btn-primary"
-          disabled={
-            busy ||
-            readOnly ||
-            !selected ||
-            !selectedRegions.size ||
-            !provider ||
-            !model ||
-            !canSubmit(conflicts)
-          }
+          disabled={busy || readOnly || !selected || !selectedRegions.size || !provider || !model}
           onClick={() => void submit()}
         >
           {t("regions.run")}

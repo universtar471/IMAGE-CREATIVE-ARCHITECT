@@ -197,35 +197,32 @@ describe("EffectsPanel (SRS §6.2)", () => {
 });
 
 describe("conflict gate with effects", () => {
-  it("AC-09: blocks soft clouds in a closed interior before any bridge submit", async () => {
+  it("submits soft clouds in a closed interior with an advisory finding", async () => {
     const { project, masterId } = await openVilla(true);
     useStudio.getState().setShotIntent({
       projectType: "villa",
       effects: { primary: { id: "soft_clouds", intensity: "medium" }, secondary: [] },
     });
     const g = await useStudio.getState().submitGeneration(hero(project.id, masterId));
-    expect(g).toBeUndefined();
-    const run = useStudio.getState().run;
-    expect(run?.status === "error" && run.validation?.verdict).toBe("BLOCK");
-    expect(
-      run?.status === "error" && run.validation?.issues.find((i) => i.code.startsWith("EFFECT_")),
-    ).toMatchObject({ code: "EFFECT_SOURCE_MISSING", severity: "BLOCK", exceptionAllowed: false });
-    expect(sent).not.toContain("generation_submit");
+    expect(g?.status).toBe("queued");
+    expect(g?.prompt.validation).toMatchObject({
+      verdict: "BLOCK",
+      issueCodes: expect.arrayContaining(["EFFECT_SOURCE_MISSING"]),
+    });
+    expect(sent).toContain("generation_submit");
   });
 
-  it("AC-08: blocks light trails while the only car is parked", async () => {
+  it("submits light trails with a parked car and records the motion finding", async () => {
     const { project, masterId } = await openVilla(false);
     useStudio.getState().setShotIntent({
       projectType: "villa",
       sceneObjects: [parkedCar],
       effects: { primary: { id: "vehicle_light_trails", intensity: "light" }, secondary: [] },
     });
-    await useStudio.getState().submitGeneration(hero(project.id, masterId));
-    const run = useStudio.getState().run;
-    expect(run?.status === "error" && run.validation?.issues.map((i) => i.code)).toContain(
-      "EFFECT_MOTION_CONFLICT",
-    );
-    expect(sent).not.toContain("generation_submit");
+    const queued = await useStudio.getState().submitGeneration(hero(project.id, masterId));
+    expect(queued?.status).toBe("queued");
+    expect(queued?.prompt.validation?.issueCodes).toContain("EFFECT_MOTION_CONFLICT");
+    expect(sent).toContain("generation_submit");
   });
 
   it("submits an available effect and snapshots it in the shot intent", async () => {

@@ -29,7 +29,7 @@ import {
 } from "./EnhanceControls";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
-import { canSubmit, checkShot } from "../validation/gate";
+import { checkShot } from "../validation/gate";
 
 const EMPTY_PARAMS: GenerationParams = {
   aspectRatio: null,
@@ -125,8 +125,7 @@ export function EnhancePanel() {
     !provider ||
     !model ||
     (strict && provider.id !== "local_upscale") ||
-    busy ||
-    (conflicts !== null && !canSubmit(conflicts));
+    busy;
 
   useEffect(() => {
     if (!providers.length) void loadProviders();

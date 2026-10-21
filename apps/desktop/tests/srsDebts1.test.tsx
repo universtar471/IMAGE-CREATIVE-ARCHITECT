@@ -28,7 +28,6 @@ import { planBatch } from "../src/features/camera/batch";
 import { ContactSheet } from "../src/features/camera/ContactSheet";
 import { MoodGradePanel } from "../src/features/mood/MoodGradePanel";
 import { EnhanceBatchDialog } from "../src/features/enhance/EnhanceBatchDialog";
-import { RetryConflictDialog } from "../src/features/validation/RetryConflictDialog";
 import { checkShot, withValidation } from "../src/features/validation/gate";
 import { DEFAULT_ENHANCE_PARAMS } from "../src/features/enhance/enhance";
 import { t } from "../src/i18n";
@@ -136,49 +135,32 @@ async function cancelledJob(input: ReturnType<typeof hero>) {
 }
 
 describe("retry re-validates against the current DNA", () => {
-  it("refuses a snapshot that is now BLOCK, without calling job_retry", async () => {
+  it("retries with new creative findings without auto-approving or discarding them", async () => {
     const { projectId, masterId } = await openTownhouse();
     const job = await cancelledJob(hero(projectId, masterId));
     await replaceDna(projectId, blockDna(ProjectDNASchema.parse(nhaphoDna)));
-
-    expect(await useStudio.getState().retryJob(job.id)).toBeUndefined();
-    expect(commands()).not.toContain("job_retry");
-    const [conflict] = useStudio.getState().retryConflicts;
-    expect(conflict).toMatchObject({ jobId: job.id, validation: { verdict: "BLOCK" } });
-    expect(conflict!.validation.issues[0]).toMatchObject({ code: "SPACE_NOT_IN_BUILDING" });
-    expect(useStudio.getState().toasts.map((x) => x.message)).toContain(
-      t("conflictUi.refusedBlock"),
-    );
+    expect(await useStudio.getState().retryJob(job.id)).toBeDefined();
+    expect(commands()).toContain("job_retry");
+    expect(useStudio.getState().retryConflicts).toEqual([]);
+    const retried = sent.find((s) => s.command === "job_retry")!.request as {
+      validation: { verdict: string; issueCodes: string[]; approvedExceptions: string[] };
+    };
+    expect(retried.validation).toMatchObject({
+      verdict: "BLOCK",
+      issueCodes: expect.arrayContaining(["SPACE_NOT_IN_BUILDING"]),
+      approvedExceptions: [],
+    });
   });
 
-  it("asks again for a new WARN, then resends with the accepted code", async () => {
+  it("retries warnings without requiring acknowledgement", async () => {
     const { projectId, masterId } = await openTownhouse();
     const job = await cancelledJob(hero(projectId, masterId));
     await replaceDna(projectId, warnDna(ProjectDNASchema.parse(nhaphoDna)));
-
-    expect(await useStudio.getState().retryJob(job.id)).toBeUndefined();
-    expect(commands()).not.toContain("job_retry");
-    expect(useStudio.getState().retryConflicts[0]?.validation.verdict).toBe("WARN");
-
-    // The retry dialog offers "Duyệt ngoại lệ"; approving resends the job.
-    render(<RetryConflictDialog />);
-    expect(screen.getByTestId("retry-conflict-dialog").textContent).toContain(
-      t("conflicts.SPACE_NOT_IN_BUILDING"),
-    );
-    fireEvent.click(screen.getByTestId("conflict-approve"));
-    await waitFor(() => expect(commands()).toContain("job_retry"));
-    await waitFor(() => expect(useStudio.getState().retryConflicts).toEqual([]));
+    expect(await useStudio.getState().retryJob(job.id)).toBeDefined();
     const retried = sent.find((s) => s.command === "job_retry")!.request as {
       validation: { verdict: string; approvedExceptions: string[] };
     };
-    expect(retried.validation).toMatchObject({
-      verdict: "ALLOW",
-      approvedExceptions: ["SPACE_NOT_IN_BUILDING"],
-    });
-    const copy = useStudio.getState().jobs.find((j) => j.id !== job.id && j.label === job.label)!;
-    const g = await call("generation_get", { projectId, generationId: copy.generationId });
-    expect(g.prompt.validation?.approvedExceptions).toEqual(["SPACE_NOT_IN_BUILDING"]);
-    expect(g.prompt.resolvedWarnings).toEqual(["SPACE_NOT_IN_BUILDING"]);
+    expect(retried.validation).toMatchObject({ verdict: "WARN", approvedExceptions: [] });
   });
 
   it("keeps a WARN that was accepted for the original submit", async () => {
@@ -191,7 +173,7 @@ describe("retry re-validates against the current DNA", () => {
     expect(useStudio.getState().retryConflicts).toEqual([]);
   });
 
-  it("the mock backend, like Rust, refuses a BLOCK verdict sent with job_retry", async () => {
+  it("the mock backend, like Rust, accepts advisory findings on retry", async () => {
     const { projectId, masterId } = await openTownhouse();
     const job = await cancelledJob(hero(projectId, masterId));
     await expect(
@@ -204,12 +186,12 @@ describe("retry re-validates against the current DNA", () => {
           approvedExceptions: [],
         },
       }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).resolves.toBeDefined();
   });
 });
 
 describe("exception panel on the batch surfaces", () => {
-  it("ContactSheet re-run: WARN shows the panel, nothing is sent until it is approved", async () => {
+  it("ContactSheet re-run: warnings do not stop queueing", async () => {
     const { projectId } = await openTownhouse();
     const ws = useStudio.getState().workspace!;
     const anchorCam = ws.persistedDna.cameras.find((c) => c.isAnchorView)!;
@@ -234,22 +216,14 @@ describe("exception panel on the batch surfaces", () => {
     render(<ContactSheet />);
     const rerun = await screen.findByTestId("contact-rerun");
     fireEvent.click(rerun);
-    const panel = await screen.findByTestId("conflict-panel");
-    expect(panel.textContent).toContain(t("conflicts.SPACE_NOT_IN_BUILDING"));
-    expect(commands()).not.toContain("batch_create");
-
-    fireEvent.click(screen.getByTestId("conflict-approve"));
-    fireEvent.click(rerun);
     await waitFor(() => expect(commands()).toContain("batch_create"));
     const created = sent.find((s) => s.command === "batch_create")!.request as {
       items: { prompt: { validation: { approvedExceptions: ConflictCode[] } } }[];
     };
-    expect(created.items[0]!.prompt.validation.approvedExceptions).toEqual([
-      "SPACE_NOT_IN_BUILDING",
-    ]);
+    expect(created.items[0]!.prompt.validation.approvedExceptions).toEqual([]);
   });
 
-  it("Mood variations: WARN disables queueing until 'Approve exception'", async () => {
+  it("Mood variations: WARN stays advisory before optional acknowledgement", async () => {
     await openTownhouse(warnDna(ProjectDNASchema.parse(nhaphoDna)));
     render(<MoodGradePanel />);
     fireEvent.click(screen.getByText(t("moodGrade.variations")));
@@ -257,7 +231,7 @@ describe("exception panel on the batch surfaces", () => {
     expect(screen.getByTestId("conflict-panel").textContent).toContain(
       t("conflicts.SPACE_NOT_IN_BUILDING"),
     );
-    expect(submit.disabled).toBe(true);
+    expect(submit.disabled).toBe(false);
     fireEvent.click(screen.getByTestId("conflict-approve"));
     expect(submit.disabled).toBe(false);
     fireEvent.click(submit);
@@ -272,7 +246,7 @@ describe("exception panel on the batch surfaces", () => {
     }
   });
 
-  it("Enhance batch (generative): WARN disables the submit until 'Approve exception'", async () => {
+  it("Enhance batch (generative): WARN does not disable the submit", async () => {
     const { masterId, otherId } = await openTownhouse(warnDna(ProjectDNASchema.parse(nhaphoDna)));
     render(
       <EnhanceBatchDialog
@@ -289,7 +263,7 @@ describe("exception panel on the batch surfaces", () => {
         t("conflicts.SPACE_NOT_IN_BUILDING"),
       ),
     );
-    expect(submit.disabled).toBe(true);
+    expect(submit.disabled).toBe(false);
     fireEvent.click(screen.getByTestId("conflict-approve"));
     await waitFor(() => expect(submit.disabled).toBe(false));
     expect(screen.getByTestId("conflict-panel").textContent).toContain(t("conflictUi.accepted"));
@@ -360,9 +334,9 @@ describe("planned detail batches", () => {
     sent = [];
     // Sent as anchors only because this fixture has no approved anchors (workflow rule).
     const created = await useStudio.getState().createBatch({ ...plan.request!, purpose: "anchor" });
-    // Only the item whose own target no longer exists is blocked (OCCLUDED_TARGET).
-    expect(created?.jobIds).toHaveLength(2);
-    expect(useStudio.getState().toasts.map((x) => x.message)).toContain(
+    // Missing creative targets are recorded per item without dropping it.
+    expect(created?.jobIds).toHaveLength(3);
+    expect(useStudio.getState().toasts.map((x) => x.message)).not.toContain(
       t("conflictUi.batchSkipped", { list: "Gone" }),
     );
     const request = sent.find((s) => s.command === "batch_create")!.request as {
@@ -371,6 +345,7 @@ describe("planned detail batches", () => {
     expect(request.items.map((i) => i.prompt.shotIntent?.targetDetailId)).toEqual([
       "DTL_A",
       "DTL_B",
+      "DTL_GONE",
     ]);
   });
 });

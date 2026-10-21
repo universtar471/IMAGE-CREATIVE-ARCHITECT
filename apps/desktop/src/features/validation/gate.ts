@@ -1,17 +1,6 @@
-/**
- * The conflict gate of every paid submit (ADR-034 P0-B, SRS §12.3): generate, variations,
- * anchors, batches, generative enhance and region edit all call `checkShot` with the
- * persisted DNA, the shot and the user's free text BEFORE anything reaches the bridge.
- *
- * - BLOCK: nothing is sent; the user must fix the selection ("Sửa lựa chọn").
- * - WARN: nothing is sent until each WARN code is accepted ("Duyệt ngoại lệ").
- * - ALLOW (after accepted exceptions): the request goes out with the verdict and the
- *   accepted exceptions recorded in its prompt snapshot (`PromptBundle.validation`); the
- *   backend refuses a snapshot whose verdict is BLOCK.
- *
- * Batches validate per item: items that are not ALLOW are skipped and reported, never sent.
- * Pure: no store, no bridge.
- */
+/** Creative conflict assessment is advisory. Preserve findings in every prompt snapshot,
+ * including batches and retries; choices never require exception approval to be submitted.
+ * Provider, file, parameter and cost validation are enforced separately. */
 import {
   validateShot,
   type BatchCreateRequest,
@@ -23,8 +12,6 @@ import {
   type ShotValidationSnapshot,
   type ShotIntent,
 } from "@arch/domain";
-import { BridgeError } from "../../lib/bridge";
-import { t } from "../../i18n";
 
 export type ShotCheck = {
   dna: ProjectDNA;
@@ -49,9 +36,6 @@ export function checkShot(input: ShotCheck): ShotValidation {
     approvedExceptions: input.approvedExceptions,
   });
 }
-
-/** Only ALLOW (every WARN accepted, no BLOCK) may be submitted. */
-export const canSubmit = (v: Pick<ShotValidation, "verdict">) => v.verdict === "ALLOW";
 
 const sortedUnique = (codes: readonly string[]) =>
   [...new Set(codes)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -91,15 +75,6 @@ export function withValidation<B extends PromptBundle>(bundle: B, v: ShotValidat
   return { ...resolved, validation: validationSnapshot(v) };
 }
 
-/** Thrown by the store when the gate refuses a submit; `details.validation` has the issues. */
-export function conflictError(v: ShotValidation): BridgeError {
-  return new BridgeError({
-    code: "VALIDATION_ERROR",
-    message: v.verdict === "BLOCK" ? t("conflictUi.refusedBlock") : t("conflictUi.refusedWarn"),
-    details: { validation: v },
-  });
-}
-
 export function conflictOf(err: { details?: unknown }): ShotValidation | null {
   const details = err.details as { validation?: ShotValidation } | undefined;
   return details?.validation ?? null;
@@ -112,13 +87,13 @@ export type BatchGate = {
   request: BatchCreateRequest | null;
   /** Every item's validation, in item order (for the panel). */
   entries: BatchGateEntry[];
-  /** Items that are not ALLOW: never sent. */
+  /** Retained for compatibility; advisory findings never skip an item. */
   skipped: BatchGateEntry[];
 };
 
 /**
  * Validate every batch item with its OWN shot intent (the one its prompt was compiled with,
- * e.g. a per-item `targetDetailId`); items that are not ALLOW are dropped from the request.
+ * e.g. a per-item `targetDetailId`); all items keep their findings and remain in the request.
  */
 export function gateBatch(
   request: BatchCreateRequest,
@@ -139,9 +114,7 @@ export function gateBatch(
     });
     const entry = { label: item.label, validation };
     entries.push(entry);
-    if (canSubmit(validation))
-      items.push({ ...item, prompt: withValidation(item.prompt, validation) });
-    else skipped.push(entry);
+    items.push({ ...item, prompt: withValidation(item.prompt, validation) });
   }
   return { request: items.length ? { ...request, items } : null, entries, skipped };
 }

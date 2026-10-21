@@ -70,7 +70,7 @@ describe("dictionaries", () => {
       expect(vi.conflicts[code], `vi conflicts.${code}`).toMatch(/[À-ỹ]/);
     }
     expect(vi.conflictUi.fix).toBe("Sửa lựa chọn");
-    expect(vi.conflictUi.approveException).toBe("Duyệt ngoại lệ");
+    expect(vi.conflictUi.approveException).toBe("Ghi nhận cảnh báo");
   });
 
   it("keeps sketch-mode Vietnamese labels accented", () => {
