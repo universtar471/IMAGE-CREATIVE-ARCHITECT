@@ -73,11 +73,11 @@ async function openPanel(projectType: "villa" | "interior" = "villa") {
 const shot = () => useStudio.getState().workspace?.shotIntent;
 
 describe("Generate panel modes (ADR-039)", () => {
-  it("opens in Simple mode: source and presets, no provider or seed fields", async () => {
+  it("opens in Simple mode with provider selection, source and presets", async () => {
     await openPanel();
     expect(screen.getByTestId("generate-mode-simple").getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByTestId("preset-studio")).toBeTruthy();
-    expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Provider" })).toBeTruthy();
     expect(screen.queryByTestId("generate-anchors")).toBeNull();
   });
 
@@ -121,7 +121,7 @@ describe("Preset grid", () => {
 });
 
 describe("Quick generate", () => {
-  it("allows a hero from a source image without confirmed DNA; anchors stay gated", async () => {
+  it("allows hero and anchor actions without confirmed DNA", async () => {
     await openPanel();
     fireEvent.click(screen.getByRole("button", { name: "From sketch / massing" }));
     fireEvent.click(screen.getByRole("button", { name: "Import sketch" }));
@@ -134,12 +134,12 @@ describe("Quick generate", () => {
     expect(submits).toBe(0);
 
     fireEvent.click(screen.getByTestId("generate-mode-advanced"));
-    expect((screen.getByTestId("generate-anchors") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("generate-anchors") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("still blocks a hero without a source image until the DNA is confirmed", async () => {
+  it("allows DNA-only hero without confirming the DNA", async () => {
     await openPanel();
-    expect(screen.getByTestId("generate-disabled-reason")).toBeTruthy();
-    expect(screen.getByTestId("quick-generate-hint")).toBeTruthy();
+    expect(screen.queryByTestId("generate-disabled-reason")).toBeNull();
+    expect((screen.getByTestId("generate-button") as HTMLButtonElement).disabled).toBe(false);
   });
 });

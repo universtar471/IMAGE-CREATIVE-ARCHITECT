@@ -30,7 +30,6 @@ import {
   type AssetDTO,
   type CanvasLayout,
   CanvasLayoutSchema,
-  isQuickSourceImage,
   isVideoAsset,
   type UserPresetDTO,
   USER_PRESET_NAME_MAX,
@@ -72,14 +71,7 @@ import {
   type SceneDNA,
 } from "./regions";
 import { neutralGrade } from "./grade";
-import {
-  DNA_STEP_IDS,
-  confirmStep,
-  isGenerationAllowed,
-  reopenStep,
-  type WorkflowFacts,
-  type WorkflowStepState,
-} from "./workflow";
+import { DNA_STEP_IDS, confirmStep, reopenStep, type WorkflowStepState } from "./workflow";
 
 type MockAsset = AssetDTO & {
   operationJson?: Record<string, unknown>;
@@ -922,17 +914,6 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
   /** Validate a request exactly like `generation_submit` (throws AppError-shaped values). */
   const validateRequest = (req: RegionOrGenerationRequest) => {
     writable(req.projectId);
-    // Quick generate (ADR-039): a source image among the references, as in Rust.
-    const facts = {
-      ...workflowFacts(req.projectId),
-      hasSourceImage: projectAssets(req.projectId).some(
-        (a) =>
-          req.referenceAssetIds.includes(a.id) &&
-          a.status === "ready" &&
-          !isVideoAsset(a) &&
-          (["variation", "enhance", "region_edit"].includes(req.purpose) || isQuickSourceImage(a)),
-      ),
-    };
     const purpose = req.purpose as string;
     // Repairs came only from QC reports; QC was removed (ADR-033), so none are created now.
     if (purpose === "repair")
@@ -942,10 +923,6 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       fail("VALIDATION_ERROR", "The conflict check blocked this shot; fix the selection first.", {
         issueCodes: req.prompt.validation.issueCodes,
       });
-    const gate = isGenerationAllowed(req.purpose, workflowRows(req.projectId), facts);
-    if (!gate.ok) {
-      fail("VALIDATION_ERROR", `Finish workflow step '${gate.blockedBy}' before generating.`);
-    }
     const provider = getProvider(req.providerId);
     const model =
       provider.models.find((m) => m.id === req.modelId) ??
@@ -1289,18 +1266,6 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
           confirmedAt: null,
         },
     );
-  const workflowFacts = (projectId: string): WorkflowFacts => {
-    const dna = db.dna[projectId]!;
-    const anchors = projectAnchors(projectId);
-    return {
-      masterApproved: !!db.projects[projectId]?.masterApprovedAt,
-      anchorCameraIds: dna.cameras
-        .filter((camera) => camera.isAnchorView)
-        .map((camera) => camera.id),
-      cameraIds: dna.cameras.map((camera) => camera.id),
-      approvedAnchorCameraIds: anchors.map((anchor) => anchor.cameraId),
-    };
-  };
 
   // Resume queued/retrying jobs left from a previous session.
   if (jobs.some((j) => !isTerminal(j))) schedulePump();

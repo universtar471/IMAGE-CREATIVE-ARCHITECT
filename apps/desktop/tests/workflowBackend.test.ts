@@ -39,7 +39,7 @@ describe("mock workflow commands", () => {
     ]);
   });
 
-  it("rejects confirming an out-of-order DNA step", async () => {
+  it("confirms an out-of-order DNA step", async () => {
     const project = await createProject({
       name: "Workflow lock",
       projectType: "villa",
@@ -48,7 +48,11 @@ describe("mock workflow commands", () => {
     });
     await expect(
       call("workflow_confirm_step", { projectId: project.id, stepId: "dna.lighting" }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).resolves.toMatchObject({
+      steps: expect.arrayContaining([
+        expect.objectContaining({ stepId: "dna.lighting", status: "confirmed" }),
+      ]),
+    });
   });
 
   it("rejects confirming an already confirmed later step", async () => {

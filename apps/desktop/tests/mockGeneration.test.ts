@@ -108,12 +108,13 @@ describe("bridge parsing of Phase 2 responses", () => {
 });
 
 describe("mock providers", () => {
-  it("blocks non-variation generation when approved-master DNA is reopened", async () => {
+  it("allows generation when DNA is reopened", async () => {
     const p = await newProject();
     await call("workflow_reopen_step", { projectId: p.id, stepId: "dna.context" });
     for (const purpose of ["hero", "anchor", "production"] as const) {
-      const err = await errorOf(call("generation_submit", request(p.id, { purpose })));
-      expect(err.message).toContain("dna.context");
+      await expect(call("generation_submit", request(p.id, { purpose }))).resolves.toMatchObject({
+        purpose,
+      });
     }
     await expect(
       call("generation_submit", request(p.id, { purpose: "variation" })),

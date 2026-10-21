@@ -2,11 +2,10 @@
 
 use rusqlite::Connection;
 
-use crate::domain::{AssetRole, AssetSource, GenerationPurpose};
 use crate::dto::{WorkflowDto, WorkflowStepStateDto};
 use crate::error::{AppError, AppResult};
-use crate::repositories::{self as repo, ProjectRow};
-use crate::services::{ensure_not_archived, status, AppCore};
+use crate::repositories as repo;
+use crate::services::{ensure_not_archived, AppCore};
 
 pub const DNA_STEP_IDS: &[&str] = &["dna.building", "dna.context", "dna.references", "dna.camera", "dna.lighting"];
 
@@ -69,14 +68,6 @@ pub fn confirm(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Wor
     let project = repo::get_project(&tx, project_id)?;
     ensure_not_archived(&project)?;
     let current = get_in(&tx, project_id)?;
-    if step > 0 && current.steps[step - 1].status != "confirmed" {
-        return Err(AppError::validation(format!(
-            "Finish the step '{}' ({}) before confirming '{}'.",
-            label(DNA_STEP_IDS[step - 1]),
-            DNA_STEP_IDS[step - 1],
-            label(step_id)
-        )));
-    }
     if current.steps[step].status != "open" {
         return Err(AppError::validation(format!("The step '{}' is not available for confirmation.", label(step_id))));
     }
@@ -114,94 +105,22 @@ pub fn reopen(core: &AppCore, project_id: &str, step_id: &str) -> AppResult<Work
     Ok(result)
 }
 
-/// Whether a reference is a source image for quick generate: a structure sketch or the master
-/// (ADR-039), or an AI image of this project so the branch canvas can continue a branch (ADR-041).
-pub(crate) fn is_source_image(role: AssetRole, source: AssetSource) -> bool {
-    matches!(role, AssetRole::StructureSketch | AssetRole::MasterArchitecture | AssetRole::RegularImage)
-        || source == AssetSource::AiGenerated
-}
-
-/// Enforce the generation prerequisites while the caller still holds its transaction/connection.
-/// A selected, validated image enables hero and editing without Master approval. Anchors and
-/// production retain the full DNA/Master gates. The caller validates files and ownership first.
-pub(crate) fn ensure_generation_allowed(
-    conn: &Connection,
-    project: &ProjectRow,
-    purpose: GenerationPurpose,
-    has_source_image: bool,
-) -> AppResult<()> {
-    if purpose == GenerationPurpose::Hero && has_source_image {
-        return Ok(());
-    }
-    if has_source_image
-        && matches!(purpose, GenerationPurpose::Variation | GenerationPurpose::Enhance | GenerationPurpose::RegionEdit)
-    {
-        return Ok(());
-    }
-    // Image to video (ADR-043) animates an image the user picked; it adds no design, so no
-    // DNA step gates it.
-    if purpose == GenerationPurpose::Video {
-        return Ok(());
-    }
-    if matches!(
-        purpose,
-        GenerationPurpose::Variation
-            | GenerationPurpose::Enhance
-            | GenerationPurpose::Repair
-            | GenerationPurpose::RegionEdit
-    ) {
-        if project.master_approved_at.is_none() {
-            return Err(gate_error("generate.master", "Master"));
-        }
-        return Ok(());
-    }
-
-    let workflow = get_in(conn, &project.id)?;
-    for (i, step) in workflow.steps.iter().enumerate() {
-        if step.status != "confirmed" {
-            return Err(gate_error(DNA_STEP_IDS[i], label(DNA_STEP_IDS[i])));
-        }
-    }
-    if matches!(purpose, GenerationPurpose::Anchor | GenerationPurpose::Production)
-        && project.master_approved_at.is_none()
-    {
-        return Err(gate_error("generate.master", "Master"));
-    }
-    if purpose == GenerationPurpose::Production {
-        let dna = repo::get_dna(conn, &project.id)?;
-        let anchor_views = status::anchor_view_ids(&dna);
-        let approved: std::collections::HashSet<String> =
-            repo::list_anchors(conn, &project.id)?.into_iter().map(|anchor| anchor.camera_id).collect();
-        if anchor_views.iter().any(|camera_id| !approved.contains(camera_id)) {
-            return Err(gate_error("generate.anchors", "Anchors"));
-        }
-    }
-    Ok(())
-}
-
-fn gate_error(step_id: &str, step_label: &str) -> AppError {
-    AppError::validation(format!("Finish the step '{step_label}' ({step_id}) before generating."))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::error::ErrorCode;
     use crate::services::projects;
-    use crate::services::tests_support::{approve_master_for_generation, core, test_create_villa_unconfirmed};
+    use crate::services::tests_support::{core, test_create_villa_unconfirmed};
 
     #[test]
-    fn new_projects_have_open_steps_and_confirming_unlocks_in_order() {
+    fn dna_can_be_confirmed_in_any_order() {
         let (_tmp, app) = core();
         let project = test_create_villa_unconfirmed(&app, "Workflow");
         assert_eq!(get(&app, &project.id).unwrap().steps.len(), 5);
-        assert_eq!(get(&app, &project.id).unwrap().steps[0].status, "open");
-        let err = confirm(&app, &project.id, "dna.context").unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert!(err.message.contains("dna.building"));
-        let first = confirm(&app, &project.id, "dna.building").unwrap();
-        assert_eq!(first.steps[0].status, "confirmed");
-        assert_eq!(confirm(&app, &project.id, "dna.context").unwrap().steps[1].status, "confirmed");
+        let last = confirm(&app, &project.id, "dna.lighting").unwrap();
+        assert_eq!(last.steps[4].status, "confirmed");
+        assert!(last.steps[..4].iter().all(|step| step.status == "open"));
+        confirm(&app, &project.id, "dna.context").unwrap();
     }
 
     #[test]
@@ -218,55 +137,6 @@ mod tests {
         confirm(&app, &project.id, "dna.context").unwrap();
         let err = confirm(&app, &project.id, "dna.references").unwrap_err();
         assert_eq!(err.code, ErrorCode::ValidationError);
-    }
-
-    #[test]
-    fn approved_master_still_requires_complete_dna_for_non_variation_generation() {
-        let (_tmp, app) = core();
-        let project = test_create_villa_unconfirmed(&app, "Workflow");
-        for id in DNA_STEP_IDS {
-            confirm(&app, &project.id, id).unwrap();
-        }
-        approve_master_for_generation(&app, &project.id);
-        reopen(&app, &project.id, "dna.context").unwrap();
-        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
-
-        for purpose in [GenerationPurpose::Hero, GenerationPurpose::Anchor, GenerationPurpose::Production] {
-            let err = ensure_generation_allowed(&app.conn().unwrap(), &row, purpose, false).unwrap_err();
-            assert!(err.message.contains("dna.context"));
-        }
-        ensure_generation_allowed(&app.conn().unwrap(), &row, GenerationPurpose::Variation, false).unwrap();
-    }
-
-    #[test]
-    fn quick_hero_with_a_source_image_skips_the_dna_steps_only() {
-        let (_tmp, app) = core();
-        let project = test_create_villa_unconfirmed(&app, "Quick");
-        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
-        let conn = app.conn().unwrap();
-        ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, true).unwrap();
-        assert!(ensure_generation_allowed(&conn, &row, GenerationPurpose::Hero, false).is_err());
-        for purpose in [GenerationPurpose::Anchor, GenerationPurpose::Production] {
-            assert!(ensure_generation_allowed(&conn, &row, purpose, true).is_err());
-        }
-        assert!(is_source_image(AssetRole::StructureSketch, AssetSource::Sketchup));
-        assert!(is_source_image(AssetRole::MasterArchitecture, AssetSource::External));
-        assert!(is_source_image(AssetRole::RegularImage, AssetSource::AiGenerated), "branch from an output");
-        assert!(!is_source_image(AssetRole::MoodReference, AssetSource::External));
-        assert!(is_source_image(AssetRole::RegularImage, AssetSource::External));
-    }
-
-    #[test]
-    fn edits_a_selected_image_without_promoting_it_to_master() {
-        let (_tmp, app) = core();
-        let project = test_create_villa_unconfirmed(&app, "Imported edit");
-        let row = repo::get_project(&app.conn().unwrap(), &project.id).unwrap();
-        let conn = app.conn().unwrap();
-        for purpose in [GenerationPurpose::Variation, GenerationPurpose::Enhance, GenerationPurpose::RegionEdit] {
-            ensure_generation_allowed(&conn, &row, purpose, true).unwrap();
-            assert!(ensure_generation_allowed(&conn, &row, purpose, false).is_err());
-        }
-        assert!(ensure_generation_allowed(&conn, &row, GenerationPurpose::Production, true).is_err());
     }
 
     #[test]

@@ -30,7 +30,7 @@ use crate::providers::{
 use crate::repositories::{self as repo, AssetRow, GenerationErrorRow, GenerationRow, JobRow, VersionRow};
 use crate::services::assets::{store_managed_image, StoredImage, Thumbnail};
 use crate::services::provider_settings::{find_provider, key_for, not_configured};
-use crate::services::{ensure_not_archived, queue, workflow, AppCore};
+use crate::services::{ensure_not_archived, queue, AppCore};
 use crate::util::{new_id, prefix};
 
 /// Upper bound of `GenerationParamsSchema.outputCount`, whatever the model allows.
@@ -203,17 +203,6 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
             .iter()
             .map(|id| check_reference(core, &conn, &project.id, id))
             .collect::<AppResult<Vec<AssetRow>>>()?;
-        // check_reference above already rejects missing files, videos and cross-project ids.
-        let editing = matches!(
-            purpose,
-            GenerationPurpose::Variation | GenerationPurpose::Enhance | GenerationPurpose::RegionEdit
-        );
-        let has_source = if editing {
-            !assets.is_empty()
-        } else {
-            assets.iter().any(|a| workflow::is_source_image(a.role, a.source))
-        };
-        workflow::ensure_generation_allowed(&conn, &project, purpose, has_source)?;
         let camera_name = match &req.camera_id {
             Some(id) => Some(camera_name(&repo::get_dna(&conn, &project.id)?, id)?),
             None => None,
@@ -603,13 +592,9 @@ pub(crate) fn insert_queued(
     now: &str,
 ) -> AppResult<(String, String)> {
     ensure_not_archived(&repo::get_project(conn, &v.project_id)?)?;
-    let project = repo::get_project(conn, &v.project_id)?;
-    let mut has_source = false;
     for id in &v.snapshot.reference_asset_ids {
-        let reference = check_reference(core, conn, &v.project_id, id)?;
-        has_source |= workflow::is_source_image(reference.role, reference.source);
+        check_reference(core, conn, &v.project_id, id)?;
     }
-    workflow::ensure_generation_allowed(conn, &project, v.purpose, has_source)?;
     if let Some(id) = &v.camera_id {
         camera_name(&repo::get_dna(conn, &v.project_id)?, id)?;
     }
@@ -1275,7 +1260,6 @@ mod tests {
         core_with_double, open_test_core, set_cameras, submit_and_run, test_create_villa,
         test_create_villa_unconfirmed, write_png, TestBehavior, CAM_A, TEST_PROVIDER,
     };
-    use crate::services::workflow::{self, DNA_STEP_IDS};
 
     /// Phase 2 tests check a whole run: submit, then let the queue run it on this thread.
     /// Shadows `super::submit` inside this module.
@@ -1409,9 +1393,9 @@ mod tests {
     }
 
     #[test]
-    fn workflow_gates_generation_purposes_before_queueing() {
-        let (tmp, core, _) = core_with_double();
-        let p = test_create_villa_unconfirmed(&core, "Workflow gates");
+    fn unconfirmed_dna_and_unapproved_master_do_not_gate_generation() {
+        let (_tmp, core, _) = core_with_double();
+        let p = test_create_villa_unconfirmed(&core, "Free generation");
         let request = |purpose: &str| SubmitRequest {
             project_id: p.id.clone(),
             provider_id: local_preview::ID.into(),
@@ -1422,36 +1406,13 @@ mod tests {
             params: params(1),
             camera_id: None,
         };
-
-        let err = validate(&core, request("hero")).unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert!(err.message.contains("dna.building"));
-        assert_eq!(count(&core, "jobs"), 0);
-
-        // Quick generate (ADR-039): a hero from a structure sketch needs no confirmed DNA.
-        let sketch = import(&core, tmp.path(), &p.id, "view.png", "structure_sketch", [0, 90, 0]);
-        let quick = SubmitRequest { reference_asset_ids: vec![sketch.id.clone()], ..request("hero") };
-        assert_eq!(validate(&core, quick).unwrap().purpose, GenerationPurpose::Hero);
-        let quick_anchor = SubmitRequest { reference_asset_ids: vec![sketch.id.clone()], ..request("anchor") };
-        assert!(validate(&core, quick_anchor).unwrap_err().message.contains("dna.building"));
-
-        let master = import(&core, tmp.path(), &p.id, "master.png", "master_architecture", [200, 0, 0]);
-        for step_id in DNA_STEP_IDS {
-            workflow::confirm(&core, &p.id, step_id).unwrap();
+        for purpose in ["hero", "anchor", "production", "variation"] {
+            validate(&core, request(purpose)).unwrap();
         }
-        let err = validate(&core, request("anchor")).unwrap_err();
-        assert!(err.message.contains("generate.master"));
-
-        projects::approve_master(&core, &p.id, true).unwrap();
-        let variation = validate(&core, request("variation")).unwrap();
-        assert_eq!(variation.purpose, GenerationPurpose::Variation);
-
-        set_cameras(&core, &p.id, &[(CAM_A, "Front", true)]);
-        let err = validate(&core, request("production")).unwrap_err();
-        assert_eq!(err.code, ErrorCode::ValidationError);
-        assert!(err.message.contains("generate.anchors"));
-        assert_eq!(count(&core, "jobs"), 0);
-        assert!(!master.id.is_empty());
+        // Exercise both initial validation and the queue insertion path.
+        let generated = submit(&core, request("hero")).unwrap();
+        assert_eq!(generated.status, GenerationStatus::Completed);
+        assert_eq!(get(&core, &p.id, &generated.id).unwrap().reference_asset_ids.len(), 0);
     }
 
     /// ADR-033: `repair` stays a known purpose for history, but no new repair is accepted.

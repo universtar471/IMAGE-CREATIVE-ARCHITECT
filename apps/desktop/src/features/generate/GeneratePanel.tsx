@@ -19,7 +19,6 @@ import {
   anchorViews,
   costHintText,
   dnaReadiness,
-  isQuickSourceImage,
   type PlannedVariant,
   type AssetDTO,
   type GenerationParams,
@@ -101,24 +100,6 @@ export function GeneratePanel() {
     dnaInvalid: saveStatus === "invalid",
     assets: ws.assets,
   });
-  const hasSourceImage = form.referenceIds.some((id) => {
-    const asset = ws.assets.find((a) => a.id === id);
-    return !!asset && isQuickSourceImage(asset);
-  });
-  const workflowGate = form.purpose
-    ? isGenerationAllowed(form.purpose, ws.workflow?.steps ?? [], {
-        masterApproved: ["master_approved", "anchor_generation", "production"].includes(
-          project.status,
-        ),
-        anchorCameraIds: ws.draftDna.cameras
-          .filter((camera) => camera.isAnchorView)
-          .map((camera) => camera.id),
-        cameraIds: ws.draftDna.cameras.map((camera) => camera.id),
-        approvedAnchorCameraIds: ws.anchors.map((anchor) => anchor.cameraId),
-        // Quick generate (ADR-039): a hero with a source image skips the DNA steps.
-        hasSourceImage,
-      })
-    : { ok: true as const };
   // Conflict gate (ADR-034): the live view checks the draft; submit re-checks saved data.
   const conflicts = checkShot({
     dna: ws.draftDna,
@@ -131,12 +112,7 @@ export function GeneratePanel() {
   const conflictReason = canSubmit(conflicts)
     ? null
     : t(conflicts.verdict === "BLOCK" ? "conflictUi.refusedBlock" : "conflictUi.refusedWarn");
-  const disabledReason =
-    reason ??
-    (workflowGate.ok
-      ? null
-      : blockedReason(t, workflowGate.blockedBy, !!project.activeMasterAssetId)) ??
-    conflictReason;
+  const disabledReason = reason ?? conflictReason;
   const missingDna = dnaReadiness(ws.persistedDna, project.projectType).filter((r) => !r.done);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
@@ -226,6 +202,7 @@ export function GeneratePanel() {
         </div>
         <HelpPopover topic={t("generate.modeLabel")}>{t("generate.advancedHint")}</HelpPopover>
       </div>
+      <ProviderSection form={form} disabled={running} />
       {advanced && <GenerationStepper />}
       <SectionPanel
         title={t("generate.simpleSource")}
@@ -251,7 +228,7 @@ export function GeneratePanel() {
       />
       {advanced && <GenerationActions onOpen={setBatchMode} />}
       {advanced && <VisualIntentSelector />}
-      {advanced && <ProviderSection form={form} disabled={running} />}
+
       {advanced && form.model && (
         <OutputSection
           form={form}
@@ -342,12 +319,6 @@ export function GeneratePanel() {
         {disabledReason && (
           <div data-testid="generate-disabled-reason">
             <span className="field-hint">{disabledReason}</span>
-            {!workflowGate.ok && form.purpose === "hero" && !hasSourceImage && (
-              <span className="field-hint quick-generate-hint" data-testid="quick-generate-hint">
-                {t("generate.quickHint")}
-              </span>
-            )}
-            {!workflowGate.ok && <BlockedExplainer stepId={workflowGate.blockedBy} />}
           </div>
         )}
       </div>
@@ -436,7 +407,7 @@ function GenerationStepper() {
     <div className="workflow-stepper" aria-label={t("workflow.generateLabel")}>
       {steps.map((id) => {
         const step = workflow?.steps.find((item) => item.id === id);
-        const status = step?.status ?? "locked";
+        const status = step?.status ?? "available";
         return (
           <button
             type="button"
@@ -522,28 +493,21 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
         options={providers.map((p) => ({
           value: p.id,
           label: p.configured ? p.label : t("generate.needsKeyOption", { label: p.label }),
-          disabled: !p.configured,
         }))}
         // Model/params/references are provider-specific: start from that model's defaults.
         onChange={(id) =>
           setDraft({ providerId: id ?? null, modelId: null, params: null, referenceAssetIds: null })
         }
       />
-      {providers.some((p) => !p.configured) && (
-        <button
-          className="btn btn-sm btn-wrap"
-          onClick={() => openProviderDialog(providers.find((p) => !p.configured)?.id ?? null)}
-        >
+      {provider && !provider.configured && (
+        <button className="btn btn-sm btn-wrap" onClick={() => openProviderDialog(provider.id)}>
           <KeyRound size={13} />{" "}
           {t("generate.setKeyFor", {
-            names: providers
-              .filter((p) => !p.configured)
-              .map((p) => p.label)
-              .join(", "),
+            names: provider.label,
           })}
         </button>
       )}
-      {provider && provider.models.length > 1 && (
+      {provider && (
         <SelectField
           label={t("generate.model")}
           allowEmpty={false}

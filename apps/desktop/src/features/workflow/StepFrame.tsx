@@ -38,7 +38,7 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const step = workflow?.steps.find((item) => item.id === stepId) ?? fallbackStep(stepId);
   const number = DNA_IDS.indexOf(stepId) + 1;
   const locked = step.status === "locked";
-  const readOnly = locked || step.status === "confirmed" || step.status === "needs_review";
+  const readOnly = useStudio(selectReadOnly);
   const statusLabel = t(`workflow.status.${step.status}`);
   const name =
     isInterior && stepId === "dna.building"
@@ -174,8 +174,7 @@ function fallbackStep(stepId: DnaStepId): DerivedWorkflowStep {
   const definition = WORKFLOW_STEPS.find((step) => step.id === stepId)!;
   return {
     ...definition,
-    status: stepId === "dna.building" ? "available" : "locked",
-    blockedBy: "dna.building",
+    status: "available",
   };
 }
 

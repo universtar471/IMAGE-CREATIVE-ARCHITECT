@@ -141,7 +141,7 @@ export function PropertyPanel() {
         {active === "references" && (
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
-        {active !== "overview" && !activeIsStep && <NextStepBar compact />}
+        {active !== "overview" && active !== "generate" && !activeIsStep && <NextStepBar compact />}
         {layout.drawer && (
           <button
             type="button"

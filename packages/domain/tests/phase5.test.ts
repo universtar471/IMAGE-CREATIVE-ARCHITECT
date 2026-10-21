@@ -180,7 +180,7 @@ describe("phase 5 enhancement domain", () => {
     ).toThrow(/reference/i);
   });
 
-  it("gates enhancement like variation", () => {
+  it("does not gate enhancement on approval", () => {
     expect(
       isGenerationAllowed("enhance", [], {
         masterApproved: true,
@@ -194,6 +194,6 @@ describe("phase 5 enhancement domain", () => {
         anchorCameraIds: [],
         approvedAnchorCameraIds: [],
       }),
-    ).toEqual({ ok: false, blockedBy: "generate.master" });
+    ).toEqual({ ok: true });
   });
 });
