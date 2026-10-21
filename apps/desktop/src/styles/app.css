@@ -1095,6 +1095,7 @@ textarea {
   pointer-events: none;
 }
 .viewer-toolbar {
+  z-index: 5;
   position: absolute;
   left: 50%;
   bottom: 12px;
@@ -1416,18 +1417,45 @@ textarea {
 }
 .grade-preview {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
-  align-content: center;
-  justify-items: center;
+  min-width: 0;
+  min-height: 0;
   height: 100%;
-  padding: 16px;
+  width: 100%;
+  padding: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.grade-preview-image {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .grade-preview canvas {
-  max-width: 100%;
-  max-height: calc(100vh - 180px);
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  background: #111;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  min-height: 0;
+}
+.grade-split-labels {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.grade-split-labels span {
+  background: #0d1828dd;
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 .grade-preview-toolbar {
   display: flex;
@@ -4738,4 +4766,64 @@ div.pub-slot {
   align-items: stretch;
   gap: 6px;
   padding: 8px 0;
+}
+
+.region-panel-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.region-panel > * {
+  flex-shrink: 0;
+}
+.batch-grade-dialog .dialog-body > * {
+  flex-shrink: 0;
+}
+.batch-grade-dialog .batch-grade-grid {
+  height: 220px;
+  min-height: 150px;
+  max-height: 55vh;
+  resize: vertical;
+  align-content: start;
+}
+.batch-grade-preview .grade-preview {
+  height: 390px;
+}
+
+.asset-download {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+.asset-download-status {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.branch-node-image > .asset-download {
+  margin-top: 4px;
+}
+.tray-side {
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.region-list-row {
+  grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.region-list-row > input:not([type="checkbox"]) {
+  grid-column: 2 / 4;
+}
+.region-list-row > select:nth-of-type(1) {
+  grid-row: 2;
+  grid-column: 2;
+}
+.region-list-row > select:nth-of-type(2) {
+  grid-row: 2;
+  grid-column: 3;
+}
+.region-list-row > button {
+  grid-row: 1;
+  grid-column: 4;
 }

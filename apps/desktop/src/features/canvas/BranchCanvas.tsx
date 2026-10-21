@@ -1,3 +1,4 @@
+import { DownloadAssets } from "../assets/DownloadAssets";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   Background,
@@ -152,7 +153,7 @@ export function BranchCanvas() {
         type: node.kind,
         position: dragged[node.id] ?? positions[node.id] ?? { x: 0, y: 0 },
         selected: selection.includes(node.id),
-        draggable: !readOnly && node.kind !== "draft",
+        draggable: !readOnly,
         data: dataById.get(node.id)!,
         ...(measured[node.id] ? { measured: measured[node.id] } : {}),
       })),
@@ -353,6 +354,7 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
         {node.label}
       </div>
       {data.generation && <NodeModel generation={data.generation} />}
+      {data.asset && <DownloadAssets assets={[data.asset]} compact />}
       {isReferenceAsset(node) && (
         <span className="branch-role" data-testid="branch-role">
           <RoleBadge role={node.role} short />

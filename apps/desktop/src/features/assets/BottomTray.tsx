@@ -1,3 +1,4 @@
+import { DownloadAssets } from "./DownloadAssets";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Columns2, ImagePlus, Layers, Lock } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
@@ -203,6 +204,11 @@ function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
             </option>
           ))}
         </select>
+        <DownloadAssets
+          assets={
+            batchSources.length ? batchSources : assets.filter((asset) => asset.id === selectedId)
+          }
+        />
       </div>
 
       {viewMode === "list" ? (
@@ -251,6 +257,7 @@ function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
                         />
                         <img src={fileUrl(asset.thumbnailPath) ?? undefined} alt="" />
                         {asset.originalName ?? asset.id}
+                        <DownloadAssets assets={[asset]} compact />
                         {resolveEnhancePair(asset.id, generations, assets) && (
                           <button
                             type="button"
@@ -316,6 +323,7 @@ function AssetsTab({ viewMode }: { viewMode: AssetViewMode }) {
                 {t("assets.batchSelect")}
               </label>
               <AssetThumbnail asset={a} selected={a.id === selectedId} onSelect={selectAsset} />
+              <DownloadAssets assets={[a]} compact />
               {resolveEnhancePair(a.id, generations, assets) && (
                 <button
                   type="button"

@@ -319,6 +319,82 @@ pub fn list(core: &AppCore, project_id: &str) -> AppResult<Vec<AssetDto>> {
     repo::list_assets(&conn, project_id)?.iter().map(|a| asset_dto(&core.storage, a)).collect()
 }
 
+/// Resolved original files only: the webview supplies asset IDs, never source paths.
+pub struct DownloadFile {
+    source: PathBuf,
+    name: String,
+    project_dir: PathBuf,
+}
+
+pub fn prepare_download(core: &AppCore, project_id: &str, ids: &[String]) -> AppResult<Vec<DownloadFile>> {
+    if ids.is_empty() || ids.len() > 1000 {
+        return Err(AppError::validation("Select between 1 and 1000 files."));
+    }
+    let conn = core.conn()?;
+    repo::get_project(&conn, project_id)?;
+    let mut files = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for id in ids {
+        if !seen.insert(id) {
+            continue;
+        }
+        let asset = get_owned_asset(&conn, project_id, id)?;
+        let source = core.storage.resolve(project_id, &asset.managed_rel_path)?;
+        if asset.status != "ready" || !source.is_file() {
+            return Err(AppError::validation("A selected original file is unavailable."));
+        }
+        let extension = source.extension().and_then(|s| s.to_str()).unwrap_or("bin");
+        let base = crate::services::publications::safe_base_name(asset.original_name.as_deref().unwrap_or(id));
+        let stem = Path::new(&base).file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let name = format!("{stem}.{extension}");
+        files.push(DownloadFile { source, name, project_dir: core.storage.project_dir(project_id) });
+    }
+    Ok(files)
+}
+
+/// Never overwrite an existing file, and never write into managed project storage.
+pub fn write_download(files: &[DownloadFile], folder: &Path) -> AppResult<Vec<String>> {
+    let target = folder.canonicalize().map_err(|e| AppError::io("Cannot open download folder", e))?;
+    if !target.is_dir() {
+        return Err(AppError::validation("Choose a folder."));
+    }
+    for file in files {
+        let managed = file.project_dir.canonicalize().map_err(|e| AppError::io("Cannot resolve project storage", e))?;
+        if target.starts_with(managed) {
+            return Err(AppError::validation("Choose a folder outside project storage."));
+        }
+    }
+    let mut paths = Vec::new();
+    for file in files {
+        let name = Path::new(&file.name);
+        let stem = name.file_stem().and_then(|s| s.to_str()).unwrap_or("image");
+        let ext = name.extension().and_then(|s| s.to_str()).unwrap_or("bin");
+        let mut suffix = 0_u32;
+        loop {
+            let candidate =
+                target.join(if suffix == 0 { file.name.clone() } else { format!("{stem} ({suffix}).{ext}") });
+            match fs::OpenOptions::new().write(true).create_new(true).open(&candidate) {
+                Ok(mut output) => {
+                    let result =
+                        fs::File::open(&file.source).and_then(|mut input| std::io::copy(&mut input, &mut output));
+                    if let Err(error) = result {
+                        drop(output);
+                        let _ = fs::remove_file(&candidate);
+                        return Err(AppError::io("Cannot copy original file", error));
+                    }
+                    paths.push(candidate.to_string_lossy().into_owned());
+                    break;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    suffix += 1;
+                }
+                Err(error) => return Err(AppError::io("Cannot save original file", error)),
+            }
+        }
+    }
+    Ok(paths)
+}
+
 fn get_owned_asset(conn: &Connection, project_id: &str, asset_id: &str) -> AppResult<AssetRow> {
     let asset = repo::find_asset(conn, asset_id)?.ok_or_else(|| AppError::not_found("Asset", asset_id))?;
     if asset.project_id != project_id {
@@ -477,6 +553,28 @@ mod tests {
                 allow_duplicate: false,
             },
         )
+    }
+
+    #[test]
+    fn downloads_originals_without_overwrite_and_rejects_foreign_assets() {
+        let (tmp, core) = core();
+        let project = test_create_villa(&core, "Export");
+        let other = test_create_villa(&core, "Other");
+        let src = write_png(tmp.path(), "facade.png", 8, 12, [10, 20, 30]);
+        let asset = import_file(&core, &project.id, &src, "regular_image").unwrap();
+        let ids = vec![asset.id.clone()];
+        let files = prepare_download(&core, &project.id, &ids).unwrap();
+        let folder = tmp.path().join("downloads");
+        fs::create_dir(&folder).unwrap();
+        let first = write_download(&files, &folder).unwrap();
+        let second = write_download(&files, &folder).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(fs::read(&first[0]).unwrap(), fs::read(&src).unwrap());
+        assert!(prepare_download(&core, &other.id, &ids).is_err());
+        assert!(prepare_download(&core, &project.id, &[]).is_err());
+        assert!(write_download(&files, Path::new(&asset.absolute_path)).is_err());
+        let original_dir = Path::new(&asset.absolute_path).parent().unwrap();
+        assert!(write_download(&files, original_dir).is_err());
     }
 
     #[test]

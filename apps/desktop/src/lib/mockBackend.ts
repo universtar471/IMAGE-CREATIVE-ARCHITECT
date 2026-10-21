@@ -1787,6 +1787,7 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       return db.assets[id];
     },
 
+    asset_download: () => [],
     asset_list: (req) => {
       getProject(req.projectId);
       return projectAssets(req.projectId);

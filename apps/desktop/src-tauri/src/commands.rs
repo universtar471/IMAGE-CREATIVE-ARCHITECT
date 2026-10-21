@@ -353,6 +353,31 @@ pub async fn asset_import(core: Core<'_>, request: assets::ImportRequest) -> App
     blocking(&core, move |c| assets::import(c, request)).await
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetDownloadRequest {
+    project_id: String,
+    asset_ids: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn asset_download(
+    app: tauri::AppHandle,
+    core: Core<'_>,
+    request: AssetDownloadRequest,
+) -> AppResult<Vec<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    blocking(&core, move |c| {
+        let files = assets::prepare_download(c, &request.project_id, &request.asset_ids)?;
+        let Some(folder) = app.dialog().file().blocking_pick_folder() else {
+            return Ok(Vec::new());
+        };
+        let folder = folder.into_path().map_err(|e| AppError::validation(format!("Cannot use this folder: {e}")))?;
+        assets::write_download(&files, &folder)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn asset_list(core: Core<'_>, request: ProjectRef) -> AppResult<Vec<AssetDto>> {
     blocking(&core, move |c| assets::list(c, &request.project_id)).await

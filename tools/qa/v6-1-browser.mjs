@@ -46,11 +46,22 @@ try {
       subtype: "tropical",
       starter: { floors: 2 },
     });
-    const image =
+    let image =
       "data:image/svg+xml," +
       encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="#183c5b"/><path d="M300 650V350L800 100l500 250v300z" fill="#d9e7eb"/><text x="600" y="800" fill="white" font-size="50">Kiến trúc Việt Nam</text></svg>',
       );
+    const png = async (source) => {
+      const img = new Image();
+      img.src = source;
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      c.getContext("2d").drawImage(img, 0, 0);
+      return c.toDataURL("image/png");
+    };
+    image = await png(image);
     const canvas = document.createElement("canvas");
     canvas.width = 320;
     canvas.height = 180;
@@ -89,11 +100,12 @@ try {
       ],
     ])
       db.assets[id] = asset(p.id, id, { absolutePath: image, thumbnailPath: image, ...extra });
-    const portrait =
+    let portrait =
       "data:image/svg+xml," +
       encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="1600"><rect width="480" height="1600" fill="white"/><rect width="480" height="80" fill="#20bfff"/><path d="M80 1400V400L240 220l160 180v1000z" fill="#1c3d5a"/><rect y="1520" width="480" height="80" fill="#d45cff"/></svg>',
       );
+    portrait = await png(portrait);
     db.assets.AST_TALL = asset(p.id, "AST_TALL", {
       role: "regular_image",
       source: "external",
@@ -448,6 +460,173 @@ try {
   result.distantNodeDrag = true;
   result.aiDiagramAndPublishing = true;
   await page.screenshot({ path: resolve(output, "distant-node-drag.png") });
+  // The dashed draft is a movable node too, including at a distant viewport.
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setGenerateDraft({ source: "sketch", referenceAssetIds: ["AST_IMG"] });
+    const { call } = await import("/src/lib/bridge.ts");
+    await call("canvas_layout_save", {
+      projectId: s.workspace.project.id,
+      layout: { version: 1, positions: { draft: { x: 6000, y: 4000 } } },
+    });
+    s.setWorkspaceMode("studio");
+  });
+  await page.locator(".branch-flow").waitFor({ state: "detached" });
+  await page.evaluate(async () =>
+    (await import("/src/app/store.ts")).useStudio.getState().setWorkspaceMode("node"),
+  );
+  const draft = page.locator('[data-node="draft"]');
+  await draft.waitFor();
+  await page.waitForTimeout(350);
+  const draftBox = await draft.boundingBox();
+  assert(draftBox && draftBox.width > 0);
+  const draftViewport = await page.locator(".react-flow__viewport").getAttribute("style");
+  await page.mouse.move(draftBox.x + draftBox.width / 2, draftBox.y + draftBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    draftBox.x + draftBox.width / 2 + 45,
+    draftBox.y + draftBox.height / 2 + 20,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+  await page.waitForFunction(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    const { call } = await import("/src/lib/bridge.ts");
+    return (
+      (await call("canvas_layout_get", { projectId: s.workspace.project.id })).layout.positions
+        .draft?.x > 6100
+    );
+  });
+  assert.equal(await page.locator(".react-flow__viewport").getAttribute("style"), draftViewport);
+  result.draftDrag = true;
+  for (const module of ["diagram", "export"]) {
+    await page.evaluate(async (module) => {
+      const s = (await import("/src/app/store.ts")).useStudio.getState();
+      s.setModule(module);
+      s.setWorkspaceMode("node");
+    }, module);
+    await page.locator(".branch-flow").waitFor();
+    assert.equal(await page.getByRole("button", { name: "Node", exact: true }).isEnabled(), true);
+  }
+  result.sheetNodeAccess = true;
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setWorkspaceMode("studio");
+    s.selectAsset("AST_TALL");
+    s.setModule("regions");
+  });
+  const rectangle = page.getByRole("button", { name: "Rectangle", exact: true });
+  await rectangle.click();
+  assert((await rectangle.getAttribute("class")).includes("is-active"));
+  const overlay = page.getByTestId("region-overlay");
+  const rect = await overlay.boundingBox();
+  assert(rect && rect.width > 0);
+  await page.mouse.move(rect.x + rect.width * 0.2, rect.y + rect.height * 0.2);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + rect.width * 0.6, rect.y + rect.height * 0.5, { steps: 8 });
+  await page.mouse.up();
+  await page.locator(".region-list-row").waitFor();
+  const shape = await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    const { call } = await import("/src/lib/bridge.ts");
+    return (
+      await call("region_list", { projectId: s.workspace.project.id, assetId: "AST_TALL" })
+    )[0].shape;
+  });
+  assert(Math.abs(shape.x - 0.2) < 0.02 && Math.abs(shape.y - 0.2) < 0.02);
+  assert(Math.abs(shape.w - 0.4) < 0.02 && Math.abs(shape.h - 0.3) < 0.02);
+  result.regionDrawingAndPanelSync = true;
+  await page.screenshot({ path: resolve(output, "regions-working.png") });
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setModule("mood_grade");
+    s.editDna("colorGrade", {
+      schemaVersion: 1,
+      exposure: 45,
+      contrast: 0,
+      highlights: 0,
+      shadows: 0,
+      whites: 0,
+      blacks: 0,
+      temperature: 0,
+      tint: 0,
+      vibrance: 0,
+      saturation: 0,
+      clarity: 0,
+      dehaze: 0,
+    });
+  });
+  const checkSplitPixels = async (surface) => {
+    const canvas = surface.locator("canvas");
+    await canvas.waitFor();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('[data-testid="grade-preview"] canvas')].every(
+        (c) => c.width > 300,
+      ),
+    );
+    const pixels = () =>
+      canvas.evaluate((c) => {
+        const ctx = c.getContext("2d");
+        return [0.25, 0.75].map((x) => [
+          ...ctx.getImageData(Math.floor(c.width * x), Math.floor(c.height * 0.5), 1, 1).data,
+        ]);
+      });
+    await surface.getByRole("button", { name: "Before", exact: true }).click();
+    await page.waitForTimeout(150);
+    const before = await pixels();
+    await surface.getByRole("button", { name: "After", exact: true }).click();
+    await page.waitForTimeout(300);
+    const after = await pixels();
+    assert.notDeepEqual(before, after, "The chosen grade must change the preview pixels");
+    await surface.getByRole("button", { name: "Split", exact: true }).click();
+    await page.waitForTimeout(300);
+    const split = await pixels();
+    assert.deepEqual(split[0], before[0], "Split left shows the original");
+    assert.deepEqual(split[1], after[1], "Split right shows the graded result");
+    assert.equal(await surface.getByTestId("grade-preview-error").count(), 0);
+  };
+  const grade = page.getByTestId("grade-preview");
+  await checkSplitPixels(grade);
+  const bounds = await grade.evaluate((el) => {
+    const a = el.getBoundingClientRect(),
+      b = el.closest(".center-body").getBoundingClientRect();
+    return { top: a.top >= b.top, bottom: a.bottom <= b.bottom + 1 };
+  });
+  assert(bounds.top && bounds.bottom, "Grade preview stays inside the workspace");
+  await grade.getByRole("button", { name: "Split", exact: true }).click();
+  assert.equal(await grade.getAttribute("data-mode"), "split");
+  await page.screenshot({ path: resolve(output, "grade-contained.png") });
+  result.gradeContained = true;
+  await page.getByRole("button", { name: "Batch colour grade", exact: true }).click();
+  const dialog = page.locator(".batch-grade-dialog");
+  await dialog.waitFor();
+  await dialog.locator(".batch-grade-toolbar select").selectOption("all");
+  const gridHeight = await dialog
+    .locator(".batch-grade-grid")
+    .evaluate((el) => el.getBoundingClientRect().height);
+  assert(gridHeight >= 150);
+  assert.equal(
+    await dialog.locator(".batch-grade-grid").evaluate((el) => getComputedStyle(el).resize),
+    "vertical",
+  );
+  await dialog.locator(".batch-grade-settings select").selectOption("current");
+  const preview = dialog.getByTestId("grade-preview");
+  await checkSplitPixels(preview);
+  await preview.getByRole("button", { name: "Split", exact: true }).click();
+  assert.equal(await preview.getAttribute("data-mode"), "split");
+  await preview.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(output, "batch-grade-split.png") });
+  result.batchGridResizable = true;
+  await dialog.getByRole("button", { name: "Close", exact: true }).last().click();
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .locator(".asset-select-wrap")
+    .first()
+    .getByRole("button", { name: "Download 1 files", exact: true })
+    .click();
+  const download = await downloadEvent;
+  assert(download.suggestedFilename().length > 0);
+  result.originalDownload = true;
   await writeFile(resolve(output, "r2-measurements.json"), JSON.stringify(result, null, 2) + "\n");
   console.log(JSON.stringify({ passed: true, output, ...result }, null, 2));
 } catch (error) {

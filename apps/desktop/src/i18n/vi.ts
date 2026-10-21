@@ -1077,6 +1077,8 @@ export const vi: Dict = {
   },
 
   assets: {
+    download: "Tải {count} file",
+    downloaded: "Đã tải {count} file",
     noneSelected: "Chưa chọn ảnh",
     noneSelectedHint: "Chọn một ảnh trong khay Ảnh để xem thông tin và vai trò của nó.",
     masterUpdated: "Đã cập nhật ảnh kiến trúc Master.",
@@ -1498,6 +1500,7 @@ export const vi: Dict = {
   },
 
   regions: {
+    drawHint: "Chọn công cụ rồi vẽ trực tiếp trên ảnh.",
     howToUse:
       "Vẽ vùng, đặt nhãn hoặc liên kết đối tượng, chọn cách chỉnh sửa rồi chạy. Bên ngoài mask được giữ nguyên; chỉnh sửa AI dùng tín dụng.",
     needsMaster: "Hãy duyệt ảnh Master trước khi chỉnh vùng.",

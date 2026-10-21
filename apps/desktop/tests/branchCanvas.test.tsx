@@ -116,6 +116,7 @@ describe("branch canvas (ADR-041)", () => {
       node(imageNodeId(first.outputAssetIds[0]!))!.querySelector(".branch-model")!.textContent,
     ).toMatch(/Placeholder renderer|placeholder-v1/);
     expect(node("draft")!.textContent).toContain("Create video");
+    expect(node("draft")!.closest(".react-flow__node")!.classList.contains("draggable")).toBe(true);
   });
 
   it("treats the selected regular image as authoritative without changing its library role", async () => {

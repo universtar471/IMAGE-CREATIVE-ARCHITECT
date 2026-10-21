@@ -128,6 +128,15 @@ export function RegionCanvas() {
     };
   }, [load]);
 
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string; assetId: string }>).detail;
+      if (detail.projectId === projectId && detail.assetId === selectedId) void load();
+    };
+    window.addEventListener("studio-regions-changed", changed);
+    return () => window.removeEventListener("studio-regions-changed", changed);
+  }, [load, projectId, selectedId]);
+
   const save = useCallback(
     (draft: RegionDraft) => {
       if (!selectedId) return;
@@ -151,6 +160,11 @@ export function RegionCanvas() {
               )
             )
               return;
+            window.dispatchEvent(
+              new CustomEvent("studio-regions-changed", {
+                detail: { projectId, assetId: selectedId, region: saved },
+              }),
+            );
             setRegions((items) => {
               const without = items.filter((item) => item.id !== saved.id);
               return [saved as RegionDTO, ...without];
@@ -195,12 +209,20 @@ export function RegionCanvas() {
         setRegions((items) => items.filter((item) => !selected.has(item.id)));
         setSelected(new Set());
         for (const id of ids)
-          void call("region_delete", { projectId, regionId: id }).catch(() => undefined);
+          void call("region_delete", { projectId, regionId: id })
+            .then(() =>
+              window.dispatchEvent(
+                new CustomEvent("studio-regions-changed", {
+                  detail: { projectId, assetId: selectedId },
+                }),
+              ),
+            )
+            .catch(() => undefined);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [draw, finishDraw, projectId, selected]);
+  }, [draw, finishDraw, projectId, selected, selectedId]);
 
   const mask = useMemo(() => {
     if (!maskVisible || !asset) return null;
@@ -240,7 +262,11 @@ export function RegionCanvas() {
         style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
         onPointerDown={(event) => {
           event.stopPropagation();
-          const point = normalisePoint(event.clientX, event.clientY, rect);
+          const point = normalisePoint(
+            event.clientX,
+            event.clientY,
+            event.currentTarget.getBoundingClientRect(),
+          );
           if (tool === "select") {
             const hit = regions.find((region) =>
               pointInShape(point, region.shape, asset?.widthPx ?? 1, asset?.heightPx ?? 1),
@@ -259,14 +285,22 @@ export function RegionCanvas() {
         onPointerMove={(event) => {
           if (!draw) return;
           event.stopPropagation();
-          const point = normalisePoint(event.clientX, event.clientY, rect);
+          const point = normalisePoint(
+            event.clientX,
+            event.clientY,
+            event.currentTarget.getBoundingClientRect(),
+          );
           if (draw.kind === "rect") setDraw({ ...draw, current: point });
           if (draw.kind === "brush") setDraw({ ...draw, points: [...draw.points, point] });
         }}
         onPointerUp={(event) => {
           event.stopPropagation();
           if (!draw) return;
-          const point = normalisePoint(event.clientX, event.clientY, rect);
+          const point = normalisePoint(
+            event.clientX,
+            event.clientY,
+            event.currentTarget.getBoundingClientRect(),
+          );
           if (draw.kind === "rect")
             finishDraw({
               type: "rect",

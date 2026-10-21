@@ -8,12 +8,14 @@ export function Dialog({
   children,
   footer,
   size = "md",
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
   size?: "sm" | "md";
+  className?: string;
 }) {
   // Escape and Tab belong to the topmost open dialog only: the last backdrop in document
   // order (a confirm nested inside a settings dialog renders after it).
@@ -54,7 +56,7 @@ export function Dialog({
       <div
         ref={panel}
         tabIndex={-1}
-        className={`dialog ${size === "sm" ? "dialog-sm" : ""}`}
+        className={`dialog ${size === "sm" ? "dialog-sm" : ""} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
