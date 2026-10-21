@@ -195,25 +195,24 @@ mod tests {
     }
 
     #[test]
-    fn hhtech_without_base_url_is_not_configured_even_with_a_key() {
+    fn hhtech_default_endpoint_only_requires_a_saved_key() {
         let tmp = tempfile::tempdir().unwrap();
         let no_url = crate::secrets::FixedEnv::default();
         let registry = crate::providers::ProviderRegistry::builtin_with_env(&no_url);
-        let mut core =
+        let core =
             AppCore::open_with(tmp.path(), registry, Arc::new(crate::secrets::MemorySecretStore::default())).unwrap();
-        core.env = Arc::new(crate::secrets::FixedEnv::with("HHTECH_API_KEY", "hh-env-key"));
-        let d = list(&core);
-        let hh = find(&d, "hhtech");
+        assert!(!find(&list(&core), "hhtech").configured, "a key is still required");
+        let missing_key = test(&core, "hhtech").unwrap();
+        assert!(!missing_key.ok && missing_key.message.contains("API key"));
+        let hh = set_api_key(&core, "hhtech", "hh-saved-test-key").unwrap();
         assert_eq!(hh.label, "HHTECH (OpenAI-compatible)");
-        assert_eq!((hh.configured, hh.key_source), (false, Some(KeySource::Env)), "key found, base URL missing");
-        let t = test(&core, "hhtech").unwrap();
-        assert!(!t.ok && t.message.contains("HHTECH_BASE_URL"), "{}", t.message);
+        assert_eq!((hh.configured, hh.key_source), (true, Some(KeySource::Keychain)));
         let hh_provider = find_provider(&core, "hhtech").unwrap();
-        assert!(key_for(&core, hh_provider.as_ref()).is_none());
-        let err = not_configured(hh_provider.as_ref());
-        assert_eq!(err.code, ErrorCode::ProviderNotConfigured);
-        assert!(err.message.contains("HHTECH_BASE_URL"));
-        assert!(!serde_json::to_string(&d).unwrap().contains("hh-env-key"));
+        assert!(hh_provider.config_problem().is_none());
+        assert!(key_for(&core, hh_provider.as_ref()).is_some());
+        assert!(!serde_json::to_string(&list(&core)).unwrap().contains("hh-saved-test-key"));
+        clear_api_key(&core, "hhtech").unwrap();
+        assert!(!find(&list(&core), "hhtech").configured);
 
         let with_url = crate::secrets::FixedEnv::with("HHTECH_BASE_URL", "http://127.0.0.1:9/v1/");
         let registry = crate::providers::ProviderRegistry::builtin_with_env(&with_url);

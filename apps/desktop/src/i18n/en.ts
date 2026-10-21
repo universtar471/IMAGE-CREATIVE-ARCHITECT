@@ -1540,7 +1540,7 @@ export const en = {
     enhanceFailed: "Could not enhance the prompt",
     needsHhtech: "Prompt enhancement needs the HHTECH provider.",
     setupHhtech:
-      "Set up HHTECH first: HHTECH_BASE_URL in .env and an API key in provider settings.",
+      "Save an HHTECH API key in provider settings first. The default server is preconfigured.",
     archived: "This project is archived (read-only).",
     busy: "Enhancing…",
     empty: "Write an extra prompt first.",
@@ -1662,7 +1662,7 @@ export const en = {
       },
       hhtech: {
         baseUrl:
-          "Also needs HHTECH_BASE_URL (e.g. https://hhtechapi.com/v1) in the environment or .env; restart the app after changing it.",
+          "Default server: https://hhtechapi.com/v1. Save your API key, then Test connection. HHTECH_BASE_URL in the environment or .env optionally selects another server; restart after changing it.",
         optional:
           "Optional: HHTECH_IMAGE_MODEL (comma-separated; restricts the built-in model list), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (the Default quality), HHTECH_CHAT_MODEL (used by Enhance prompt).",
       },

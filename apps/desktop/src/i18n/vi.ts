@@ -1539,7 +1539,7 @@ export const vi: Dict = {
     enhanceFailed: "Không cải thiện được prompt",
     needsHhtech: "Tính năng cải thiện prompt cần nhà cung cấp HHTECH.",
     setupHhtech:
-      "Thiết lập HHTECH trước: HHTECH_BASE_URL trong .env và API key trong cài đặt nhà cung cấp.",
+      "Lưu API key HHTECH trong cài đặt nhà cung cấp trước. Máy chủ mặc định đã được thiết lập.",
     archived: "Dự án đã lưu trữ (chỉ xem).",
     busy: "Đang cải thiện…",
     empty: "Hãy viết prompt bổ sung trước.",
@@ -1661,7 +1661,7 @@ export const vi: Dict = {
       },
       hhtech: {
         baseUrl:
-          "Cần thêm HHTECH_BASE_URL (VD: https://hhtechapi.com/v1) trong biến môi trường hoặc .env; khởi động lại ứng dụng sau khi đổi.",
+          "Máy chủ mặc định: https://hhtechapi.com/v1. Lưu API key rồi bấm Kiểm tra kết nối. Chỉ đặt HHTECH_BASE_URL trong biến môi trường hoặc .env nếu dùng máy chủ khác; khởi động lại sau khi đổi.",
         optional:
           "Tùy chọn: HHTECH_IMAGE_MODEL (phân tách bằng dấu phẩy; giới hạn danh sách model có sẵn), HHTECH_IMAGE_SIZE, HHTECH_IMAGE_QUALITY (chất lượng Mặc định), HHTECH_CHAT_MODEL (dùng cho Cải thiện prompt).",
       },

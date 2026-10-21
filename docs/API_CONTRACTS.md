@@ -384,7 +384,7 @@ Zod source of truth: `PromptEnhanceRequestSchema` / `PromptEnhanceResultSchema` 
   `Project DNA context (facts to preserve): … Prompt to rewrite: …`.
 - Errors: `NOT_FOUND` (project or provider), `VALIDATION_ERROR` (empty/too long text or context,
   provider without chat), `PROVIDER_NOT_CONFIGURED` (no key, or the provider's own setup problem
-  such as a missing `HHTECH_BASE_URL`; details `{ providerId }`), and the new `PROVIDER_ERROR`
+  such as an invalid explicit `HHTECH_BASE_URL`; details `{ providerId }`), and the new `PROVIDER_ERROR`
   for a failed call, details `{ providerId, kind, retryable }` with `kind` as in §9.
 
 Provider `hhtech` ("HHTECH (OpenAI-compatible)", remote, key required) appears in
@@ -401,9 +401,11 @@ quality options, 14 references (unverified beyond 1), tier sent as the model id 
 `<base>-4k`; 2K when no tier is given; never the bare base id or `-edit-*`) with the computed
 size for the aspect. GPT without a tier: `HHTECH_IMAGE_SIZE` as before. Generation `meta` records `tier` and `requestModel` (the id
 sent). `configured` is false while
-`HHTECH_BASE_URL` is missing or invalid, even if a key exists (`keySource` still says where the
-key is). Base URL, models, size, quality and chat model are read from the environment / `.env`
-only and never appear in SQLite, logs or DTOs other than the model ids.
+an explicitly supplied `HHTECH_BASE_URL` is invalid, even if a key exists (`keySource` still says
+where the key is). Missing or blank HHTECH URL uses `https://hhtechapi.com/v1` (ADR-048);
+only a key is required in provider settings. Explicit environment / `.env` URLs still win,
+including loopback test servers. Custom gateway URLs remain required. URL overrides, size,
+quality and chat settings are not persisted to SQLite or exposed through provider DTOs.
 
 ## 12. Phase 4 contracts — lighting, weather, mood, color grade
 

@@ -51,6 +51,7 @@ pub const SPEC: GatewaySpec = GatewaySpec {
     label: LABEL,
     vendor: VENDOR,
     env_base_url: ENV_BASE_URL,
+    default_base_url: None,
     env_image_model: ENV_IMAGE_MODEL,
     env_image_size: ENV_IMAGE_SIZE,
     env_image_quality: ENV_IMAGE_QUALITY,
