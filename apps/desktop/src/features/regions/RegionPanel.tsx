@@ -1,3 +1,4 @@
+import { ImageModelPicker } from "../../components/panels/ImageModelPicker";
 import { Plus, Trash2 } from "lucide-react";
 import { isVideoAsset } from "@arch/domain";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -266,6 +267,17 @@ export function RegionPanel() {
       <SectionPanel title={t("regions.howToUse")} defaultOpen={false}>
         <p className="field-hint">{t("regions.howToUse")}</p>
       </SectionPanel>
+      <ImageModelPicker
+        providers={imageProviders}
+        provider={provider ? { ...provider, models } : null}
+        model={model}
+        disabled={readOnly || busy}
+        onProvider={(id) => {
+          setProviderId(id);
+          setModelId("");
+        }}
+        onModel={setModelId}
+      />
       {!selected && <p className="field-hint">{t("regions.noSource")}</p>}
       <SectionPanel title={t("regions.regions")}>
         {!regions.length && <p className="field-hint">{t("regions.noSource")}</p>}
@@ -485,34 +497,6 @@ export function RegionPanel() {
             />
           </label>
         )}
-        <label className="field">
-          <span>{t("regions.provider")}</span>
-          <select
-            value={provider?.id ?? ""}
-            onChange={(event) => {
-              setProviderId(event.target.value);
-              setModelId("");
-            }}
-          >
-            <option value="">{t("regions.provider")}</option>
-            {imageProviders.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>{t("regions.model")}</span>
-          <select value={model?.id ?? ""} onChange={(event) => setModelId(event.target.value)}>
-            <option value="">{t("regions.model")}</option>
-            {models.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
         {model && (
           <span className="badge badge-info">
             {supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask")}

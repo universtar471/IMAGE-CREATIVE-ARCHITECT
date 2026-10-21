@@ -79,9 +79,11 @@ export function resolveGenerateForm(
   const sketch = source === "sketch" ? (requestedSketch ?? readySketches[0] ?? null) : null;
   const chosen = draft.referenceAssetIds
     ? orderReferenceIds(draft.referenceAssetIds, ready)
-    : model
-      ? defaultReferenceIds(assets, model)
-      : [];
+    : source === "dna" && purpose === "hero"
+      ? []
+      : model
+        ? defaultReferenceIds(assets, model)
+        : [];
   const master = ready.find((a) => a.id === masterAssetId) ?? null;
   const pinnedIds = sketch
     ? [sketch.id]
@@ -97,11 +99,14 @@ export function resolveGenerateForm(
       asset?.role !== "structure_sketch"
     );
   });
-  const referenceIds = sketch
-    ? [sketch.id, ...sketchChosen.slice(0, Math.max(0, (model?.maxReferenceImages ?? 0) - 1))]
-    : pinnedIds.length
-      ? withPinned(chosen, pinnedIds, ready, model!.maxReferenceImages)
-      : chosen;
+  const referenceIds =
+    source === "dna" && purpose === "hero"
+      ? []
+      : sketch
+        ? [sketch.id, ...sketchChosen.slice(0, Math.max(0, (model?.maxReferenceImages ?? 0) - 1))]
+        : pinnedIds.length
+          ? withPinned(chosen, pinnedIds, ready, model!.maxReferenceImages)
+          : chosen;
   // Sketch mode follows the sketch; otherwise the master, then the first selected reference.
   const anchor =
     sketch ??

@@ -276,7 +276,7 @@ try {
   });
   assert.equal(await page.locator(".generate-btn").isEnabled(), true);
   result.importedSourceCanGenerate = true;
-  await page.getByTestId("generate-mode-simple").click();
+  assert.equal(await page.getByTestId("generate-mode-advanced").count(), 0);
   const providerPicker = page.getByRole("combobox", { name: "Provider", exact: true });
   await providerPicker.selectOption("gemini");
   await page
@@ -397,6 +397,57 @@ try {
   result.videoPlaybackStops = true;
   assert.deepEqual(await page.evaluate(() => window.qaWrites), []);
   result.noWrites = true;
+  for (const kind of ["diagram", "export"]) {
+    await page.evaluate(async (module) => {
+      const s = (await import("/src/app/store.ts")).useStudio.getState();
+      s.setWorkspaceMode("studio");
+      s.selectAsset("AST_IMG");
+      s.setModule(module);
+    }, kind);
+    const testId = kind === "diagram" ? "diagram-ai-panel" : "publishing-ai-panel";
+    await page.getByTestId(testId).waitFor();
+    assert.equal(await page.getByRole("combobox", { name: "Model", exact: true }).count(), 1);
+    await page.screenshot({ path: resolve(output, `${kind}-ai-controls.png`) });
+  }
+  assert.deepEqual(await page.evaluate(() => window.qaWrites), []);
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    const { call } = await import("/src/lib/bridge.ts");
+    await call("canvas_layout_save", {
+      projectId: s.workspace.project.id,
+      layout: { version: 1, positions: { "asset:AST_IMG": { x: 6000, y: 4000 } } },
+    });
+    s.setNodeViewport(s.workspace.project.id, { x: -1430, y: -900, zoom: 0.25 });
+    s.setModule("generate");
+    s.setWorkspaceMode("node");
+  });
+  const distantNode = page.locator('[data-node="asset:AST_IMG"]');
+  await distantNode.waitFor();
+  await page.waitForTimeout(300);
+  const viewportBefore = await page.locator(".react-flow__viewport").getAttribute("style");
+  const nodeBox = await distantNode.boundingBox();
+  assert(nodeBox && nodeBox.width > 0);
+  await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + nodeBox.width / 2 + 90, nodeBox.y + nodeBox.height / 2 + 40, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  await page.waitForFunction(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    const { call } = await import("/src/lib/bridge.ts");
+    const dto = await call("canvas_layout_get", { projectId: s.workspace.project.id });
+    return dto.layout.positions["asset:AST_IMG"].x > 6300;
+  });
+  assert.equal(
+    await page.locator(".react-flow__viewport").getAttribute("style"),
+    viewportBefore,
+    "dragging a distant node must not pan the canvas",
+  );
+  assert((await page.evaluate(() => window.qaWrites)).every((c) => c === "canvas_layout_save"));
+  result.distantNodeDrag = true;
+  result.aiDiagramAndPublishing = true;
+  await page.screenshot({ path: resolve(output, "distant-node-drag.png") });
   await writeFile(resolve(output, "r2-measurements.json"), JSON.stringify(result, null, 2) + "\n");
   console.log(JSON.stringify({ passed: true, output, ...result }, null, 2));
 } catch (error) {

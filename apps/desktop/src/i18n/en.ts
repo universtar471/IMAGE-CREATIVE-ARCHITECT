@@ -5,6 +5,28 @@
 export type Plural = { readonly one: string; readonly other: string };
 
 export const en = {
+  sheet: {
+    mode: "Workflow",
+    ai: "Create with AI",
+    layout: "Layout / Export",
+    style: "Presentation style",
+    prompt: "Describe your result",
+    running: "Creating…",
+    create: "Create sheet",
+    preview: "View result",
+    chooseSource: "Choose an architecture image to start.",
+    useInBook: "Use in publication / Export",
+    presets: {
+      massing: "Massing",
+      facade: "Facade",
+      environment: "Environment",
+      concept: "Concept sheet",
+      cover: "Cover",
+      board: "Presentation board",
+      editorial: "Magazine",
+      social: "Social post",
+    },
+  },
   locale: {
     switchLabel: "Language",
     vi: "Tiếng Việt",
@@ -2160,7 +2182,7 @@ export const en = {
     notCreated: "not created yet",
     compare: "Compare A/B",
     back: "Back to branches",
-    hint: "Click an image to continue from it; Shift-click two images to compare. Generate runs only from the panel on the right.",
+    hint: "Drag a node to move it. Hold Space and drag to pan; Shift-click two images to compare.",
     empty: "No branch yet: import a source image or generate a first image.",
     useAsSource: "Use as source",
     sourceSet: "Selected as the source of the next image.",

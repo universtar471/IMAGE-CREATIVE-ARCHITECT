@@ -1,3 +1,6 @@
+import { ImageModelPicker, useImageModelChoice } from "../../components/panels/ImageModelPicker";
+import { SheetModeTabs, SheetPanel } from "../sheets/SheetPanel";
+import { useSheetDraft } from "../sheets/store";
 /**
  * Diagram Studio panel (ADR-037, SRS §10.2): source → type → step count → layout → language
  * → plan → edit and approve each step → optional isometric frames → export PNG 2K/4K or MP4.
@@ -21,7 +24,6 @@ import {
   type DiagramStep,
   type FfmpegStatus,
   type GenerationParams,
-  isImageProvider,
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { SectionPanel } from "../../components/panels/SectionPanel";
@@ -50,7 +52,8 @@ export function diagramSourceId(
   );
 }
 
-export function DiagramPanel() {
+export function LocalDiagramPanel() {
+  const imageChoice = useImageModelChoice();
   const ws = useStudio((s) => s.workspace!);
   const selectedAssetId = useStudio((s) => s.selectedAssetId);
   const readOnly = useStudio(selectReadOnly);
@@ -80,6 +83,7 @@ export function DiagramPanel() {
 
   return (
     <div data-testid="diagram-panel">
+      <ImageModelPicker {...imageChoice} disabled={readOnly} />
       <p className="field-hint">{t("diagram.intro")}</p>
       <SectionPanel title={t("diagram.source")}>
         {images.length === 0 ? (
@@ -316,20 +320,13 @@ function FramesSection({
 }) {
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
-  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
+  const { provider, model } = useImageModelChoice();
   const createBatch = useStudio((s) => s.createBatch);
   const flushDna = useStudio((s) => s.flushDna);
   const notify = useStudio((s) => s.notify);
   const setFrames = useDiagram((s) => s.setFrames);
   const spend = useSpendConfirm();
-  const [providerId, setProviderId] = useState<string | undefined>();
-  const [modelId, setModelId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const provider =
-    providers.find((p) => p.id === providerId) ??
-    providers.find((p) => p.configured) ??
-    providers[0];
-  const model = provider?.models.find((m) => m.id === modelId) ?? provider?.models[0];
   const source = ws.assets.find((a) => a.id === sourceId) ?? null;
   const params: GenerationParams | null = model
     ? {
@@ -393,25 +390,6 @@ function FramesSection({
   return (
     <SectionPanel title={t("diagram.frames")} defaultOpen={false}>
       <p className="field-hint">{t("diagram.framesHint")}</p>
-      <SelectField
-        label={t("diagram.provider")}
-        value={provider?.id}
-        allowEmpty={false}
-        disabled={readOnly}
-        options={providers.map((p) => ({ value: p.id, label: p.label }))}
-        onChange={(id) => {
-          setProviderId(id);
-          setModelId(undefined);
-        }}
-      />
-      <SelectField
-        label={t("diagram.model")}
-        value={model?.id}
-        allowEmpty={false}
-        disabled={readOnly}
-        options={(provider?.models ?? []).map((m) => ({ value: m.id, label: m.label }))}
-        onChange={setModelId}
-      />
       <div className="btn-row">
         <button
           type="button"
@@ -579,5 +557,16 @@ function ExportSection({
         </p>
       )}
     </SectionPanel>
+  );
+}
+
+export function DiagramPanel() {
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const draft = useSheetDraft(projectId, "diagram");
+  return (
+    <>
+      <SheetModeTabs kind="diagram" />
+      {draft.mode === "ai" ? <SheetPanel kind="diagram" /> : <LocalDiagramPanel />}
+    </>
   );
 }

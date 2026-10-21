@@ -127,7 +127,10 @@ const PRESERVATION_TEMPLATE = [
 
 function preservationPrompt(dna: ProjectDNA, params: EnhanceParams, mode: PreservationMode) {
   const locks = params.locks ?? DEFAULT_ENHANCE_LOCKS;
-  const lines: string[] = [...PRESERVATION_TEMPLATE];
+  const lines: string[] = [
+    ...PRESERVATION_TEMPLATE,
+    "Preserve the source aspect ratio and image boundaries exactly. Never stretch, squeeze, crop or reframe the architecture. When the output canvas differs, contain the complete source with padding; add no extra building parts or invented textures.",
+  ];
   lines.push(
     params.allowedRegionIds?.length
       ? "EDITABLE REGIONS: only the allowed-region mask; every other pixel is restored from the source."
@@ -161,6 +164,9 @@ function preservationPrompt(dna: ProjectDNA, params: EnhanceParams, mode: Preser
     lines.push(
       "CAMERA LOCK: keep the viewpoint, perspective, crop and aspect ratio; never crop or reframe.",
     );
+  lines.push(
+    "SOURCE PRIORITY: Image 1 is authoritative. If a DNA description or material list differs from the visible source, keep the source unchanged. Enhance existing detail; never redesign or invent additional architectural detail.",
+  );
   return lines.join("\n");
 }
 

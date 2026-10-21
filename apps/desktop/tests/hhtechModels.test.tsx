@@ -93,7 +93,7 @@ describe("Generate panel with HHTECH", () => {
     expect(cost()).toBe("≈ 280đ");
 
     fireEvent.change(screen.getByLabelText("Image size"), { target: { value: "2K" } });
-    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    fireEvent.change(screen.getByLabelText("Images per run"), { target: { value: "2" } });
     expect(cost()).toBe("≈ 1.200đ");
 
     fireEvent.click(screen.getByRole("button", { name: "High" }));

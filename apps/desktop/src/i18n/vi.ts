@@ -7,6 +7,28 @@
 import type { Dict } from "./index";
 
 export const vi: Dict = {
+  sheet: {
+    mode: "Cách tạo",
+    ai: "Tạo bằng AI",
+    layout: "Dàn trang / Xuất file",
+    style: "Kiểu trình bày",
+    prompt: "Mô tả kết quả bạn muốn",
+    running: "Đang tạo…",
+    create: "Tạo bản trình bày",
+    preview: "Xem kết quả",
+    chooseSource: "Chọn ảnh kiến trúc để bắt đầu.",
+    useInBook: "Dùng để xuất bản / Xuất file",
+    presets: {
+      massing: "Hình khối",
+      facade: "Mặt đứng",
+      environment: "Môi trường",
+      concept: "Ý tưởng",
+      cover: "Bìa hồ sơ",
+      board: "Bảng trình bày",
+      editorial: "Tạp chí",
+      social: "Bài đăng",
+    },
+  },
   locale: {
     switchLabel: "Ngôn ngữ",
     vi: "Tiếng Việt",
@@ -2157,7 +2179,7 @@ export const vi: Dict = {
     notCreated: "chưa tạo",
     compare: "So sánh A/B",
     back: "Quay lại sơ đồ",
-    hint: "Bấm một ảnh để tạo tiếp từ ảnh đó; giữ Shift bấm hai ảnh để so sánh. Chỉ tạo ảnh từ panel bên phải.",
+    hint: "Kéo node để sắp xếp. Giữ Space và kéo để di chuyển khung nhìn; Shift chọn hai ảnh để so sánh.",
     empty: "Chưa có nhánh nào: hãy nhập ảnh nguồn hoặc tạo ảnh đầu tiên.",
     useAsSource: "Dùng làm nguồn",
     sourceSet: "Đã chọn làm nguồn cho ảnh tiếp theo.",

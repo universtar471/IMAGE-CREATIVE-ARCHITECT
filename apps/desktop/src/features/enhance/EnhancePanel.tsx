@@ -1,5 +1,5 @@
 import { isImageProvider, isVideoAsset } from "@arch/domain";
-import { ChevronDown, ChevronRight, Layers, Wand2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Loader2, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ConflictCode, GenerationParams } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
@@ -8,7 +8,7 @@ import { FieldGroup, SelectField } from "../../components/panels/fields";
 import { useT } from "../../i18n";
 import { EnhanceBatchDialog } from "./EnhanceBatchDialog";
 import {
-  DEFAULT_ENHANCE_PARAMS,
+  defaultEnhanceParamsFor,
   buildEnhanceRequest,
   enhanceCost,
   enhancePrompt,
@@ -50,7 +50,12 @@ export function EnhancePanel() {
     ws.assets.find(
       (asset) => asset.id === selectedId && asset.status === "ready" && !isVideoAsset(asset),
     ) ?? null;
-  const [baseParams, setParams] = useState<EnhanceParams>(DEFAULT_ENHANCE_PARAMS);
+  const [chosenParams, setParams] = useState<EnhanceParams | null>(null);
+  const baseParams = chosenParams ?? defaultEnhanceParamsFor(source);
+  const run = useStudio((s) => s.run);
+  const submission = useStudio((s) => s.enhanceSubmission);
+  const generation = ws.generations.find((g) => g.id === submission?.generationId);
+  const working = generation?.status === "queued" || generation?.status === "running";
   // Allowed regions belong to the source they were drawn on, so they are kept per asset and
   // only apply while that asset is the source (never in strict mode).
   const [regionPick, setRegionPick] = useState<{ assetId: string; ids: string[] } | null>(null);
@@ -125,7 +130,8 @@ export function EnhancePanel() {
     !provider ||
     !model ||
     (strict && provider.id !== "local_upscale") ||
-    busy;
+    busy ||
+    working;
 
   useEffect(() => {
     if (!providers.length) void loadProviders();
@@ -171,6 +177,36 @@ export function EnhancePanel() {
 
   return (
     <div className="enhance-panel" data-testid="enhance-panel">
+      <SectionPanel title={t("enhance.howToUse")} defaultOpen={false}>
+        <p className="field-hint">{t("enhance.howToUseConservative")}</p>
+        <p className="field-hint">{t("enhance.howToUseGenerative")}</p>
+        <p className="field-hint">{t("enhance.howToUsePreserve")}</p>
+      </SectionPanel>
+      {
+        <SectionPanel title={t("enhance.provider")}>
+          <div className="field-row">
+            <SelectField
+              label={t("enhance.provider")}
+              allowEmpty={false}
+              value={provider?.id}
+              options={availableProviders.map((item) => ({ value: item.id, label: item.label }))}
+              onChange={(id) => {
+                setProviderId(id ?? "");
+                setModelId("");
+              }}
+            />
+            {provider && (
+              <SelectField
+                label={t("enhance.model")}
+                allowEmpty={false}
+                value={model?.id}
+                options={models.map((item) => ({ value: item.id, label: item.label }))}
+                onChange={(id) => setModelId(id ?? "")}
+              />
+            )}
+          </div>
+        </SectionPanel>
+      }
       <SectionPanel title={t("enhance.source")} defaultOpen={false}>
         {source ? (
           <div className="enhance-source">
@@ -224,36 +260,6 @@ export function EnhancePanel() {
           </span>
         </FieldGroup>
       </SectionPanel>
-      <SectionPanel title={t("enhance.howToUse")} defaultOpen={false}>
-        <p className="field-hint">{t("enhance.howToUseConservative")}</p>
-        <p className="field-hint">{t("enhance.howToUseGenerative")}</p>
-        <p className="field-hint">{t("enhance.howToUsePreserve")}</p>
-      </SectionPanel>
-      {!strict && params.mode === "generative" && (
-        <SectionPanel title={t("enhance.provider")}>
-          <div className="field-row">
-            <SelectField
-              label={t("enhance.provider")}
-              allowEmpty={false}
-              value={provider?.id}
-              options={availableProviders.map((item) => ({ value: item.id, label: item.label }))}
-              onChange={(id) => {
-                setProviderId(id ?? "");
-                setModelId("");
-              }}
-            />
-            {provider && (
-              <SelectField
-                label={t("enhance.model")}
-                allowEmpty={false}
-                value={model?.id}
-                options={models.map((item) => ({ value: item.id, label: item.label }))}
-                onChange={(id) => setModelId(id ?? "")}
-              />
-            )}
-          </div>
-        </SectionPanel>
-      )}
       <SectionPanel title={t("enhance.promptPreview")} defaultOpen={false}>
         <button
           type="button"
@@ -297,7 +303,8 @@ export function EnhancePanel() {
           onClick={() => void enhance()}
           data-testid="enhance-submit"
         >
-          <Wand2 size={14} /> {t("enhance.submit")}
+          {working || busy ? <Loader2 size={14} className="node-spinner" /> : <Wand2 size={14} />}{" "}
+          {t("enhance.submit")}
         </button>
         <button
           className="btn"
@@ -308,6 +315,12 @@ export function EnhancePanel() {
           <Layers size={14} /> {t("enhance.batch")}
         </button>
       </div>
+      {generation && <p role="status">{t(`labels.generationStatus.${generation.status}`)}</p>}
+      {run?.status === "error" && run.projectId === ws.project.id && (
+        <p role="alert" className="field-error">
+          {run.message}
+        </p>
+      )}
       {batchOpen && source && (
         <EnhanceBatchDialog
           sources={ws.assets.filter((asset) => asset.status === "ready")}

@@ -1,3 +1,6 @@
+import { ImageModelPicker, useImageModelChoice } from "../../components/panels/ImageModelPicker";
+import { SheetModeTabs, SheetPanel } from "../sheets/SheetPanel";
+import { useSheetDraft } from "../sheets/store";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -52,7 +55,8 @@ import { usePublishing } from "./store";
 export const CAPTION_PROVIDER_ID = ENHANCE_PROVIDER_ID;
 
 /** Right panel of the Publishing Studio (SRS §13.3). */
-export function PublishingPanel() {
+export function LocalPublishingPanel() {
+  const imageChoice = useImageModelChoice();
   const projectId = useStudio((s) => s.workspace!.project.id);
   const projectName = useStudio((s) => s.workspace!.project.name);
   const assets = useStudio((s) => s.workspace!.assets);
@@ -63,6 +67,7 @@ export function PublishingPanel() {
   if (!isOpen) return null;
   return (
     <div className="pub-panel" data-testid="publishing-panel">
+      <ImageModelPicker {...imageChoice} disabled={readOnly} />
       <LibrarySection readOnly={readOnly} />
       <SettingsSection readOnly={readOnly} />
       <StyleSection readOnly={readOnly} />
@@ -846,5 +851,16 @@ function ExportSection() {
         </Dialog>
       )}
     </SectionPanel>
+  );
+}
+
+export function PublishingPanel() {
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const draft = useSheetDraft(projectId, "publishing");
+  return (
+    <>
+      <SheetModeTabs kind="publishing" />
+      {draft.mode === "ai" ? <SheetPanel kind="publishing" /> : <LocalPublishingPanel />}
+    </>
   );
 }

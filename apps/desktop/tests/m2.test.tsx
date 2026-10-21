@@ -109,6 +109,7 @@ describe("My presets (ADR-040)", () => {
 describe("SketchUp inbox (ADR-040)", () => {
   it("lists waiting views and imports one as the selected structure sketch", async () => {
     await openPanel();
+    fireEvent.click(screen.getByRole("button", { name: "From sketch / massing" }));
     const receive = await screen.findByRole("button", { name: "Receive from SketchUp (2)" });
     fireEvent.click(receive);
     expect(screen.getByText(MOCK_INBOX_PATH)).toBeTruthy();

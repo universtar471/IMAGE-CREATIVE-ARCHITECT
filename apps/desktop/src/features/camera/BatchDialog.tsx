@@ -54,10 +54,15 @@ export function BatchDialog({
 
   const cameras = ws.draftDna.cameras;
   const master = ws.assets.find((a) => a.id === ws.project.activeMasterAssetId) ?? null;
-  const firstProvider = providers.find((p) => p.configured) ?? providers[0] ?? null;
+  const imageChoice = useStudio((s) => s.generateDraft);
+  const firstProvider =
+    providers.find((p) => p.id === imageChoice.providerId) ??
+    providers.find((p) => p.configured) ??
+    providers[0] ??
+    null;
   const [providerId, setProviderId] = useState(firstProvider?.id ?? "");
   const provider = providers.find((p) => p.id === providerId) ?? firstProvider;
-  const [modelId, setModelId] = useState<string | null>(null);
+  const [modelId, setModelId] = useState<string | null>(imageChoice.modelId);
   const model = provider?.models.find((m) => m.id === modelId) ?? provider?.models[0] ?? null;
   const [paramsDraft, setParams] = useState<GenerationParams | null>(null);
   const params: GenerationParams = model
