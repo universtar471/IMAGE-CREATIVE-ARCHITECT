@@ -9,7 +9,7 @@
  * - `escalatesTo`: a WARN code that a rule may raise to BLOCK when the data is confirmed.
  */
 
-export const VALIDATOR_VERSION = "cv-1.3.0";
+export const VALIDATOR_VERSION = "cv-1.4.0";
 
 export type ConflictSeverity = "BLOCK" | "WARN";
 export type ShotVerdict = ConflictSeverity | "ALLOW";

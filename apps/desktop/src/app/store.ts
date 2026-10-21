@@ -879,6 +879,12 @@ export const useStudio = create<State>((set, get) => {
       if (get().run?.status === "submitting") return undefined;
       const { extraPrompt, approvedExceptions, shotIntent, ...submitInput } = input;
       const { projectId } = submitInput;
+      const sourceAssetId =
+        !prompt &&
+        (input.purpose === "hero" || input.purpose === "variation") &&
+        get().generateDraft.source === "sketch"
+          ? input.referenceAssetIds[0]
+          : undefined;
       // Everything below is bound to this project; never read another project's data.
       if (!prompt && !isOpen(projectId)) return undefined;
       set({
@@ -934,6 +940,8 @@ export const useStudio = create<State>((set, get) => {
             withValidation(
               compileFromBundle(bundle, {
                 referenceAssetIds: ids,
+                sourceAssetId,
+                variation: input.purpose === "variation",
                 cameraId,
                 shotIntent: selectedShotIntent,
               }),

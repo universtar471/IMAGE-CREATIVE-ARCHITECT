@@ -180,7 +180,7 @@ export function GeneratePanel() {
     }
   };
 
-  const advanced = mode === "advanced";
+  const advanced = mode === "advanced" && form.purpose !== "variation";
   return (
     <div className="generate-panel">
       <div className="generate-mode-row">
@@ -200,29 +200,67 @@ export function GeneratePanel() {
         <HelpPopover topic={t("generate.modeLabel")}>{t("generate.advancedHint")}</HelpPopover>
       </div>
       <ProviderSection form={form} disabled={running} />
+      {!advanced && form.model && (
+        <div className="generation-quality-controls">
+          {form.model.imageSizes.length > 0 && (
+            <SelectField
+              label={t("generate.imageSize")}
+              allowEmpty={false}
+              disabled={running}
+              value={form.params.imageSize ?? undefined}
+              options={form.model.imageSizes.map((size) => ({ value: size, label: size }))}
+              onChange={(imageSize) =>
+                setDraft({ params: { ...form.params, imageSize: imageSize ?? null } })
+              }
+            />
+          )}
+          <QualityField
+            model={form.model}
+            value={form.params.quality}
+            disabled={running}
+            onChange={(quality) => setDraft({ params: { ...form.params, quality } })}
+          />
+        </div>
+      )}
+      {form.purpose === "variation" && form.sketch && (
+        <div className="variation-source" data-testid="variation-source">
+          <img
+            src={fileUrl(form.sketch.thumbnailPath ?? form.sketch.absolutePath) ?? undefined}
+            alt=""
+          />
+          <div>
+            <strong>{t("generate.generateVariation")}</strong>
+            <span className="field-hint">{form.sketch.originalName}</span>
+          </div>
+        </div>
+      )}
       {advanced && <GenerationStepper />}
-      <SectionPanel
-        title={t("generate.simpleSource")}
-        aside={
-          <HelpPopover topic={t("generate.simpleSource")}>
-            {t("generate.simpleSourceHint")}
-          </HelpPopover>
-        }
-      >
-        <SourceFields form={form} disabled={running} />
-      </SectionPanel>
+      {form.purpose !== "variation" && (
+        <SectionPanel
+          title={t("generate.simpleSource")}
+          aside={
+            <HelpPopover topic={t("generate.simpleSource")}>
+              {t("generate.simpleSourceHint")}
+            </HelpPopover>
+          }
+        >
+          <SourceFields form={form} disabled={running} />
+        </SectionPanel>
+      )}
       <SectionPanel
         title={t("presets.title")}
         aside={<HelpPopover topic={t("presets.title")}>{t("presets.none")}</HelpPopover>}
       >
-        <PresetGrid disabled={running} />
+        <PresetGrid disabled={running} variation={form.purpose === "variation"} />
       </SectionPanel>
-      <RecipeSection
-        disabledReason={disabledReason}
-        running={running}
-        outputCount={form.params.outputCount}
-        onRun={(plans) => void runRecipe(plans)}
-      />
+      {form.purpose !== "variation" && (
+        <RecipeSection
+          disabledReason={disabledReason}
+          running={running}
+          outputCount={form.params.outputCount}
+          onRun={(plans) => void runRecipe(plans)}
+        />
+      )}
       {advanced && <GenerationActions onOpen={setBatchMode} />}
       {advanced && <VisualIntentSelector />}
 
@@ -493,7 +531,12 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
         }))}
         // Model/params/references are provider-specific: start from that model's defaults.
         onChange={(id) =>
-          setDraft({ providerId: id ?? null, modelId: null, params: null, referenceAssetIds: null })
+          setDraft({
+            providerId: id ?? null,
+            modelId: null,
+            params: form.params,
+            ...(form.source === "sketch" ? {} : { referenceAssetIds: null }),
+          })
         }
       />
       {provider && !provider.configured && (
@@ -512,7 +555,11 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
           value={model?.id}
           options={provider.models.map((m) => ({ value: m.id, label: m.label }))}
           onChange={(id) =>
-            setDraft({ modelId: id ?? null, params: null, referenceAssetIds: null })
+            setDraft({
+              modelId: id ?? null,
+              params: form.params,
+              ...(form.source === "sketch" ? {} : { referenceAssetIds: null }),
+            })
           }
         />
       )}

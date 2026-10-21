@@ -19,7 +19,7 @@ export function nodeSelectionModule(
 ): ModuleId {
   if (ids.length !== 1 || hasOwnCenter(current)) return current;
   const id = ids[0]!;
-  if (id === "draft") return "generate";
+  if (id === "draft") return current === "video" ? "video" : "generate";
   if (id.startsWith("gen:")) {
     const generation = generations.find((g) => g.id === id.slice(4));
     return generation ? (generation.purpose === "video" ? "video" : "generate") : current;
@@ -74,6 +74,7 @@ export type Selection =
       nodeId: string;
       sourceAssetId: string | null;
       presetIds: readonly string[];
+      purpose?: "video";
       readOnly: boolean;
     }
   | { kind: "multi"; items: Exclude<Selection, { kind: "multi" | "none" }>[]; readOnly: boolean };
@@ -88,7 +89,7 @@ export type SelectionInput = {
   generations: readonly GenerationDTO[];
   /** References the Generate draft would send (already resolved), for `inDraft`. */
   draftReferenceIds: readonly string[];
-  draft: { sourceAssetId: string | null; presetIds: readonly string[] } | null;
+  draft: { sourceAssetId: string | null; presetIds: readonly string[]; purpose?: "video" } | null;
   readOnly: boolean;
 };
 
@@ -153,6 +154,7 @@ function fromNode(
       nodeId: id,
       sourceAssetId: input.draft.sourceAssetId,
       presetIds: input.draft.presetIds,
+      ...(input.draft.purpose ? { purpose: input.draft.purpose } : {}),
       readOnly: input.readOnly,
     };
   return null;

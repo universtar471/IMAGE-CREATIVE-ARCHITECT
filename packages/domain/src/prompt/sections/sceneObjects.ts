@@ -3,9 +3,10 @@
  *
  * One line per object request of the shot, then the preservation lines. A zone that is
  * recorded but not confirmed is worded "only if … has adequate clearance"; a request the
- * validator refuses (wrong space, absent zone, moving off-road) is never compiled, so the
+ * validator refuses for an explicit placement is never compiled, so the
  * prompt cannot create a driveway, garage or road. No requests: no section (the prompt is
- * byte-identical to a shot without objects).
+ * byte-identical to a shot without objects). Preset auto-placement instead asks the model
+ * to choose a suitable existing surface from the source image and user prompt.
  */
 import type { ProjectType } from "../../schemas/enums";
 import type { ProjectDNA } from "../../schemas/projectDna";
@@ -35,12 +36,17 @@ const ZONE_EN: Readonly<Record<PlacementZoneId, string>> = {
 function compilable(r: ResolvedObjectRequest): boolean {
   if (!r.type || !r.target || !r.zone) return false;
   if (!isObjectAllowed(r.target.kind, r.type)) return false;
+  if (r.request.autoPlacement && !r.request.placementZoneId) return true;
   if (!SCENE_OBJECT_TABLE[r.target.kind][r.type]!.includes(r.zone)) return false;
   if (!stateAllowed(r.type, r.zone, r.request.state)) return false;
   return r.zoneStatus !== "absent";
 }
 
 function where(r: ResolvedObjectRequest): string {
+  if (r.request.autoPlacement && !r.request.placementZoneId)
+    return r.type === "car" || r.type === "motorbike" || r.type === "bicycle"
+      ? "on a suitable existing street or parking surface visible in the source image"
+      : "on a suitable existing walkable surface visible in the source image";
   const zone = ZONE_EN[r.zone!];
   const target = r.target!;
   const verified = r.zoneStatus === "verified" ? "verified " : "";
@@ -75,7 +81,7 @@ function objectLine(r: ResolvedObjectRequest): string {
         : "";
   const visibility = request.visibility ? `, in the ${request.visibility}` : "";
   const clearance =
-    r.zoneStatus === "plausible"
+    !r.request.autoPlacement && r.zoneStatus === "plausible"
       ? `, only if the ${ZONE_EN[r.zone!]} is present in the approved references and has adequate clearance`
       : "";
   return `Add ${quantityWord(request.quantity)} ${state}${description}${paint} ${where(r)}${pose}${visibility}${clearance}.`;
@@ -90,6 +96,10 @@ export function sceneObjectsLines(
   const resolved = resolveObjectRequests(dna, projectType, requests).filter(compilable);
   if (!resolved.length) return [];
   const lines = resolved.map(objectLine);
+  if (resolved.some((r) => r.request.autoPlacement))
+    lines.push(
+      "Choose a physically plausible position from the source image and the user's prompt; follow any requested location, maintain realistic scale, keep entrances and the main facade clear, and do not invent roads or parking areas.",
+    );
   const vehicles = resolved.filter((r) => r.zoneStatus !== null);
   if (vehicles.length) {
     if (vehicles.some((r) => r.request.state === "static"))

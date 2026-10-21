@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { COMPILER_VERSION, generationNodeId, imageNodeId, type PromptBundle } from "@arch/domain";
-import { createProject } from "../src/app/services";
+import { compileFromBundle, createProject } from "../src/app/services";
 import { EMPTY_GENERATE_DRAFT, useStudio } from "../src/app/store";
 import { BranchCanvas } from "../src/features/canvas/BranchCanvas";
 import { call, setTransport } from "../src/lib/bridge";
@@ -36,6 +36,7 @@ beforeEach(() => {
     generateDraft: EMPTY_GENERATE_DRAFT,
     // V6.1 (ADR-044): the graph is Node mode; its selection lives in the store.
     workspaceMode: "node",
+    activeModule: "generate",
     canvasSelection: [],
     viewer: null,
     nodeViewport: {},
@@ -94,6 +95,43 @@ async function seedBranches() {
 const node = (id: string) => document.querySelector(`[data-node="${id}"]`);
 
 describe("branch canvas (ADR-041)", () => {
+  it("shows an active spinner, model identity and a video draft from the selected image", async () => {
+    const { first } = await seedBranches();
+    const ws = useStudio.getState().workspace!;
+    useStudio.setState({
+      activeModule: "video",
+      selectedAssetId: first.outputAssetIds[0],
+      workspace: {
+        ...ws,
+        generations: ws.generations.map((g) =>
+          g.id === first.id ? { ...g, status: "running" } : g,
+        ),
+      },
+    });
+    render(<BranchCanvas />);
+    await waitFor(() => expect(node(generationNodeId(first.id))).toBeTruthy());
+    expect(node(generationNodeId(first.id))!.getAttribute("aria-busy")).toBe("true");
+    expect(node(generationNodeId(first.id))!.querySelector(".node-spinner")).toBeTruthy();
+    expect(
+      node(imageNodeId(first.outputAssetIds[0]!))!.querySelector(".branch-model")!.textContent,
+    ).toMatch(/Placeholder renderer|placeholder-v1/);
+    expect(node("draft")!.textContent).toContain("Create video");
+  });
+
+  it("treats the selected regular image as authoritative without changing its library role", async () => {
+    const { p, first } = await seedBranches();
+    const bundle = await call("project_get", { projectId: p.id });
+    const id = first.outputAssetIds[0]!;
+    const compiled = compileFromBundle(bundle, {
+      referenceAssetIds: [id],
+      sourceAssetId: id,
+      variation: true,
+    });
+    expect(compiled.referenceInstructions).toContain("authoritative source image");
+    expect(compiled.referenceInstructions).not.toContain("loose inspiration");
+    expect(compiled.preservationInstructions).toContain("same building");
+    expect(bundle.assets.find((a) => a.id === id)!.role).toBe("regular_image");
+  });
   it("draws sources, generations and outputs from lineage", async () => {
     const { first, second } = await seedBranches();
     render(<BranchCanvas />);
@@ -121,7 +159,7 @@ describe("branch canvas (ADR-041)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Variation from this image" }));
     expect(useStudio.getState().generateDraft).toMatchObject({
       source: "sketch",
-      purpose: "hero",
+      purpose: "variation",
       referenceAssetIds: [out],
     });
     // The draft now hangs after that image, dashed, and never runs from here.
@@ -141,6 +179,9 @@ describe("branch canvas (ADR-041)", () => {
     const [a, b] = first.outputAssetIds;
     await waitFor(() => expect(node(imageNodeId(a!))).toBeTruthy());
     fireEvent.click(node(imageNodeId(a!))!);
+    await waitFor(() =>
+      expect(screen.getByTestId("context-toolbar").dataset.selection).toBe("image"),
+    );
     fireEvent.keyDown(document, { key: "Shift" });
     fireEvent.click(node(imageNodeId(b!))!, { shiftKey: true });
     fireEvent.keyUp(document, { key: "Shift" });

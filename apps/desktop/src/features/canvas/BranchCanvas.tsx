@@ -13,7 +13,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, LayoutGrid } from "lucide-react";
+import { AlertTriangle, Clapperboard, LayoutGrid, LoaderCircle } from "lucide-react";
 import {
   buildBranchGraph,
   deepAiChain,
@@ -40,6 +40,7 @@ import { isReferenceAsset } from "../selection/selection";
 import { draftSourceOf, useSelection } from "../selection/useSelection";
 import { viewerSetFor } from "../selection/viewerSet";
 import { useWorkspaceLayout } from "../workspace/layout";
+import { defaultVideoSource } from "../video/video";
 
 const SAVE_DELAY_MS = 600;
 /** From this many nodes only the visible ones render (large projects stay responsive). */
@@ -63,6 +64,8 @@ export function BranchCanvas() {
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
   const draft = useStudio((s) => s.generateDraft);
+  const activeModule = useStudio((s) => s.activeModule);
+  const selectedAssetId = useStudio((s) => s.selectedAssetId);
   const readOnly = useStudio(selectReadOnly);
   const selection = useStudio((s) => s.canvasSelection);
   const setSelection = useStudio((s) => s.setCanvasSelection);
@@ -92,17 +95,24 @@ export function BranchCanvas() {
   }, [projectId]);
 
   // What the Generate button would send now (shown dashed after its source).
-  const draftSource = draftSourceOf(draft, ws.project.activeMasterAssetId ?? null);
+  const videoDraft = activeModule === "video";
+  const draftSource = videoDraft
+    ? defaultVideoSource(ws.assets, selectedAssetId, ws.project.activeMasterAssetId)?.id
+    : draftSourceOf(draft, ws.project.activeMasterAssetId ?? null);
   const graph = useMemo(
     () =>
       buildBranchGraph({
         assets: ws.assets,
         generations: ws.generations,
         draft: draftSource
-          ? { sourceAssetId: draftSource, presetIds: ws.shotIntent?.presetIds ?? [] }
+          ? {
+              sourceAssetId: draftSource,
+              presetIds: videoDraft ? [] : (ws.shotIntent?.presetIds ?? []),
+              ...(videoDraft ? { purpose: "video" as const } : {}),
+            }
           : null,
       }),
-    [ws.assets, ws.generations, draftSource, ws.shotIntent?.presetIds],
+    [ws.assets, ws.generations, draftSource, ws.shotIntent?.presetIds, videoDraft],
   );
   const positions = useMemo(
     () => (layout ? layoutBranchGraph(graph, layout) : {}),
@@ -124,11 +134,16 @@ export function BranchCanvas() {
           {
             node,
             asset: node.kind === "image" ? assets.get(node.assetId) : undefined,
-            generation: node.kind === "generation" ? generations.get(node.generationId) : undefined,
+            generation:
+              node.kind === "generation"
+                ? generations.get(node.generationId)
+                : node.kind === "image"
+                  ? ws.generations.find((g) => g.outputAssetIds.includes(node.assetId))
+                  : undefined,
           },
         ]),
       ),
-    [graph, assets, generations],
+    [graph, assets, generations, ws.generations],
   );
   const nodes: FlowNode[] = useMemo(
     () =>
@@ -331,6 +346,7 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
         {deepAiChain(node) && <AlertTriangle size={11} aria-label={t("branches.deepChain")} />}{" "}
         {node.label}
       </div>
+      {data.generation && <NodeModel generation={data.generation} />}
       {isReferenceAsset(node) && (
         <span className="branch-role" data-testid="branch-role">
           <RoleBadge role={node.role} short />
@@ -346,14 +362,24 @@ function GenerationNodeView({ data }: NodeProps<FlowNode>) {
   const locale = useLocale((s) => s.locale);
   const node = data.node as Extract<BranchNode, { kind: "generation" }>;
   return (
-    <div className="branch-node branch-node-generation" data-node={node.id}>
+    <div
+      className={`branch-node branch-node-generation ${node.status === "running" ? "is-running" : ""}`}
+      data-node={node.id}
+      aria-busy={node.status === "running" || node.status === "queued"}
+    >
       <Handle type="target" position={Position.Left} />
       <div className="branch-node-head">
         <GenerationStatusBadge status={node.status} />
         <span>{t(`labels.purpose.${node.purpose}`)}</span>
       </div>
       {(node.status === "queued" || node.status === "running") && (
-        <div className="branch-pending field-hint">{t("branches.noResultYet")}</div>
+        <div className="branch-pending field-hint" role="status">
+          <LoaderCircle
+            size={18}
+            className={node.status === "running" ? "node-spinner" : undefined}
+          />
+          {t(`labels.generationStatus.${node.status}`)}
+        </div>
       )}
       <div className="branch-chips">
         {presetLabels(node.presetIds, locale).map((label) => (
@@ -362,6 +388,7 @@ function GenerationNodeView({ data }: NodeProps<FlowNode>) {
           </span>
         ))}
       </div>
+      {data.generation && <NodeModel generation={data.generation} />}
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -375,7 +402,9 @@ function DraftNodeView({ data }: NodeProps<FlowNode>) {
     <div className="branch-node branch-node-draft" data-node={node.id}>
       <Handle type="target" position={Position.Left} />
       <div className="branch-node-head">
-        {t("branches.draft")} <span className="field-hint">· {t("branches.notCreated")}</span>
+        {node.purpose === "video" && <Clapperboard size={16} />}
+        {node.purpose === "video" ? t("videoModule.create") : t("branches.draft")}{" "}
+        <span className="field-hint">· {t("branches.notCreated")}</span>
       </div>
       <div className="branch-chips">
         {presetLabels(node.presetIds, locale).map((label) => (
@@ -393,3 +422,17 @@ const NODE_TYPES = {
   generation: GenerationNodeView,
   draft: DraftNodeView,
 };
+
+function NodeModel({ generation }: { generation: GenerationDTO }) {
+  const providers = useStudio((s) => s.providers);
+  const provider = providers?.find((p) => p.id === generation.providerId);
+  const model = provider?.models.find((m) => m.id === generation.modelId);
+  return (
+    <div
+      className="branch-model"
+      title={`${provider?.label ?? generation.providerId} · ${model?.label ?? generation.modelId}`}
+    >
+      {model?.label ?? generation.modelId}
+    </div>
+  );
+}

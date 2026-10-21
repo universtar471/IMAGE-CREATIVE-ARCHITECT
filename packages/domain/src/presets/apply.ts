@@ -63,6 +63,7 @@ const sameObject = (a: SceneObjectRequest, b: SceneObjectRequest) =>
   a.state === b.state &&
   a.targetSpaceId === b.targetSpaceId &&
   a.visibility === b.visibility &&
+  a.autoPlacement === b.autoPlacement &&
   a.placementZoneId === undefined &&
   b.placementZoneId === undefined;
 
@@ -71,6 +72,7 @@ function objectRequest(object: PresetObject, targetSpaceId: string): SceneObject
     presetId: object.presetId,
     quantity: object.quantity,
     targetSpaceId,
+    autoPlacement: true,
     state: object.state,
     ...(object.visibility ? { visibility: object.visibility } : {}),
     sourceReferenceIds: [],

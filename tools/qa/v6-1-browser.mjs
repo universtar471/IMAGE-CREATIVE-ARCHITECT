@@ -318,10 +318,40 @@ try {
   await creativeHint.scrollIntoViewIfNeeded();
   result.creativeConflictDoesNotBlock = true;
   await page.screenshot({ path: resolve(output, "advisory-creative-conflicts.png") });
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setGenerateDraft({ source: "sketch", purpose: "variation", referenceAssetIds: ["AST_IMG"] });
+    s.setShotIntent({ projectType: "villa" });
+  });
+  await page.getByTestId("variation-source").waitFor();
+  assert.equal(await page.locator(".panel-body").evaluate((el) => el.scrollTop), 0);
+  assert.equal(await page.locator('[data-preset="render.sketch_to_photo"]').count(), 0);
+  assert.equal(await page.locator('[data-preset="camera.detail"]').count(), 1);
+  await page.screenshot({ path: resolve(output, "variation-settings.png") });
+  await page.evaluate(async () => {
+    const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.selectAsset("AST_IMG", { keepView: true });
+    s.setWorkspaceMode("node");
+    s.setModule("video");
+  });
+  await page.getByTestId("video-panel").waitFor();
+  assert.equal(await page.getByRole("combobox", { name: "Model", exact: true }).count(), 1);
+  await page.locator('[data-node="draft"]').filter({ hasText: "Create video" }).waitFor();
+  assert.equal(await page.locator(".motion-chip svg").count(), 8);
+  await page.screenshot({ path: resolve(output, "video-model-and-draft.png") });
+  await page.evaluate(async () =>
+    (await import("/src/app/store.ts")).useStudio.getState().setModule("enhance"),
+  );
+  await page.getByTestId("enhance-panel").waitFor();
+  assert.equal(await page.locator('[data-testid="enhance-mode-strict"] svg').count(), 1);
+  await page.screenshot({ path: resolve(output, "enhance-icons.png") });
+  result.variationVideoEnhance = true;
   // A playing workspace video is paused before the viewer's separate player opens.
   await page.evaluate(async () => {
     const s = (await import("/src/app/store.ts")).useStudio.getState();
+    s.setWorkspaceMode("studio");
     s.selectAsset("AST_CLIP");
+    s.setModule("generate");
   });
   await page.getByTestId("video-player").waitFor();
   await page.locator('[data-testid="video-player"] video').evaluate(async (video) => {

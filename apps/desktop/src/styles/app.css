@@ -4417,6 +4417,68 @@ div.pub-slot {
   border-style: dashed;
   opacity: 0.85;
 }
+.branch-model {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.variation-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+}
+.variation-source img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.variation-source > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.branch-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+.branch-node.is-running {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 25%, transparent);
+}
+.node-spinner {
+  animation: node-spin 1.2s linear infinite;
+}
+@keyframes node-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-spinner {
+    animation: none;
+  }
+}
+.motion-grid .motion-chip,
+.enhance-segmented button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 64px;
+}
+.motion-grid .motion-chip svg {
+  color: var(--c-primary);
+}
 .branch-chips {
   display: flex;
   flex-wrap: wrap;

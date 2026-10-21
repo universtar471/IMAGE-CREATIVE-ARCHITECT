@@ -389,7 +389,7 @@ describe("Generate form derivation", () => {
     expect(generateDisabledReason(f, ctx)).toMatch(/reference images/);
   });
 
-  it("sketch mode pins the newest sketch, forces hero, and anchors its aspect ratio", () => {
+  it("source mode pins the newest sketch, preserves variation purpose, and anchors its aspect ratio", () => {
     const oldSketch = asset("P", "AST_sketch_old", {
       role: "structure_sketch",
       widthPx: 900,
@@ -408,7 +408,7 @@ describe("Generate form derivation", () => {
       [...assets, oldSketch, newestSketch],
       "AST_master",
     );
-    expect(f.purpose).toBe("hero");
+    expect(f.purpose).toBe("variation");
     expect(f.sketch?.id).toBe("AST_sketch_new");
     expect(f.referenceIds[0]).toBe("AST_sketch_new");
     expect(f.pinnedIds).toEqual(["AST_sketch_new"]);

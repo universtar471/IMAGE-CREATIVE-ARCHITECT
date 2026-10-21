@@ -88,7 +88,7 @@ describe("enhance panel (ADR-035)", () => {
     await openApprovedProject();
     render(<EnhancePanel />);
     expect(screen.getByTestId("enhance-mode-strict").getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByText(t("enhance.strictMode"))).toBeTruthy();
+    expect(screen.getByRole("button", { name: t("enhance.strictMode") })).toBeTruthy();
     // Visiting balanced offers paid providers; going back to strict must drop them again.
     fireEvent.click(screen.getByTestId("enhance-mode-balanced"));
     fireEvent.click(screen.getByTestId("enhance-mode-strict"));

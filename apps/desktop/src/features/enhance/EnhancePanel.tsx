@@ -171,7 +171,7 @@ export function EnhancePanel() {
 
   return (
     <div className="enhance-panel" data-testid="enhance-panel">
-      <SectionPanel title={t("enhance.source")}>
+      <SectionPanel title={t("enhance.source")} defaultOpen={false}>
         {source ? (
           <div className="enhance-source">
             <strong>{source.originalName ?? source.id}</strong>
