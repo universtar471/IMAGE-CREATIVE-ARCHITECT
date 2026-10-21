@@ -1,3 +1,5 @@
+import { SheetResult } from "../sheets/SheetPanel";
+import { useSheetDraft } from "../sheets/store";
 /**
  * Center view of the Diagram module: the vector sheet exactly as it will be exported
  * (same `layoutDiagramSheet` call), with smaller embedded images for speed.
@@ -13,7 +15,7 @@ import { useDiagram } from "./useDiagram";
 
 const PREVIEW_EDGE = 1024;
 
-export function DiagramCanvas() {
+export function LocalDiagramCanvas() {
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
   const selectedAssetId = useStudio((s) => s.selectedAssetId);
@@ -72,4 +74,10 @@ export function DiagramCanvas() {
       <img className="diagram-sheet" src={svgDataUrl(svg)} alt={t("diagram.previewAlt")} />
     </div>
   );
+}
+
+export function DiagramCanvas() {
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const draft = useSheetDraft(projectId, "diagram");
+  return draft.mode === "ai" ? <SheetResult kind="diagram" /> : <LocalDiagramCanvas />;
 }

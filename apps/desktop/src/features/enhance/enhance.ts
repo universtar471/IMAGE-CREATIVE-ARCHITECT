@@ -47,6 +47,24 @@ export const DEFAULT_ENHANCE_PARAMS: EnhanceParams = {
   upscale: { target: "long_edge_2048", ifAlreadyLarger: "keep" },
 };
 
+/** Start above the source resolution instead of returning unchanged 2K+ pixels. */
+export function defaultEnhanceParamsFor(
+  source?: Pick<AssetDTO, "widthPx" | "heightPx"> | null,
+): EnhanceParams {
+  const edge = Math.max(source?.widthPx ?? 0, source?.heightPx ?? 0);
+  if (edge < 2048) return DEFAULT_ENHANCE_PARAMS;
+  if (edge < 4096) return withSizeTarget(DEFAULT_ENHANCE_PARAMS, "long_edge_4096");
+  if (edge < 8192 && source?.widthPx && source.heightPx) {
+    const scale = 8192 / edge;
+    return withSizeTarget(DEFAULT_ENHANCE_PARAMS, {
+      width: Math.round(source.widthPx * scale),
+      height: Math.round(source.heightPx * scale),
+      fit: "contain",
+    });
+  }
+  return withSizeTarget(DEFAULT_ENHANCE_PARAMS, "long_edge_4096", "quality_only");
+}
+
 export const PRESERVATION_MODES: readonly PreservationMode[] = ["strict", "balanced", "creative"];
 export const LOCK_KEYS = ["geometry", "material", "context", "camera"] as const;
 /** Size choices of the selector; `custom` opens width/height fields. */

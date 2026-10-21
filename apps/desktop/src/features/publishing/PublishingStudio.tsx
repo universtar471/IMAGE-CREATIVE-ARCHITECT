@@ -1,3 +1,5 @@
+import { SheetResult } from "../sheets/SheetPanel";
+import { useSheetDraft } from "../sheets/store";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Check, Eye, Loader2, Lock, LockOpen } from "lucide-react";
 import type { AssetDTO, CaptionPageSlot, PageSlot, Publication, TextSlot } from "@arch/domain";
@@ -23,7 +25,7 @@ import {
 import { usePublishing } from "./store";
 
 /** Center view of the Publishing Studio (SRS §13.3): page strip, page editor, preview. */
-export function PublishingStudio() {
+export function LocalPublishingStudio() {
   const t = useT();
   const projectId = useStudio((s) => s.workspace!.project.id);
   const projectName = useStudio((s) => s.workspace!.project.name);
@@ -429,4 +431,10 @@ function ExportPreview({
       )}
     </Dialog>
   );
+}
+
+export function PublishingStudio() {
+  const projectId = useStudio((s) => s.workspace!.project.id);
+  const draft = useSheetDraft(projectId, "publishing");
+  return draft.mode === "ai" ? <SheetResult kind="publishing" /> : <LocalPublishingStudio />;
 }

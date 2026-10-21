@@ -262,11 +262,11 @@ describe("Generate form derivation", () => {
   ];
   const ctx = { readOnly: false, submitting: false, dnaInvalid: false, assets };
 
-  it("defaults to the first configured provider, hero with a master, master-first references", () => {
+  it("defaults to the first configured provider, DNA hero with no image references", () => {
     const f = resolveGenerateForm(EMPTY_GENERATE_DRAFT, providers(false), assets, "AST_master");
     expect(f.provider?.id).toBe("local_preview");
     expect(f.purpose).toBe("hero");
-    expect(f.referenceIds).toEqual(["AST_master", "AST_ref"]);
+    expect(f.referenceIds).toEqual([]);
     expect(f.candidates.map((a) => a.id)[0]).toBe("AST_master");
     expect(generateDisabledReason(f, ctx)).toBeNull();
 
@@ -290,6 +290,7 @@ describe("Generate form derivation", () => {
         ...EMPTY_GENERATE_DRAFT,
         providerId: "gemini",
         modelId: "gemini-2.5-flash-image",
+        purpose: "variation",
         referenceAssetIds: ["AST_ref", "AST_master", "AST_gen", "AST_x"],
       },
       providers(true),
@@ -315,7 +316,7 @@ describe("Generate form derivation", () => {
     expect(withMaster.params.aspectRatio).toBe("3:2");
 
     const tallFirst = resolveGenerateForm(
-      { ...EMPTY_GENERATE_DRAFT, referenceAssetIds: ["AST_tall"] },
+      { ...EMPTY_GENERATE_DRAFT, purpose: "variation", referenceAssetIds: ["AST_tall"] },
       providers(true),
       [asset("P", "AST_tall", { widthPx: 900, heightPx: 1600 })],
       null,

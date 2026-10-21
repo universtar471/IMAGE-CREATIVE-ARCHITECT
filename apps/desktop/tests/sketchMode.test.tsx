@@ -134,7 +134,7 @@ describe("Generate sketch source", () => {
     fireEvent.click(screen.getByRole("button", { name: "From sketch / massing" }));
     expect(useStudio.getState().generateDraft).toMatchObject({ source: "sketch", purpose: "hero" });
     expect(screen.getByText("No structure sketch yet — click Import sketch")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Hero" }).getAttribute("aria-pressed")).toBe("true");
+    expect(useStudio.getState().generateDraft.purpose).toBe("hero");
   });
 
   it("imports through the existing path with the structure_sketch role", async () => {

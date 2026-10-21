@@ -209,6 +209,20 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
             return Err(AppError::validation("Enhancement requires exactly one ready reference image."));
         }
         let (source_width, source_height) = source_size(core, &assets[0])?;
+        if params.mode == EnhanceMode::Generative {
+            let source_ratio = source_width as f64 / source_height as f64;
+            req.params.aspect_ratio = model
+                .aspect_ratios
+                .iter()
+                .filter_map(|ratio| {
+                    let (w, h) = ratio.split_once(':')?;
+                    let w: f64 = w.parse().ok()?;
+                    let h: f64 = h.parse().ok()?;
+                    (w > 0.0 && h > 0.0).then(|| (ratio.clone(), ((w / h) / source_ratio).ln().abs()))
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .map(|(ratio, _)| ratio);
+        }
         let source_long_edge = source_width.max(source_height);
         if let Some(target) = params.target_long_edge {
             if !matches!(target, 2048 | 3072 | 4096) {
@@ -2208,6 +2222,7 @@ mod tests {
         assert_eq!(sent.references.len(), 1);
         assert_eq!(sent.references[0].asset_id, source.id);
         assert_eq!(sent.params.enhance.as_ref().unwrap().mode, crate::providers::EnhanceMode::Generative);
+        assert!(sent.params.aspect_ratio.is_some(), "API upscale must request a supported source aspect ratio");
         let output = assets::list(&core, &project.id)
             .unwrap()
             .into_iter()

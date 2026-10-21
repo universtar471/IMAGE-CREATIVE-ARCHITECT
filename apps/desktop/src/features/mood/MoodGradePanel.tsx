@@ -1,3 +1,4 @@
+import { ImageModelPicker } from "../../components/panels/ImageModelPicker";
 import { Images, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -27,7 +28,7 @@ import {
 } from "./variation";
 import { useT } from "../../i18n";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
-import { MoodPreview, MoodPresetCards } from "../previews/MoodPreview";
+import { MoodPresetCards } from "../previews/MoodPreview";
 import { GradePreview } from "../previews/GradePreview";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { useBatchGate } from "../validation/useBatchGate";
@@ -212,6 +213,21 @@ export function MoodGradePanel() {
   };
   return (
     <div data-testid="mood-grade-panel">
+      <ImageModelPicker
+        providers={providers}
+        provider={provider}
+        model={model}
+        disabled={readOnly}
+        onProvider={(id) => {
+          setProviderId(id);
+          setModelId(undefined);
+          setParamsDraft({});
+        }}
+        onModel={(id) => {
+          setModelId(id);
+          setParamsDraft({});
+        }}
+      />
       <SectionPanel title={t("moodGrade.mood")} aside={<LockToggle section="mood" />}>
         <SelectField
           label={t("moodGrade.preset")}
@@ -223,7 +239,6 @@ export function MoodGradePanel() {
             if (preset) adopt(preset);
           }}
         />
-        <MoodPreview mood={mood as Record<string, unknown>} />
         <MoodPresetCards
           presets={moodPresets}
           disabled={moodLocked}
@@ -379,31 +394,6 @@ export function MoodGradePanel() {
               entries={variationGate.gate.entries}
               onFix={fixConflict}
               onApprove={variationGate.approve}
-            />
-          )}
-          <SelectField
-            label={t("generate.provider")}
-            value={provider?.id}
-            options={providers.map((p) => ({
-              value: p.id,
-              label: p.label,
-              disabled: !p.configured,
-            }))}
-            onChange={(v) => {
-              setProviderId(v ?? "");
-              setModelId(undefined);
-              setParamsDraft({});
-            }}
-          />
-          {provider && (
-            <SelectField
-              label={t("generate.model")}
-              value={model?.id}
-              options={provider.models.map((m) => ({ value: m.id, label: m.label }))}
-              onChange={(v) => {
-                setModelId(v);
-                setParamsDraft({});
-              }}
             />
           )}
           {model && model.aspectRatios.length > 0 && (

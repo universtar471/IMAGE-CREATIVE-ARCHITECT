@@ -109,15 +109,15 @@ describe("round 1 workflow UI regressions", () => {
     expect(useStudio.getState().workspace!.draftDna.cameras[0]!.azimuthDeg).not.toBe(before);
   });
 
-  it("keeps anchor/render actions in Generate, not the camera DNA panel", async () => {
+  it("keeps compact Generate free of the old anchor/render workflow", async () => {
     await openProject();
     render(createElement(CameraPanel));
     expect(screen.queryByTestId("generate-anchors")).toBeNull();
     cleanup();
     await useStudio.getState().loadProviders();
     render(createElement(GeneratePanel));
-    expect(screen.getByTestId("generate-anchors")).toBeTruthy();
-    expect(screen.getByTestId("render-cameras")).toBeTruthy();
+    expect(screen.queryByTestId("generate-anchors")).toBeNull();
+    expect(screen.queryByTestId("render-cameras")).toBeNull();
   });
 
   it("preserves later confirmations when reopening an earlier DNA step", () => {

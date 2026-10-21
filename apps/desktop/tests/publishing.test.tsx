@@ -17,8 +17,8 @@ import { useStudio } from "../src/app/store";
 import { useLocale } from "../src/i18n";
 import { call, setTransport, type Transport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
-import { PublishingPanel } from "../src/features/publishing/PublishingPanel";
-import { PublishingStudio } from "../src/features/publishing/PublishingStudio";
+import { LocalPublishingPanel as PublishingPanel } from "../src/features/publishing/PublishingPanel";
+import { LocalPublishingStudio as PublishingStudio } from "../src/features/publishing/PublishingStudio";
 import {
   applyAiCaptions,
   approveCaption,

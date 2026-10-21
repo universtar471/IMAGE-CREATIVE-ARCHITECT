@@ -101,18 +101,19 @@ describe("Generate panel modes (ADR-039)", () => {
   });
   it("opens in Simple mode with provider selection, source and presets", async () => {
     await openPanel();
-    expect(screen.getByTestId("generate-mode-simple").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByTestId("generate-mode-simple")).toBeNull();
     expect(screen.getByTestId("preset-studio")).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Provider" })).toBeTruthy();
     expect(screen.queryByTestId("generate-anchors")).toBeNull();
   });
 
-  it("remembers Advanced, which shows the full panel again", async () => {
+  it("ignores the old Advanced preference and keeps the compact source/preset controls", async () => {
+    localStorage.setItem("arch.generateMode", "advanced");
     await openPanel();
-    fireEvent.click(screen.getByTestId("generate-mode-advanced"));
-    expect(localStorage.getItem("arch.generateMode")).toBe("advanced");
+    expect(screen.queryByTestId("generate-mode-advanced")).toBeNull();
     expect(screen.getByRole("combobox", { name: "Provider" })).toBeTruthy();
-    expect(screen.getByTestId("generate-anchors")).toBeTruthy();
+    expect(screen.queryByTestId("generate-anchors")).toBeNull();
+    expect(screen.getByTestId("preset-studio")).toBeTruthy();
   });
 });
 
@@ -159,8 +160,7 @@ describe("Quick generate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(submits).toBe(0);
 
-    fireEvent.click(screen.getByTestId("generate-mode-advanced"));
-    expect((screen.getByTestId("generate-anchors") as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByTestId("generate-mode-advanced")).toBeNull();
   });
 
   it("allows DNA-only hero without confirming the DNA", async () => {

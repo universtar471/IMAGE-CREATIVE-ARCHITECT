@@ -1,5 +1,6 @@
 import { AlertTriangle, Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ImageModelPicker, useImageModelChoice } from "../../components/panels/ImageModelPicker";
 import {
   ArchitecturalDetailRegistry,
   DETAIL_FACADES,
@@ -29,6 +30,7 @@ function isVerified(detail: DetailRecord): boolean {
 }
 
 export function DetailPanel() {
+  const imageChoice = useImageModelChoice();
   const t = useT();
   const readOnly = useStudio(selectReadOnly);
   const dna = useStudio((state) => state.workspace!.draftDna) as ProjectDNA;
@@ -119,6 +121,7 @@ export function DetailPanel() {
 
   return (
     <div className="detail-panel" data-testid="detail-panel">
+      <ImageModelPicker {...imageChoice} disabled={readOnly} />
       <SectionPanel title={t("detail.editor")}>
         <p className="field-hint">{t("detail.intro")}</p>
         <button className="btn" disabled={readOnly} onClick={addDetail}>

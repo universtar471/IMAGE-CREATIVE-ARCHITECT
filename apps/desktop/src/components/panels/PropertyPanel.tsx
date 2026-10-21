@@ -21,7 +21,6 @@ import { DetailPanel } from "../../features/detail/DetailPanel";
 import { DiagramPanel } from "../../features/diagram/DiagramPanel";
 import { VideoPanel } from "../../features/video/VideoPanel";
 import { EffectsPanel } from "../../features/effects/EffectsPanel";
-import { NextStepBar } from "../../features/workflow/NextStepBar";
 import { SelectionInspector } from "../../features/selection/SelectionInspector";
 import {
   clampPanelWidth,
@@ -45,14 +44,6 @@ export function PropertyPanel() {
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
   const label =
     isInterior && mod.id === "design_dna" ? t("interior.space") : t(`modules.${mod.id}.label`);
-  const activeIsStep = [
-    "design_dna",
-    "context",
-    "references",
-    "camera",
-    "detail",
-    "lighting",
-  ].includes(active);
   const panelBody = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
@@ -146,7 +137,6 @@ export function PropertyPanel() {
         {active === "references" && (
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
         )}
-        {active !== "overview" && active !== "generate" && !activeIsStep && <NextStepBar compact />}
         {layout.drawer && (
           <button
             type="button"

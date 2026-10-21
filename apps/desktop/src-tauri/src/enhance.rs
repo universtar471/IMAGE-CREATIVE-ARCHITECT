@@ -523,7 +523,17 @@ pub fn finish_output(
     let (mut content, provider_content) = if laid_out {
         (crop_content(&provider.to_rgba8(), &layout), (layout.width, layout.height))
     } else {
-        (resize_to(provider, layout.width, layout.height), (provider.width(), provider.height()))
+        // A provider may ignore the requested aspect ratio. Contain its pixels instead
+        // of squeezing a square image into the source's portrait/landscape rectangle.
+        let fitted = provider.resize(layout.width, layout.height, FilterType::Lanczos3).to_rgba8();
+        let mut canvas = RgbaImage::from_pixel(layout.width, layout.height, letterbox_fill(source.color().has_alpha()));
+        image::imageops::overlay(
+            &mut canvas,
+            &fitted,
+            ((layout.width - fitted.width()) / 2) as i64,
+            ((layout.height - fitted.height()) / 2) as i64,
+        );
+        (canvas, (provider.width(), provider.height()))
     };
     let generative = params.mode == EnhanceMode::Generative
         && matches!(params.preservation_mode, Some(PreservationMode::Balanced | PreservationMode::Creative));
@@ -552,6 +562,28 @@ pub fn finish_output(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mismatched_api_output_is_contained_instead_of_stretched() {
+        let source = DynamicImage::ImageRgba8(RgbaImage::from_pixel(50, 100, Rgba([0, 0, 0, 255])));
+        let provider = DynamicImage::ImageRgba8(RgbaImage::from_pixel(100, 100, Rgba([255, 0, 0, 255])));
+        let params = EnhanceParams {
+            mode: EnhanceMode::Generative,
+            target_long_edge: None,
+            detail_strength: 40,
+            architecture_preserve: true,
+            preservation_mode: Some(PreservationMode::Balanced),
+            locks: None,
+            allowed_region_ids: None,
+            upscale: Some(crate::providers::UpscaleParams {
+                target: UpscaleTarget::Custom { width: 50, height: 100, fit: ContainFit::Contain },
+                if_already_larger: IfAlreadyLarger::Keep,
+            }),
+        };
+        let result = finish_output(&source, &provider, &params, None);
+        assert_eq!(result.image.dimensions(), (50, 100));
+        assert_eq!(result.image.get_pixel(25, 10)[3], 0, "padding must not stretch the square to a portrait");
+        assert_eq!(*result.image.get_pixel(25, 50), Rgba([255, 0, 0, 255]));
+    }
     use super::*;
     use crate::providers::ContainFit;
 

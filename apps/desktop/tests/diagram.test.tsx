@@ -10,8 +10,11 @@ import { EMPTY_GENERATE_DRAFT, useStudio } from "../src/app/store";
 import { call, setTransport, type Transport } from "../src/lib/bridge";
 import { createMockTransport } from "../src/lib/mockBackend";
 import { useLocale } from "../src/i18n";
-import { DiagramPanel, diagramSourceId } from "../src/features/diagram/DiagramPanel";
-import { DiagramCanvas } from "../src/features/diagram/DiagramCanvas";
+import {
+  LocalDiagramPanel as DiagramPanel,
+  diagramSourceId,
+} from "../src/features/diagram/DiagramPanel";
+import { LocalDiagramCanvas as DiagramCanvas } from "../src/features/diagram/DiagramCanvas";
 import { useDiagram } from "../src/features/diagram/useDiagram";
 import { WORKSPACE_MODULES } from "../src/features/workspace/modules";
 import { asset } from "./helpers";

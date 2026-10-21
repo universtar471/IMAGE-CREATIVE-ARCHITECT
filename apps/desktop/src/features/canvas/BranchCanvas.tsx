@@ -260,6 +260,10 @@ export function BranchCanvas() {
                 useStudio.getState().setNodeViewport(projectId, viewport)
               }
               nodesConnectable={false}
+              autoPanOnNodeDrag={false}
+              panOnDrag={[1, 2]}
+              panActivationKeyCode="Space"
+              nodeDragThreshold={2}
               multiSelectionKeyCode="Shift"
               {...(initialViewport ? { defaultViewport: initialViewport } : { fitView: true })}
               minZoom={0.2}
@@ -337,7 +341,9 @@ function ImageNodeView({ data }: NodeProps<FlowNode>) {
     <div className="branch-node branch-node-image" data-node={node.id}>
       <Handle type="target" position={Position.Left} />
       <div className="branch-thumb">
-        {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" /> : null}
+        {thumb ? (
+          <img src={thumb} alt="" loading="lazy" decoding="async" draggable={false} />
+        ) : null}
         {data.asset && isVideoAsset(data.asset) && (
           <VideoBadge durationMs={data.asset.durationMs} />
         )}
