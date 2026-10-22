@@ -10,6 +10,7 @@ import {
   type AssistScope as DomainAssistScope,
   type ProjectDNA,
   type ProjectType,
+  validateAssistSuggestion,
 } from "@arch/domain";
 import { call, type Requests } from "./bridge";
 
@@ -25,6 +26,14 @@ export async function runDnaAssist(request: AssistRequest) {
   return call("dna_assist", request);
 }
 
+/** One request/parse/validate boundary for every recommendation button. */
+export async function suggest(request: AssistRequest, dna: ProjectDNA, catalog: AssistCatalog) {
+  const result = await runDnaAssist(request);
+  const proposal = parseAssistReply(result.raw, catalog, dna);
+  if (!proposal.fields.length) throw new SyntaxError("No usable AI recommendations.");
+  return proposal;
+}
+
 export function assistCatalog(scope: AssistScope, projectType: string): AssistCatalog {
   return buildAssistCatalog(scope, projectType as ProjectType);
 }
@@ -33,8 +42,13 @@ export function assistSystemPrompt(mode: AssistMode, catalog: AssistCatalog): st
   return buildAssistSystemPrompt(mode, catalog);
 }
 
-export function parseAssistReply(raw: string, catalog: AssistCatalog): AssistSuggestion {
-  return parseDomainAssistReply(raw, catalog);
+export function parseAssistReply(
+  raw: string,
+  catalog: AssistCatalog,
+  dna?: ProjectDNA,
+): AssistSuggestion {
+  const proposal = parseDomainAssistReply(raw, catalog, dna);
+  return dna ? validateAssistSuggestion(dna, proposal) : proposal;
 }
 
 export function applyAssistFields(dna: ProjectDNA, fields: AssistField[]): ProjectDNA {

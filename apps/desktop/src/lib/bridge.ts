@@ -6,6 +6,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { z } from "zod";
 import {
+  type AssistScope,
   AppErrorSchema,
   AssetDTOSchema,
   UserPresetDTOSchema,
@@ -213,7 +214,8 @@ export type Requests = {
     projectId: string;
     mode: "brief" | "images" | "master" | "translate";
     /** `analysis`: the evidence board of one image (ADR-042). */
-    scope: "interior" | "building" | "context" | "lighting" | "analysis";
+    scope: AssistScope | "analysis";
+    context?: Record<string, unknown>;
     brief?: string;
     referenceAssetIds?: string[];
     catalog: {
@@ -326,7 +328,7 @@ export const responses = {
   dna_assist: z.object({
     raw: z.string(),
     modelId: z.string(),
-    usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(),
+    usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).nullish(),
     generationId: z.string(),
   }),
   app_info: AppInfoSchema,

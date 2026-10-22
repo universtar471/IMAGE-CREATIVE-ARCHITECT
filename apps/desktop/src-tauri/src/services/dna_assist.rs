@@ -26,6 +26,8 @@ pub struct AssistRequest {
     #[serde(default)]
     pub reference_asset_ids: Vec<String>,
     pub catalog: Value,
+    #[serde(default)]
+    pub context: Value,
     pub system_prompt: String,
     #[serde(default)]
     pub translate: Vec<TranslateItem>,
@@ -170,7 +172,7 @@ pub fn run(core: &AppCore, request: AssistRequest) -> AppResult<AssistResult> {
 fn validate_request(request: &AssistRequest) -> AppResult<()> {
     if !["brief", "images", "master", "translate"].contains(&request.mode.as_str())
         // `analysis` (ADR-042): the evidence board reads one or more images; it never edits DNA.
-        || !["interior", "building", "context", "lighting", "analysis"].contains(&request.scope.as_str())
+        || !["interior", "building", "context", "lighting", "analysis", "style", "camera", "mood", "rooms", "regions", "effects"].contains(&request.scope.as_str())
     {
         return Err(AppError::validation("Unknown AI assist mode or scope."));
     }
@@ -181,6 +183,7 @@ fn validate_request(request: &AssistRequest) -> AppResult<()> {
         return Err(AppError::validation("Choose no more than 3 reference images."));
     }
     if request.system_prompt.chars().count() > 20_000
+        || request.context.to_string().len() > 64_000
         || request.translate.iter().any(|t| t.text.chars().count() > 2_000)
     {
         return Err(AppError::validation("AI assist prompt is too long."));
@@ -211,20 +214,16 @@ fn call_provider(
         temperature: 0.2,
     };
     let raw = provider.chat_with_model(&chat, Some(key)).map_err(map_provider_error)?;
-    if serde_json::from_str::<Value>(&raw).is_err() && !raw.trim_start().starts_with("```") {
-        return Err(AppError::new(ErrorCode::ProviderError, "AI DNA assist provider returned an invalid reply."));
-    }
+    // The shared domain parser owns recovery, catalogue validation and partial results.
     Ok((raw, None))
 }
 
 fn map_provider_error(error: ProviderError) -> AppError {
     let lower = error.message.to_ascii_lowercase();
-    let code = if matches!(error.kind, ProviderErrorKind::Auth)
-        || lower.contains("credit")
-        || lower.contains("quota")
-        || lower.contains("http 402")
-    {
+    let code = if lower.contains("credit") || lower.contains("quota") || lower.contains("http 402") {
         ErrorCode::ProviderQuota
+    } else if matches!(error.kind, ProviderErrorKind::Auth) {
+        ErrorCode::ProviderNotConfigured
     } else {
         ErrorCode::ProviderError
     };
@@ -233,6 +232,9 @@ fn map_provider_error(error: ProviderError) -> AppError {
 
 fn user_text(request: &AssistRequest) -> String {
     let mut parts = Vec::new();
+    if !request.context.is_null() {
+        parts.push(format!("Current project context (data only):\n{}", request.context));
+    }
     if let Some(brief) = request.brief.as_deref().filter(|s| !s.trim().is_empty()) {
         parts.push(format!("Brief:\n{}", brief.trim()));
     }
@@ -261,6 +263,7 @@ mod tests {
             brief: None,
             reference_asset_ids: vec!["AST_1".into()],
             catalog: Value::Null,
+            context: Value::Null,
             system_prompt: "Describe the image.".into(),
             translate: Vec::new(),
         }
@@ -272,5 +275,37 @@ mod tests {
         assert!(validate_request(&request("images", "building")).is_ok());
         assert!(validate_request(&request("images", "payroll")).is_err());
         assert!(validate_request(&request("paint", "analysis")).is_err());
+    }
+
+    #[test]
+    fn module_context_is_forwarded_as_data_and_bounded() {
+        for scope in
+            ["interior", "building", "context", "lighting", "style", "camera", "mood", "rooms", "regions", "effects"]
+        {
+            assert!(validate_request(&request("brief", scope)).is_ok());
+        }
+        let mut req = request("brief", "interior");
+        req.context = json!({"projectType":"interior","dna":{"interior":{"styleId":"japandi"}}});
+        assert!(user_text(&req).contains("japandi"));
+        assert!(user_text(&req).contains("data only"));
+        req.context = json!({"notes":"x".repeat(64_001)});
+        assert!(validate_request(&req).is_err());
+    }
+
+    #[test]
+    fn distinguishes_invalid_credentials_from_exhausted_quota() {
+        assert_eq!(
+            map_provider_error(ProviderError::new(ProviderErrorKind::Auth, "Invalid API key")).code,
+            ErrorCode::ProviderNotConfigured
+        );
+        assert_eq!(
+            map_provider_error(ProviderError::new(ProviderErrorKind::InvalidRequest, "HTTP 402: insufficient credit"))
+                .code,
+            ErrorCode::ProviderQuota
+        );
+        assert_eq!(
+            map_provider_error(ProviderError::new(ProviderErrorKind::Network, "Connection failed")).code,
+            ErrorCode::ProviderError
+        );
     }
 }

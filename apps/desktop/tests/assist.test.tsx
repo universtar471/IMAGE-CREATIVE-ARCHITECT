@@ -4,7 +4,7 @@ import { createInitialDNA } from "@arch/domain";
 import { AssistControl } from "../src/features/assist/AssistControl";
 import { applyAssistFields, containsVietnamese, parseAssistReply } from "../src/lib/assist";
 import { defaultInteriorDNA } from "../src/lib/interior";
-import { setTransport } from "../src/lib/bridge";
+import { BridgeError, setTransport } from "../src/lib/bridge";
 import { useStudio } from "../src/app/store";
 
 beforeEach(() => {
@@ -45,6 +45,46 @@ describe("assist domain stand-ins", () => {
 });
 
 describe("AI assist UI", () => {
+  it.each(["malformed", "quota", "network", "notConfigured"])(
+    "keeps the project unchanged and offers retry for %s",
+    async (failure) => {
+      const dna = createInitialDNA({ projectType: "villa", pack: null });
+      const apply = vi.fn();
+      const transport = vi.fn(async () => {
+        if (failure === "malformed")
+          return { raw: "truncated {", modelId: "test", usage: null, generationId: "g1" };
+        throw new BridgeError({
+          code:
+            failure === "quota"
+              ? "PROVIDER_QUOTA"
+              : failure === "notConfigured"
+                ? "PROVIDER_NOT_CONFIGURED"
+                : "PROVIDER_ERROR",
+          message: failure,
+        });
+      });
+      setTransport(transport as never);
+      render(
+        <AssistControl
+          initialMode="master"
+          scope="building"
+          projectType="villa"
+          projectId="p1"
+          dna={dna}
+          assets={[]}
+          hasMaster
+          onApply={apply}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "AI assist" }));
+      fireEvent.click(screen.getByRole("button", { name: "Create images" }));
+      await screen.findByRole("alert");
+      expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+      expect(apply).not.toHaveBeenCalled();
+      expect(transport.mock.calls.length).toBe(1);
+    },
+  );
+
   it("starts Master synchronization directly and waits for checked diff approval", async () => {
     const transport = vi.fn(async (_command: string, _args: unknown) => ({
       raw: JSON.stringify({
@@ -103,7 +143,14 @@ describe("AI assist UI", () => {
           ...createInitialDNA({ projectType: "interior", pack: null }),
           interior: defaultInteriorDNA(),
         }}
-        assets={[]}
+        assets={[
+          {
+            id: "ref1",
+            role: "architecture_reference",
+            status: "ready",
+            originalName: "reference.jpg",
+          } as never,
+        ]}
         hasMaster={mode === "master"}
         onApply={() => undefined}
       />,
