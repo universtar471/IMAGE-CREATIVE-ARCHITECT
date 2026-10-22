@@ -22,7 +22,7 @@ type Enhance =
 
 /**
  * The user's own text, appended to the DNA-compiled positive prompt at submit. "Enhance
- * prompt" asks HHTECH's chat model for a more specific rewrite (DNA facts kept), shown as a
+ * prompt" asks HHTECH's chat model for a more specific rewrite (user intent first), shown as a
  * preview to Accept or Discard; Accept can be undone.
  */
 export function ExtraPromptSection({
@@ -50,6 +50,7 @@ export function ExtraPromptSection({
 
   const setText = (value: string) => {
     setDraft({ extraPrompt: value });
+    setEnhance({ status: "idle" });
     setUndo(null);
   };
 

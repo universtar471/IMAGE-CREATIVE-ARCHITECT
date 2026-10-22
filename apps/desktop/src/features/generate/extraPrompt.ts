@@ -21,7 +21,7 @@ export function withExtraPrompt(bundle: PromptBundle, extra: string | undefined)
   return { ...bundle, positivePrompt };
 }
 
-/** Project DNA facts the enhancement must keep: the compiled positive + preservation text. */
+/** Optional DNA background; explicit user requirements take priority during enhancement. */
 export function enhanceContext(bundle: PromptBundle): string {
   return [bundle.positivePrompt, bundle.preservationInstructions]
     .map((s) => s.trim())

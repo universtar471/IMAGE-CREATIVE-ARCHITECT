@@ -1601,7 +1601,7 @@ export const en = {
     label: "Your words (added after the DNA prompt)",
     hint: "Write in English for best results — it is appended to the English prompt.",
     placeholder: "e.g. late afternoon, wet street reflections, view from across the road",
-    enhanceTitle: "Rewrite with more specific materials, light, camera and atmosphere",
+    enhanceTitle: "Clarify your prompt while preserving your requested room, style and colours",
     enhancing: "Enhancing",
     enhance: "Enhance prompt",
     undo: "Undo enhance",

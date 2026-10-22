@@ -2219,11 +2219,11 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
 
 /**
  * Deterministic stand-in for the chat model: the user's text plus fixed detail, and a note
- * that the DNA context was kept (the real backend sends it to the model).
+ * that only compatible DNA context is used (the real backend sends it to the model).
  */
 export function mockEnhance(text: string, context: string): string {
   const base = text.trim().replace(/[.\s]+$/, "");
-  const keep = context.trim() ? " Keeps every Project DNA fact." : "";
+  const keep = context.trim() ? " Uses only compatible Project DNA context." : "";
   return `${base}, with crisp material detail, soft directional daylight, eye-level camera with a 35 mm lens and a calm atmosphere.${keep}`;
 }
 

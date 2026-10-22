@@ -1597,7 +1597,7 @@ export const vi: Dict = {
     label: "Mô tả thêm của bạn (nối sau prompt từ DNA)",
     hint: "Nên viết bằng tiếng Anh — phần này được nối vào prompt tiếng Anh.",
     placeholder: "VD: late afternoon, wet street reflections, view from across the road",
-    enhanceTitle: "Viết lại cụ thể hơn về vật liệu, ánh sáng, góc máy và không khí",
+    enhanceTitle: "Làm rõ prompt, giữ đúng loại phòng, phong cách và màu sắc bạn yêu cầu",
     enhancing: "Đang cải thiện",
     enhance: "Cải thiện prompt",
     undo: "Hoàn tác cải thiện",

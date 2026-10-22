@@ -1,5 +1,5 @@
 //! Prompt enhancement (`prompt_enhance`): a chat model rewrites the user's extra prompt to be
-//! more specific while keeping every fact of the Project DNA context. Nothing is stored; the
+//! more specific while prioritising the user's intent over Project DNA background. Nothing is stored; the
 //! UI shows the result for Accept / Discard.
 
 use serde::{Deserialize, Serialize};
@@ -15,11 +15,16 @@ pub const MAX_TEXT_CHARS: usize = 4_000;
 /// Longest Project DNA context accepted (a compiled prompt is a few thousand characters).
 pub const MAX_CONTEXT_CHARS: usize = 20_000;
 
-pub const SYSTEM_PROMPT: &str = "You rewrite prompts for an architectural image generator. Rewrite the user's \
-prompt to be more specific about materials, light, camera (viewpoint, lens, framing) and atmosphere. Preserve every \
-fact stated in the Project DNA context and in the user's prompt; never contradict them. Do not invent dimensions, \
-storey counts, areas or other numbers that are not given. Keep it to one paragraph of plain text in the user's \
-language. Return only the rewritten prompt: no preamble, no quotes, no markdown.";
+pub const SYSTEM_PROMPT: &str = "You refine the user's prompt for an architectural or interior image generator. \
+The user's prompt is the source of truth: preserve all explicit requirements, including style, dominant colours, room type, building type, \
+materials, objects, lighting, camera and exclusions. Keep the user's explicit style and colour terms in the rewrite. \
+Project DNA is lower-priority background, not a template to reproduce. Discard conflicting DNA details; never blend them into the user's request. \
+For example, a modern black-and-white living room must stay modern and predominantly black and white even if DNA says Japandi, beige and ivory. \
+Do not import a different named style, palette, material scheme or room from DNA. Use background only for relevant, compatible details. \
+Clarify the user's wording and add only minimal compatible visual detail; do not replace it with a generic description of the project. \
+Do not invent dimensions, storey counts, areas or other numbers that are not given. Before returning, check that no explicit user requirement \
+was omitted or contradicted. Keep it to one paragraph of plain text in the user's language. Return only the rewritten prompt: \
+no preamble, no quotes, no markdown.";
 
 /// Mirrors `PromptEnhanceRequestSchema`. No `Debug`: the text is user content, not for logs.
 #[derive(Deserialize)]
@@ -41,9 +46,9 @@ pub struct EnhanceResult {
 
 fn user_message(text: &str, context: &str) -> String {
     if context.is_empty() {
-        format!("Prompt to rewrite:\n{text}")
+        format!("Prompt to rewrite (highest priority):\n{text}")
     } else {
-        format!("Project DNA context (facts to preserve):\n{context}\n\nPrompt to rewrite:\n{text}")
+        format!("Project DNA background (lower priority; use only when compatible):\n{context}\n\nPrompt to rewrite (highest priority):\n{text}")
     }
 }
 
@@ -100,6 +105,18 @@ mod tests {
     }
 
     #[test]
+    fn explicit_user_style_and_palette_take_priority_over_conflicting_dna() {
+        let text = "tạo không gian phòng khách biệt thự với phong cách hiện đại kèm tone màu đen trắng chủ đạo.";
+        let context = "Japandi living room, beige and ivory palette, natural oak furniture.";
+        let message = user_message(text, context);
+        assert!(message.ends_with(&format!("Prompt to rewrite (highest priority):\n{text}")));
+        assert!(message.contains("Project DNA background (lower priority; use only when compatible):"));
+        assert!(SYSTEM_PROMPT.contains("The user's prompt is the source of truth"));
+        assert!(SYSTEM_PROMPT.contains("style, dominant colours, room type, building type"));
+        assert!(SYSTEM_PROMPT.contains("Discard conflicting DNA details"));
+    }
+
+    #[test]
     fn enhances_through_the_providers_chat_with_the_key_and_context() {
         let (_tmp, core, double) = core_with_double();
         let p = test_create_villa(&core, "Villa");
@@ -110,8 +127,9 @@ mod tests {
         assert_eq!(system, SYSTEM_PROMPT);
         assert_eq!(
             user,
-            "Project DNA context (facts to preserve):\nTwo-storey tropical villa, white render, timber louvres.\n\n\
-             Prompt to rewrite:\nvilla at dusk"
+            "Project DNA background (lower priority; use only when compatible):\n\
+             Two-storey tropical villa, white render, timber louvres.\n\n\
+             Prompt to rewrite (highest priority):\nvilla at dusk"
         );
         assert_eq!(key.as_deref(), Some("chat-key"));
         assert!(!serde_json::to_string(&out).unwrap().contains("chat-key"));
