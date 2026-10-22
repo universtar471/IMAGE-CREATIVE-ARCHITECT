@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   MapPinned,
   Palette,
+  Sofa,
   ScanSearch,
   ScanLine,
   Shapes,
@@ -25,6 +26,8 @@ import {
 } from "lucide-react";
 
 export type ModuleId =
+  | "style"
+  | "rooms"
   | "overview"
   | "design_dna"
   | "context"
@@ -60,6 +63,8 @@ export type WorkspaceModule = {
 };
 
 export const WORKSPACE_MODULES: readonly WorkspaceModule[] = [
+  { id: "style", label: "Style", icon: Palette, group: "create", availableIn: null },
+  { id: "rooms", label: "Rooms", icon: Sofa, group: "create", availableIn: null },
   {
     id: "overview",
     label: "Overview",

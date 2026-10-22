@@ -1360,3 +1360,15 @@ Accepted 2026-10-21 after a saved key could not connect because HHTECH_BASE_URL 
 - Setup help and .env.example describe URL configuration as optional. No migration is needed.
 - Regression checks cover missing/blank URL, explicit overrides, invalid configuration,
   saved-key detection and deletion, with existing mock HTTP tests covering /models and images.
+
+
+## ADR-049 — Shared recommendations and compact design modules
+
+Accepted 2026-10-22 for the interior/architecture menu update.
+
+- Keep the shared workspace shell, persistent DNA, shot intent, Node graph, asset lineage and history. No database/schema migration is required. Legacy scene-object routes and stored selections remain readable; the standalone navigation entry is hidden.
+- All DNA/module recommendations use the domain catalogue, bounded JSON recovery, option normalization, aggregate validation and one checked proposal UI. Rust transports text/vision results and bounded current context. `usage: null` is part of the backend contract. Authentication errors are distinct from exhausted quota.
+- Add Style and Rooms as shared-shell modules. New projects ask only for a name and Interior/Architecture (new architecture projects use the existing `custom` type). Existing project types are untouched.
+- Interior Space owns references; Style owns global material defaults. Material replacement and insertion of people/animals/decor/effects use selected regions, the existing mask engine and immutable output lineage. Region selection is synchronized between preview and inspector.
+- Style thumbnails are two columns with explicit detail/apply; unavailable architecture thumbnails use a labelled placeholder rather than an interior photograph. Guide copy lives in the existing HelpPopover. Colour grading keeps the real-asset renderer and uses an empty state when no image is selected.
+- Reference recommendations include draft DNA, image IDs, selected camera/module and selections; proposed controls are prechecked for review, never applied without the user's Apply action. Vision calls still use existing provider/spend confirmation and are not run live during automated QA.

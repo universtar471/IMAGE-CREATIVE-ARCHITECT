@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { AssetDTO, ColorGradeDNA } from "@arch/domain";
 import { fileUrl } from "../../lib/files";
 import { currentLocale, translate } from "../../i18n";
-import { LightingPreview } from "./LightingPreview";
 
 /**
  * CSS brightness for `exposure` (−100..100 = −1..+1 stop, as in `applyGradePixel`). The stop
@@ -42,10 +41,7 @@ export function GradePreview({
         className={`grade-preview-fallback${compact ? " grade-preview-compact" : ""}`}
         data-testid="grade-preview-fallback"
       >
-        <LightingPreview
-          lighting={{ schemaVersion: 1, timeOfDay: "golden_hour", artificialLighting: [] }}
-          compact={compact}
-        />
+        <span>{translate(currentLocale(), "menu.realPreview")}</span>
       </div>
     );
   const filter = gradeFilter(grade);
@@ -82,10 +78,7 @@ export function GradePreview({
         </>
       ) : (
         <div className="grade-image-loading">
-          <LightingPreview
-            lighting={{ schemaVersion: 1, timeOfDay: "afternoon", artificialLighting: [] }}
-            compact
-          />
+          <span>{translate(currentLocale(), "menu.realPreview")}</span>
         </div>
       )}
       <span className="grade-image-label">{title}</span>

@@ -1,3 +1,4 @@
+import { HelpPopover } from "../../components/common/HelpPopover";
 /**
  * Space selector wizard (ADR-034 P1a, SRS §4.2): building type → floor (optional) → group →
  * space → variant, with an "other / custom" space. It is the only writer of
@@ -154,7 +155,7 @@ export function SpaceSelector() {
   return (
     <SectionPanel title={t("spaceSelector.title")}>
       <div className="space-selector" data-testid="space-selector">
-        <p className="field-hint">{t("spaceSelector.intro")}</p>
+        <HelpPopover topic={t("interior.space")}>{t("spaceSelector.intro")}</HelpPopover>
         <SelectField
           label={t("spaceSelector.archetype")}
           hint={

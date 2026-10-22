@@ -7,6 +7,38 @@
 import type { Dict } from "./index";
 
 export const vi: Dict = {
+  menu: {
+    designType: "Loại thiết kế",
+    interior: "Nội thất",
+    architecture: "Công trình",
+    style: "Style",
+    rooms: "Phòng",
+    roomTypes: "Loại phòng",
+    addPrompt: "Thêm vào Prompt",
+    addNode: "Thêm vào Node",
+    added: "Đã thêm vào bản nháp tạo ảnh",
+    nodeSource: "Chọn ảnh để nối với node bản nháp",
+    references: "Ảnh tham chiếu",
+    referenceHelp:
+      "Thêm ảnh tại đây, rồi dùng AI gợi ý style, màu, ánh sáng và loại phòng. Xem các đề xuất trước khi áp dụng.",
+    styleHelp:
+      "Bấm thumbnail để xem lớn. Áp dụng sẽ đặt style và bảng vật liệu tổng thể; thay vật liệu cục bộ thực hiện ở Chỉnh vùng.",
+    roomHelp:
+      "Chọn phòng và xem các thành phần. Thêm vào prompt hoặc nối bản nháp tạo ảnh trong chế độ Node. Các lựa chọn cũ được giữ đến khi bạn áp dụng.",
+    selectRegion: "Chọn thao tác, sau đó vẽ/chọn vùng trên khung xem.",
+    person: "Thêm người",
+    animal: "Thêm động vật",
+    tree: "Thêm cây",
+    decor: "Thêm decor",
+    effect: "Hiệu ứng vùng",
+    material: "Vật liệu",
+    realPreview: "Chọn ảnh dự án để xem trước màu",
+    apply: "Áp dụng",
+    components: "Thành phần gợi ý",
+    select: "Chọn",
+    applied: "Đã áp dụng gợi ý",
+    retryHelp: "Đã bỏ qua gợi ý không hợp lệ; thử lại để nhận đề xuất khác.",
+  },
   sheet: {
     mode: "Cách tạo",
     ai: "Tạo bằng AI",
@@ -382,6 +414,11 @@ export const vi: Dict = {
   },
 
   modules: {
+    style: { label: "Style", description: "Xem style dạng thumbnail, mở lớn trước khi áp dụng." },
+    rooms: {
+      label: "Phòng",
+      description: "Chọn loại phòng và thêm thành phần phù hợp vào Prompt hoặc Node.",
+    },
     navLabel: "Các mô-đun làm việc",
     groups: {
       create: "Tạo ảnh",

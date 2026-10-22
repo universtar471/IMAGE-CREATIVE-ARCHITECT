@@ -10,6 +10,8 @@ import { getIn, setIn } from "../src/lib/path";
 describe("workspace information architecture", () => {
   it("keeps the required left-navigation order (four groups since ADR-044)", () => {
     expect(WORKSPACE_MODULES.map((m) => m.label)).toEqual([
+      "Style",
+      "Rooms",
       "Overview",
       "Generate",
       "Design DNA",
@@ -35,7 +37,7 @@ describe("workspace information architecture", () => {
 
   it("keeps navigation groups explicit, the DNA steps under Advanced", () => {
     expect(WORKSPACE_MODULES.map((m) => m.group)).toEqual([
-      ...Array(9).fill("create"),
+      ...Array(11).fill("create"),
       ...Array(4).fill("edit"),
       "video",
       "publish",

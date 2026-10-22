@@ -1,3 +1,7 @@
+import { StylePanel } from "../../features/style/StylePanel";
+import { RoomsPanel } from "../../features/rooms/RoomsPanel";
+import { ModuleAssist } from "../../features/assist/ModuleAssist";
+import { HelpPopover } from "../common/HelpPopover";
 import { Archive, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
@@ -33,6 +37,9 @@ import { effectivePanelWidth, useWorkspaceLayout } from "../../features/workspac
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
   const active = useStudio((s) => s.activeModule);
+  const regionSourceId = useStudio(
+    (s) => s.selectedAssetId ?? s.workspace?.project.activeMasterAssetId,
+  );
   const variationSource = useStudio((s) =>
     s.activeModule === "generate" && s.generateDraft.purpose === "variation"
       ? s.generateDraft.referenceAssetIds?.[0]
@@ -133,6 +140,7 @@ export function PropertyPanel() {
       />
       <div className="panel-header">
         {label}
+        <HelpPopover topic={label}>{t(`modules.${mod.id}.description`)}</HelpPopover>
         <span className="spacer" />
         {active === "references" && (
           <span className="field-hint">{t("workspace.selectedAsset")}</span>
@@ -157,6 +165,10 @@ export function PropertyPanel() {
         )}
         {/* References has its own full asset panel; elsewhere the selection block leads. */}
         {active !== "references" && <SelectionInspector />}
+        {active === "style" && <StylePanel />}
+        {active === "rooms" && <RoomsPanel />}
+        {active === "camera" && <ModuleAssist scope="camera" stepId="dna.camera" />}
+        {active === "mood_grade" && <ModuleAssist scope="mood" />}
         {active === "overview" && <OverviewPanel />}
         {active === "design_dna" && (
           <StepFrame stepId="dna.building">
@@ -194,7 +206,7 @@ export function PropertyPanel() {
           </PostStepFrame>
         )}
         {active === "enhance" && <EnhancePanel />}
-        {active === "regions" && <RegionPanel />}
+        {active === "regions" && <RegionPanel key={regionSourceId} />}
         {active === "diagram" && <DiagramPanel />}
         {active === "export" && <PublishingPanel />}
         {mod.availableIn !== null && (

@@ -12,7 +12,6 @@ export function MasterDnaCheck() {
   const setModule = useStudio((s) => s.setModule);
   const t = useT();
   const ws = useStudio((s) => s.workspace!);
-  const editDna = useStudio((s) => s.editDna);
   const facts = [
     building.floors !== undefined ? t("masterCheck.floors", { n: building.floors }) : null,
     building.materials.length
@@ -24,14 +23,14 @@ export function MasterDnaCheck() {
       <AssistControl
         initialMode="master"
         buttonLabel={t("masterCheck.sync")}
-        scope="building"
+        scope={ws.project.projectType === "interior" ? "interior" : "building"}
         stepId="dna.building"
         projectType={ws.project.projectType}
         projectId={ws.project.id}
         dna={ws.persistedDna}
         assets={ws.assets}
         hasMaster={!!ws.project.activeMasterAssetId}
-        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+        onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
       />
     );
   return (
@@ -43,14 +42,14 @@ export function MasterDnaCheck() {
       <AssistControl
         initialMode="master"
         buttonLabel={t("masterCheck.sync")}
-        scope="building"
+        scope={ws.project.projectType === "interior" ? "interior" : "building"}
         stepId="dna.building"
         projectType={ws.project.projectType}
         projectId={ws.project.id}
         dna={ws.persistedDna}
         assets={ws.assets}
         hasMaster={!!ws.project.activeMasterAssetId}
-        onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+        onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
       />
     </span>
   );

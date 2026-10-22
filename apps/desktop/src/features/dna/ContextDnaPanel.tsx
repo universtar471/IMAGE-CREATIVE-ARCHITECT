@@ -1,3 +1,4 @@
+import { HelpPopover } from "../../components/common/HelpPopover";
 import {
   CONTEXT_DIRECTIONS,
   DensitySchema,
@@ -14,6 +15,7 @@ import { selectReadOnly, useStudio } from "../../app/store";
 import { knowledge } from "../../lib/knowledge";
 import { ContextPresetCards, ContextPreview } from "../previews/ContextPreview";
 import { AssistControl } from "../assist/AssistControl";
+import { ModuleAssist } from "../assist/ModuleAssist";
 import { SiteAdjacencyEditor } from "../site/SiteAdjacencyEditor";
 import { ContextLibraryPanel } from "../contextLibrary/ContextLibraryPanel";
 
@@ -50,7 +52,7 @@ export function ContextDnaPanel() {
           onChoose={applyContextPreset}
         />
       )}
-      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <HelpPopover topic={t("dna.identity")}>{t("dna.englishHint")}</HelpPopover>
       <SectionPanel title={t("context.setting")} aside={<LockToggle section="context" />}>
         <AssistControl
           scope="context"
@@ -60,9 +62,7 @@ export function ContextDnaPanel() {
           dna={useStudio.getState().workspace!.draftDna}
           assets={useStudio.getState().workspace!.assets}
           hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-          onApply={(fields) =>
-            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
-          }
+          onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
         />
         <DnaText
           path="context.macroContext"
@@ -147,12 +147,13 @@ function InteriorContextPanel() {
   const context = dna.context as ContextDNA;
   return (
     <>
+      <ModuleAssist scope="context" stepId="dna.context" />
       <ContextPreview
         context={context}
         projectType="interior"
         daylightDirection={interior.daylightDirection}
       />
-      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <HelpPopover topic={t("dna.identity")}>{t("dna.englishHint")}</HelpPopover>
       <SectionPanel title={t("interior.window")}>
         <DnaText path="building.openings.windowType" label={t("interior.windowType")} />
         <div className="field-row">

@@ -1,3 +1,7 @@
+import { assistCatalog, INTERIOR_CATALOG } from "@arch/domain";
+import { useLocale } from "../../i18n";
+import { ModuleAssist } from "../assist/ModuleAssist";
+import { REGION_ACTIONS, regionActionInstruction, type RegionAction } from "./actions";
 import { HelpPopover } from "../../components/common/HelpPopover";
 import { ImageModelPicker } from "../../components/panels/ImageModelPicker";
 import { Plus, Trash2, Pencil, Paintbrush, WandSparkles } from "lucide-react";
@@ -57,8 +61,12 @@ export function RegionPanel() {
   const spend = useSpendConfirm();
   const [regions, setRegions] = useState<RegionDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<RegionEditParams["mode"]>("edit");
-  const [instruction, setInstruction] = useState("");
+  const action = useStudio((s) => s.regionAction);
+  const locale = useLocale((s) => s.locale);
+  const [mode, setMode] = useState<RegionEditParams["mode"]>(
+    action === "material" ? "material_replace" : "edit",
+  );
+  const [instruction, setInstruction] = useState(regionActionInstruction(action));
   const [material, setMaterial] = useState("");
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
@@ -76,6 +84,14 @@ export function RegionPanel() {
     extraPrompt: mode === "edit" ? instruction : material,
     approvedExceptions,
   });
+
+  const chooseAction = (next: RegionAction) => {
+    useStudio.getState().setRegionAction(next);
+    setMode(next === "material" ? "material_replace" : "edit");
+    setInstruction(regionActionInstruction(next));
+    setApprovedExceptions([]);
+    window.dispatchEvent(new Event("studio-region-action"));
+  };
 
   const load = useCallback(async () => {
     if (!selectedId) return;
@@ -114,6 +130,17 @@ export function RegionPanel() {
   useEffect(() => {
     if (!providers.length) void loadProviders();
   }, [loadProviders, providers.length]);
+
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string; assetId: string; ids: string[] }>)
+        .detail;
+      if (detail.projectId === ws.project.id && detail.assetId === selectedId)
+        setSelectedRegions(new Set(detail.ids));
+    };
+    window.addEventListener("studio-region-selection", changed);
+    return () => window.removeEventListener("studio-region-selection", changed);
+  }, [ws.project.id, selectedId]);
 
   const imageProviders = providers.filter((provider) =>
     provider.models.some((model) => model.imageToImage && model.maxReferenceImages >= 1),
@@ -291,6 +318,21 @@ export function RegionPanel() {
         <span>{t("regions.edit")}</span>
         <HelpPopover topic={t("regions.edit")}>{t("regions.howToUse")}</HelpPopover>
       </div>
+      <div className="region-action-grid" role="group" aria-label={t("regions.mode")}>
+        {REGION_ACTIONS.map((id) => (
+          <button
+            type="button"
+            className="choice"
+            key={id}
+            disabled={readOnly}
+            aria-pressed={action === id}
+            onClick={() => chooseAction(id)}
+          >
+            {t(`menu.${id}`)}
+          </button>
+        ))}
+      </div>
+      <span className="field-hint">{t("menu.selectRegion")}</span>
       <ImageModelPicker
         providers={imageProviders}
         provider={provider ? { ...provider, models } : null}
@@ -312,14 +354,17 @@ export function RegionPanel() {
             <input
               type="checkbox"
               checked={selectedRegions.has(region.id)}
-              onChange={(event) =>
-                setSelectedRegions((ids) => {
-                  const next = new Set(ids);
-                  if (event.target.checked) next.add(region.id);
-                  else next.delete(region.id);
-                  return next;
-                })
-              }
+              onChange={(event) => {
+                const next = new Set(selectedRegions);
+                if (event.target.checked) next.add(region.id);
+                else next.delete(region.id);
+                setSelectedRegions(next);
+                window.dispatchEvent(
+                  new CustomEvent("studio-region-selection", {
+                    detail: { projectId: ws.project.id, assetId: selectedId, ids: [...next] },
+                  }),
+                );
+              }}
               aria-label={region.label}
             />
             <input
@@ -493,75 +538,140 @@ export function RegionPanel() {
         ))}
       </SectionPanel>
       <SectionPanel title={t("regions.edit")}>
-        <div className="segmented" role="group" aria-label={t("regions.mode")}>
-          <button className={mode === "edit" ? "is-active" : ""} onClick={() => setMode("edit")}>
-            <Pencil size={13} /> {t("regions.freeEdit")}
-          </button>
+        {selectedRegions.size > 0 && (
+          <ModuleAssist
+            scope="regions"
+            catalog={{
+              scope: "regions",
+              fields: assistCatalog("regions", ws.project.projectType).fields.filter(
+                (field) =>
+                  field.path ===
+                  (mode === "material_replace" ? "region.material" : "region.instruction"),
+              ),
+            }}
+            context={{
+              selectedRegionIds: [...selectedRegions],
+              regions: regions.filter((r) => selectedRegions.has(r.id)),
+              currentSelections: { mode, instruction, material, action },
+            }}
+            onApply={(fields) => {
+              for (const field of fields) {
+                if (field.path === "region.instruction") {
+                  setInstruction(String(field.value));
+                  setMode("edit");
+                }
+                if (field.path === "region.material") {
+                  setMaterial(String(field.value));
+                  setMode("material_replace");
+                }
+              }
+              setApprovedExceptions([]);
+            }}
+          />
+        )}
+        {mode === "material_replace" && selectedRegions.size > 0 && (
+          <div className="catalog-chips" role="group" aria-label={t("menu.material")}>
+            {Object.entries(INTERIOR_CATALOG.surfaces).map(([slot, items]) => (
+              <details key={slot}>
+                <summary>{t(`interior.surface.${slot}` as never)}</summary>
+                {items.map((item) => (
+                  <button
+                    type="button"
+                    className="chip"
+                    key={item.id}
+                    disabled={readOnly}
+                    aria-pressed={material === item.en}
+                    onClick={() => {
+                      setMaterial(item.en);
+                      setApprovedExceptions([]);
+                    }}
+                  >
+                    {item[locale]}
+                  </button>
+                ))}
+              </details>
+            ))}
+          </div>
+        )}
+        <fieldset disabled={readOnly || !selectedRegions.size} className="region-edit-fields">
+          <div className="segmented" role="group" aria-label={t("regions.mode")}>
+            <button className={mode === "edit" ? "is-active" : ""} onClick={() => setMode("edit")}>
+              <Pencil size={13} /> {t("regions.freeEdit")}
+            </button>
+            <button
+              className={mode === "material_replace" ? "is-active" : ""}
+              onClick={() => setMode("material_replace")}
+            >
+              <Paintbrush size={13} /> {t("regions.materialReplace")}
+            </button>
+          </div>
+          {mode === "edit" ? (
+            <label className="field">
+              <span>{t("regions.instruction")}</span>
+              <textarea
+                className="textarea"
+                id="region-instruction"
+                value={instruction}
+                onChange={(event) => {
+                  setInstruction(event.target.value);
+                  setApprovedExceptions([]);
+                }}
+                placeholder={t("regions.instructionPlaceholder")}
+              />
+            </label>
+          ) : (
+            <label className="field">
+              <span>{t("regions.materialField")}</span>
+              <input
+                className="input"
+                id="region-material"
+                value={material}
+                onChange={(event) => {
+                  setMaterial(event.target.value);
+                  setApprovedExceptions([]);
+                }}
+                placeholder={t("regions.materialPlaceholder")}
+              />
+            </label>
+          )}
+          {model && (
+            <span className="badge badge-info">
+              {supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask")}
+            </span>
+          )}
+          <HelpPopover topic={t("regions.mode")}>
+            {t("regions.cost")}{" "}
+            {model && (supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask"))}
+          </HelpPopover>
+          <details>
+            <summary>{t("regions.promptPreview")}</summary>
+            <pre className="prompt-preview">
+              {prompt.positivePrompt}
+              {"\n\n"}
+              {prompt.preservationInstructions}
+            </pre>
+          </details>
+          <ConflictPanel
+            entries={[{ validation: conflicts }]}
+            onFix={fixConflict}
+            onApprove={(codes) => setApprovedExceptions((list) => [...list, ...codes])}
+          />
           <button
-            className={mode === "material_replace" ? "is-active" : ""}
-            onClick={() => setMode("material_replace")}
+            className="btn btn-primary"
+            disabled={
+              busy ||
+              readOnly ||
+              !selected ||
+              !selectedRegions.size ||
+              !provider ||
+              !model ||
+              !(mode === "material_replace" ? material.trim() : instruction.trim())
+            }
+            onClick={() => void submit()}
           >
-            <Paintbrush size={13} /> {t("regions.materialReplace")}
+            <WandSparkles size={14} /> {t("regions.run")}
           </button>
-        </div>
-        {mode === "edit" ? (
-          <label className="field">
-            <span>{t("regions.instruction")}</span>
-            <textarea
-              className="textarea"
-              id="region-instruction"
-              value={instruction}
-              onChange={(event) => {
-                setInstruction(event.target.value);
-                setApprovedExceptions([]);
-              }}
-              placeholder={t("regions.instructionPlaceholder")}
-            />
-          </label>
-        ) : (
-          <label className="field">
-            <span>{t("regions.materialField")}</span>
-            <input
-              className="input"
-              id="region-material"
-              value={material}
-              onChange={(event) => {
-                setMaterial(event.target.value);
-                setApprovedExceptions([]);
-              }}
-              placeholder={t("regions.materialPlaceholder")}
-            />
-          </label>
-        )}
-        {model && (
-          <span className="badge badge-info">
-            {supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask")}
-          </span>
-        )}
-        <HelpPopover topic={t("regions.mode")}>
-          {t("regions.cost")}{" "}
-          {model && (supportsMask ? t("regions.nativeMask") : t("regions.secondaryMask"))}
-        </HelpPopover>
-        <details>
-          <summary>{t("regions.promptPreview")}</summary>
-          <pre className="prompt-preview">
-            {prompt.positivePrompt}
-            {"\n\n"}
-            {prompt.preservationInstructions}
-          </pre>
-        </details>
-        <ConflictPanel
-          entries={[{ validation: conflicts }]}
-          onFix={fixConflict}
-          onApprove={(codes) => setApprovedExceptions((list) => [...list, ...codes])}
-        />
-        <button
-          className="btn btn-primary"
-          disabled={busy || readOnly || !selected || !selectedRegions.size || !provider || !model}
-          onClick={() => void submit()}
-        >
-          <WandSparkles size={14} /> {t("regions.run")}
-        </button>
+        </fieldset>
       </SectionPanel>
       <RegionResult
         projectId={ws.project.id}

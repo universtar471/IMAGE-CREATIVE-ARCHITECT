@@ -5,7 +5,13 @@ export type PreviewPhotoManifest = {
   items: Record<string, { src: string; w: number; h: number }>;
 };
 export type PreviewKind =
-  "lighting" | "lighting_interior" | "mood" | "mood_interior" | "context" | "style";
+  | "lighting"
+  | "lighting_interior"
+  | "mood"
+  | "mood_interior"
+  | "context"
+  | "style"
+  | "style_architecture";
 
 export function previewPhoto(
   kind: PreviewKind,

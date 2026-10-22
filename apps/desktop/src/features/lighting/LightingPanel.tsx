@@ -107,7 +107,7 @@ export function LightingPanel() {
           dna={ws.draftDna}
           assets={ws.assets}
           hasMaster={!!ws.project.activeMasterAssetId}
-          onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+          onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
         />
         <LightingPreview lighting={lighting} />
         <LightingPresetCards
@@ -340,7 +340,7 @@ function InteriorLightingPanel() {
           dna={ws.draftDna}
           assets={ws.assets}
           hasMaster={!!ws.project.activeMasterAssetId}
-          onApply={(fields) => fields.forEach((field) => editDna(field.path, field.value))}
+          onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
         />
         <SelectField
           label={t("lighting.timeOfDay")}
