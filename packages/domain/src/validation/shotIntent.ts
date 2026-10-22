@@ -11,8 +11,14 @@ import { SceneObjectRequestSchema, type SceneObjectRequest } from "../sceneObjec
 import { ShotEffectsSchema, type ShotEffects } from "../effects/schemas";
 import { PresetIdListSchema, ShotLightingSchema, type ShotLighting } from "../presets/schemas";
 import { GradeLookIdSchema, type GradeLookId } from "../schemas/future";
+import {
+  InteriorGenerationSchema,
+  type InteriorGenerationState,
+} from "../generationPresets/schema";
 
 export type ShotIntent = {
+  /** Additive v1 interior workflow; absent on legacy shots and architecture projects. */
+  interiorGeneration?: InteriorGenerationState;
   projectType: ProjectType;
   /** The DNA camera being rendered; unknown ids are ignored, as in the compiler. */
   cameraId?: string | null;
@@ -38,6 +44,7 @@ export type ShotIntent = {
 
 /** Runtime contract of the snapshot (mirrored by the Rust `ShotIntent` DTO). */
 export const ShotIntentSchema = z.object({
+  interiorGeneration: InteriorGenerationSchema.optional(),
   projectType: ProjectTypeSchema,
   cameraId: z.string().nullable().optional(),
   targetSpaceId: z.string().nullable().optional(),
