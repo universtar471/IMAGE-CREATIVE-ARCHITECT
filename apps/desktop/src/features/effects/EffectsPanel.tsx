@@ -1,3 +1,5 @@
+import { ModuleAssist } from "../assist/ModuleAssist";
+import { HelpPopover } from "../../components/common/HelpPopover";
 /**
  * Optical and motion effects (ADR-036 P2c, SRS §6.2): one card per effect with its "feel"
  * name, the compatibility status of the shot and a light / medium / strong slider.
@@ -9,6 +11,7 @@
  * through the conflict gate (`validateShot` runs the same matrix).
  */
 import {
+  assistCatalog,
   EFFECT_CATALOG,
   EFFECT_INTENSITIES,
   MAX_SECONDARY_EFFECTS,
@@ -97,12 +100,52 @@ export function EffectsPanel() {
     return null;
   };
 
+  const catalog = assistCatalog("effects", projectType);
+  catalog.fields = catalog.fields.map((field) =>
+    field.path === "effects.primary.id"
+      ? {
+          ...field,
+          options: field.options?.filter(
+            (option) => entryOf(option.id as EffectId).status !== "blocked",
+          ),
+        }
+      : field,
+  );
   const label = (e: EffectDefinition) => (locale === "vi" ? e.labelVi : e.labelEn);
 
   return (
     <div className="effects-panel" data-testid="effects-panel">
       <SectionPanel title={t("effects.title")}>
-        <p className="field-hint">{t("effects.intro")}</p>
+        <HelpPopover topic={t("effects.title")}>{t("effects.intro")}</HelpPopover>
+        <ModuleAssist
+          scope="effects"
+          catalog={catalog}
+          context={{ currentSelections: current, compatibility: matrix }}
+          onApply={(fields) => {
+            const id = (fields.find((f) => f.path === "effects.primary.id")?.value ??
+              primary?.id) as EffectId | undefined;
+            if (!id || entryOf(id).status === "blocked")
+              throw new Error("No compatible effect was selected.");
+            const intensity = fields.find((f) => f.path === "effects.primary.intensity")?.value as
+              EffectIntensity | undefined;
+            write({
+              primary: { id, intensity: intensity ?? "light" },
+              secondary: secondary.filter(
+                (c) => c.id !== id && effectsCompatibleTogether(id, c.id),
+              ),
+            });
+          }}
+        />
+        <button
+          className="btn btn-sm"
+          disabled={readOnly}
+          onClick={() => {
+            useStudio.getState().setRegionAction("effect");
+            useStudio.getState().setModule("regions");
+          }}
+        >
+          {t("menu.effect")}
+        </button>
         <ul className="effect-cards">
           {EFFECT_CATALOG.map((effect) => {
             const entry = entryOf(effect.id);

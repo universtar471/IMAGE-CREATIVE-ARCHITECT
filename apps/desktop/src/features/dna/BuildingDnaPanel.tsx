@@ -1,3 +1,4 @@
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { Plus, Trash2 } from "lucide-react";
 import type { MaterialEntry } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
@@ -21,7 +22,7 @@ export function BuildingDnaPanel() {
 
   return (
     <>
-      <p className="field-hint dna-hint">{t("dna.englishHint")}</p>
+      <HelpPopover topic={t("dna.identity")}>{t("dna.englishHint")}</HelpPopover>
       <SectionPanel title={t("dna.identity")} aside={<LockToggle section="building" />}>
         <AssistControl
           scope="building"
@@ -31,9 +32,7 @@ export function BuildingDnaPanel() {
           dna={useStudio.getState().workspace!.draftDna}
           assets={useStudio.getState().workspace!.assets}
           hasMaster={!!useStudio.getState().workspace!.project.activeMasterAssetId}
-          onApply={(fields) =>
-            fields.forEach((field) => useStudio.getState().editDna(field.path, field.value))
-          }
+          onApply={(fields) => useStudio.getState().applyDnaAssist(fields)}
         />
         <DnaText path="building.buildingType" label={t("dna.buildingType")} />
         <DnaText

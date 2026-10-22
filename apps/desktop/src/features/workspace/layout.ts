@@ -36,8 +36,8 @@ export function layoutTier(width: number): LayoutTier {
 
 /** Navigation width per tier; must match `.workspace[data-tier]` in app.css. */
 export const NAV_WIDTH: Record<LayoutTier, number> = {
-  wide: 196,
-  regular: 176,
+  wide: 64,
+  regular: 64,
   compact: 64,
   narrow: 56,
   tight: 52,
@@ -60,7 +60,7 @@ export function workspaceLayout(width: number, height: number): WorkspaceLayout 
     short: height > 0 && height < SHORT_HEIGHT,
     width,
     height,
-    iconNav: tier === "compact" || tier === "narrow" || tier === "tight",
+    iconNav: true,
     drawer: tier === "narrow" || tier === "tight",
   };
 }

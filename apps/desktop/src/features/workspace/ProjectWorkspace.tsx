@@ -291,7 +291,7 @@ function CenterArea() {
           regionPair ? (
             <CompareCanvas source={regionPair.source} result={regionPair.result} />
           ) : (
-            <RegionCanvas />
+            <RegionCanvas key={asset?.id} />
           )
         ) : (
           <StudioPreview

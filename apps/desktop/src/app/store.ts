@@ -1,3 +1,4 @@
+import type { RegionAction } from "../features/regions/actions";
 /**
  * App state (zustand). Holds view state plus the open project's loaded data.
  * Persistence happens only through bridge commands; this store never owns truth for long:
@@ -12,6 +13,8 @@
  */
 import { create } from "zustand";
 import {
+  applyAssistFields,
+  type AssistField,
   GENERATION_UPDATED_EVENT,
   hasEffects,
   JOB_UPDATED_EVENT,
@@ -229,6 +232,8 @@ type State = {
   /** Provider settings dialog; `focus` = provider to highlight. */
   providerDialog: { focus: string | null } | null;
   generateDraft: GenerateDraft;
+  regionAction: RegionAction;
+  setRegionAction: (action: RegionAction) => void;
   videoDraft: VideoDraft;
   run: GenerationRun | null;
   /** The exact enhance submission whose completed output may be auto-selected. */
@@ -255,6 +260,7 @@ type State = {
   toggleTray: () => void;
   setInspectorOpen: (open: boolean) => void;
   editDna: (path: string, value: unknown) => void;
+  applyDnaAssist: (fields: AssistField[]) => void;
   /** Replace the camera list (add / delete / duplicate / reorder). */
   setCameras: (cameras: CameraDNA[]) => void;
   /** Replace the open project's shot intent (`undefined` clears it). Never touches the DNA. */
@@ -510,6 +516,7 @@ export const useStudio = create<State>((set, get) => {
     providers: null,
     providersError: null,
     providerDialog: null,
+    regionAction: "edit",
     generateDraft: EMPTY_GENERATE_DRAFT,
     videoDraft: EMPTY_VIDEO_DRAFT,
     run: null,
@@ -532,6 +539,7 @@ export const useStudio = create<State>((set, get) => {
         selectedCameraId: null,
         contactBatchId: null,
         save: SAVED,
+        regionAction: "edit",
         generateDraft: EMPTY_GENERATE_DRAFT,
         videoDraft: EMPTY_VIDEO_DRAFT,
         enhanceSubmission: null,
@@ -611,6 +619,8 @@ export const useStudio = create<State>((set, get) => {
     },
 
     setModule: (id) => {
+      if (id === "references" && get().workspace?.project.projectType === "interior")
+        id = "design_dna";
       void get().flushDna();
       const view = get().centerView;
       // The Camera module's canvas is the Camera Director; other modules show images.
@@ -657,6 +667,7 @@ export const useStudio = create<State>((set, get) => {
             : {}),
         };
       }),
+    setRegionAction: (regionAction) => set({ regionAction }),
     setVideoDraft: (patch) => set((s) => ({ videoDraft: { ...s.videoDraft, ...patch } })),
     setNodeViewport: (projectId, viewport) =>
       set((s) => ({ nodeViewport: { ...s.nodeViewport, [projectId]: viewport } })),
@@ -666,6 +677,15 @@ export const useStudio = create<State>((set, get) => {
     setTrayTab: (t) => set({ trayTab: t, trayCollapsed: false }),
     toggleTray: () => set((s) => ({ trayCollapsed: !s.trayCollapsed })),
     setInspectorOpen: (open) => set({ inspectorOpen: open }),
+
+    applyDnaAssist: (fields) => {
+      const ws = get().workspace;
+      if (!ws || ws.project.archivedAt) return;
+      const draftDna = applyAssistFields(ws.draftDna, fields, get().selectedCameraId);
+      set({ workspace: { ...ws, draftDna }, save: { status: "dirty", fieldErrors: {} } });
+      if (autosaveTimer) clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(() => void get().flushDna(), AUTOSAVE_DELAY_MS);
+    },
 
     editDna: (path, value) => {
       const ws = get().workspace;

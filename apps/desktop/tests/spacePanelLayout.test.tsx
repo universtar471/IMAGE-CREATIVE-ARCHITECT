@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
@@ -57,7 +57,7 @@ async function renderInterior() {
 }
 
 describe("Space panel layout", () => {
-  it("switches between stacked and split structure at the 560px boundary", async () => {
+  it("keeps the compact moodboard above space controls at every panel width", async () => {
     await renderInterior();
     const layout = screen.getByTestId("interior-layout");
 
@@ -75,27 +75,17 @@ describe("Space panel layout", () => {
         callback([{ contentRect: { width: 640 } }] as never, {} as never),
       );
     });
-    expect(layout.getAttribute("data-layout")).toBe("split");
+    expect(layout.getAttribute("data-layout")).toBe("stacked");
   });
 
-  it("keeps selected material and furniture chips ordered and marks the primary chip", async () => {
+  it("moves editing controls out of Space while preserving existing selections", async () => {
     await renderInterior();
-
-    const floor = within(screen.getByRole("group", { name: "Floor" }));
-    const selectedFloor = floor.getAllByRole("button", { pressed: true });
-    expect(selectedFloor.map((button) => button.textContent)).toEqual([
-      expect.stringContaining("Walnut"),
-      expect.stringContaining("Oak"),
-    ]);
-    expect(selectedFloor[0]?.textContent).toContain("primary");
-    expect(selectedFloor[1]?.textContent).not.toContain("primary");
-
-    const furniture = within(screen.getByRole("group", { name: "Furniture" }));
-    const selectedFurniture = furniture.getAllByRole("button", { pressed: true });
-    expect(selectedFurniture.map((button) => button.textContent)).toEqual([
-      expect.stringContaining("Rug"),
-      expect.stringContaining("Sofa"),
-    ]);
-    expect(selectedFurniture[0]?.textContent).toContain("primary");
+    expect(screen.queryByRole("group", { name: "Floor" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Furniture" })).toBeNull();
+    expect(screen.getByText("Reference images")).toBeTruthy();
+    expect(useStudio.getState().workspace!.draftDna.interior).toMatchObject({
+      surfaces: { floor: ["walnut", "oak"] },
+      furnitureIds: ["rug", "sofa"],
+    });
   });
 });

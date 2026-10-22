@@ -175,20 +175,15 @@ describe("round 1 workflow UI regressions", () => {
     expect((screen.getByLabelText("Building type") as HTMLInputElement).disabled).toBe(false);
   });
 
-  it("renders the four group headers and a collapsible Advanced DNA (ADR-044)", async () => {
+  it("exposes design controls directly as accessible icons and hides scene objects", async () => {
     await openProject();
-    localStorage.removeItem("arch.navAdvancedOpen");
     useStudio.setState({ activeModule: "overview" });
     render(createElement(WorkspaceNav));
-    for (const header of ["Create image", "Edit", "Publish"])
-      expect(screen.getByText(header)).toBeTruthy();
-    const toggle = screen.getByTestId("nav-advanced");
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("Architecture")).toBeNull();
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("Architecture")).toBeTruthy();
-    localStorage.removeItem("arch.navAdvancedOpen");
+    for (const label of ["Architecture", "Style", "Camera", "Lighting", "Region edit"])
+      expect(screen.getByRole("button", { name: label })).toBeTruthy();
+    expect(screen.queryByTestId("nav-advanced")).toBeNull();
+    expect(document.querySelector('[data-module="scene_objects"]')).toBeNull();
+    expect(document.querySelector('[data-module="rooms"]')).toBeNull();
   });
 
   it("uses Architecture for the first DNA step and resets the property scroll on module change", async () => {

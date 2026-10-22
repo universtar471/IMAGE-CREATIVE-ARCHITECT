@@ -1,15 +1,8 @@
-import {
-  AlertTriangle,
-  Camera,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  LockKeyhole,
-} from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { AlertTriangle, Camera, Check, Circle, LockKeyhole } from "lucide-react";
+import { type ReactNode } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { useEditableSource } from "../assets/useEditableSource";
+import { HelpPopover } from "../../components/common/HelpPopover";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS, type DnaStepId, type DerivedWorkflowStep } from "../../lib/workflow";
 import { BlockedExplainer } from "./BlockedExplainer";
@@ -34,7 +27,6 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
   const workflow = useStudio((state) => state.workflowView);
   const confirm = useStudio((state) => state.confirmWorkflowStep);
   const reopen = useStudio((state) => state.reopenWorkflowStep);
-  const [guideOpen, setGuideOpen] = useState(true);
   const step = workflow?.steps.find((item) => item.id === stepId) ?? fallbackStep(stepId);
   const number = DNA_IDS.indexOf(stepId) + 1;
   const locked = step.status === "locked";
@@ -78,17 +70,7 @@ export function StepFrame({ stepId, children }: { stepId: DnaStepId; children: R
         </div>
       </header>
 
-      <div className="workflow-guide">
-        <button
-          type="button"
-          className="workflow-guide-toggle"
-          aria-expanded={guideOpen}
-          onClick={() => setGuideOpen((value) => !value)}
-        >
-          {guideOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t("workflow.howTo")}
-        </button>
-        {guideOpen && <p>{guide}</p>}
-      </div>
+      <HelpPopover topic={name}>{guide}</HelpPopover>
 
       {locked && step.blockedBy && (
         <div

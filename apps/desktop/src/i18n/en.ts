@@ -5,6 +5,38 @@
 export type Plural = { readonly one: string; readonly other: string };
 
 export const en = {
+  menu: {
+    designType: "Design type",
+    interior: "Interior",
+    architecture: "Architecture",
+    style: "Style",
+    rooms: "Rooms",
+    roomTypes: "Room types",
+    addPrompt: "Add to Prompt",
+    addNode: "Add to Node",
+    added: "Added to the generation draft",
+    nodeSource: "Select an image to connect the draft node",
+    references: "Reference images",
+    referenceHelp:
+      "Import references here, then use AI assist to propose style, palette, lighting and room controls. Review the suggestions before applying.",
+    styleHelp:
+      "Choose a thumbnail to inspect it. Apply sets the overall style and its material palette; local material changes belong in Region edit.",
+    roomHelp:
+      "Select a room and review its components. Add them to the current prompt or connect the generation draft in Node mode. Existing furniture stays until you apply new choices.",
+    selectRegion: "Choose an action, then draw/select a region on the canvas.",
+    person: "Add person",
+    animal: "Add animal",
+    tree: "Add tree",
+    decor: "Add decor",
+    effect: "Local effect",
+    material: "Material",
+    realPreview: "Select a project image to preview colour",
+    apply: "Apply",
+    components: "Suggested components",
+    select: "Select",
+    applied: "Recommendations applied",
+    retryHelp: "Invalid recommendations were omitted; retry to ask for another proposal.",
+  },
   sheet: {
     mode: "Workflow",
     ai: "Create with AI",
@@ -384,6 +416,14 @@ export const en = {
   },
 
   modules: {
+    style: {
+      label: "Style",
+      description: "Browse styles and inspect a thumbnail before applying.",
+    },
+    rooms: {
+      label: "Rooms",
+      description: "Select a room and add suitable components to Prompt or Node.",
+    },
     navLabel: "Workspace modules",
     groups: {
       create: "Create image",

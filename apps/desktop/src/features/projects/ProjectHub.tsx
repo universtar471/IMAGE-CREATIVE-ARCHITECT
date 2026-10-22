@@ -167,7 +167,7 @@ export function ProjectHub() {
           onCreated={(p) => {
             setWizardOpen(false);
             notify("success", t("hub.createdToast", { name: p.name }));
-            void openProject(p.id);
+            void openProject(p.id).then(() => useStudio.getState().setModule("design_dna"));
           }}
         />
       )}

@@ -88,7 +88,9 @@ export function RegionCanvas() {
   const selectedId = useStudio((state) => state.selectedAssetId) ?? ws.project.activeMasterAssetId;
   const asset = ws.assets.find((item) => item.id === selectedId) ?? null;
   const t = useT();
-  const [tool, setTool] = useState<Tool>("select");
+  const [tool, setTool] = useState<Tool>(
+    useStudio.getState().regionAction === "edit" ? "select" : "rect",
+  );
   const [brushSize, setBrushSize] = useState(0.04);
   const [maskVisible, setMaskVisible] = useState(false);
   const [regions, setRegions] = useState<RegionDTO[]>([]);
@@ -136,6 +138,22 @@ export function RegionCanvas() {
     window.addEventListener("studio-regions-changed", changed);
     return () => window.removeEventListener("studio-regions-changed", changed);
   }, [load, projectId, selectedId]);
+
+  useEffect(() => {
+    const selected = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string; assetId: string; ids: string[] }>)
+        .detail;
+      if (detail.projectId === projectId && detail.assetId === selectedId)
+        setSelected(new Set(detail.ids));
+    };
+    const action = () => setTool("rect");
+    window.addEventListener("studio-region-selection", selected);
+    window.addEventListener("studio-region-action", action);
+    return () => {
+      window.removeEventListener("studio-region-selection", selected);
+      window.removeEventListener("studio-region-action", action);
+    };
+  }, [projectId, selectedId]);
 
   const save = useCallback(
     (draft: RegionDraft) => {
@@ -271,7 +289,13 @@ export function RegionCanvas() {
             const hit = regions.find((region) =>
               pointInShape(point, region.shape, asset?.widthPx ?? 1, asset?.heightPx ?? 1),
             );
-            setSelected((current) => (hit ? new Set(current).add(hit.id) : new Set()));
+            const ids = hit ? [...new Set([...selected, hit.id])] : [];
+            setSelected(new Set(ids));
+            window.dispatchEvent(
+              new CustomEvent("studio-region-selection", {
+                detail: { projectId, assetId: selectedId, ids },
+              }),
+            );
           } else if (tool === "rect") setDraw({ kind: "rect", start: point, current: point });
           else if (tool === "polygon")
             setDraw((current) =>

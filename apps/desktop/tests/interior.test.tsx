@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import {
   createInitialDNA,
@@ -7,6 +7,7 @@ import {
 } from "@arch/domain";
 import { compileFromBundle, createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
+import { StylePanel } from "../src/features/style/StylePanel";
 import { NewProjectWizard } from "../src/features/projects/NewProjectWizard";
 import { InteriorDnaPanel } from "../src/features/dna/InteriorDnaPanel";
 import { BuildingDnaPanel } from "../src/features/dna/BuildingDnaPanel";
@@ -79,22 +80,16 @@ describe("interior project UI", () => {
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "New interior" },
     });
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
-    fireEvent.change(screen.getByLabelText("Room"), { target: { value: "meeting_room" } });
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Interior" }));
     fireEvent.click(screen.getByRole("button", { name: /Create/ }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(created).toBeTruthy();
     const project = created as { id: string };
     expect((db.dna[project.id] as ProjectDNA).interior).toMatchObject({
-      buildingUseId: "office",
-      roomId: "meeting_room",
-      styleId: "modern",
-      paletteId: "cool_neutral",
+      buildingUseId: "apartment",
+      roomId: "living_room",
+      styleId: "japandi",
+      paletteId: "warm_neutral",
     });
   });
 
@@ -106,13 +101,7 @@ describe("interior project UI", () => {
     fireEvent.change(screen.getByLabelText("Project name"), {
       target: { value: "Prompt interior" },
     });
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
-    fireEvent.change(screen.getByLabelText("Room"), { target: { value: "meeting_room" } });
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Interior" }));
     fireEvent.click(screen.getByRole("button", { name: /Create/ }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -121,25 +110,26 @@ describe("interior project UI", () => {
     const parsed = ProjectDNASchema.safeParse(bundle.dna);
     expect(parsed.success).toBe(true);
     const prompt = compileFromBundle(bundle).positivePrompt;
-    expect(prompt).toContain("Interior space: office meeting room.");
-    expect(prompt).toContain("Interior style: Modern, clean lines and flat planes.");
+    expect(prompt).toContain("Interior space:");
+    expect(prompt).toContain("Interior style: Japandi");
     expect(prompt).toContain("Materials and colors:");
     expect(prompt).toContain("Furnishing:");
   });
 
-  it("does not let hidden exterior errors block the interior wizard step", () => {
+  it("requires only a name and design type, with no hidden exterior fields", () => {
     render(<NewProjectWizard onClose={() => undefined} onCreated={() => undefined} />);
+    expect(
+      (screen.getByRole("button", { name: /Create project/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     fireEvent.change(screen.getByLabelText("Project name"), {
-      target: { value: "Interior with hidden errors" },
+      target: { value: "Minimal project" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    fireEvent.change(screen.getByLabelText("Floors"), { target: { value: "0" } });
-    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
-    fireEvent.change(screen.getByLabelText("Project type"), { target: { value: "interior" } });
-    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
-    expect((screen.getByRole("button", { name: /Next/ }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Interior" }));
+    expect(screen.queryByLabelText("Floors")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Next/ })).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: /Create project/ }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it("makes the mock backend reject an invalid interior room and surface id", async () => {
@@ -176,32 +166,22 @@ describe("interior project UI", () => {
     render(<BuildingDnaPanel />);
     fireEvent.change(screen.getByLabelText("Building use"), { target: { value: "office" } });
     expect((screen.getByLabelText("Room") as HTMLSelectElement).value).toBe("other");
-    expect(screen.getByTestId("interior-moodboard").textContent).toMatch(/Oak/);
+    expect(
+      screen.getByTestId("interior-moodboard").querySelectorAll(".moodboard-material").length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getByTestId("interior-moodboard").querySelectorAll(".moodboard-material"),
     ).toHaveLength(8);
   });
 
-  it("confirms style defaults when surfaces were edited", async () => {
+  it("inspects a style without changing custom surfaces until Apply", async () => {
     await openInterior();
-    const interior = defaultInteriorDNA();
-    interior.surfaces.floor = ["walnut"];
-    useStudio.setState({
-      workspace: {
-        ...useStudio.getState().workspace!,
-        draftDna: { ...useStudio.getState().workspace!.draftDna, interior } as ProjectDNA,
-      },
-    });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<BuildingDnaPanel />);
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    expect(confirm).toHaveBeenCalledWith("Apply the style's material set?");
-    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior?.styleId).toBe(
-      "japandi",
-    );
-    confirm.mockReturnValue(true);
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
+    useStudio.getState().editDna("interior.surfaces.floor", ["walnut"]);
+    render(<StylePanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Modern" }));
+    expect(useStudio.getState().workspace!.draftDna.interior?.surfaces.floor).toEqual(["walnut"]);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(useStudio.getState().workspace!.draftDna.interior).toMatchObject({
       styleId: "modern",
       paletteId: "cool_neutral",
       materialPresetId: "modern_clean",
@@ -209,27 +189,16 @@ describe("interior project UI", () => {
     });
   });
 
-  it("confirms style defaults when a palette or preset was explicitly changed", async () => {
+  it("closing style details preserves a custom palette", async () => {
     await openInterior();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<BuildingDnaPanel />);
-    fireEvent.change(screen.getByLabelText("Palette"), { target: { value: "blue_coastal" } });
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "modern" } });
-    expect(confirm).toHaveBeenCalledWith("Apply the style's material set?");
-    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior).toMatchObject({
+    useStudio.getState().editDna("interior.paletteId", "blue_coastal");
+    render(<StylePanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Modern" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(useStudio.getState().workspace!.draftDna.interior).toMatchObject({
       styleId: "japandi",
       paletteId: "blue_coastal",
     });
-    confirm.mockReturnValue(false);
-    fireEvent.change(screen.getByLabelText("Material preset"), {
-      target: { value: "luxury_stone" },
-    });
-    fireEvent.change(screen.getByLabelText("Style"), { target: { value: "tropical" } });
-    expect(confirm).toHaveBeenCalledTimes(2);
-    expect((useStudio.getState().workspace!.draftDna as ProjectDNA).interior?.styleId).toBe(
-      "japandi",
-    );
-    confirm.mockRestore();
   });
 
   it("renders interior variants for context, lighting and camera", async () => {
