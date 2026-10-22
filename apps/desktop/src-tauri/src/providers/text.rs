@@ -6,6 +6,15 @@ use super::PromptText;
 /// Max characters of vendor text (model notes, error messages) copied into a user message.
 pub const MAX_VENDOR_TEXT: usize = 200;
 
+/// Request-only roles for the structured interior workflow. Stored asset roles are unchanged.
+pub fn generation_reference_role(role: &str, asset_id: &str, source_id: Option<&str>) -> String {
+    match source_id {
+        Some(source) if source == asset_id => "interior_source".into(),
+        Some(_) => "selective_reference".into(),
+        None => role.into(),
+    }
+}
+
 /// One text: positive prompt, reference instructions, preservation instructions, then
 /// `Avoid: <negative>`. Empty sections are skipped; sections are separated by a blank line.
 /// Used by vendors without a negative-prompt field.
@@ -23,6 +32,8 @@ pub fn compose_prompt(prompt: &PromptText) -> String {
 /// "master architecture: preserve massing, openings and proportions".
 pub fn role_hint(role: &str) -> String {
     let hint = match role {
+        "interior_source" => "interior source: preserve the source space and obey all hard locks in the prompt",
+        "selective_reference" => "selective reference: learn only the selected attributes named in the prompt; never copy architecture, openings or camera",
         "master_architecture" => "master architecture: preserve massing, openings and proportions",
         "structure_sketch" => "structure sketch: preserve geometry, render with real materials; follow the prompt instructions for viewpoint and framing",
         "architecture_reference" => "architecture reference: borrow architectural language and detailing only",
@@ -91,6 +102,15 @@ mod tests {
             role_hint("structure_sketch"),
             "structure sketch: preserve geometry, render with real materials; follow the prompt instructions for viewpoint and framing"
         );
+    }
+
+    #[test]
+    fn selective_generation_references_do_not_grant_permission_to_copy_geometry_or_unselected_attributes() {
+        assert_eq!(generation_reference_role("master_architecture", "SRC", Some("SRC")), "interior_source");
+        assert_eq!(generation_reference_role("material_reference", "REF", Some("SRC")), "selective_reference");
+        assert_eq!(generation_reference_role("material_reference", "REF", None), "material_reference");
+        assert!(role_hint("selective_reference").contains("selected attributes"));
+        assert!(role_hint("interior_source").contains("hard locks"));
     }
 
     #[test]

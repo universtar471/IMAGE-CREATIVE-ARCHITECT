@@ -102,7 +102,7 @@ export function compileFromBundle(
     assets.filter((a) => a.status === "ready" && (!ids || ids.includes(a.id))),
   );
   const sourceIndex = ordered.findIndex((a) => a.id === options.sourceAssetId);
-  if (sourceIndex >= 0) {
+  if (sourceIndex >= 0 && !result.metadata.interiorComposerVersion) {
     const prefix = `Image ${sourceIndex + 1}`;
     const instruction = `${prefix} is the authoritative source image. Preserve its building massing, floor count, proportions, openings, roof and materials; where the structured description differs, follow this image. ${options.variation ? "Create a variation of this same building or interior design; change only the requested viewpoint, detail, lighting or atmosphere. Reframe the source according to the requested Camera section; do not copy its original camera angle or whole-room framing when a different view or close-up is requested. Keep the same room, furniture and finishes when creating an interior detail." : "Keep the source camera and geometry exactly; render sketch lines as finished photorealistic architecture."}`;
     result.referenceInstructions = result.referenceInstructions

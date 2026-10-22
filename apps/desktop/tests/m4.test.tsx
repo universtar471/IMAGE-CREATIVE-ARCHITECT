@@ -101,7 +101,7 @@ describe("image recipes (ADR-042)", () => {
     expect(submitted.every((s) => s.presetIds?.includes("render.viewport_to_photo"))).toBe(true);
   });
 
-  it("marks facade colours as not fitting an interior shot", async () => {
+  it("replaces exterior recipes with interior goals in the interior workflow", async () => {
     const p = await createProject({
       name: "Indoor",
       projectType: "interior",
@@ -111,10 +111,9 @@ describe("image recipes (ADR-042)", () => {
     await useStudio.getState().openProject(p.id);
     await useStudio.getState().loadProviders();
     render(<GeneratePanel />);
-    fireEvent.click(screen.getByText("Recipes (several variants)"));
-    fireEvent.click(screen.getByRole("button", { name: "Facade colour options" }));
-    expect(screen.getAllByText(/does not fit this shot/)).toHaveLength(4);
-    expect((screen.getByTestId("recipe-run") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Recipes (several variants)")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Facade colour options" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Variations" })).toBeTruthy();
   });
 });
 

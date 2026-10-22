@@ -9,6 +9,19 @@ import { ModuleAssist } from "../assist/ModuleAssist";
 import { knowledge } from "../../lib/knowledge";
 import { styleLabel } from "../../i18n/knowledge";
 import { useLocale, useT } from "../../i18n";
+import { useInteriorGeneration } from "../generate/interior/useInteriorGeneration";
+import { InteriorReference } from "../generate/interior/InteriorReference";
+import { InteriorRecommendation } from "../generate/interior/InteriorRecommendation";
+
+function InteriorStyleTools({ disabled }: { disabled: boolean }) {
+  const { state, set } = useInteriorGeneration();
+  return (
+    <>
+      <InteriorRecommendation kind="style" state={state} set={set} disabled={disabled} />
+      <InteriorReference state={state} set={set} disabled={disabled} />
+    </>
+  );
+}
 
 /** One thumbnail/detail interaction for both design modes. */
 export function StylePanel() {
@@ -32,7 +45,10 @@ export function StylePanel() {
           "neo-classical",
         ]),
       ].map((id) => ({ id, label: styleLabel(id) }));
-  const selected = interior?.styleId ?? ws.draftDna.building.architecturalStyle;
+  const selected =
+    interior && ws.shotIntent?.interiorGeneration
+      ? ws.shotIntent.interiorGeneration.style
+      : (interior?.styleId ?? ws.draftDna.building.architecturalStyle);
   const apply = (id: string) => {
     if (disabled) return;
     if (interior) {
@@ -52,14 +68,28 @@ export function StylePanel() {
         id as InteriorStyleId,
       );
       useStudio.getState().editDna("interior", next);
+      const shot = useStudio.getState().workspace?.shotIntent;
+      if (shot?.interiorGeneration)
+        useStudio.getState().setShotIntent({
+          ...shot,
+          interiorGeneration: { ...shot.interiorGeneration, style: id as InteriorStyleId },
+        });
     } else useStudio.getState().editDna("building.architecturalStyle", id);
     setPreview(null);
   };
   return (
     <div className="style-panel">
       <HelpPopover topic={t("menu.style")}>{t("menu.styleHelp")}</HelpPopover>
-      <ModuleAssist scope="style" stepId="dna.building" />
-      <div className="style-thumbnail-grid" role="group" aria-label={t("menu.style")}>
+      {interior ? (
+        <InteriorStyleTools disabled={disabled} />
+      ) : (
+        <ModuleAssist scope="style" stepId="dna.building" />
+      )}
+      <div
+        className={interior ? "interior-style-grid" : "style-thumbnail-grid"}
+        role="group"
+        aria-label={t("menu.style")}
+      >
         {items.map((item) => (
           <button
             type="button"

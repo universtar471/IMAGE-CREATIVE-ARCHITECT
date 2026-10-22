@@ -16,7 +16,15 @@ export function loadShotIntent(projectId: string): ShotIntent | undefined {
   try {
     const raw = globalThis.localStorage?.getItem(keyOf(projectId));
     if (raw == null) return undefined;
-    const parsed = ShotIntentSchema.safeParse(JSON.parse(raw));
+    const value: unknown = JSON.parse(raw);
+    let parsed = ShotIntentSchema.safeParse(value);
+    // A newer optional workflow must not make otherwise valid legacy choices disappear.
+    // Keep the stored raw object intact so a newer build can still restore its fields.
+    if (!parsed.success && value && typeof value === "object" && "interiorGeneration" in value) {
+      const legacy = { ...value };
+      delete legacy.interiorGeneration;
+      parsed = ShotIntentSchema.safeParse(legacy);
+    }
     if (parsed.success) {
       const shot = parsed.data as ShotIntent;
       // Upgrade only objects contributed by selected presets. Explicit positions and

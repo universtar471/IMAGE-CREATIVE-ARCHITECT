@@ -13,6 +13,8 @@ export const MAX_EXTRA_PROMPT_CHARS = 4000;
 
 /** The compiled bundle with the extra prompt appended to the positive prompt (blank = unchanged). */
 export function withExtraPrompt(bundle: PromptBundle, extra: string | undefined): PromptBundle {
+  // The structured composer already owns the user's instruction and hard-lock checks.
+  if (bundle.metadata.interiorComposerVersion) return bundle;
   const text = extra?.trim();
   if (!text) return bundle;
   const positivePrompt = bundle.positivePrompt.trim()

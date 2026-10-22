@@ -1065,7 +1065,9 @@ export function createMockTransport(initial?: Db, options: MockOptions = {}): Tr
       prompt: req.prompt,
       referenceAssetIds: [...req.referenceAssetIds],
       params: req.params as GenerationParams,
-      parentAssetId: generationParentAssetId(req.referenceAssetIds, projectAssets(req.projectId)),
+      parentAssetId: req.prompt.metadata.interiorComposerVersion
+        ? (req.prompt.shotIntent?.interiorGeneration?.input.assetId ?? null)
+        : generationParentAssetId(req.referenceAssetIds, projectAssets(req.projectId)),
       outputAssetIds: [],
       error: null,
       cameraId: req.cameraId ?? null,
