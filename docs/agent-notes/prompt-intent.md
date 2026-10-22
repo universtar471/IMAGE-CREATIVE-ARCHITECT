@@ -50,4 +50,3 @@ Sửa Cải thiện prompt bị kéo theo DNA Japandi/beige dù người dùng n
 - Rà cuối phát hiện front/approach dùng chung composition; đã tách approach thành góc từ cửa vào với khung cửa và lối di chuyển. Test bổ sung xác nhận sáu composition Nội thất khác nhau.
 - Browser QA đã kiểm tra chọn icon biển, ẩn menu Context riêng, chọn Cận nội thất và compile đúng close-up (không còn góc rộng mặc định). Ảnh minh họa và kết quả QA nằm trong outputs của chat: space-context-icons.png, interior-camera-controls.png, camera-context-qa.json.
 - Lệnh: `npm test -- --maxWorkers=2 --testTimeout=15000 --reporter=dot`; `npm run typecheck`; `npm run lint`; `npm run build -w @arch/desktop`; `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --jobs 2 -- --test-threads=2`.
-
