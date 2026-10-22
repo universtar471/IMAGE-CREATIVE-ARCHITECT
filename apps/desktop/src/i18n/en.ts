@@ -1596,6 +1596,11 @@ export const en = {
     result: "Region edit result",
   },
 
+  spaceContext: {
+    windowWeather: "Window light and weather outside",
+    details: "Context details",
+    hint: "Choose a setting for this space. In interiors it appears only through existing windows/openings. Site evidence, DNA locks and source images are preserved; advanced controls remain in Context details.",
+  },
   extra: {
     title: "Extra prompt",
     label: "Your words (added after the DNA prompt)",

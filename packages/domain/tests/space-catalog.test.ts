@@ -360,11 +360,11 @@ describe("SPACE_NOT_IN_BUILDING (SRS §12.4)", () => {
 
 // ---------------------------------------------------------------- compiler
 
-describe("SPACE SCOPE compiler section (pc-1.10.0)", () => {
+describe("SPACE SCOPE compiler section (pc-1.11.0)", () => {
   it("is absent and versioned 'none' without a catalog; an inactive catalog changes no text", () => {
     const dna = townhouse();
     const plain = compile(dna);
-    expect(COMPILER_VERSION).toBe("pc-1.10.0");
+    expect(COMPILER_VERSION).toBe("pc-1.11.0");
     expect(plain.catalogVersion).toBe(NO_CATALOG_VERSION);
     expect(plain.metadata.sections).not.toContain("spaceScope");
     expect(plain.positivePrompt).not.toContain("Space scope");

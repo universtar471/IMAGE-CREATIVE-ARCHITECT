@@ -13,7 +13,7 @@ import type { GradeLookId, TimeOfDay } from "../schemas/future";
 import type { VisualIntentView } from "../camera/intent";
 import type { PresetGroup, PresetObject, PresetScope, ShotPreset, ShotWeather } from "./schemas";
 
-export const PRESET_CATALOG_VERSION = "ps-1.2.0";
+export const PRESET_CATALOG_VERSION = "ps-1.3.0";
 
 const GEOMETRY_KEEP =
   "Keep the building geometry, camera viewpoint, openings, floor count and proportions of the source image exactly.";
@@ -312,7 +312,7 @@ const VIEW_TEXT: Record<
     en: "Street oblique",
     hintVi: "Góc xiên mặt tiền từ lòng đường",
     hintEn: "Oblique front view from the street",
-    scope: "exterior",
+    scope: "any",
   },
   pedestrian: {
     vi: "Tầm mắt người",
@@ -499,3 +499,78 @@ export const presetOrder = (id: string): number => ORDER.get(id) ?? Number.MAX_S
 
 export const presetsOfGroup = (group: PresetGroup): ShotPreset[] =>
   SHOT_PRESETS.filter((p) => p.group === group);
+
+const INTERIOR_VIEWS: Partial<Record<VisualIntentView, [string, string, string]>> = {
+  front: ["Chính diện phòng", "Main wall", "One-point perspective facing the room's main wall."],
+  street_oblique: ["Góc phòng", "Room corner", "Two-point perspective from a room corner."],
+  pedestrian: [
+    "Tầm mắt",
+    "Room eye level",
+    "Natural eye-level view of the room and its furniture.",
+  ],
+  overview: ["Toàn phòng", "Whole room", "Wide view showing the room layout and furniture."],
+  approach: ["Từ cửa vào", "From doorway", "View from the doorway looking into the room."],
+  detail: [
+    "Cận nội thất",
+    "Furniture detail",
+    "Close-up of existing furniture, materials and finishes; exclude the whole-room framing.",
+  ],
+};
+const INTERIOR_WEATHER: Record<ShotWeather, [string, string, string]> = {
+  clear: [
+    "Nắng qua cửa",
+    "Sun through windows",
+    "Clear daylight entering through existing windows.",
+  ],
+  partly_cloudy: [
+    "Nắng dịu",
+    "Soft window daylight",
+    "Soft window daylight with passing clouds outside.",
+  ],
+  overcast: [
+    "Ánh sáng tán xạ",
+    "Diffuse window light",
+    "Diffuse overcast daylight through existing windows.",
+  ],
+  light_rain: [
+    "Mưa ngoài cửa",
+    "Rain outside",
+    "Light rain visible only outside existing windows; interior floors and furniture stay dry.",
+  ],
+  after_rain: [
+    "Ngoài trời sau mưa",
+    "After rain outside",
+    "An after-rain view outside existing windows; interior surfaces stay dry.",
+  ],
+  morning_mist: [
+    "Sương ngoài cửa",
+    "Mist outside",
+    "Light mist outside existing windows; keep the room clear of fog.",
+  ],
+};
+
+/** Contextual wording only: stable ids/patches keep saved presets and history compatible. */
+export function contextualPreset(preset: ShotPreset, interior: boolean): ShotPreset {
+  if (!interior) return preset;
+  const view = preset.patch.view && INTERIOR_VIEWS[preset.patch.view];
+  if (view)
+    return { ...preset, labelVi: view[0], labelEn: view[1], hintVi: view[0], hintEn: view[2] };
+  const weather = preset.patch.weather && INTERIOR_WEATHER[preset.patch.weather];
+  if (weather)
+    return {
+      ...preset,
+      labelVi: weather[0],
+      labelEn: weather[1],
+      hintVi: weather[0],
+      hintEn: weather[2],
+      promptEn: weather[2],
+      keepEn:
+        "Keep the existing room, window openings and indoor furniture unchanged. Do not add windows or outdoor weather inside the room.",
+    };
+  if (preset.patch.timeOfDay)
+    return {
+      ...preset,
+      promptEn: `Interior lighting at ${preset.patch.timeOfDay.replaceAll("_", " ")}; daylight may enter only through existing windows and openings.`,
+    };
+  return preset;
+}

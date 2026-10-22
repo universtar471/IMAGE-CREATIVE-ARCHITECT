@@ -261,3 +261,25 @@
 .workspace .panel-header .help-button {
   margin-left: 6px;
 }
+.space-context-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.space-context-grid .choice {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.space-context-grid svg {
+  color: var(--accent, #40c8ee);
+}
+.space-context-details {
+  margin-top: 10px;
+}
+.space-context-details > summary {
+  cursor: pointer;
+  padding: 8px 0;
+}

@@ -240,7 +240,7 @@ describe("interior room sync and the interior space line", () => {
       space("SPC_g", "villa.outdoor.san_vuon_rong"),
     ];
     const garden = compileInterior(withSpaces(interiorDna(), "villa", spaces, "SPC_g"));
-    expect(COMPILER_VERSION).toBe("pc-1.10.0");
+    expect(COMPILER_VERSION).toBe("pc-1.11.0");
     expect(garden.positivePrompt).not.toContain("Interior space:");
     expect(garden.positivePrompt).not.toMatch(/master bedroom/i);
     expect(garden.metadata.sections).not.toContain("form");
@@ -453,7 +453,8 @@ describe("camera intent for interiors", () => {
       expect(overview.lensMm).toBeGreaterThanOrEqual(20);
       expect(resolveVisualIntent({ view: "approach", purpose: "portrait" }, dna)).toMatchObject({
         viewType: "interior_wide",
-        composition: "one-point perspective facing the main wall",
+        composition:
+          "view from the doorway into the room, using the existing entry to frame the interior and its circulation path",
         aspectRatio: "4:5",
       });
       expect(resolveVisualIntent({ view: "detail", purpose: "square" }, dna).viewType).toBe(

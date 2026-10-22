@@ -195,7 +195,7 @@ describe("round 1 workflow UI regressions", () => {
     render(createElement(PropertyPanel));
     const body = document.querySelector(".panel-body") as HTMLElement;
     body.scrollTop = 240;
-    useStudio.getState().setModule("context");
+    useStudio.getState().setModule("camera");
     await Promise.resolve();
     expect(body.scrollTop).toBe(0);
   });

@@ -11,6 +11,7 @@ import { LockToggle } from "./LockToggle";
 import { InteriorDnaPanel } from "./InteriorDnaPanel";
 import { AssistControl } from "../assist/AssistControl";
 import { SpaceSelector } from "../space/SpaceSelector";
+import { SpaceContextSection } from "../space/SpaceContextSection";
 
 export function BuildingDnaPanel() {
   const project = useStudio((s) => s.workspace!.project);
@@ -53,6 +54,7 @@ export function BuildingDnaPanel() {
       </SectionPanel>
 
       <SpaceSelector />
+      <SpaceContextSection />
 
       <SectionPanel title={t("dna.dimensions")}>
         <div className="field-row">

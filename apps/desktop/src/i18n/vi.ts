@@ -1592,6 +1592,11 @@ export const vi: Dict = {
     result: "Kết quả chỉnh vùng",
   },
 
+  spaceContext: {
+    windowWeather: "Ánh sáng và cảnh ngoài cửa",
+    details: "Chi tiết bối cảnh",
+    hint: "Chọn cảnh quan cho không gian. Với Nội thất, bối cảnh chỉ xuất hiện qua cửa sổ/cửa mở có sẵn. Các thông tin vị trí, khóa DNA và ảnh nguồn vẫn được giữ; có thể chỉnh sâu trong Chi tiết bối cảnh.",
+  },
   extra: {
     title: "Prompt bổ sung",
     label: "Mô tả thêm của bạn (nối sau prompt từ DNA)",

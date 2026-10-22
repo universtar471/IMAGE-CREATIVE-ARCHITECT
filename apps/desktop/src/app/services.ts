@@ -7,6 +7,8 @@ import {
   canonicalHash,
   orderReferences,
   createInitialDNA,
+  setShotPresets,
+  shotPreset,
   type InteriorDNA,
   type ProjectDNA,
   type ProjectDTO,
@@ -66,6 +68,15 @@ export function compileFromBundle(
   const { project, dna, assets } = bundle;
   const { pack } = knowledge.resolve(project.projectType, project.subtype);
   const ids = options.referenceAssetIds;
+  const selection = options.shotIntent;
+  const effectiveShot =
+    options.variation && selection?.presetIds?.some((id) => shotPreset(id)?.group === "render")
+      ? setShotPresets(
+          selection,
+          selection.presetIds.filter((id) => shotPreset(id)?.group !== "render"),
+          dna,
+        ).shotIntent
+      : selection;
   const result = compilePrompt({
     project: {
       id: project.id,
@@ -76,7 +87,7 @@ export function compileFromBundle(
     dna,
     pack,
     cameraId: options.cameraId ?? null,
-    shotIntent: options.shotIntent,
+    shotIntent: effectiveShot,
     references: assets
       .filter((a) => a.status === "ready")
       .filter((a) => !ids || ids.includes(a.id))
@@ -93,7 +104,7 @@ export function compileFromBundle(
   const sourceIndex = ordered.findIndex((a) => a.id === options.sourceAssetId);
   if (sourceIndex >= 0) {
     const prefix = `Image ${sourceIndex + 1}`;
-    const instruction = `${prefix} is the authoritative source image. Preserve its building massing, floor count, proportions, openings, roof and materials; where the structured description differs, follow this image. ${options.variation ? "Create a variation of this same building; change only the requested viewpoint, detail, lighting or atmosphere." : "Keep the source camera and geometry exactly; render sketch lines as finished photorealistic architecture."}`;
+    const instruction = `${prefix} is the authoritative source image. Preserve its building massing, floor count, proportions, openings, roof and materials; where the structured description differs, follow this image. ${options.variation ? "Create a variation of this same building or interior design; change only the requested viewpoint, detail, lighting or atmosphere. Reframe the source according to the requested Camera section; do not copy its original camera angle or whole-room framing when a different view or close-up is requested. Keep the same room, furniture and finishes when creating an interior detail." : "Keep the source camera and geometry exactly; render sketch lines as finished photorealistic architecture."}`;
     result.referenceInstructions = result.referenceInstructions
       .split("\n")
       .filter((line) => !line.startsWith(`${prefix} `))
@@ -105,7 +116,7 @@ export function compileFromBundle(
       previous: result.configHash,
       sourceAssetId: options.sourceAssetId,
       variation: !!options.variation,
-      sourceInstructionVersion: 1,
+      sourceInstructionVersion: 2,
     });
   }
   return result;

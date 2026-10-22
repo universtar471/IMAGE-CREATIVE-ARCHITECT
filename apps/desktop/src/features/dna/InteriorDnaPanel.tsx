@@ -20,6 +20,7 @@ import {
 import { ModuleAssist } from "../assist/ModuleAssist";
 import { SpaceSelector } from "../space/SpaceSelector";
 import { SpaceReferences } from "../assets/SpaceReferences";
+import { SpaceContextSection } from "../space/SpaceContextSection";
 
 type SurfaceSlot = keyof InteriorSurfaces;
 type SurfaceOption = InteriorOption<string> & { swatch: string };
@@ -101,6 +102,7 @@ function InteriorEditor({ interior }: { interior: InteriorDNA }) {
         </SectionPanel>
         <SpaceReferences />
         <SpaceSelector />
+        <SpaceContextSection />
       </div>
     </div>
   );

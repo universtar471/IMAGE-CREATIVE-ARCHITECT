@@ -161,7 +161,7 @@ describe("setShotPresets", () => {
 
 describe("compiler PRESETS section", () => {
   it("is byte-identical without presets and versioned with them", () => {
-    expect(COMPILER_VERSION).toBe("pc-1.10.0");
+    expect(COMPILER_VERSION).toBe("pc-1.11.0");
     const dna = baseDna();
     const plain = compile(dna);
     expect(plain.positivePrompt).not.toContain(PRESETS_HEADING);
@@ -205,7 +205,8 @@ describe("compiler PRESETS section", () => {
   it("adds a viewpoint line only when no DNA camera is compiled", () => {
     const dna = baseDna();
     const bundle = compile(dna, withPresets(["camera.aerial"], dna));
-    expect(bundle.positivePrompt).toMatch(/Viewpoint: high overview .*24 mm lens feel\./);
+    expect(bundle.positivePrompt).toContain("Camera: aerial view; lens: 24 mm");
+    expect(bundle.positivePrompt).toContain("high overview of the building and its immediate site");
   });
 
   it("compiles colour looks nowhere and object presets through SCENE OBJECTS", () => {

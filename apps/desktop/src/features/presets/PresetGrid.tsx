@@ -39,10 +39,11 @@ export function PresetGrid({
   const projectType = ws.project.projectType;
   const dna = ws.draftDna as ProjectDNA;
   const shot = ws.shotIntent;
-  const selected = shot?.presetIds ?? [];
-  const offered = presetsForShot(presetShotIsInterior(dna, projectType)).filter(
-    (p) => !variation || p.group !== "render",
+  const interior = presetShotIsInterior(dna, projectType);
+  const selected = (shot?.presetIds ?? []).filter(
+    (id) => !variation || shotPreset(id)?.group !== "render",
   );
+  const offered = presetsForShot(interior).filter((p) => !variation || p.group !== "render");
   const locked = disabled || readOnly;
 
   const apply = (ids: string[]) => {
@@ -57,7 +58,7 @@ export function PresetGrid({
         {selected.length > 0 &&
           selected.map((id) => {
             const preset = shotPreset(id);
-            const label = preset ? presetLabel(preset, locale) : id;
+            const label = preset ? presetLabel(preset, locale, interior) : id;
             return (
               <span className="preset-chip" key={id} data-testid={`preset-chip-${id}`}>
                 {label}
@@ -99,7 +100,11 @@ export function PresetGrid({
           <div className="preset-group" key={group}>
             <div className="preset-group-heading">
               <PremiumIcon id={groupVisualId[group]} size={20} />
-              <span className="field-label">{t(`presets.groups.${group}`)}</span>
+              <span className="field-label">
+                {interior && group === "weather"
+                  ? t("spaceContext.windowWeather")
+                  : t(`presets.groups.${group}`)}
+              </span>
               <span className="preset-group-count" aria-hidden="true">
                 {items.length}
               </span>
