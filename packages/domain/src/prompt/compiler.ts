@@ -12,6 +12,8 @@ import type { PromptBundle } from "../schemas/prompt";
 import type { KnowledgePack } from "../knowledge/pack";
 import { DENSITY_LABELS, PROJECT_TYPE_LABELS } from "../labels";
 import { cameraSectionText } from "../camera/describe";
+import { blankCamera } from "../camera/cameras";
+import { isInteriorShot, resolveVisualIntent } from "../camera/intent";
 import type { CameraDNA, LightingDNA, MoodDNA, WeatherDNA } from "../schemas/future";
 import { sceneObjectLines } from "../regions/scene";
 import { interiorPromptLines } from "../interior/helpers";
@@ -35,7 +37,7 @@ import { PRESET_CATALOG_VERSION } from "../presets/catalog";
 import type { TimeOfDay } from "../schemas/future";
 import type { InteriorDNA } from "../interior/schemas";
 
-export const COMPILER_VERSION = "pc-1.10.0";
+export const COMPILER_VERSION = "pc-1.11.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -198,16 +200,32 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
   const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
-  const camera = input.cameraId
+  const dnaCamera = input.cameraId
     ? sourceDna.cameras.find((c) => c.id === input.cameraId)
     : undefined;
-  const shotIntent = normalizeShotIntent(input.shotIntent, project.projectType, camera?.id ?? null);
+  const shotIntent = normalizeShotIntent(
+    input.shotIntent,
+    project.projectType,
+    dnaCamera?.id ?? null,
+  );
+  // A shot camera is transient: use it consistently for framing/site rules, but never
+  // persist a fake camera id or overwrite the user's saved Camera Director settings.
+  const camera: CameraDNA | undefined =
+    dnaCamera ??
+    (shotIntent?.visualIntent
+      ? {
+          ...blankCamera([], "CAM_00000000000000000000000000"),
+          ...resolveVisualIntent(shotIntent.visualIntent, sourceDna),
+        }
+      : undefined);
   // The shot's own time of day and weather (ADR-039) replace the DNA values for this prompt
   // only; the hashes below still describe the stored DNA plus the shot intent.
   const dna = withShotLighting(sourceDna, shotIntent);
   const usesInteriorDna = isInterior && dna.interior !== undefined;
   const interiorLines = usesInteriorDna ? interiorPromptLines(dna.interior!) : [];
-  const presetSources = presetLines(dna, shotIntent, camera !== undefined).map((l) => l.presetId);
+  const presetSources = presetLines(dna, shotIntent, dnaCamera !== undefined).map(
+    (l) => l.presetId,
+  );
 
   // Positive section order is stable: subject, spaceScope, form, language, materials,
   // furnishing, context, lighting, weather, mood, camera, detailTarget, sceneObjects, effects,
@@ -303,7 +321,7 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
 
   // Provenance (ADR-034): hashes of exactly what was compiled. Display-only fields (project
   // name, reference labels) are left out so they do not change the hashes.
-  const cameraId = camera?.id ?? null;
+  const cameraId = dnaCamera?.id ?? null;
   const sourceHash = canonicalHash({
     dna: sourceDna,
     shot: {
@@ -361,7 +379,10 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
       sections: included.map(([name]) => name),
       referenceCount: references.length,
       referenceRoles: roleCounts,
-      cameraId: camera?.id ?? null,
+      cameraId,
+      ...(shotIntent?.visualIntent
+        ? { cameraScope: isInteriorShot(dna) ? "interior" : "exterior" }
+        : {}),
       anchorImage: anchorIndex >= 0 ? anchorIndex + 1 : null,
       locks: {
         building: dna.locks.building,
@@ -523,6 +544,10 @@ function contextSection(dna: ProjectDNA, isInterior: boolean): string | null {
   const atmosphere = c.atmosphereNotes.trim();
   if (atmosphere) lines.push(`Atmosphere: ${atmosphere}.`);
   if (!lines.length) return null;
+  if (isInterior && isInteriorShot(dna))
+    lines.push(
+      "Show outdoor scenery only through existing windows and openings; do not add openings or move the room outdoors.",
+    );
   return `${isInterior ? "Surroundings and views" : "Site context"}: ${lines.join(" ")}`;
 }
 
@@ -576,7 +601,11 @@ function weatherSection(dna: ProjectDNA): string | null {
     ],
     ", ",
   );
-  return text ? `Weather: ${text}.` : null;
+  return text
+    ? isInteriorShot(dna)
+      ? `Weather outside existing windows: ${text}. Keep interior floors and furniture dry; do not bring rain or mist indoors.`
+      : `Weather: ${text}.`
+    : null;
 }
 
 function moodSection(dna: ProjectDNA): string | null {

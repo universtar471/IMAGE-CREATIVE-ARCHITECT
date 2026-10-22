@@ -423,7 +423,7 @@ describe("SCENE OBJECTS compiler section", () => {
     }
     expect(plain.positivePrompt).not.toContain(SCENE_OBJECTS_HEADING);
     expect(plain.compilerVersion).toBe(COMPILER_VERSION);
-    expect(COMPILER_VERSION).toBe("pc-1.10.0");
+    expect(COMPILER_VERSION).toBe("pc-1.11.0");
   });
 
   it("AC-07: compiles a verified garage line with the exact model", () => {

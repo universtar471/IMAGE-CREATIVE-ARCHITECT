@@ -375,13 +375,15 @@ Zod source of truth: `PromptEnhanceRequestSchema` / `PromptEnhanceResultSchema` 
 |---|---|---|
 | `prompt_enhance` | `{ projectId, providerId, text, context }` | `{ text }` |
 
-- `text`: the user's editable extra prompt (1–4000 chars after trimming). `context`: Project DNA
-  facts to keep (the UI sends the compiled positive + preservation text; ≤ 20000 chars, may be
+- `text`: the user's editable extra prompt (1–4000 chars after trimming). `context`: optional Project DNA
+  background (the UI sends the compiled positive + preservation text; ≤ 20000 chars, may be
   empty). Nothing is stored; the UI previews the result for Accept / Discard.
 - The provider must offer chat (today only `hhtech`, model `HHTECH_CHAT_MODEL`); the backend
-  sends a fixed system prompt (more specific materials, light, camera, atmosphere; keep every
-  DNA fact; no invented dimensions; return only the prompt) and the user message
-  `Project DNA context (facts to preserve): … Prompt to rewrite: …`.
+  sends a fixed system prompt: the user's explicit room, building type, style, palette and other
+  requirements take priority. DNA can only supply compatible background; conflicting DNA details
+  must be discarded. Add only compatible detail, preserve the user's language, do not invent dimensions,
+  and return only the rewritten prompt. The user message labels DNA as lower-priority background
+  and the prompt to rewrite as highest priority. Editing the source text dismisses an older suggestion.
 - Errors: `NOT_FOUND` (project or provider), `VALIDATION_ERROR` (empty/too long text or context,
   provider without chat), `PROVIDER_NOT_CONFIGURED` (no key, or the provider's own setup problem
   such as an invalid explicit `HHTECH_BASE_URL`; details `{ providerId }`), and the new `PROVIDER_ERROR`

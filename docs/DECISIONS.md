@@ -1372,3 +1372,14 @@ Accepted 2026-10-22 for the interior/architecture menu update.
 - Interior Space owns references; Style owns global material defaults. Material replacement and insertion of people/animals/decor/effects use selected regions, the existing mask engine and immutable output lineage. Region selection is synchronized between preview and inspector.
 - Style thumbnails are two columns with explicit detail/apply; unavailable architecture thumbnails use a labelled placeholder rather than an interior photograph. Guide copy lives in the existing HelpPopover. Colour grading keeps the real-asset renderer and uses an empty state when no image is selected.
 - Reference recommendations include draft DNA, image IDs, selected camera/module and selections; proposed controls are prechecked for review, never applied without the user's Apply action. Vision calls still use existing provider/spend confirmation and are not run live during automated QA.
+
+## ADR-050 — Compile shot cameras consistently and keep context inside Space
+
+Accepted 2026-10-23 for the camera/context follow-up.
+
+- A shot visual intent becomes a deterministic transient camera used by the subject, camera and site/framing sections. It replaces the interior fallback entrance camera. An explicitly requested saved Camera Director camera remains authoritative; transient ids never enter persisted DNA, generation cameraId or provenance cameraId.
+- Interior camera presets keep their existing stable ids and receive room-specific labels, compositions and lenses across the Generate grid, Camera selector and Node chips. Switching selectors synchronizes the same shot preset/visual intent fields and keeps purpose/focus settings.
+- Variations exclude render-conversion presets whose preservation wording fixes the old camera. Source-image instructions explicitly allow the requested reframing. Shared provider role hints defer viewpoint/framing to those instructions; ordinary sketch rendering still explicitly preserves its source camera.
+- Interior weather/time wording applies outdoors through existing openings and to indoor daylight. It must not turn rain, mist or ground reflections into indoor effects.
+- Space contains six context icon choices and the existing advanced Context editor/confirmation. The legacy context route resolves to Space; no Context DNA fields, site evidence, asset roles, graph/history records or stored camera ids are migrated or deleted. Context locks/read-only mode remain in force.
+- Prompt compiler is `pc-1.11.0`, preset catalogue `ps-1.3.0`; existing snapshots remain readable. Automated/browser QA uses isolated mock data and makes no paid provider calls.

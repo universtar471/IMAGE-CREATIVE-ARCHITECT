@@ -130,6 +130,25 @@ const interiorPrompt = (id: InteriorCameraPresetId) =>
 const INTERIOR_VIEW_SUGGESTIONS: Partial<
   Record<VisualIntentView, Pick<CameraDNA, "viewType" | "presetId" | "lensMm" | "composition">>
 > = {
+  front: {
+    viewType: "interior_wide",
+    presetId: "visual_intent_front",
+    lensMm: 35,
+    composition: interiorPrompt("one_point"),
+  },
+  street_oblique: {
+    viewType: "interior_wide",
+    presetId: "visual_intent_street_oblique",
+    lensMm: 24,
+    composition: interiorPrompt("corner"),
+  },
+  pedestrian: {
+    viewType: "interior_wide",
+    presetId: "visual_intent_pedestrian",
+    lensMm: 35,
+    composition:
+      "interior room at seated or standing eye level, natural furniture proportions and straight verticals",
+  },
   overview: {
     viewType: "interior_wide",
     presetId: "visual_intent_overview",
@@ -140,7 +159,8 @@ const INTERIOR_VIEW_SUGGESTIONS: Partial<
     viewType: "interior_wide",
     presetId: "visual_intent_approach",
     lensMm: 24,
-    composition: interiorPrompt("one_point"),
+    composition:
+      "view from the doorway into the room, using the existing entry to frame the interior and its circulation path",
   },
   detail: {
     viewType: "interior_detail",

@@ -619,6 +619,7 @@ export const useStudio = create<State>((set, get) => {
     },
 
     setModule: (id) => {
+      if (id === "context") id = "design_dna";
       if (id === "references" && get().workspace?.project.projectType === "interior")
         id = "design_dna";
       void get().flushDna();

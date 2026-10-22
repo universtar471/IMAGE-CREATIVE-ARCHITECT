@@ -20,6 +20,7 @@ import {
   deepAiChain,
   isVideoAsset,
   layoutBranchGraph,
+  presetShotIsInterior,
   type AssetDTO,
   type BranchNode,
   type CanvasLayout,
@@ -390,7 +391,13 @@ function GenerationNodeView({ data }: NodeProps<FlowNode>) {
         </div>
       )}
       <div className="branch-chips">
-        {presetLabels(node.presetIds, locale).map((label) => (
+        {presetLabels(
+          node.presetIds,
+          locale,
+          data.generation?.prompt.metadata.cameraScope === "interior" ||
+            (data.generation?.prompt.metadata.cameraScope === undefined &&
+              data.generation?.prompt.shotIntent?.projectType === "interior"),
+        ).map((label) => (
           <span className="branch-chip" key={label}>
             {label}
           </span>
@@ -404,6 +411,10 @@ function GenerationNodeView({ data }: NodeProps<FlowNode>) {
 
 function DraftNodeView({ data }: NodeProps<FlowNode>) {
   const t = useT();
+  const interior = useStudio(
+    (s) =>
+      !!s.workspace && presetShotIsInterior(s.workspace.draftDna, s.workspace.project.projectType),
+  );
   const locale = useLocale((s) => s.locale);
   const node = data.node as Extract<BranchNode, { kind: "draft" }>;
   return (
@@ -415,7 +426,7 @@ function DraftNodeView({ data }: NodeProps<FlowNode>) {
         <span className="field-hint">· {t("branches.notCreated")}</span>
       </div>
       <div className="branch-chips">
-        {presetLabels(node.presetIds, locale).map((label) => (
+        {presetLabels(node.presetIds, locale, interior).map((label) => (
           <span className="branch-chip" key={label}>
             {label}
           </span>

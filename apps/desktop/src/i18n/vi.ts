@@ -1592,12 +1592,17 @@ export const vi: Dict = {
     result: "Kết quả chỉnh vùng",
   },
 
+  spaceContext: {
+    windowWeather: "Ánh sáng và cảnh ngoài cửa",
+    details: "Chi tiết bối cảnh",
+    hint: "Chọn cảnh quan cho không gian. Với Nội thất, bối cảnh chỉ xuất hiện qua cửa sổ/cửa mở có sẵn. Các thông tin vị trí, khóa DNA và ảnh nguồn vẫn được giữ; có thể chỉnh sâu trong Chi tiết bối cảnh.",
+  },
   extra: {
     title: "Prompt bổ sung",
     label: "Mô tả thêm của bạn (nối sau prompt từ DNA)",
     hint: "Nên viết bằng tiếng Anh — phần này được nối vào prompt tiếng Anh.",
     placeholder: "VD: late afternoon, wet street reflections, view from across the road",
-    enhanceTitle: "Viết lại cụ thể hơn về vật liệu, ánh sáng, góc máy và không khí",
+    enhanceTitle: "Làm rõ prompt, giữ đúng loại phòng, phong cách và màu sắc bạn yêu cầu",
     enhancing: "Đang cải thiện",
     enhance: "Cải thiện prompt",
     undo: "Hoàn tác cải thiện",

@@ -134,7 +134,7 @@ describe("ExtraPromptSection", () => {
 
     fireEvent.click(screen.getByTestId("enhance-accept"));
     const enhanced = useStudio.getState().generateDraft.extraPrompt!;
-    expect(enhanced).toContain("Keeps every Project DNA fact");
+    expect(enhanced).toContain("Uses only compatible Project DNA context");
     expect((screen.getByTestId("extra-prompt") as HTMLTextAreaElement).value).toBe(enhanced);
 
     fireEvent.click(screen.getByTestId("enhance-undo"));
@@ -146,6 +146,23 @@ describe("ExtraPromptSection", () => {
     fireEvent.click(screen.getByTestId("enhance-discard"));
     expect(screen.queryByTestId("enhance-preview")).toBeNull();
     expect(useStudio.getState().generateDraft.extraPrompt).toBe("villa at dusk");
+  });
+
+  it("discards an old suggestion when the user changes their request", async () => {
+    await openWithHhtech(true);
+    render(<ExtraPromptSection referenceIds={[]} disabled={false} />);
+    fireEvent.change(screen.getByTestId("extra-prompt"), {
+      target: { value: "Japandi living room in beige" },
+    });
+    fireEvent.click(screen.getByTestId("enhance-button"));
+    await waitFor(() => screen.queryByTestId("enhance-preview"), "preview");
+    fireEvent.change(screen.getByTestId("extra-prompt"), {
+      target: { value: "phòng khách biệt thự hiện đại, đen trắng chủ đạo" },
+    });
+    expect(screen.queryByTestId("enhance-preview")).toBeNull();
+    expect(useStudio.getState().generateDraft.extraPrompt).toBe(
+      "phòng khách biệt thự hiện đại, đen trắng chủ đạo",
+    );
   });
 });
 

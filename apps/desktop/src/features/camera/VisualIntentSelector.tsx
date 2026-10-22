@@ -1,6 +1,10 @@
 import { useState } from "react";
 import {
   availableIntents,
+  presetShotIsInterior,
+  presetsForShot,
+  setShotPresets,
+  shotPreset,
   VISUAL_INTENT_PURPOSES,
   type VisualIntent,
   type VisualIntentPurpose,
@@ -8,7 +12,7 @@ import {
 } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { FieldGroup } from "../../components/panels/fields";
-import { useT } from "../../i18n";
+import { useLocale, useT } from "../../i18n";
 import { PremiumIcon, type PremiumIconId } from "../../components/common/PremiumIcon";
 
 type SelectorLevel = "simple" | "custom" | "expert";
@@ -48,19 +52,37 @@ export function VisualIntentSelector() {
   const setShotIntent = useStudio((s) => s.setShotIntent);
   const setCenterView = useStudio((s) => s.setCenterView);
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const [level, setLevel] = useState<SelectorLevel>("simple");
-  const intent = workspace.shotIntent?.visualIntent ?? DEFAULT_INTENT;
+  const interior = presetShotIsInterior(workspace.draftDna, workspace.project.projectType);
+  const intent: VisualIntent = workspace.shotIntent?.visualIntent ?? {
+    ...DEFAULT_INTENT,
+    view: interior ? "overview" : "front",
+  };
   const views = availableIntents(workspace.draftDna);
+  const choices = presetsForShot(interior);
 
   const update = (patch: Partial<VisualIntent>) => {
     if (readOnly) return;
-    setShotIntent({
+    const next = {
       ...(workspace.shotIntent ?? {
         projectType: workspace.project.projectType,
       }),
       projectType: workspace.project.projectType,
       visualIntent: { ...intent, ...patch },
-    });
+    };
+    setShotIntent(
+      patch.view
+        ? setShotPresets(
+            next,
+            [
+              ...(next.presetIds ?? []).filter((id) => shotPreset(id)?.group !== "camera"),
+              `camera.${patch.view}`,
+            ],
+            workspace.draftDna,
+          ).shotIntent
+        : next,
+    );
   };
 
   return (
@@ -104,23 +126,38 @@ export function VisualIntentSelector() {
         <>
           <div className="visual-intent-question">{t("camera.visualIntent.viewQuestion")}</div>
           <div className="choice-grid visual-intent-grid">
-            {views.map((view) => (
-              <button
-                key={view}
-                className="choice visual-intent-card"
-                type="button"
-                aria-pressed={intent.view === view}
-                disabled={readOnly}
-                data-testid="visual-intent-view-card"
-                onClick={() => update({ view })}
-              >
-                <span className="visual-intent-card-art" aria-hidden="true">
-                  <PremiumIcon id={VIEW_ICONS[view]} size={27} />
-                </span>
-                <strong>{t(`camera.visualIntent.views.${VIEW_KEYS[view]}` as never)}</strong>
-                <small>{t(`camera.visualIntent.viewHints.${VIEW_KEYS[view]}` as never)}</small>
-              </button>
-            ))}
+            {views.map((view) => {
+              const preset = choices.find((item) => item.patch.view === view);
+              return (
+                <button
+                  key={view}
+                  className="choice visual-intent-card"
+                  type="button"
+                  aria-pressed={intent.view === view}
+                  disabled={readOnly}
+                  data-testid="visual-intent-view-card"
+                  onClick={() => update({ view })}
+                >
+                  <span className="visual-intent-card-art" aria-hidden="true">
+                    <PremiumIcon id={VIEW_ICONS[view]} size={27} />
+                  </span>
+                  <strong>
+                    {preset
+                      ? locale === "vi"
+                        ? preset.labelVi
+                        : preset.labelEn
+                      : t(`camera.visualIntent.views.${VIEW_KEYS[view]}` as never)}
+                  </strong>
+                  <small>
+                    {preset
+                      ? locale === "vi"
+                        ? preset.hintVi
+                        : preset.hintEn
+                      : t(`camera.visualIntent.viewHints.${VIEW_KEYS[view]}` as never)}
+                  </small>
+                </button>
+              );
+            })}
           </div>
 
           <div className="visual-intent-question">{t("camera.visualIntent.purposeQuestion")}</div>

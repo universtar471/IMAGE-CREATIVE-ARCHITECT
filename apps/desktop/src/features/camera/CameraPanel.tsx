@@ -8,6 +8,7 @@ import {
   CameraViewTypeSchema,
   duplicateCamera,
   uniqueCameraName,
+  isInteriorShot,
   type CameraDNA,
   type ProjectDNA,
   type PromptBundle,
@@ -80,7 +81,7 @@ function CameraListSection() {
   const cameras = ws.draftDna.cameras;
   const names = cameras.map((c) => c.name);
   const presets = knowledge.cameraPresets(ws.project.projectType, ws.project.subtype);
-  const isInterior = ws.project.projectType === "interior";
+  const isInterior = isInteriorShot(ws.draftDna);
   const t = useT();
 
   useEffect(() => {
@@ -143,24 +144,26 @@ function CameraListSection() {
               ))}
             </div>
           )}
-          <select
-            ref={presetPicker}
-            className="select"
-            aria-label={t("camera.addFromPresetLabel")}
-            value=""
-            onChange={(e) => {
-              const preset = presets.find((p) => p.id === e.target.value);
-              if (preset) add(cameraFromPreset(preset, names));
-            }}
-          >
-            <option value="">{t("camera.addFromPreset")}</option>
-            {presets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {cameraPresetLabel(p)}
-                {p.anchorRecommended ? t("camera.anchorSuffix") : ""}
-              </option>
-            ))}
-          </select>
+          {!isInterior && (
+            <select
+              ref={presetPicker}
+              className="select"
+              aria-label={t("camera.addFromPresetLabel")}
+              value=""
+              onChange={(e) => {
+                const preset = presets.find((p) => p.id === e.target.value);
+                if (preset) add(cameraFromPreset(preset, names));
+              }}
+            >
+              <option value="">{t("camera.addFromPreset")}</option>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {cameraPresetLabel(p)}
+                  {p.anchorRecommended ? t("camera.anchorSuffix") : ""}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn btn-sm" onClick={() => add(blankCamera(names))}>
             <Plus size={13} /> {t("camera.blank")}
           </button>
@@ -289,6 +292,7 @@ function RowAction({
 }
 
 function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }) {
+  const interior = useStudio((s) => isInteriorShot(s.workspace!.draftDna));
   const editDna = useStudio((s) => s.editDna);
   const errors = useStudio((s) => s.save.fieldErrors);
   const readOnly = useStudio(selectReadOnly);
@@ -312,10 +316,15 @@ function CameraEditor({ camera: c, index }: { camera: CameraDNA; index: number }
         allowEmpty={false}
         value={c.viewType}
         disabled={readOnly}
-        options={CameraViewTypeSchema.options.map((v) => ({
-          value: v,
-          label: t(`labels.viewType.${v}`),
-        }))}
+        options={CameraViewTypeSchema.options
+          .filter(
+            (v) =>
+              !interior || ["interior_wide", "interior_detail", "custom", c.viewType].includes(v),
+          )
+          .map((v) => ({
+            value: v,
+            label: t(`labels.viewType.${v}`),
+          }))}
         onChange={(v) => edit("viewType")(v ?? "custom")}
       />
       <label className="check-row">

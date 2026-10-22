@@ -42,6 +42,7 @@ export function WorkspaceNav() {
   const visible = WORKSPACE_MODULES.filter(
     (m) =>
       m.id !== "scene_objects" &&
+      m.id !== "context" &&
       !(isInterior && m.id === "references") &&
       !(!isInterior && m.id === "rooms"),
   );

@@ -11,7 +11,7 @@ import type { ShotIntent } from "../validation/shotIntent";
 import type { SceneObjectRequest } from "../sceneObjects/schemas";
 import { SITE_FRONTAGE_TARGET } from "../sceneObjects/allowed";
 import { resolveActiveSpace } from "../spaceCatalog/resolve";
-import { presetOrder, shotPreset, SHOT_PRESETS } from "./catalog";
+import { contextualPreset, presetOrder, shotPreset, SHOT_PRESETS } from "./catalog";
 import type { PresetObject, PresetScope, ShotLighting, ShotPreset } from "./schemas";
 
 /** Whether this shot is an interior one: the active space decides, else the project type. */
@@ -28,7 +28,9 @@ const inScope = (scope: PresetScope, interior: boolean) =>
 
 /** Presets offered for a shot, in catalog order. */
 export function presetsForShot(interior: boolean): ShotPreset[] {
-  return SHOT_PRESETS.filter((p) => inScope(p.scope, interior));
+  return SHOT_PRESETS.filter((p) => inScope(p.scope, interior)).map((p) =>
+    contextualPreset(p, interior),
+  );
 }
 
 /** Known ids only, deduplicated, one per exclusive key (the last one wins), catalog order. */
@@ -110,7 +112,7 @@ function contribution(ids: readonly string[], dna: ProjectDNA, interior: boolean
   const objects: SceneObjectRequest[] = [];
   const skipped: string[] = [];
   for (const id of normalizePresetIds(ids)) {
-    const preset = shotPreset(id)!;
+    const preset = contextualPreset(shotPreset(id)!, interior);
     const needsTarget = !!preset.patch.objects?.length;
     if (!inScope(preset.scope, interior) || (needsTarget && !target)) {
       skipped.push(id);
@@ -155,7 +157,7 @@ export function setShotPresets(
     if (patch.weather) lighting.weather = patch.weather;
     if (patch.view)
       visualIntent = {
-        ...(visualIntent ?? {}),
+        ...(visualIntent ?? shot.visualIntent ?? {}),
         view: patch.view,
         purpose: visualIntent?.purpose ?? shot.visualIntent?.purpose ?? "landscape",
       };
