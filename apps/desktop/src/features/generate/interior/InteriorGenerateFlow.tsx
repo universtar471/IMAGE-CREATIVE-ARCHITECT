@@ -1,5 +1,5 @@
+import { ArrowRight } from "lucide-react";
 import { InteriorCameraControls } from "../../camera/InteriorCameraControls";
-import { type ReactNode } from "react";
 import {
   GENERATION_GOALS,
   GENERATION_ROOMS,
@@ -28,12 +28,12 @@ export function InteriorGenerateFlow({
   state,
   set,
   disabled,
-  providerControls,
+  onContinue,
 }: {
   state: InteriorGenerationState;
   set: (next: InteriorGenerationState) => void;
   disabled: boolean;
-  providerControls: ReactNode;
+  onContinue?: () => void;
 }) {
   const t = useT();
   const locale = useLocale((s) => s.locale);
@@ -66,6 +66,11 @@ export function InteriorGenerateFlow({
           <InteriorRecommendation kind="style" state={state} set={set} disabled={disabled} />
           <InteriorReference state={state} set={set} disabled={disabled} />
         </InteriorStylePicker>
+        {onContinue && (
+          <button type="button" className="btn btn-primary" onClick={onContinue}>
+            <ArrowRight size={15} aria-hidden /> {t("interiorFlow.generate")}
+          </button>
+        )}
       </SectionPanel>
       <SectionPanel title={t("interiorFlow.changeLevel")}>
         <GenerationChoices
@@ -135,7 +140,6 @@ export function InteriorGenerateFlow({
             data-testid="interior-instruction"
           />
         </label>
-        {providerControls}
       </SectionPanel>
       {conflicts.map((conflict, index) => (
         <div

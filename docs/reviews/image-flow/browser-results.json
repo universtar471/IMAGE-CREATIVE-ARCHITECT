@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "mockBackendOnly": true,
+  "modelVisible": true,
+  "styleToGenerate": true,
+  "duplicateRoomHidden": true,
+  "interiorArchitectureDetailHidden": true,
+  "cameraSubmission": {
+    "source": ["AST_SYNC"],
+    "camera": "CAM_01M5M3RJKVZ3YFK8AAXZQ6KRXD",
+    "model": "placeholder-v1"
+  },
+  "errors": []
+}

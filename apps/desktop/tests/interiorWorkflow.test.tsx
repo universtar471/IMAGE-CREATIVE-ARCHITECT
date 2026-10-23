@@ -1,6 +1,10 @@
+import { CameraGenerationPanel } from "../src/features/camera/CameraGenerationPanel";
+import { StylePanel } from "../src/features/style/StylePanel";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
+  blankCamera,
+  setGenerationPreserve,
   defaultInteriorDNA,
   initialInteriorGeneration,
   GENERATION_GOALS,
@@ -84,6 +88,11 @@ it("presents the new workflow and keeps optional settings collapsed", async () =
   await open();
   render(<GeneratePanel />);
   expect(screen.getByTestId("interior-generate-flow")).toBeTruthy();
+  expect(
+    within(screen.getByRole("combobox", { name: "Provider" })).queryByRole("option", {
+      name: /upscale/i,
+    }),
+  ).toBeNull();
   expect(screen.getByRole("group", { name: "Goal" })).toBeTruthy();
   expect(screen.getByRole("group", { name: "Room type" })).toBeTruthy();
   expect(screen.queryByTestId("preset-studio")).toBeNull();
@@ -94,7 +103,8 @@ it("presents the new workflow and keeps optional settings collapsed", async () =
       .getByText("More options")
       .closest("details")!
       .contains(screen.getByRole("combobox", { name: "Provider" })),
-  ).toBe(true);
+  ).toBe(false);
+  expect(screen.getByRole("combobox", { name: "Model" }).closest("details")!.open).toBe(true);
 });
 it("uses goal defaults, functional room context and persists structured choices", async () => {
   const p = await open();
@@ -398,4 +408,101 @@ it("keeps architecture on the existing generate UI", async () => {
   expect(screen.queryByTestId("interior-generate-flow")).toBeNull();
   expect(screen.getByTestId("preset-studio")).toBeTruthy();
   expect(screen.getByRole("combobox", { name: "Provider" })).toBeTruthy();
+});
+
+it("keeps a visible route from Style to Generate and Orbit", async () => {
+  await open();
+  render(<StylePanel />);
+  fireEvent.click(screen.getByRole("button", { name: "Generate image" }));
+  expect(useStudio.getState().activeModule).toBe("generate");
+  fireEvent.click(screen.getByRole("button", { name: "Multi-Angle" }));
+  expect(useStudio.getState()).toMatchObject({ activeModule: "camera", centerView: "orbit" });
+});
+it("blocks camera generation until explicitly unlocked, then sends the selected image, model and exact camera", async () => {
+  await open();
+  const camera = {
+    ...blankCamera([]),
+    viewType: "interior_wide" as const,
+    azimuthDeg: 48,
+    elevationDeg: -10,
+    distanceM: 3,
+    lensMm: 35,
+  };
+  useStudio.getState().setCameras([camera]);
+  useStudio.getState().selectCamera(camera.id);
+  render(<CameraGenerationPanel />);
+  expect(screen.getByRole("combobox", { name: "Model" }).closest("details")!.open).toBe(true);
+  expect((screen.getByTestId("camera-generate-button") as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByTestId("camera-generate-button"));
+  expect(submitted).toHaveLength(0);
+  const ws = useStudio.getState().workspace!;
+  const next = setGenerationPreserve(ws.shotIntent!.interiorGeneration!, "camera", false);
+  useStudio.getState().setShotIntent({
+    ...ws.shotIntent!,
+    interiorGeneration: {
+      ...next,
+      goal: "redesign",
+      camera: { mode: "studio", cameraId: camera.id },
+    },
+  });
+  await waitFor(() =>
+    expect((screen.getByTestId("camera-generate-button") as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByTestId("camera-generate-button"));
+  await waitFor(() => expect(submitted).toHaveLength(1));
+  expect(submitted[0]).toMatchObject({
+    modelId: "placeholder-v1",
+    purpose: "variation",
+    cameraId: camera.id,
+    referenceAssetIds: ["AST_WORKFLOW_SOURCE"],
+  });
+  expect(submitted[0]!.prompt.preservationInstructions).toContain(
+    "Reframe the source according to the requested Camera section",
+  );
+  expect(submitted[0]!.prompt.positivePrompt).toContain("48");
+});
+
+it("keeps Orbit open when selecting its source and blocks deleted cameras", async () => {
+  await open("villa");
+  const camera = blankCamera([]);
+  useStudio.getState().setCameras([camera]);
+  useStudio.getState().selectCamera(camera.id);
+  useStudio.getState().setCenterView("orbit");
+  render(<CameraGenerationPanel />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Image source" }), {
+    target: { value: "AST_WORKFLOW_SOURCE" },
+  });
+  expect(useStudio.getState().centerView).toBe("orbit");
+  await waitFor(() =>
+    expect((screen.getByTestId("camera-generate-button") as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  useStudio.getState().setCameras([]);
+  await waitFor(() =>
+    expect((screen.getByTestId("camera-generate-button") as HTMLButtonElement).disabled).toBe(true),
+  );
+  fireEvent.click(screen.getByTestId("camera-generate-button"));
+  expect(submitted).toHaveLength(0);
+});
+it("generates an exterior viewpoint from its source through the same selected model", async () => {
+  await open("villa");
+  const camera = { ...blankCamera([]), azimuthDeg: -45, elevationDeg: 15, distanceM: 12 };
+  useStudio.getState().setCameras([camera]);
+  useStudio.getState().selectCamera(camera.id);
+  render(<CameraGenerationPanel />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Image source" }), {
+    target: { value: "AST_WORKFLOW_SOURCE" },
+  });
+  fireEvent.click(screen.getByTestId("camera-generate-button"));
+  await waitFor(() => expect(submitted).toHaveLength(1));
+  expect(submitted[0]).toMatchObject({
+    cameraId: camera.id,
+    modelId: "placeholder-v1",
+    referenceAssetIds: ["AST_WORKFLOW_SOURCE"],
+    purpose: "variation",
+  });
+  expect(submitted[0]!.prompt.preservationInstructions).toContain("Preserve its building massing");
 });

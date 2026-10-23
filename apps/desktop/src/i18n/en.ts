@@ -6,6 +6,9 @@ export type Plural = { readonly one: string; readonly other: string };
 
 export const en = {
   multiAngle: {
+    generateView: "Generate camera view",
+    generateHelp:
+      "Choose a source image, open Orbit to rotate, tilt and adjust distance, then select a model and generate. The geometry preview is estimated, not a live AI image. For interiors, explicitly unlock the source camera before generating a new view.",
     locked: "Original camera locked",
     unlockCamera: "Unlock and use Camera Studio",
     syncHelp:

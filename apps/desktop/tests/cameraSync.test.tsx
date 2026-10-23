@@ -61,7 +61,7 @@ async function open() {
 }
 function Workflow() {
   const { state, set } = useInteriorGeneration();
-  return <InteriorGenerateFlow state={state} set={set} disabled={false} providerControls={null} />;
+  return <InteriorGenerateFlow state={state} set={set} disabled={false} />;
 }
 function openOptions() {
   fireEvent.click(screen.getByText("More options"));

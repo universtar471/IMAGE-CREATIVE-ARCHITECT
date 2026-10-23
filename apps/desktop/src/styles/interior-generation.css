@@ -115,3 +115,14 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.style-next-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--c-surface);
+}

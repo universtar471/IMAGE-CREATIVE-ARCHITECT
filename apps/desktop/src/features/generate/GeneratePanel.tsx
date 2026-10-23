@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { ImageOff, ImagePlus, KeyRound, Settings2, Sparkles } from "lucide-react";
 import { PresetGrid } from "../presets/PresetGrid";
 import { SketchupInbox } from "./SketchupInbox";
@@ -44,6 +45,7 @@ function GenerateContent({
 }: {
   interior?: { state: InteriorGenerationState; set: (next: InteriorGenerationState) => void };
 }) {
+  const generateButton = useRef<HTMLButtonElement>(null);
   const allProviders = useStudio((s) => s.providers);
   const providers =
     allProviders && allProviders.filter((p) => isImageProvider(p) && p.id !== "local_upscale");
@@ -180,13 +182,16 @@ function GenerateContent({
 
   return (
     <div className="generate-panel">
-      {!interior && <GenerateProviderControls form={form} disabled={running} />}
+      <GenerateProviderControls form={form} disabled={readOnly || running} />
       {interior ? (
         <InteriorGenerateFlow
           state={interior.state}
           set={interior.set}
           disabled={readOnly || running}
-          providerControls={<GenerateProviderControls form={form} disabled={running} />}
+          onContinue={() => {
+            generateButton.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+            generateButton.current?.focus({ preventScroll: true });
+          }}
         />
       ) : (
         <>
@@ -275,6 +280,7 @@ function GenerateContent({
           className="btn btn-primary generate-btn"
           disabled={disabledReason !== null}
           onClick={() => void generate()}
+          ref={generateButton}
           data-testid="generate-button"
         >
           <Sparkles size={15} />
@@ -301,7 +307,13 @@ function GenerateContent({
   );
 }
 
-function GenerateProviderControls({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
+export function GenerateProviderControls({
+  form,
+  disabled,
+}: {
+  form: GenerateForm;
+  disabled: boolean;
+}) {
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const t = useT();
   return (
@@ -360,7 +372,9 @@ function useQueuedCount(projectId: string): number {
 }
 
 function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
-  const providers = useStudio((s) => s.providers ?? []).filter(isImageProvider);
+  const providers = useStudio((s) => s.providers ?? []).filter(
+    (p) => isImageProvider(p) && p.id !== "local_upscale",
+  );
   const setDraft = useStudio((s) => s.setGenerateDraft);
   const openProviderDialog = useStudio((s) => s.openProviderDialog);
   const provider = form.provider;
@@ -441,11 +455,7 @@ function ProviderSection({ form, disabled }: { form: GenerateForm; disabled: boo
           }
         />
       )}
-      {model && (
-        <span className="field-hint">
-          {model.label}: {caps}
-        </span>
-      )}
+      {model && <HelpPopover topic={model.label}>{caps}</HelpPopover>}
     </SectionPanel>
   );
 }
