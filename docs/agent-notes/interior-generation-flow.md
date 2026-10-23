@@ -4,7 +4,7 @@
 - Worktree: `D:\worktrees\IMAGE-CREATIVE-ARCHITECT-github\interior-generation-flow`.
 - Tách từ `main` tại `aa2efa7`.
 - Phạm vi: đặc tả người dùng ngày 23/10/2026 về thiết kế lại Tạo ảnh → Nội thất.
-- Chưa gộp main. Nhánh sẵn sàng để duyệt; thực hiện quy trình review/merge của repo khi được yêu cầu.
+- Người dùng đã yêu cầu kiểm tra tích hợp với main rồi gộp. Việc gộp thực hiện từ checkout main sau khi các kiểm tra đạt.
 
 ## Đã hoàn thành
 
@@ -18,15 +18,19 @@
 
 - `npm run typecheck`: đạt (domain và desktop).
 - `npm run lint`: đạt.
-- `npm test -- --maxWorkers=2 --reporter=dot`: 1.231 kiểm tra đạt, 114 file.
+- `npm test -- --maxWorkers=2 --reporter=dot`: 1.232 kiểm tra đạt, 114 file (gồm regression bổ sung lúc kiểm tra tích hợp).
 - `cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --jobs 2 -- --test-threads=2`: 372 đạt, 6 bỏ qua có sẵn; không có lỗi.
 - `npm run build -w @arch/desktop`: đạt.
 - `npm run build`: đạt; đóng gói Windows NSIS `.exe` và MSI, phiên bản hiện tại 0.1.0.
 - `node tools/qa/interior-generation.mjs`: đạt ở 1280×720, 1440×1000 và 1920×1080. Lưới ba cột, sticky Generate, xử lý xung đột, AI chỉ phân tích, source/reference đúng thứ tự, tiếp tục từ ảnh kết quả; không lỗi JavaScript.
+- `npm run test:ui`: đạt lại cho luồng Công trình/Node hiện có: import, chọn nguồn, bản nháp, video, upscale, vùng chọn, chỉnh màu, batch, diagram/publishing, tải ảnh gốc và đổi kích thước cửa sổ. Không có ghi dữ liệu ngoài mock.
 - Kiểm thử dùng mock/cục bộ, không phát sinh cuộc gọi AI trả phí. Đã kiểm tra ảnh chụp giao diện workflow và lưới style.
 - Các regression đã có test đỏ trước khi sửa: lỗi thứ tự source/reference, mất legacy selection khi state mới không đọc được, bypass khóa khi gửi lại snapshot, reference màu xung đột material lock, nhận nhầm “ban đêm”/“tự nhiên” là đồ nội thất, nhầm đổi màu tường với đổi kiến trúc, giữ nhầm purpose Variation, khung hình lấy từ ảnh khác, Hoàn tác không khôi phục nguồn Node, lineage nhận nhầm ảnh tham chiếu Master.
 
 ## Lưu ý / giới hạn
+
+- Rà soát tích hợp 23/10/2026: `origin/main` vẫn ở `aa2efa7`, là tổ tiên của nhánh; rebase không cần giải quyết xung đột. Kiểm tra lại các thay đổi chung ở store, compiler, provider, vùng chọn, Prompt/Node và dữ liệu dự án cũ.
+- Đã bắt lỗi hồi quy trước khi sửa: `setGenerateDraft` lưu state mới vào workspace/localStorage nhưng chưa cập nhật cache theo dự án trong phiên. Khi mở lại dự án, cache cũ khôi phục sai Prompt/ảnh nguồn. Đã đồng bộ cache và thêm test mở lại dự án sau khi sửa Prompt/nguồn Node.
 
 - Không tự xóa asset, history hoặc output khi Hoàn tác. Đây là thao tác quay về ảnh nguồn và lựa chọn trước lượt tạo, không phải xóa dữ liệu.
 - Camera Director có cameraId cụ thể vẫn dùng compiler cũ. Các cấu hình DNA nâng cao của đường dẫn này vẫn được giữ; các lựa chọn Tạo ảnh mới được lưu riêng trong shot intent để tránh kéo các preset/material cũ vào prompt mới.

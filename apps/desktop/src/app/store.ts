@@ -868,7 +868,10 @@ export const useStudio = create<State>((set, get) => {
                 interiorGeneration: generation,
               }
             : undefined;
-        if (workspace && shotIntent) saveShotIntent(workspace.project.id, shotIntent);
+        if (workspace && shotIntent) {
+          shotIntents.set(workspace.project.id, shotIntent);
+          saveShotIntent(workspace.project.id, shotIntent);
+        }
         return {
           ...(workspace && shotIntent ? { workspace: { ...workspace, shotIntent } } : {}),
           generateDraft: {

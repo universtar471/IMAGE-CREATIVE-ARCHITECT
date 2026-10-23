@@ -197,6 +197,22 @@ it("keeps legacy Prompt edits synchronized with the structured instruction", asy
     "Living room, modern, predominantly black and white",
   );
 });
+it("restores the latest Prompt and Node source after reopening a project in the same session", async () => {
+  const p = await open();
+  db.assets.AST_NEXT_SOURCE = asset(p.id, "AST_NEXT_SOURCE", { role: "regular_image" });
+  useStudio
+    .getState()
+    .setGenerateDraft({
+      source: "sketch",
+      referenceAssetIds: ["AST_NEXT_SOURCE"],
+      extraPrompt: "Keep a modern black and white palette",
+    });
+  await useStudio.getState().openProject(p.id);
+  expect(useStudio.getState().workspace!.shotIntent!.interiorGeneration).toMatchObject({
+    input: { assetId: "AST_NEXT_SOURCE" },
+    instruction: "Keep a modern black and white palette",
+  });
+});
 it("only requests lighting advice, then applies it explicitly", async () => {
   await open();
   render(<GeneratePanel />);
