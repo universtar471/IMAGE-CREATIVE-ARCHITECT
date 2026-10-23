@@ -1643,6 +1643,16 @@ export const en = {
     result: "Region edit result",
   },
 
+  variation: {
+    title: "Create variation",
+    back: "Back to Create image",
+    source: "Variation source",
+    settings: "Generation settings",
+    cameraMode: "Camera mode",
+    keepCamera: "Keep original camera",
+    changeCamera: "Change camera",
+    cameraLockedHint: "Choose Change camera to unlock the view presets.",
+  },
   interiorFlow: {
     resultVariation: "Create variation",
     resultRealism: "Increase realism",

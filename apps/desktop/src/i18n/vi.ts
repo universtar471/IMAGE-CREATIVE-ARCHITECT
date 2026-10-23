@@ -1638,6 +1638,16 @@ export const vi: Dict = {
     result: "Kết quả chỉnh vùng",
   },
 
+  variation: {
+    title: "Tạo biến thể",
+    back: "Quay lại Tạo ảnh",
+    source: "Ảnh nguồn tạo biến thể",
+    settings: "Thiết lập tạo ảnh",
+    cameraMode: "Chế độ góc máy",
+    keepCamera: "Giữ góc gốc",
+    changeCamera: "Đổi góc máy",
+    cameraLockedHint: "Chọn Đổi góc máy để mở các lựa chọn góc chụp.",
+  },
   interiorFlow: {
     resultVariation: "Tạo biến thể",
     resultRealism: "Tăng độ thật",

@@ -38,6 +38,12 @@ import { effectivePanelWidth, useWorkspaceLayout } from "../../features/workspac
 /** Contextual right panel: content depends on the active module / selection. */
 export function PropertyPanel() {
   const active = useStudio((s) => s.activeModule);
+  const variation = useStudio(
+    (s) =>
+      s.generatePanelMode === "variation" &&
+      (s.activeModule === "generate" ||
+        (s.activeModule === "camera" && s.workspace?.project.projectType === "interior")),
+  );
   const regionSourceId = useStudio(
     (s) => s.selectedAssetId ?? s.workspace?.project.activeMasterAssetId,
   );
@@ -50,8 +56,11 @@ export function PropertyPanel() {
   const mod = moduleById(active);
   const t = useT();
   const isInterior = useStudio((s) => s.workspace?.project.projectType === "interior");
-  const label =
-    isInterior && mod.id === "design_dna" ? t("interior.space") : t(`modules.${mod.id}.label`);
+  const label = variation
+    ? t("variation.title")
+    : isInterior && mod.id === "design_dna"
+      ? t("interior.space")
+      : t(`modules.${mod.id}.label`);
   const panelBody = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
@@ -91,7 +100,7 @@ export function PropertyPanel() {
 
   useEffect(() => {
     if (panelBody.current) panelBody.current.scrollTop = 0;
-  }, [active, variationSource]);
+  }, [active, variationSource, variation]);
 
   return (
     <aside
@@ -165,11 +174,11 @@ export function PropertyPanel() {
           </div>
         )}
         {/* References has its own full asset panel; elsewhere the selection block leads. */}
-        {active !== "references" && active !== "camera" && <SelectionInspector />}
+        {active !== "references" && active !== "camera" && !variation && <SelectionInspector />}
         {active === "style" && <StylePanel />}
         {active === "rooms" && <RoomsPanel />}
-        {active === "camera" && <CameraGenerationPanel />}
-        {active === "camera" && <ModuleAssist scope="camera" stepId="dna.camera" />}
+        {active === "camera" && !variation && <CameraGenerationPanel />}
+        {active === "camera" && !variation && <ModuleAssist scope="camera" stepId="dna.camera" />}
         {active === "mood_grade" && <ModuleAssist scope="mood" />}
         {active === "overview" && <OverviewPanel />}
         {active === "design_dna" && (
@@ -187,9 +196,9 @@ export function PropertyPanel() {
             <SpaceReferences />
           </StepFrame>
         )}
-        {active === "generate" && <GeneratePanel />}
+        {(active === "generate" || (active === "camera" && variation)) && <GeneratePanel />}
         {active === "video" && <VideoPanel />}
-        {active === "camera" && (
+        {active === "camera" && !variation && (
           <StepFrame stepId="dna.camera">
             <CameraPanel />
           </StepFrame>

@@ -17,6 +17,7 @@ import {
   isInteriorShot,
   blankCamera,
   generationFromLegacy,
+  selectGenerationGoal,
   effectiveGenerationPreserve,
   cameraFromInteriorMode,
   sameCameraPose,
@@ -247,6 +248,9 @@ type State = {
   /** Provider settings dialog; `focus` = provider to highlight. */
   providerDialog: { focus: string | null } | null;
   generateDraft: GenerateDraft;
+  generatePanelMode: "create" | "variation";
+  setGeneratePanelMode: (mode: "create" | "variation") => void;
+  startVariation: (assetId: string) => void;
   regionAction: RegionAction;
   setRegionAction: (action: RegionAction) => void;
   videoDraft: VideoDraft;
@@ -568,6 +572,7 @@ export const useStudio = create<State>((set, get) => {
     providerDialog: null,
     regionAction: "edit",
     generateDraft: EMPTY_GENERATE_DRAFT,
+    generatePanelMode: "create",
     videoDraft: EMPTY_VIDEO_DRAFT,
     run: null,
     enhanceSubmission: null,
@@ -591,6 +596,7 @@ export const useStudio = create<State>((set, get) => {
         save: SAVED,
         regionAction: "edit",
         generateDraft: EMPTY_GENERATE_DRAFT,
+        generatePanelMode: "create",
         videoDraft: EMPTY_VIDEO_DRAFT,
         enhanceSubmission: null,
         workflowView: null,
@@ -723,6 +729,41 @@ export const useStudio = create<State>((set, get) => {
             : {}),
         };
       }),
+    setGeneratePanelMode: (generatePanelMode) => set({ generatePanelMode }),
+    startVariation: (assetId) => {
+      const ws = get().workspace;
+      if (
+        !ws ||
+        ws.project.archivedAt ||
+        !ws.assets.some(
+          (a) => a.id === assetId && a.status === "ready" && a.mimeType?.startsWith("image/"),
+        )
+      )
+        return;
+      const sameSource = get().generateDraft.referenceAssetIds?.[0] === assetId;
+      if (ws.project.projectType === "interior") {
+        const previous =
+          ws.shotIntent?.interiorGeneration ?? generationFromLegacy(ws.draftDna.interior?.roomId);
+        const source = generationWithSource(previous, assetId);
+        const next =
+          source.goal === "variations" ? source : selectGenerationGoal(source, "variations");
+        get().setShotIntent({
+          ...ws.shotIntent,
+          projectType: "interior",
+          interiorGeneration: next,
+        });
+      }
+      const reference = get().workspace?.shotIntent?.interiorGeneration?.reference;
+      get().setGenerateDraft({
+        source: "sketch",
+        purpose: "variation",
+        referenceAssetIds: [assetId, ...(reference ? [reference.assetId] : [])],
+        ...(sameSource ? {} : { params: null }),
+      });
+      get().selectAsset(assetId, { keepView: true });
+      get().setModule("generate");
+      set({ generatePanelMode: "variation", inspectorOpen: true });
+    },
     setRegionAction: (regionAction) => set({ regionAction }),
     setVideoDraft: (patch) => set((s) => ({ videoDraft: { ...s.videoDraft, ...patch } })),
     setNodeViewport: (projectId, viewport) =>
@@ -1009,6 +1050,7 @@ export const useStudio = create<State>((set, get) => {
       const interior = g.prompt?.shotIntent?.interiorGeneration;
       if (interior) get().setShotIntent(g.prompt.shotIntent!);
       set({
+        generatePanelMode: g.purpose === "variation" ? "variation" : "create",
         generateDraft: {
           source: interior?.input.assetId ? "sketch" : "dna",
           providerId: g.providerId,
