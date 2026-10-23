@@ -571,16 +571,35 @@ try {
           ...ctx.getImageData(Math.floor(c.width * x), Math.floor(c.height * 0.5), 1, 1).data,
         ]);
       });
+    // Grading runs in animation-frame chunks; a full 1600px image can need more
+    // than 300ms on the Windows runner. Wait for the asserted pixels, not a timer.
+    const waitForPixels = async (ready, message) => {
+      const deadline = Date.now() + 10_000;
+      let value;
+      do {
+        value = await pixels();
+        if (ready(value)) return value;
+        await page.waitForTimeout(50);
+      } while (Date.now() < deadline);
+      assert(ready(value), message);
+      return value;
+    };
     await surface.getByRole("button", { name: "Before", exact: true }).click();
     await page.waitForTimeout(150);
     const before = await pixels();
     await surface.getByRole("button", { name: "After", exact: true }).click();
-    await page.waitForTimeout(300);
-    const after = await pixels();
+    const after = await waitForPixels(
+      (value) => JSON.stringify(value) !== JSON.stringify(before),
+      "The chosen grade must finish rendering different preview pixels",
+    );
     assert.notDeepEqual(before, after, "The chosen grade must change the preview pixels");
     await surface.getByRole("button", { name: "Split", exact: true }).click();
-    await page.waitForTimeout(300);
-    const split = await pixels();
+    const split = await waitForPixels(
+      (value) =>
+        JSON.stringify(value[0]) === JSON.stringify(before[0]) &&
+        JSON.stringify(value[1]) === JSON.stringify(after[1]),
+      "Split must finish restoring original pixels on the left and graded pixels on the right",
+    );
     assert.deepEqual(split[0], before[0], "Split left shows the original");
     assert.deepEqual(split[1], after[1], "Split right shows the graded result");
     assert.equal(await surface.getByTestId("grade-preview-error").count(), 0);
