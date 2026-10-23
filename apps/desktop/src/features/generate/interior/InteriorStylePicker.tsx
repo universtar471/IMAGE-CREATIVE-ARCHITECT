@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LayoutGrid, Undo2 } from "lucide-react";
 import {
   GENERATION_STYLES,
   type InteriorGenerationState,
@@ -58,10 +59,12 @@ export function InteriorStylePicker({
         aria-pressed={state.style === null}
         onClick={() => choose(null)}
       >
+        <Undo2 size={16} aria-hidden />
         {t("interiorFlow.originalStyle")}
       </button>
       {grid(visible)}
       <button type="button" className="btn btn-sm" onClick={() => setAll(true)}>
+        <LayoutGrid size={16} aria-hidden />
         {t("interiorFlow.allStyles")}
       </button>
       {children}

@@ -6,7 +6,7 @@ import { HelpPopover } from "../common/HelpPopover";
 import { Archive, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { selectReadOnly, useStudio } from "../../app/store";
-import { AssetPropertyPanel } from "../../features/assets/AssetPropertyPanel";
+import { SpaceReferences } from "../../features/assets/SpaceReferences";
 import { CameraPanel } from "../../features/camera/CameraPanel";
 import { BuildingDnaPanel } from "../../features/dna/BuildingDnaPanel";
 import { ContextDnaPanel } from "../../features/dna/ContextDnaPanel";
@@ -184,7 +184,7 @@ export function PropertyPanel() {
         )}
         {active === "references" && (
           <StepFrame stepId="dna.references">
-            <AssetPropertyPanel />
+            <SpaceReferences />
           </StepFrame>
         )}
         {active === "generate" && <GeneratePanel />}

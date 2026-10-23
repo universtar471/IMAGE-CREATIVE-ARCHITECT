@@ -9,6 +9,8 @@ import {
   Shirt,
   Utensils,
   DoorOpen,
+  TextCursorInput,
+  Workflow,
 } from "lucide-react";
 import {
   isVideoAsset,
@@ -165,6 +167,7 @@ export function RoomsPanel() {
       </div>
       <div className="module-actions">
         <button className="btn" disabled={disabled} onClick={() => add(false)}>
+          <TextCursorInput size={16} aria-hidden />
           {t("menu.addPrompt")}
         </button>
         <button
@@ -173,6 +176,7 @@ export function RoomsPanel() {
           title={!sourceId ? t("menu.nodeSource") : undefined}
           onClick={() => add(true)}
         >
+          <Workflow size={16} aria-hidden />
           {t("menu.addNode")}
         </button>
       </div>

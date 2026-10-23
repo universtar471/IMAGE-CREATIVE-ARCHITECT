@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import {
   GENERATION_STYLES,
   GENERATION_LIGHTING,
@@ -116,6 +116,7 @@ export function InteriorRecommendation({
             disabled={busy || disabled}
             onClick={() => void run()}
           >
+            <RefreshCw size={16} aria-hidden />
             {t("interiorFlow.retry")}
           </button>
           <button
@@ -123,6 +124,7 @@ export function InteriorRecommendation({
             type="button"
             onClick={() => useStudio.getState().openProviderDialog("hhtech")}
           >
+            <Settings2 size={16} aria-hidden />
             {t("generate.providerSettings")}
           </button>
         </div>
@@ -163,6 +165,7 @@ export function InteriorRecommendation({
                     })
                   }
                 >
+                  <Check size={16} aria-hidden />
                   {t("interiorFlow.apply")}: {style.label[locale]}
                 </button>
               </div>
@@ -180,6 +183,7 @@ export function InteriorRecommendation({
             disabled={disabled}
             onClick={() => set({ ...state, lighting: { preset: light.preset } })}
           >
+            <Check size={16} aria-hidden />
             {t("interiorFlow.apply")}
           </button>
         </div>
