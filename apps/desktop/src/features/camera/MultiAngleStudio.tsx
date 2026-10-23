@@ -2,6 +2,7 @@
  * Geometry-only Orbit tab connected to the existing Camera DNA.
  * No render-generation calls are performed from this component.
  */
+import { fileUrl } from "../../lib/files";
 import { CameraSyncStatus } from "./CameraSyncStatus";
 import type { ReactNode } from "react";
 import type { CameraDNA } from "@arch/domain";
@@ -58,6 +59,7 @@ export type MultiAngleStudioProps = {
   pose: CameraPose;
   metadata: CameraPoseMetadata;
   status?: ReactNode;
+  sourcePreview?: ReactNode;
   onCommit: (pose: CameraPose, metadata?: CameraPoseMetadata) => void;
   onAddCamera?: () => void;
   readOnly?: boolean;
@@ -69,6 +71,7 @@ export function MultiAngleStudio({
   pose,
   metadata,
   status,
+  sourcePreview,
   onCommit,
   onAddCamera,
   readOnly = false,
@@ -143,6 +146,7 @@ export function MultiAngleStudio({
         <span>{scope === "interior" ? t("interior") : t("building")}</span>
         {status}
       </div>
+      {sourcePreview}
       <OrbitViewport
         scope={scope}
         bounds={bounds}
@@ -254,6 +258,10 @@ export function ConnectedMultiAngleStudio() {
   };
   const bounds =
     scope === "building" ? fp : { widthM: dimension("widthM", 5), depthM: dimension("depthM", 4) };
+  const draft = useStudio((s) => s.generateDraft);
+  const selectedAsset = useStudio((s) => s.selectedAssetId);
+  const sourceId = draft.referenceAssetIds?.[0] ?? selectedAsset ?? ws.project.activeMasterAssetId;
+  const source = ws.assets.find((a) => a.id === sourceId && a.status === "ready");
   const cameras = ws.draftDna.cameras;
   const camera = cameras.find((c) => c.id === selectedId) ?? cameras[0];
   const add = () => {
@@ -304,6 +312,17 @@ export function ConnectedMultiAngleStudio() {
         composition: camera.composition,
         presetId: camera.presetId,
       }}
+      sourcePreview={
+        source && (
+          <figure className="multi-angle-source">
+            <img
+              src={fileUrl(source.absolutePath) ?? undefined}
+              alt={source.originalName ?? source.id}
+            />
+            <figcaption>{t("generate.source")}</figcaption>
+          </figure>
+        )
+      }
       status={<CameraSyncStatus />}
       readOnly={readOnly}
       onAddCamera={add}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowRight, Orbit } from "lucide-react";
 import { INTERIOR_STYLES, PALETTES, applyStyleDefaults, type InteriorStyleId } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
@@ -119,6 +120,25 @@ export function StylePanel() {
           onChange={(id) => useStudio.getState().editDna("interior.paletteId", id)}
         />
       )}
+      <div className="style-next-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => useStudio.getState().setModule("generate")}
+        >
+          <ArrowRight size={16} aria-hidden /> {t("interiorFlow.generate")}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            useStudio.getState().setModule("camera");
+            useStudio.getState().setCenterView("orbit");
+          }}
+        >
+          <Orbit size={16} aria-hidden /> {t("multiAngle.title")}
+        </button>
+      </div>
       {preview && (
         <Dialog
           title={items.find((s) => s.id === preview)?.label ?? preview}

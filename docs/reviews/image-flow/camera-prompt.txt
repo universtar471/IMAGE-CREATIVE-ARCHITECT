@@ -1,0 +1,15 @@
+Architectural visualization (wide interior view) of an interior space, project type: interior.
+
+Interior space: apartment living room.
+
+Interior style: Japandi interior: calm minimal forms, pale timber, soft neutral tones, fine craftsmanship.
+
+Materials and colors: warm beige, ivory and natural wood; floor: natural oak flooring; walls: soft limewash walls; ceiling: wood-slat ceiling; cabinetry: oak veneer cabinetry; countertop: solid wood countertop; textiles: natural linen textiles; metal: matte black metal.
+
+Furnishing: balanced furnishing density.
+
+Camera: wide interior view; viewpoint: view from eye level with room-local azimuth 48 degrees clockwise around the room target; distance: about 5 m from the subject.
+
+Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.
+
+Image 1 is the authoritative source image. Preserve its building massing, floor count, proportions, openings, roof and materials; where the structured description differs, follow this image. Create a variation of this same building or interior design; change only the requested viewpoint, detail, lighting or atmosphere. Reframe the source according to the requested Camera section; do not copy its original camera angle or whole-room framing when a different view or close-up is requested. Keep the same room, furniture and finishes when creating an interior detail.

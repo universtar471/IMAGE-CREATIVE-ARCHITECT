@@ -44,7 +44,8 @@ export function WorkspaceNav() {
       m.id !== "scene_objects" &&
       m.id !== "context" &&
       !(isInterior && m.id === "references") &&
-      !(!isInterior && m.id === "rooms"),
+      m.id !== "rooms" &&
+      !(isInterior && m.id === "detail"),
   );
   // Keep the familiar overview / create entry points, followed by the design controls.
   const order = [

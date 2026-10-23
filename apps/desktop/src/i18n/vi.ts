@@ -8,6 +8,9 @@ import type { Dict } from "./index";
 
 export const vi: Dict = {
   multiAngle: {
+    generateView: "Tạo ảnh theo góc camera",
+    generateHelp:
+      "Chọn ảnh nguồn, mở Orbit để xoay, nghiêng và chỉnh khoảng cách; chọn model rồi tạo ảnh. Mô hình xem trước chỉ ước lượng hình học, không phải ảnh AI tức thời. Với nội thất, hãy chủ động mở khóa camera nguồn trước khi tạo góc mới.",
     locked: "Đang giữ góc ảnh gốc",
     unlockCamera: "Mở khóa và dùng Camera Studio",
     syncHelp:

@@ -1,3 +1,4 @@
+import { CameraGenerationPanel } from "../../features/camera/CameraGenerationPanel";
 import { StylePanel } from "../../features/style/StylePanel";
 import { RoomsPanel } from "../../features/rooms/RoomsPanel";
 import { ModuleAssist } from "../../features/assist/ModuleAssist";
@@ -164,9 +165,10 @@ export function PropertyPanel() {
           </div>
         )}
         {/* References has its own full asset panel; elsewhere the selection block leads. */}
-        {active !== "references" && <SelectionInspector />}
+        {active !== "references" && active !== "camera" && <SelectionInspector />}
         {active === "style" && <StylePanel />}
         {active === "rooms" && <RoomsPanel />}
+        {active === "camera" && <CameraGenerationPanel />}
         {active === "camera" && <ModuleAssist scope="camera" stepId="dna.camera" />}
         {active === "mood_grade" && <ModuleAssist scope="mood" />}
         {active === "overview" && <OverviewPanel />}

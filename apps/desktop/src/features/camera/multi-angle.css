@@ -139,3 +139,52 @@
   max-width: 100%;
   flex-wrap: wrap;
 }
+
+.multi-angle-source {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+.multi-angle-source img {
+  display: block;
+  width: 100%;
+  max-height: 230px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.camera-generation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.multi-angle-studio {
+  height: 100%;
+  min-height: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
+  overscroll-behavior: contain;
+}
+.multi-angle-studio:has(.multi-angle-source) .multi-angle-source {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: center;
+}
+.multi-angle-studio:has(.multi-angle-source) .multi-angle-viewport {
+  grid-column: 2;
+  grid-row: 3;
+}
+.multi-angle-source img {
+  max-height: 200px;
+}
+@media (max-width: 620px) {
+  .multi-angle-studio:has(.multi-angle-source) .multi-angle-source,
+  .multi-angle-studio:has(.multi-angle-source) .multi-angle-viewport {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
