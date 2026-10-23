@@ -57,3 +57,12 @@ git diff --check
 - Không push hoặc merge. Cần review ĐẠT trước khi merge main theo quy trình của người dùng.
 - QA phải chờ thumbnail tải xong trước chụp hình; chờ DOM tồn tại chưa bảo đảm ảnh đã hiển thị.
 
+## Kiểm tra và gộp theo yêu cầu ngày 24/10/2026
+
+- Người dùng trực tiếp yêu cầu: “test các chức năng rồi gộp main”. Codex kiểm tra diff và thực hiện gộp theo yêu cầu này; không coi đây là review của Claude.
+- Fetch origin: main và origin/main cùng `25fe20b`; hai checkout liên quan sạch trước kiểm tra. Rebase nhánh lên main không phát sinh thay đổi hoặc xung đột.
+- Cả ba browser acceptance (`reference-assist`, `interior-generation`, `test:ui`) chạy lại đạt. Kiểm tra tạo dự án, Style, tham chiếu/AI/Apply, Node, nguồn ảnh, video, vùng chọn, màu, xuất/tải ảnh và responsive.
+- Browser dùng mock, không gọi AI trả phí hoặc ghi dữ liệu dự án thật; không kiểm tra native Tauri/WebView2.
+- Chạy lại toàn bộ frontend/domain: 120 file, 1.260 test đạt (94,25 giây). Typecheck, lint, frontend production build đạt. Build vẫn có cảnh báo bundle lớn đã biết.
+- Kiểm tra whitespace phát hiện một dòng trắng cuối note cũ; đã sửa trong bản cập nhật bàn giao này, không ảnh hưởng code.
+- Theo yêu cầu trực tiếp của người dùng, gộp nhánh từ checkout main sau khi tất cả kiểm tra đạt; không push lên GitHub.
