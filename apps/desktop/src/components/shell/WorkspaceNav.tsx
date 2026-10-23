@@ -94,6 +94,7 @@ export function WorkspaceNav() {
               title={`${label}: ${t(`modules.${m.id}.description`)}`}
               data-module={m.id}
               onClick={() => {
+                if (m.id === "generate") useStudio.getState().setGeneratePanelMode("create");
                 setModule(m.id);
                 if (layout.drawer) setInspectorOpen(true);
               }}

@@ -5,7 +5,7 @@ import { HelpPopover } from "../../components/common/HelpPopover";
 import { useT } from "../../i18n";
 
 /** Locks protect the source viewpoint; editing a planned camera never silently unlocks it. */
-export function CameraSyncStatus() {
+export function CameraSyncStatus({ allowUnlock = true }: { allowUnlock?: boolean }) {
   const ws = useStudio((s) => s.workspace!);
   const selected = useStudio((s) => s.selectedCameraId);
   const readOnly = useStudio(selectReadOnly);
@@ -26,24 +26,28 @@ export function CameraSyncStatus() {
   const linked = generation.camera.cameraId === selected && !!selected;
   if (!locked && !linked) return null;
   const unlock = () => {
-    if (readOnly || !selected) return;
+    if (readOnly) return;
     const next = setGenerationPreserve(generation, "camera", false);
+    const cameraId = ws.draftDna.cameras.some((camera) => camera.id === selected) ? selected : null;
     useStudio.getState().setShotIntent({
       ...ws.shotIntent!,
-      interiorGeneration: { ...next, camera: { mode: "studio", cameraId: selected } },
+      interiorGeneration: {
+        ...next,
+        camera: cameraId ? { mode: "studio", cameraId } : { mode: "eye_level" },
+      },
     });
   };
   return (
     <span className="camera-sync-status" data-testid="camera-sync-status">
       {locked ? <LockKeyhole size={15} aria-hidden /> : <Link size={15} aria-hidden />}
       <span>{t(locked ? "multiAngle.locked" : "multiAngle.linked")}</span>
-      {locked && (
+      {locked && allowUnlock && (
         <button
           type="button"
           className="btn btn-ghost btn-icon"
           aria-label={t("multiAngle.unlockCamera")}
           title={t("multiAngle.unlockCamera")}
-          disabled={readOnly || !selected}
+          disabled={readOnly}
           onClick={unlock}
         >
           <UnlockKeyhole size={17} aria-hidden />

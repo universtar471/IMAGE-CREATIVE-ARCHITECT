@@ -82,20 +82,34 @@ export function ActiveGenerationStatus({
  * events), otherwise the newest history entry. Queued/running → live status + Cancel;
  * completed → outputs + actions; failed/cancelled/interrupted → error + Retry.
  */
-export function GenerationResult() {
+export function GenerationResult({ variationOnly = false }: { variationOnly?: boolean }) {
   const run = useStudio((s) => s.run);
   const project = useStudio((s) => s.workspace!.project);
   const generations = useStudio((s) => s.workspace!.generations);
+  const sourceId = useStudio(
+    (s) =>
+      s.workspace?.shotIntent?.interiorGeneration?.input.assetId ??
+      s.generateDraft.referenceAssetIds?.[0],
+  );
+  const matchesPanel = (generation: GenerationDTO) =>
+    !variationOnly ||
+    (generation.purpose === "variation" &&
+      (generation.prompt.shotIntent?.interiorGeneration?.input.assetId ??
+        generation.referenceAssetIds[0]) === sourceId);
   const tracked =
-    run?.status === "tracking" && run.projectId === project.id ? run.generation : null;
+    run?.status === "tracking" && run.projectId === project.id && matchesPanel(run.generation)
+      ? run.generation
+      : null;
   // History is the fresher copy (events, reloads); the run snapshot is the fallback.
   const generation =
     (tracked && (generations.find((g) => g.id === tracked.id) ?? tracked)) ??
-    generations.find((g) => g.purpose === "hero" || g.purpose === "variation") ??
+    generations.find(
+      (g) => (g.purpose === "hero" || g.purpose === "variation") && matchesPanel(g),
+    ) ??
     null;
   if (!generation) return null;
   if (isActiveGeneration(generation.status)) return <ActiveCard generation={generation} />;
-  return <ResultCard key={generation.id} generation={generation} />;
+  return <ResultCard key={generation.id} generation={generation} variationOnly={variationOnly} />;
 }
 
 function ActiveCard({ generation: g }: { generation: GenerationDTO }) {
@@ -129,7 +143,13 @@ function ActiveCard({ generation: g }: { generation: GenerationDTO }) {
   );
 }
 
-function ResultCard({ generation: g }: { generation: GenerationDTO }) {
+function ResultCard({
+  generation: g,
+  variationOnly,
+}: {
+  generation: GenerationDTO;
+  variationOnly: boolean;
+}) {
   const project = useStudio((s) => s.workspace!.project);
   const assets = useStudio((s) => s.workspace!.assets);
   const selectedId = useStudio((s) => s.selectedAssetId);
@@ -222,51 +242,55 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
             {g.durationMs !== null ? `${formatDuration(g.durationMs)} · ` : ""}
             {currentAsset?.originalName ?? ""}
           </span>
-          <div className="btn-row">
-            {awaitingApproval ? (
+          {!variationOnly && (
+            <div className="btn-row">
+              {awaitingApproval ? (
+                <button
+                  className="btn btn-sm btn-primary"
+                  disabled={readOnly}
+                  onClick={() =>
+                    void approveMaster().then(
+                      (ok) => ok && notify("success", t("result.masterApproved")),
+                    )
+                  }
+                >
+                  <ShieldCheck size={13} /> {t("overview.approve")}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-sm btn-primary"
+                  disabled={!currentAsset || isMaster || readOnly}
+                  onClick={() => (replacesMaster ? setConfirmMaster(true) : void promoteToMaster())}
+                >
+                  <Star size={13} /> {isMaster ? t("common.master") : t("result.useAsMaster")}
+                </button>
+              )}
               <button
-                className="btn btn-sm btn-primary"
-                disabled={readOnly}
-                onClick={() =>
-                  void approveMaster().then(
-                    (ok) => ok && notify("success", t("result.masterApproved")),
-                  )
-                }
+                className="btn btn-sm"
+                disabled={!currentAsset}
+                onClick={() => {
+                  if (current) selectAsset(current);
+                  setModule("references");
+                }}
               >
-                <ShieldCheck size={13} /> {t("overview.approve")}
+                <Images size={13} /> {t("result.showInReferences")}
               </button>
-            ) : (
               <button
-                className="btn btn-sm btn-primary"
-                disabled={!currentAsset || isMaster || readOnly}
-                onClick={() => (replacesMaster ? setConfirmMaster(true) : void promoteToMaster())}
+                className="btn btn-sm"
+                disabled={submitting || readOnly}
+                onClick={() => void again()}
+                title={t("result.againTitle")}
               >
-                <Star size={13} /> {isMaster ? t("common.master") : t("result.useAsMaster")}
+                <RefreshCw size={13} /> {t("result.again")}
               </button>
-            )}
-            <button
-              className="btn btn-sm"
-              disabled={!currentAsset}
-              onClick={() => {
-                if (current) selectAsset(current);
-                setModule("references");
-              }}
-            >
-              <Images size={13} /> {t("result.showInReferences")}
-            </button>
-            <button
-              className="btn btn-sm"
-              disabled={submitting || readOnly}
-              onClick={() => void again()}
-              title={t("result.againTitle")}
-            >
-              <RefreshCw size={13} /> {t("result.again")}
-            </button>
-          </div>
-          {project.projectType === "interior" && current && (
+            </div>
+          )}
+          {!variationOnly && project.projectType === "interior" && current && (
             <InteriorResultActions generation={g} assetId={current} />
           )}
-          {(awaitingApproval || (!isMaster && !project.activeMasterAssetId)) && <MasterDnaCheck />}
+          {!variationOnly && (awaitingApproval || (!isMaster && !project.activeMasterAssetId)) && (
+            <MasterDnaCheck />
+          )}
         </>
       ) : (
         <>

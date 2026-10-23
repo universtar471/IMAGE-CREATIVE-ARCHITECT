@@ -10,6 +10,8 @@ import {
   setGenerationPreserve,
   resolveGenerationConflicts,
   keepGenerationLock,
+  GENERATION_LIGHTING,
+  type GenerationLight,
   type InteriorGenerationState,
 } from "@arch/domain";
 import { SectionPanel } from "../../../components/panels/SectionPanel";
@@ -22,56 +24,88 @@ import { InteriorStylePicker } from "./InteriorStylePicker";
 import { InteriorReference } from "./InteriorReference";
 import { InteriorRecommendation } from "./InteriorRecommendation";
 import { InteriorOptions } from "./InteriorOptions";
+import { useStudio } from "../../../app/store";
 
 export function InteriorGenerateFlow({
   state,
   set,
   disabled,
   onContinue,
+  variation = false,
 }: {
   state: InteriorGenerationState;
   set: (next: InteriorGenerationState) => void;
   disabled: boolean;
   onContinue?: () => void;
+  variation?: boolean;
 }) {
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const conflicts = resolveGenerationConflicts(state);
   return (
-    <div className="interior-generate-flow" data-testid="interior-generate-flow">
-      <SectionPanel title={t("interiorFlow.source")}>
-        <InteriorSourceInput state={state} set={set} disabled={disabled} />
-      </SectionPanel>
-      <InteriorOptions state={state} set={set} disabled={disabled} />
-      <SectionPanel title={t("interiorFlow.goal")}>
-        <GenerationChoices
-          items={GENERATION_GOALS}
-          value={state.goal}
-          disabled={disabled}
-          label={t("interiorFlow.goal")}
-          onChange={(id) => set(selectGenerationGoal(state, id))}
-        />
-      </SectionPanel>
-      <SectionPanel title={t("interiorFlow.room")}>
-        <GenerationChoices
-          items={GENERATION_ROOMS}
-          value={state.room}
-          disabled={disabled}
-          label={t("interiorFlow.room")}
-          onChange={(room) => set({ ...state, room })}
-        />
-      </SectionPanel>
+    <div
+      className="interior-generate-flow"
+      data-testid={variation ? "interior-variation-flow" : "interior-generate-flow"}
+    >
+      {!variation && (
+        <>
+          <SectionPanel title={t("interiorFlow.source")}>
+            <InteriorSourceInput state={state} set={set} disabled={disabled} />
+          </SectionPanel>
+          <InteriorOptions state={state} set={set} disabled={disabled} />
+          <SectionPanel title={t("interiorFlow.goal")}>
+            <GenerationChoices
+              items={GENERATION_GOALS}
+              value={state.goal}
+              disabled={disabled}
+              label={t("interiorFlow.goal")}
+              onChange={(id) => {
+                set(selectGenerationGoal(state, id));
+                if (id === "variations") useStudio.getState().setGeneratePanelMode("variation");
+              }}
+            />
+          </SectionPanel>
+          <SectionPanel title={t("interiorFlow.room")}>
+            <GenerationChoices
+              items={GENERATION_ROOMS}
+              value={state.room}
+              disabled={disabled}
+              label={t("interiorFlow.room")}
+              onChange={(room) => set({ ...state, room })}
+            />
+          </SectionPanel>
+        </>
+      )}
+      {variation && (
+        <SectionPanel title={t("interiorFlow.camera")}>
+          <InteriorCameraControls state={state} set={set} disabled={disabled} />
+        </SectionPanel>
+      )}
       <SectionPanel title={t("interiorFlow.style")}>
         <InteriorStylePicker state={state} set={set} disabled={disabled}>
           <InteriorRecommendation kind="style" state={state} set={set} disabled={disabled} />
           <InteriorReference state={state} set={set} disabled={disabled} />
         </InteriorStylePicker>
-        {onContinue && (
+        {onContinue && !variation && (
           <button type="button" className="btn btn-primary" onClick={onContinue}>
             <ArrowRight size={15} aria-hidden /> {t("interiorFlow.generate")}
           </button>
         )}
       </SectionPanel>
+      {variation && (
+        <SectionPanel title={t("interiorFlow.lighting")}>
+          <GenerationChoices
+            items={GENERATION_LIGHTING}
+            value={state.lighting.preset}
+            disabled={disabled}
+            label={t("interiorFlow.lighting")}
+            onChange={(preset) =>
+              set({ ...state, lighting: { preset: preset as GenerationLight } })
+            }
+          />
+          <InteriorRecommendation kind="lighting" state={state} set={set} disabled={disabled} />
+        </SectionPanel>
+      )}
       <SectionPanel title={t("interiorFlow.changeLevel")}>
         <GenerationChoices
           items={GENERATION_CHANGE_LEVELS}
@@ -106,16 +140,18 @@ export function InteriorGenerateFlow({
       </SectionPanel>
       <SectionPanel
         title={t("interiorFlow.customize")}
-        defaultOpen={state.goal === "ambience"}
+        defaultOpen={variation || state.goal === "ambience"}
         aside={
           <HelpPopover topic={t("interiorFlow.customize")}>
             {t("interiorFlow.customizeHint")}
           </HelpPopover>
         }
       >
-        <SectionPanel title={t("interiorFlow.camera")}>
-          <InteriorCameraControls state={state} set={set} disabled={disabled} />
-        </SectionPanel>
+        {!variation && (
+          <SectionPanel title={t("interiorFlow.camera")}>
+            <InteriorCameraControls state={state} set={set} disabled={disabled} />
+          </SectionPanel>
+        )}
         <label className="field">
           <span className="field-label">{t("interiorFlow.instruction")}</span>
           <textarea

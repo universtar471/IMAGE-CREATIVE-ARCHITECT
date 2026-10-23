@@ -69,7 +69,6 @@ export type SelectionAction = {
 };
 
 const isImageLike = (s: Selection) => s.kind === "image" && s.origin !== "ai";
-const isAiImage = (s: Selection) => s.kind === "image" && s.origin === "ai";
 const anyImage = (s: Selection) => s.kind === "image";
 const assetOf = (s: Selection) =>
   s.kind === "image" || s.kind === "video" || s.kind === "reference" ? s.asset : null;
@@ -152,7 +151,7 @@ export const SELECTION_ACTIONS: readonly SelectionAction[] = [
     labelKey: "selectionActions.variation",
     icon: Sparkles,
     risk: "draft",
-    applies: isAiImage,
+    applies: anyImage,
     disabledReason: writable,
     run: (s, env) => {
       env.useAsSource(assetOf(s)!.id, true);

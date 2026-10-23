@@ -29,6 +29,11 @@ export function InteriorResultActions({
   )?.id;
   const prepare = (goal: GenerationGoal) => {
     const s = useStudio.getState();
+    if (goal === "variations") {
+      s.startVariation(assetId);
+      return;
+    }
+    s.setGeneratePanelMode("create");
     const state = selectGenerationGoal(
       generationWithSource(
         s.workspace?.shotIntent?.interiorGeneration ?? initialInteriorGeneration(),
@@ -44,7 +49,7 @@ export function InteriorResultActions({
     s.setGenerateDraft({
       source: "sketch",
       referenceAssetIds: [assetId, ...(state.reference ? [state.reference.assetId] : [])],
-      purpose: goal === "variations" ? "variation" : "hero",
+      purpose: "hero",
       params: null,
       extraPrompt: state.instruction,
     });

@@ -28,6 +28,7 @@ import type { InteriorGenerationState } from "@arch/domain";
 import { useInteriorGeneration } from "./interior/useInteriorGeneration";
 import { InteriorGenerateFlow } from "./interior/InteriorGenerateFlow";
 import { interiorGenerateDisabledReason, resolveInteriorGenerateForm } from "./interior/form";
+import { VariationSource } from "./VariationSource";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
@@ -53,6 +54,7 @@ function GenerateContent({
   const loadProviders = useStudio((s) => s.loadProviders);
   const ws = useStudio((s) => s.workspace!);
   const draft = useStudio((s) => s.generateDraft);
+  const variation = useStudio((s) => s.generatePanelMode === "variation");
   const run = useStudio((s) => s.run);
   const readOnly = useStudio(selectReadOnly);
   const saveStatus = useStudio((s) => s.save.status);
@@ -106,7 +108,15 @@ function GenerateContent({
     approvedExceptions: draft.approvedExceptions,
     shotIntent: ws.shotIntent,
   });
+  const variationSource = variation
+    ? (ws.assets.find(
+        (asset) =>
+          asset.id === (interior?.state.input.assetId ?? draft.referenceAssetIds?.[0]) &&
+          asset.status === "ready",
+      ) ?? null)
+    : null;
   const disabledReason =
+    (variation && !variationSource ? t("interiorFlow.imageUnavailable") : null) ??
     reason ??
     (interior
       ? interiorGenerateDisabledReason(interior.state, ws.assets, ws.draftDna.cameras)
@@ -181,13 +191,23 @@ function GenerateContent({
   };
 
   return (
-    <div className="generate-panel">
-      <GenerateProviderControls form={form} disabled={readOnly || running} />
+    <div className="generate-panel" data-testid={variation ? "variation-panel" : "generate-panel"}>
+      {variation ? (
+        <>
+          <VariationSource asset={variationSource} disabled={running} />
+          <SectionPanel title={t("variation.settings")} defaultOpen={false}>
+            <GenerateProviderControls form={form} disabled={readOnly || running} />
+          </SectionPanel>
+        </>
+      ) : (
+        <GenerateProviderControls form={form} disabled={readOnly || running} />
+      )}
       {interior ? (
         <InteriorGenerateFlow
           state={interior.state}
           set={interior.set}
           disabled={readOnly || running}
+          variation={variation}
           onContinue={() => {
             generateButton.current?.scrollIntoView({ block: "center", behavior: "smooth" });
             generateButton.current?.focus({ preventScroll: true });
@@ -195,7 +215,7 @@ function GenerateContent({
         />
       ) : (
         <>
-          {form.purpose === "variation" && form.sketch && (
+          {!variation && form.purpose === "variation" && form.sketch && (
             <div className="variation-source" data-testid="variation-source">
               <img
                 src={fileUrl(form.sketch.thumbnailPath ?? form.sketch.absolutePath) ?? undefined}
@@ -252,7 +272,7 @@ function GenerateContent({
         <GeneratePromptPreview referenceIds={form.referenceIds} />
       </SectionPanel>
 
-      <GenerationResult />
+      <GenerationResult variationOnly={variation} />
 
       <div className="generate-footer">
         {thisRun?.status === "error" && (
@@ -284,11 +304,13 @@ function GenerateContent({
           data-testid="generate-button"
         >
           <Sparkles size={15} />
-          {interior
-            ? t("interiorFlow.generate")
-            : form.purpose === "hero"
-              ? t("generate.generateHero")
-              : t("generate.generateVariation")}
+          {variation
+            ? t("variation.title")
+            : interior
+              ? t("interiorFlow.generate")
+              : form.purpose === "hero"
+                ? t("generate.generateHero")
+                : t("generate.generateVariation")}
           {form.params.outputCount > 1 ? ` ×${form.params.outputCount}` : ""}
         </button>
         {cost && (

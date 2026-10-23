@@ -111,6 +111,7 @@ it("edits space and lighting directly from Generate without losing the source or
   const before = useStudio.getState().workspace!;
   useStudio.getState().setShotIntent({
     ...before.shotIntent,
+    projectType: "interior",
     interiorGeneration: {
       ...before.shotIntent!.interiorGeneration!,
       instruction: "Keep the current scene.",

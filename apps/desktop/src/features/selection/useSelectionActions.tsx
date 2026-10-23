@@ -6,7 +6,6 @@ import { useState, type ReactNode } from "react";
 import {
   generationWithSource,
   initialInteriorGeneration,
-  selectGenerationGoal,
   setShotPresets,
   type AssetDTO,
   type ProjectDNA,
@@ -43,9 +42,14 @@ export function useSelectionActions(selection: Selection): {
     },
     useAsSource: (assetId, variation = false) => {
       const s = useStudio.getState();
+      if (variation) {
+        s.startVariation(assetId);
+        return;
+      }
+      s.setGeneratePanelMode("create");
       s.setGenerateDraft({
         source: "sketch",
-        purpose: variation ? "variation" : "hero",
+        purpose: "hero",
         referenceAssetIds: [assetId],
         params: null,
       });
@@ -57,16 +61,8 @@ export function useSelectionActions(selection: Selection): {
         s.setShotIntent({
           ...s.workspace.shotIntent,
           projectType: "interior",
-          interiorGeneration: variation ? selectGenerationGoal(state, "variations") : state,
+          interiorGeneration: state,
         });
-      } else if (variation && s.workspace) {
-        s.setShotIntent(
-          setShotPresets(
-            { projectType: s.workspace.project.projectType },
-            [],
-            s.workspace.draftDna as ProjectDNA,
-          ).shotIntent,
-        );
       }
       s.notify("success", t("branches.sourceSet"));
     },
