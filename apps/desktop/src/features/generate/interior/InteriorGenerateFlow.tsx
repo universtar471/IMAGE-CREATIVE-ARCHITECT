@@ -1,10 +1,10 @@
+import { InteriorCameraControls } from "../../camera/InteriorCameraControls";
 import { type ReactNode } from "react";
 import {
   GENERATION_GOALS,
   GENERATION_ROOMS,
   GENERATION_CHANGE_LEVELS,
   GENERATION_PRESERVE,
-  GENERATION_CAMERAS,
   GENERATION_LIGHTING,
   selectGenerationGoal,
   selectChangeLevel,
@@ -109,18 +109,7 @@ export function InteriorGenerateFlow({
         }
       >
         <SectionPanel title={t("interiorFlow.camera")}>
-          <GenerationChoices
-            items={GENERATION_CAMERAS}
-            value={state.camera.mode}
-            disabled={disabled || state.preserve.camera}
-            label={t("interiorFlow.camera")}
-            onChange={(mode) =>
-              set({ ...state, camera: { mode: mode as InteriorGenerationState["camera"]["mode"] } })
-            }
-          />
-          {state.preserve.camera && (
-            <span className="field-hint">{t("interiorFlow.cameraLocked")}</span>
-          )}
+          <InteriorCameraControls state={state} set={set} disabled={disabled} />
         </SectionPanel>
         <SectionPanel title={t("interiorFlow.lighting")}>
           <GenerationChoices

@@ -161,7 +161,7 @@ describe("setShotPresets", () => {
 
 describe("compiler PRESETS section", () => {
   it("is byte-identical without presets and versioned with them", () => {
-    expect(COMPILER_VERSION).toBe("pc-1.11.0");
+    expect(COMPILER_VERSION).toBe("pc-1.12.0");
     const dna = baseDna();
     const plain = compile(dna);
     expect(plain.positivePrompt).not.toContain(PRESETS_HEADING);

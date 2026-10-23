@@ -199,3 +199,20 @@ ADR-012…015, `docs/API_CONTRACTS.md` §9); notes in `docs/agent-notes/p2-*.md`
 
 ## Notes
 Update this file after each meaningful milestone.
+
+## 2026-10-23 — Multi-Angle Camera M1 (local review)
+
+Added Camera > Orbit, geometry proxy, context-specific presets, accessible icon controls,
+VI/EN help, and canonical camera/autosave integration. History Graph, provider execution,
+original assets and migrations are unchanged. See `tasks/MULTI_ANGLE_M1.md` and
+`docs/reviews/multi-angle-m1/REPORT.md` for checks and limitations.
+No push/merge/PR/remote mutation authorized or performed.
+
+## 2026-10-23 — Camera synchronization follow-up (local review)
+
+Connected Camera DNA across Orbit, Director, the interior inspector and structured Generate.
+Added stable camera references, room-local prompt angles, shared preset poses/lenses,
+explicit original-camera lock handling, linked-selection restoration and missing-link checks.
+Corrected exterior Orbit left/right preset signs to match Camera Director (+45° left,
+−45° right), improved fractional-angle display and kept original generation snapshots intact.
+See ADR-052 and `docs/reviews/camera-sync/REPORT.md`. No push or merge performed.

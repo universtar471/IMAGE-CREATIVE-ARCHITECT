@@ -5,6 +5,50 @@
 export type Plural = { readonly one: string; readonly other: string };
 
 export const en = {
+  multiAngle: {
+    locked: "Original camera locked",
+    unlockCamera: "Unlock and use Camera Studio",
+    syncHelp:
+      "Viewpoint presets, Orbit and Camera Director use the same Camera DNA. Camera Studio preserves exact rotation, tilt and distance in the generation prompt. Original camera keeps the source viewpoint; unlock it explicitly to use a planned camera. Geometry is estimated, not a reconstruction.",
+    openStudio: "Open Camera Studio",
+    cameraMissing:
+      "The linked camera was removed. Choose another camera or viewpoint before generating.",
+    linked: "Camera DNA linked",
+
+    title: "Multi-Angle",
+    newCamera: "Add camera",
+    noCamera: "No camera selected",
+    preset: "Views",
+    presetHelp:
+      "Choose a viewpoint for this project type. AI image creation requires an explicit Generate action and spending confirmation.",
+    controls: "Camera pose",
+    controlsHelp:
+      "Drag the proxy to orbit or use sliders. This is geometry-only, not an AI render.",
+    source: "Space type",
+    building: "Building",
+    interior: "Interior",
+    orbit: "Orbit",
+    reset: "Reset pose",
+    camera: "Camera",
+    azimuth: "Rotation",
+    elevation: "Tilt",
+    distance: "Distance",
+    distanceHelp:
+      "Meter-based distance is physically meaningful only with scaled geometry. Optical zoom is separate.",
+    geometry: "Geometry preview only; no AI image generated.",
+    saved: "Synced to Camera DNA",
+    details: "Advanced fields remain in the existing Camera Panel.",
+    front: "Front",
+    front_left: "Left 45°",
+    front_right: "Right 45°",
+    aerial: "Aerial",
+    wide_room: "Room wide",
+    room_corner: "Corner",
+    eye_level: "Eye level",
+    detail_focus: "Close-up",
+    tab: "Orbit",
+    estimated: "Geometry · Estimated",
+  },
   menu: {
     designType: "Design type",
     interior: "Interior",

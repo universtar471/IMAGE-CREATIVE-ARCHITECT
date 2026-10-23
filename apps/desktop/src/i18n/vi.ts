@@ -7,6 +7,49 @@
 import type { Dict } from "./index";
 
 export const vi: Dict = {
+  multiAngle: {
+    locked: "Đang giữ góc ảnh gốc",
+    unlockCamera: "Mở khóa và dùng Camera Studio",
+    syncHelp:
+      "Preset góc nhìn, Orbit và Camera Director cùng dùng Camera DNA. Camera Studio đưa góc xoay, độ nghiêng và khoảng cách chính xác vào Prompt tạo ảnh. Giữ góc gốc dùng góc của ảnh nguồn; cần mở khóa rõ ràng để dùng camera đã bố trí. Hình học chỉ là ước tính.",
+    openStudio: "Mở Camera Studio",
+    cameraMissing: "Camera liên kết đã bị xóa. Chọn camera hoặc preset khác trước khi tạo ảnh.",
+    linked: "Đã nối Camera DNA",
+
+    title: "Multi-Angle",
+    newCamera: "Thêm camera",
+    noCamera: "Chưa có camera",
+    preset: "Góc nhìn",
+    presetHelp:
+      "Chọn góc máy phù hợp với loại dự án. Tạo ảnh thật chỉ diễn ra khi nhấn Generate và xác nhận chi phí.",
+    controls: "Góc camera",
+    controlsHelp:
+      "Kéo trên mô hình để xoay hoặc dùng các thanh điều khiển. Đây chỉ là preview hình học, không phải kết quả AI.",
+    source: "Loại không gian",
+    building: "Công trình",
+    interior: "Nội thất",
+    orbit: "Xoay góc",
+    reset: "Khôi phục góc",
+    camera: "Camera",
+    azimuth: "Xoay",
+    elevation: "Nghiêng",
+    distance: "Khoảng cách",
+    distanceHelp:
+      "Khoảng cách tính bằng mét chỉ chính xác khi có hình học và tỷ lệ nguồn. Zoom quang học là thiết lập khác.",
+    geometry: "Preview hình học; chưa tạo ảnh AI.",
+    saved: "Đã đồng bộ Camera DNA",
+    details: "Thông số nâng cao dùng Camera Panel hiện có.",
+    front: "Mặt tiền",
+    front_left: "Trái 45°",
+    front_right: "Phải 45°",
+    aerial: "Flycam",
+    wide_room: "Toàn phòng",
+    room_corner: "Góc chéo",
+    eye_level: "Tầm mắt",
+    detail_focus: "Cận cảnh",
+    tab: "Orbit",
+    estimated: "Hình học · Ước tính",
+  },
   menu: {
     designType: "Loại thiết kế",
     interior: "Nội thất",

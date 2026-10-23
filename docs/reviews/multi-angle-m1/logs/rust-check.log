@@ -1,0 +1,6 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> arch-ai-studio@0.1.0 check:rust
+> cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+sh: 1: cargo: not found

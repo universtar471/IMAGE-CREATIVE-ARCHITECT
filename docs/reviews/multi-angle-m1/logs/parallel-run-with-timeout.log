@@ -1,0 +1,191 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> arch-ai-studio@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.3 /workspace/scratch/797f52af00a3/multi-angle-m1
+
+ ❯ |desktop| tests/branchCanvas.test.tsx (6 tests | 1 failed) 2306ms
+   ❯ branch canvas (ADR-041) (6)
+     × compares two images selected with Shift in the large viewer 1092ms
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's load() method
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |desktop| tests/branchCanvas.test.tsx > branch canvas (ADR-041) > compares two images selected with Shift in the large viewer
+AssertionError: expected 'none' to be 'image' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"branch-canvas"[39m
+        [33mdata-testid[39m=[32m"branch-canvas"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"branch-toolbar"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn-sm"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-layout-grid"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"13"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"13"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<rect[39m
+                [33mheight[39m=[32m"7"[39m
+                [33mrx[39m=[32m"1"[39m
+                [33mwidth[39m=[32m"7"[39m
+                [33mx[39m=[32m"3"[39m
+                [33my[39m=[32m"3"[39m
+              [36m/>[39m
+              [36m<rect[39m
+                [33mheight[39m=[32m"7"[39m
+                [33mrx[39m=[32m"1"[39m
+                [33mwidth[39m=[32m"7"[39m
+                [33mx[39m=[32m"14"[39m
+                [33my[39m=[32m"3"[39m
+              [36m/>[39m
+              [36m<rect[39m
+                [33mheight[39m=[32m"7"[39m
+                [33mrx[39m=[32m"1"[39m
+                [33mwidth[39m=[32m"7"[39m
+                [33mx[39m=[32m"14"[39m
+                [33my[39m=[32m"14"[39m
+              [36m/>[39m
+              [36m<rect[39m
+                [33mheight[39m=[32m"7"[39m
+                [33mrx[39m=[32m"1"[39m
+                [33mwidth[39m=[32m"7"[39m
+                [33mx[39m=[32m"3"[39m
+                [33my[39m=[32m"14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m [0m
+            [0mRe-arrange[0m
+          [36m</button>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"field-hint"[39m
+          [36m>[39m
+            [0mDrag a node to move it. Hold Space and drag to pan; Shift-click two images to compare.[0m
+          [36m</span>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"branch-flow"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"react-flow light"[39m
+            [33mdata-testid[39m=[32m"rf__wrapper"[39m
+            [33mrole[39m=[32m"application"[39m
+            [33mstyle[39m=[32m"width: 100%; height: 100%; overflow: hidden; position: relative; z-index: 0;"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"react-flow__renderer"[39m
+              [33mstyle[39m=[32m"position: absolute; width: 100%; height: 100%; top: 0px; left: 0px;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"react-flow__pane"[39m
+                [33mstyle[39m=[32m"position: absolute; width: 100%; height: 100%; top: 0px; left: 0px;"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"react-flow__viewport xyflow__viewport react-flow__container"[39m
+                  [33mstyle[39m=[32m"transform: translate(0px,0px) scale(1);"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"react-flow__edges"[39m
+                  [36m/>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"react-flow__edgelabel-renderer"[39m
+                  [36m/>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"react-flow__nodes"[39m
+                    [33mstyle[39m=[32m"position: absolute; width: 100%; height: 100%; top: 0px; left: 0px;"[39m
+                  [36m>[39m
+                    [36m<div[39m
+                      [33maria-describedby[39m=[32m"react-flow__node-desc-1"[39m
+                      [33maria-roledescription[39m=[32m"node"[39m
+                      [33mclass[39m=[32m"react-flow__node react-flow__node-image nopan selectable draggable"[39m
+                      [33mdata-id[39m=[32m"asset:AST_SKETCH"[39m
+                      [33mdata-testid[39m=[32m"rf__node-asset:AST_SKETCH"[39m
+                      [33mrole[39m=[32m"group"[39m
+                      [33mstyle[39m=[32m"z-index: 0; transform: translate(0px,0px); pointer-events: all; visibility: hidden; touch-action: none;"[39m
+                      [33mtabindex[39m=[32m"0"[39m
+                    [36m>[39m
+                      [36m<div[39m
+                        [33mclass[39m=[32m"branch-node branch-node-image"[39m
+                        [33mdata-node[39m=[32m"asset:AST_SKETCH"[39m
+                      [36m>[39m
+                        [36m<div[39m
+                          [33mclass[39m=[32m"react-flow__handle react-flow__handle-left nodrag nopan target connectable connectablestart connectableend connectionindicator"[39m
+                          [33mdata-handlepos[39m=[32m"left"[39m
+                          [33mdata-id[39m=[32m"1-asset:AST_SKETCH-null-target"[39m
+                          [33mdata-nodeid[39m=[32m"asset:AST_SKETCH"[39m
+                        [36m/>[39m
+                        [36m<div[39m
+                          [33mclass[39m=[32m"branch-thumb"[39m
+                        [36m>[39m
+                          [36m<img[39m
+                            [33malt[39m=[32m""[39m
+                            [33mdecoding[39m=[32m"async"[39m
+                            [33mdraggable[39m=[32m"false"[39m
+                            [33mloading[39m=[32m"lazy"[39m
+                            [33msrc[39m=[32m"data:AST_SKETCH"[39m
+                          [36m/>[39m
+                        [36m</div>[39m
+                        [36m<div[39m
+                          [33mclass[39m=[32m"branch-node-label"[39m
+                          [33mtitle[39m=[32m"front.png"[39m
+                        [36m>[39m
+                          [0m [0m
+                          [0mfront.png[0m
+                        [36m</div>[39m
+                        [36m<span[39m
+                          [33mclass[39m=[32m"asset-download nodrag nopan"[39m
+                        [36m>[39m
+                          [36m<button[39m
+                            [33maria-label[39m=[32m"Download 1 files"[39m
+                            [33mclass[39m=[32m"btn btn-sm"[39m
+                        ...
+
+Expected: "image"
+Received: "none"
+
+ ❯ tests/branchCanvas.test.tsx:184:71
+    182|     fireEvent.click(node(imageNodeId(a!))!);
+    183|     await waitFor(() =>
+    184|       expect(screen.getByTestId("context-toolbar").dataset.selection).…
+       |                                                                       ^
+    185|     );
+    186|     fireEvent.keyDown(document, { key: "Shift" });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 112 passed (113)
+      Tests  1 failed | 1210 passed (1211)
+   Start at  19:24:29
+   Duration  32.10s (tests 30%, environment 27%, import 24%, transform 17%, setup 1%)
+
+Environment  |desktop| jsdom was created 74 times · 54.05s total, 30% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

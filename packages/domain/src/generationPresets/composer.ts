@@ -1,3 +1,5 @@
+import type { CameraDNA } from "../schemas/future";
+import { interiorStudioCameraText } from "./cameraSync";
 import { GENERATION_GOALS } from "./goals";
 import { GENERATION_ROOMS } from "./rooms";
 import { GENERATION_STYLES } from "./styles";
@@ -12,7 +14,7 @@ import {
   resolveGenerationConflicts,
 } from "./conflicts";
 
-export const INTERIOR_COMPOSER_VERSION = "ig-1.0.0";
+export const INTERIOR_COMPOSER_VERSION = "ig-1.1.0";
 export const INTERIOR_PROTECTION = [
   "distorted architecture",
   "warped walls",
@@ -46,11 +48,16 @@ export function composeInteriorGeneration(
   raw: InteriorGenerationState,
   references: readonly Reference[],
   architectureContext = "",
+  linkedCamera?: CameraDNA,
 ) {
   const state = InteriorGenerationSchema.parse(raw);
   const conflicts = resolveGenerationConflicts(state);
   if (conflicts.length) throw new GenerationLockConflictError(conflicts);
   const locks = effectiveGenerationPreserve(state);
+  if (!locks.camera && state.camera.cameraId && linkedCamera?.id !== state.camera.cameraId)
+    throw new Error(
+      "The linked Camera Studio camera is missing. Select an existing camera or a viewpoint preset.",
+    );
   const sourceIndex = references.findIndex((r) => r.assetId === state.input.assetId);
   if (state.input.assetId && sourceIndex < 0)
     throw new Error("The selected source image must be included in this request.");
@@ -94,8 +101,10 @@ export function composeInteriorGeneration(
     ],
     [
       "Camera",
-      GENERATION_CAMERAS.find((p) => p.id === (locks.camera ? "original" : state.camera.mode))!
-        .promptFragment,
+      !locks.camera && state.camera.cameraId && linkedCamera
+        ? interiorStudioCameraText(linkedCamera)
+        : GENERATION_CAMERAS.find((p) => p.id === (locks.camera ? "original" : state.camera.mode))!
+            .promptFragment,
     ],
     [
       "Lighting",

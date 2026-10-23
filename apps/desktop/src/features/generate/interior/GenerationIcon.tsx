@@ -1,4 +1,5 @@
 import {
+  Orbit,
   ScanLine,
   PencilRuler,
   Wand2,
@@ -62,6 +63,7 @@ export const GENERATION_ICONS: Record<string, LucideIcon> = {
   "icon-lock-architecture": Building2,
   "icon-lock-furniture": Armchair,
   "icon-lock-material": Palette,
+  "icon-camera-studio": Orbit,
   "icon-camera-original": ScanEye,
   "icon-camera-eye-level": Eye,
   "icon-camera-diagonal": CornerUpRight,

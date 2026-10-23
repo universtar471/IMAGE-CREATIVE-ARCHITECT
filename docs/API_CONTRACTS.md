@@ -1454,3 +1454,19 @@ Module `diagram` (after Region edit). PNG 2K/4K: the sheet is rasterized in the 
 - Style/light recommendations reuse `dna_assist` with mode `images`, scope `style` or `lighting`, source first, optional selective reference second, and current structured state/DNA/language in `context`. No new command or image-generation call is introduced. The same bounded JSON decoder is shared with DNA/module assist; module-specific Zod schemas reject unusable results.
 - Style response: `{ analysis: { room_type, existing_style, geometry, materials: string[], colors: string[], lighting, strengths: string[], weaknesses: string[] }, recommendations: [{ style_id, style_name, compatibility_score, short_reason, suggested_lighting, recommended_change_level }] }`. Exactly three distinct catalogue style ids; score 0–100, change level 0–3, indoor light enums only. Lighting response: `{ preset, reason }` using the same indoor light ids.
 - Region surface classification reuses the existing `regions` assist catalogue with `region.surface`: floor, wall, ceiling, cabinetry, countertop, textile, metal or other. It receives the source and selected normalized region shapes, proposes a category for review, and never edits the DNA or starts generation by itself.
+
+### Camera synchronization extension (ADR-052)
+
+For structured interior generation, `interiorGeneration.camera` is
+`{ mode: 'original'|'studio'|'eye_level'|'diagonal'|'front'|'wide'|'detail', cameraId?: CAM_ID }`.
+Old states remain valid. `studio` requires `cameraId`; `original` disallows it. Preset modes
+can carry a link after the frontend resolves them into canonical Camera DNA. Do not send a
+cameraId as the top-level generation-request camera merely to enable this workflow: that
+would select the legacy compiler path and lose structured interior settings.
+
+The interior composer resolves the link from current DNA and emits
+`metadata.interiorCameraSnapshot` with an independent copy of the camera. Missing camera
+links fail before enqueue, and a source-camera hard lock prevents planned poses from being
+used. Existing snapshots stay immutable. `sourceHash` includes DNA and shot state, so pose
+changes produce a new hash. Existing explicit request `cameraId` calls remain on the legacy
+Camera/Director compiler route, whose interior angle description now includes room-local azimuth.

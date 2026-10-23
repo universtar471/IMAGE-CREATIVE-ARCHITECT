@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Anchor, Copy, Plus, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 import {
+  cameraFromInteriorMode,
   blankCamera,
   CAMERA_PRESETS,
   cameraFromPreset,
@@ -26,6 +27,7 @@ import { useT } from "../../i18n";
 import { readinessLabel } from "../../i18n/domain";
 import { cameraPresetLabel } from "../../i18n/knowledge";
 import { SiteTopologyChip } from "./SiteTopologyChip";
+import { ConnectedInteriorCameraControls } from "./InteriorCameraControls";
 import { VisualIntentSelector } from "./VisualIntentSelector";
 
 const INTERIOR_CAMERA_NAME_KEYS = {
@@ -38,9 +40,9 @@ const INTERIOR_CAMERA_NAME_KEYS = {
 const INTERIOR_CAMERA_PRESETS = CAMERA_PRESETS.map((preset) => ({
   ...preset,
   nameKey: INTERIOR_CAMERA_NAME_KEYS[preset.id],
-  viewType: preset.id === "detail" ? ("interior_detail" as const) : ("interior_wide" as const),
-  lensMm: preset.id === "detail" ? 35 : 20,
-  composition: preset.prompt,
+  mode: (
+    { wide_entrance: "wide", corner: "diagonal", one_point: "front", detail: "detail" } as const
+  )[preset.id],
 }));
 
 /** Right panel of the Camera module: camera list, field editor and prompt preview. */
@@ -51,10 +53,16 @@ export function CameraPanel() {
   const selectedIndex = cameras.findIndex((c) => c.id === selectedId);
   const selected = selectedIndex >= 0 ? cameras[selectedIndex]! : null;
   const t = useT();
+  const readOnly = useStudio(selectReadOnly);
+  const interior = ws.project.projectType === "interior" && isInteriorShot(ws.draftDna);
 
   return (
     <div className="camera-panel">
-      <VisualIntentSelector />
+      {interior ? (
+        <ConnectedInteriorCameraControls disabled={readOnly} />
+      ) : (
+        <VisualIntentSelector />
+      )}
       <CameraListSection />
       {selected ? (
         <>
@@ -123,17 +131,15 @@ function CameraListSection() {
                 <button
                   className="btn btn-sm"
                   key={preset.id}
+                  aria-label={`${t("camera.add")}: ${t(`interior.camera.${preset.nameKey}`)}`}
+                  title={`${t("camera.add")}: ${t(`interior.camera.${preset.nameKey}`)}`}
                   onClick={() => {
                     const camera = {
-                      ...blankCamera(names),
+                      ...cameraFromInteriorMode(blankCamera(names), preset.mode),
                       name: uniqueCameraName(t(`interior.camera.${preset.nameKey}`), names),
                       presetId: preset.id,
-                      viewType: preset.viewType,
                       heightM: 1.35,
-                      distanceM: preset.id === "detail" ? 1.5 : 5,
-                      lensMm: preset.lensMm,
                       aspectRatio: preset.id === "detail" ? "4:5" : "4:3",
-                      composition: preset.composition,
                     } as CameraDNA;
                     add(camera);
                     editInteriorCameraPreset(preset.id);

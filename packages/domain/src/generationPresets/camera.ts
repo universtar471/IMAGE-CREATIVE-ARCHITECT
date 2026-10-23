@@ -7,6 +7,12 @@ export const GENERATION_CAMERAS: GenerationPreset[] = [
     "Keep the source camera viewpoint, perspective, camera height, viewing direction, horizon and framing.",
   ],
   [
+    "studio",
+    "Camera Studio",
+    "Camera Studio",
+    "Use the linked Camera DNA pose from Camera Studio.",
+  ],
+  [
     "eye_level",
     "Tầm mắt",
     "Eye level",

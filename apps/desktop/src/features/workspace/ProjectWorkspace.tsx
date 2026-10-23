@@ -1,4 +1,4 @@
-import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid } from "lucide-react";
+import { Camera, FileText, Image as ImageIcon, ImagePlus, LayoutGrid, Orbit } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useStudio } from "../../app/store";
 import { CompareCanvas } from "../../components/canvas/CompareCanvas";
@@ -7,6 +7,7 @@ import { PropertyPanel } from "../../components/panels/PropertyPanel";
 import { WorkspaceNav } from "../../components/shell/WorkspaceNav";
 import { WorkspaceTopBar } from "../../components/shell/WorkspaceTopBar";
 import { BottomTray } from "../assets/BottomTray";
+import { ConnectedMultiAngleStudio } from "../camera/MultiAngleStudio";
 import { CameraDirector } from "../camera/CameraDirector";
 import { ContactSheet } from "../camera/ContactSheet";
 import { PromptPreview } from "../prompt-preview/PromptPreview";
@@ -148,7 +149,10 @@ function CenterArea() {
   // The Camera Director only exists in the Camera module.
   // "branches" was the old centre tab of the graph; the graph is Node mode now (ADR-044).
   const view =
-    (centerView === "director" && !isCamera) || centerView === "branches" ? "canvas" : centerView;
+    ((centerView === "director" || centerView === "orbit") && !isCamera) ||
+    centerView === "branches"
+      ? "canvas"
+      : centerView;
   const nodeMode = useStudio((s) => s.workspaceMode) === "node" && !hasOwnCenter(active);
 
   // Selected asset first; otherwise fall back to the master so DNA editing has a visual anchor.
@@ -224,6 +228,17 @@ function CenterArea() {
             <Camera size={14} /> {t("workspace.tabDirector")}
           </button>
         )}
+        {isCamera && (
+          <button
+            className="center-tab"
+            role="tab"
+            aria-selected={view === "orbit"}
+            tabIndex={view === "orbit" ? 0 : -1}
+            onClick={() => setCenterView("orbit")}
+          >
+            <Orbit size={14} aria-hidden /> {t("multiAngle.tab")}
+          </button>
+        )}
         <button
           className="center-tab"
           role="tab"
@@ -268,6 +283,8 @@ function CenterArea() {
           <PublishingStudio />
         ) : view === "prompt" ? (
           <PromptPreview />
+        ) : view === "orbit" ? (
+          <ConnectedMultiAngleStudio />
         ) : view === "director" ? (
           <CameraDirector />
         ) : view === "contact" ? (

@@ -10,3 +10,4 @@ export * from "./transitions";
 export * from "./conflicts";
 export * from "./composer";
 export * from "./recommendations";
+export * from "./cameraSync";

@@ -1,0 +1,45 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v5.0.3 /workspace/scratch/797f52af00a3/multi-angle-main-check
+
+ ❯ |desktop| tests/multiAngleMainCompatibility.test.tsx (1 test | 1 failed) 272ms
+   × preserves the new main interior Prompt/source/cache while Orbit changes and reopens Camera DNA 271ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |desktop| tests/multiAngleMainCompatibility.test.tsx > preserves the new main interior Prompt/source/cache while Orbit changes and reopens Camera DNA
+AssertionError: expected 'Architectural visualization (wide int…' to contain '37'
+
+- Expected
++ Received
+
+- 37
++ Architectural visualization (wide interior view) of an interior space, project type: interior.
++
++ Interior space: apartment living room.
++
++ Interior style: Japandi interior: calm minimal forms, pale timber, soft neutral tones, fine craftsmanship.
++
++ Materials and colors: warm beige, ivory and natural wood; floor: natural oak flooring; walls: soft limewash walls; ceiling: wood-slat ceiling; cabinetry: oak veneer cabinetry; countertop: solid wood countertop; textiles: natural linen textiles; metal: matte black metal.
++
++ Furnishing: balanced furnishing density.
++
++ Camera: wide interior view; viewpoint: view from eye level; distance: about 5 m from the subject.
++
++ Photorealistic professional architectural photography, accurate proportions, straight verticals, high detail.
+
+ ❯ tests/multiAngleMainCompatibility.test.tsx:86:39
+     84|   });
+     85|   expect(cameraPrompt.metadata.cameraId).toBe(c.id);
+     86|   expect(cameraPrompt.positivePrompt).toContain("37");
+       |                                       ^
+     87|   expect(cameraPrompt.metadata.interiorComposerVersion).toBeUndefined(…
+     88|   expect(structuredPrompt.metadata.interiorComposerVersion).toBeTruthy…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  17:11:51
+   Duration  2.18s (transform 43%, environment 23%, import 20%, tests 13%, setup 1%)

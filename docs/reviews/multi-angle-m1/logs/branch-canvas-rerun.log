@@ -1,0 +1,9 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v5.0.3 /workspace/scratch/797f52af00a3/multi-angle-m1
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  19:25:30
+   Duration  2.60s (transform 39%, tests 26%, import 17%, environment 17%, setup 1%)
