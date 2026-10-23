@@ -1,0 +1,22 @@
+{
+  "base": "aa2efa7c942c40a6f7db70fc74b70adc76bd6bcd",
+  "branch": "feature/multi-angle-camera-m1",
+  "typecheck": "pass",
+  "lint": "pass",
+  "frontendBuild": "pass (large chunk warning)",
+  "fullSuite": {
+    "files": 113,
+    "tests": 1211,
+    "passed": 1211,
+    "workers": 2
+  },
+  "m1Targeted": {
+    "files": 2,
+    "tests": 10,
+    "passed": 10
+  },
+  "browser": "pass (mock backend)",
+  "native": "not verified: cargo missing",
+  "remoteWrites": false,
+  "commitCreated": false
+}

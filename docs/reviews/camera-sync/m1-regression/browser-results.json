@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "viewport": "1440x900",
+  "drag": true,
+  "touch": true,
+  "keyboard": true,
+  "cancellation": true,
+  "saveReopen": "mock transport",
+  "helpEscape": true,
+  "scopeAndLocale": true,
+  "paidCommands": [],
+  "errors": []
+}

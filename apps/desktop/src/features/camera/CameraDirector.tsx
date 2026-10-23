@@ -3,6 +3,7 @@
  * and elevation. Drag a camera (or use the arrow keys on a focused one) to change its
  * azimuth and distance; click selects it (synced with the camera list).
  */
+import { CameraSyncStatus } from "./CameraSyncStatus";
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Camera } from "lucide-react";
 import type { CameraDNA } from "@arch/domain";
@@ -63,6 +64,7 @@ export function CameraDirector() {
 
   return (
     <div className="director" data-testid="camera-director">
+      <CameraSyncStatus />
       <svg
         ref={svgRef}
         className="director-svg"

@@ -320,7 +320,7 @@ describe("camera section (pc-1.1.0)", () => {
     const ii = input("interior");
     ii.dna.cameras = [room];
     expect(compilePrompt({ ...ii, cameraId: room.id }).positivePrompt).toMatch(
-      /Camera: wide interior view; viewpoint: view from eye level; lens: 16 mm ultra-wide-angle lens\./,
+      /Camera: wide interior view; viewpoint: view from eye level with room-local azimuth 90 degrees clockwise around the room target; lens: 16 mm ultra-wide-angle lens\./,
     );
   });
 

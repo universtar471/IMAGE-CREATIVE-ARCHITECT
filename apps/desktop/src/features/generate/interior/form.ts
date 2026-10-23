@@ -3,6 +3,7 @@ import {
   defaultGenerationParams,
   generationInputRequired,
   resolveGenerationConflicts,
+  type CameraDNA,
   type AssetDTO,
   type InteriorGenerationState,
   type ProviderDescriptorDTO,
@@ -52,7 +53,10 @@ export function resolveInteriorGenerateForm(
 export function interiorGenerateDisabledReason(
   state: InteriorGenerationState,
   assets: readonly AssetDTO[],
+  cameras: readonly CameraDNA[] = [],
 ): string | null {
+  if (state.camera.cameraId && !cameras.some((c) => c.id === state.camera.cameraId))
+    return t("multiAngle.cameraMissing");
   if (resolveGenerationConflicts(state).length) return t("interiorFlow.resolveLocks");
   if (generationInputRequired(state) && !state.input.assetId)
     return t("interiorFlow.sourceRequired");

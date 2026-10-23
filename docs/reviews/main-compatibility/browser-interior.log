@@ -1,0 +1,23 @@
+{
+  "output": "docs/reviews/main-compatibility/interior",
+  "errors": [],
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "columns": 3
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "columns": 3
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "columns": 3
+    }
+  ],
+  "generationCalls": 1,
+  "analysisCalls": 1
+}

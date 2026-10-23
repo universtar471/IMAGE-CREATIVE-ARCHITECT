@@ -1,0 +1,29 @@
+{
+  "base": "aa2efa7c942c40a6f7db70fc74b70adc76bd6bcd",
+  "main": "04e5c8d0a5e71080e70649f3c2f455d6ea983098",
+  "upstreamCommits": 5,
+  "upstreamChangedFiles": 59,
+  "sharedFiles": [
+    "apps/desktop/src/app/store.ts",
+    "apps/desktop/src/i18n/en.ts",
+    "apps/desktop/src/i18n/vi.ts"
+  ],
+  "threeWayApply": "clean",
+  "unmergedFiles": [],
+  "originalM1Unchanged": true,
+  "mode": "detached temporary worktree; original feature branch and local main untouched",
+  "remoteWrites": false,
+  "typecheck": "pass",
+  "lint": "pass",
+  "frontendBuild": "pass (large chunk warning)",
+  "finalSuite": {
+    "files": 117,
+    "tests": 1243,
+    "passed": 1243
+  },
+  "browserOrbit": "pass",
+  "browserNewInterior": "pass",
+  "browserNodeHistory": "pass",
+  "remoteMainRechecked": "04e5c8d0a5e71080e70649f3c2f455d6ea983098",
+  "native": "not tested; cargo unavailable"
+}

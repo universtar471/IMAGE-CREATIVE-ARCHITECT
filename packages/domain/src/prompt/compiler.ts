@@ -41,7 +41,7 @@ import {
   INTERIOR_COMPOSER_VERSION,
 } from "../generationPresets/composer";
 
-export const COMPILER_VERSION = "pc-1.11.0";
+export const COMPILER_VERSION = "pc-1.12.0";
 
 /** `PromptBundle.catalogVersion` of a DNA without the Space Catalog extension (ADR-034). */
 export const NO_CATALOG_VERSION = "none";
@@ -411,10 +411,14 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
     },
   };
   if (interiorWorkflow && shotIntent?.interiorGeneration) {
+    const linkedCamera = sourceDna.cameras.find(
+      (c) => c.id === shotIntent.interiorGeneration?.camera.cameraId,
+    );
     const composed = composeInteriorGeneration(
       shotIntent.interiorGeneration,
       references,
       formSection(sourceDna, false) ?? "",
+      linkedCamera,
     );
     return {
       ...bundle,
@@ -430,6 +434,7 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
       metadata: {
         ...bundle.metadata,
         interiorComposerVersion: INTERIOR_COMPOSER_VERSION,
+        ...(linkedCamera ? { interiorCameraSnapshot: structuredClone(linkedCamera) } : {}),
         sections: composed.sections,
       },
     };

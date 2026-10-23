@@ -1,0 +1,18 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+ RUN  v5.0.3 /workspace/scratch/797f52af00a3/multi-angle-main-check
+
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's pause() method
+Not implemented: HTMLMediaElement's pause() method
+
+ Test Files  117 passed (117)
+      Tests  1243 passed (1243)
+   Start at  17:13:24
+   Duration  67.78s (environment 32%, tests 30%, import 29%, transform 7%, setup 2%)
+
+Environment  |desktop| jsdom was created 76 times · 38.31s total, 36% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

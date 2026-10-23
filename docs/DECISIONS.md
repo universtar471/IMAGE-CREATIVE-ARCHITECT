@@ -1399,3 +1399,32 @@ Accepted 2026-10-23 for the Interior Generate follow-up.
 - Style and lighting advice use `dna_assist` chat/vision, the shared bounded JSON decoder, module schemas, loading/error/retry and explicit Apply. Style advice requires three distinct catalogue ids. Recommendations show suggested lighting/change level without silently applying them or starting generation. Region material advice can classify the selected surface through the existing region assist and filter its material catalogue.
 - Result actions prepare a variation/realism/lighting draft or open the existing region editor, upscale panel, source image and before/after viewer. They do not create paid jobs. Undo returns to the source and restores its shot choices while retaining generated assets/history.
 - Known limits: prompt hard locks guide generative providers but cannot guarantee pixel-identical geometry; region masks provide the existing outside-region pixel protection. Live vision/model quality requires a separate paid manual check. Existing large frontend chunk warning is unrelated to this workflow.
+
+## ADR-052 — Share Camera DNA with the interior generation workflow
+
+Date: 2026-10-23. Status: implemented locally, awaiting user review; no remote write.
+
+`interiorGeneration.camera` gains optional `cameraId` and a `studio` mode. Pose data lives
+only in the existing Camera DNA; the workflow references a stable CAM ID. Legacy states
+without a link remain valid. `original` cannot link a planned camera, and `studio` requires
+an ID. The compiler rejects missing/deleted links before generation rather than silently
+falling back to another camera.
+
+Workflow presets, the interior Camera inspector and Orbit use shared room-local poses and
+lenses. Workflow preset selection updates the selected camera (or creates one when needed).
+Editing Orbit/Director/Camera fields or applying a reviewed camera assist links the edited
+camera in `studio` mode while the source-camera lock is off. Selecting another camera
+updates the link; reopening restores the linked selection. A re-entrancy guard prevents the
+workflow-to-DNA write from being interpreted as a second user edit.
+
+A source-camera lock is never silently disabled. Camera DNA can still be planned while it
+is active, but Generate retains the source angle; the UI shows that status and offers an
+explicit unlock-and-use action. Source changes and locking transitions discard the link
+via the existing `original` transition. Archived state is read-only.
+
+The compiler resolves linked coordinates at compile time, includes exact room-local angles,
+distance, height/lens where set, and snapshots the camera into prompt metadata. New prompt
+versions are `pc-1.12.0` and `ig-1.1.0`; existing generation records are not rewritten.
+The Rust ShotIntent DTO preserves these nested JSON fields through its existing extra map;
+no Rust or database migration is introduced. Native execution still needs validation on a
+machine with Cargo. Geometry remains estimated, without reconstruction/collision guarantees.

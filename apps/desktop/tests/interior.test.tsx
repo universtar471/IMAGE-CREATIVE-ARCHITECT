@@ -211,8 +211,10 @@ describe("interior project UI", () => {
     cleanup();
     render(<CameraPanel />);
     expect(screen.getByTestId("interior-camera-presets")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Detail" }));
-    expect(useStudio.getState().workspace!.draftDna.cameras.at(-1)?.lensMm).toBe(35);
+    fireEvent.click(screen.getByRole("button", { name: "Add camera: Detail" }));
+    expect(useStudio.getState().workspace!.draftDna.cameras.at(-1)?.lensMm).toBe(50);
+    expect(useStudio.getState().workspace!.draftDna.cameras.at(-1)?.azimuthDeg).toBe(20);
+    expect(useStudio.getState().workspace!.draftDna.cameras.at(-1)?.elevationDeg).toBe(-10);
     expect(useStudio.getState().workspace!.draftDna.cameras.at(-1)?.heightM).toBe(1.35);
   });
 

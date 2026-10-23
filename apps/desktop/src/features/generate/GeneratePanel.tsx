@@ -105,7 +105,10 @@ function GenerateContent({
     shotIntent: ws.shotIntent,
   });
   const disabledReason =
-    reason ?? (interior ? interiorGenerateDisabledReason(interior.state, ws.assets) : null);
+    reason ??
+    (interior
+      ? interiorGenerateDisabledReason(interior.state, ws.assets, ws.draftDna.cameras)
+      : null);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
   const costText = form.model

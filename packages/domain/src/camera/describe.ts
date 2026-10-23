@@ -73,6 +73,10 @@ export function viewpointWords(camera: CameraDNA): string | null {
   }
   const elevation = elevationWords(camera);
   if (elevation) parts.push(parts.length ? elevation : `view ${elevation}`);
+  if (camera.azimuthDeg !== undefined && isInteriorViewType(camera.viewType))
+    parts.push(
+      `with room-local azimuth ${num(camera.azimuthDeg)} degrees clockwise around the room target`,
+    );
   return parts.length ? parts.join(" ") : null;
 }
 

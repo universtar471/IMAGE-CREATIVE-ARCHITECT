@@ -1,0 +1,17 @@
+{
+  "baseMain": "04e5c8d0a5e71080e70649f3c2f455d6ea983098",
+  "branch": "feature/multi-angle-camera-m1-sync",
+  "typecheck": "pass",
+  "lint": "pass",
+  "frontendBuild": "pass; existing large chunk warning",
+  "tests": {
+    "files": 119,
+    "passed": 1252,
+    "failed": 0
+  },
+  "browser": "pass 1440x900, mock only",
+  "paidCalls": 0,
+  "native": "not verified: cargo unavailable",
+  "remoteWrites": false,
+  "commitsCreated": false
+}

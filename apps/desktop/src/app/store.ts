@@ -14,6 +14,13 @@ import type { RegionAction } from "../features/regions/actions";
 import { create } from "zustand";
 import {
   applyAssistFields,
+  isInteriorShot,
+  blankCamera,
+  generationFromLegacy,
+  effectiveGenerationPreserve,
+  cameraFromInteriorMode,
+  sameCameraPose,
+  type InteriorPoseMode,
   type AssistField,
   GENERATION_UPDATED_EVENT,
   hasEffects,
@@ -102,7 +109,7 @@ function writeWorkspaceMode(mode: WorkspaceMode) {
   }
 }
 
-type CenterView = "canvas" | "prompt" | "director" | "contact" | "branches";
+type CenterView = "canvas" | "prompt" | "director" | "orbit" | "contact" | "branches";
 export type SaveStatus = "saved" | "dirty" | "saving" | "invalid" | "error";
 
 export type SaveState = {
@@ -419,6 +426,41 @@ function resolveReferenceIds(ids: readonly string[], assets: readonly AssetDTO[]
 }
 
 export const useStudio = create<State>((set, get) => {
+  let syncingInteriorCamera = false;
+  const syncCameraDraft = (ws: WorkspaceData, draftDna: ProjectDNA) => {
+    if (syncingInteriorCamera || ws.project.projectType !== "interior" || !isInteriorShot(draftDna))
+      return;
+    const generation = ws.shotIntent?.interiorGeneration;
+    if (generation && effectiveGenerationPreserve(generation).camera) return;
+    const changed = draftDna.cameras.find((c) => {
+      const before = ws.draftDna.cameras.find((old) => old.id === c.id);
+      return (
+        before &&
+        !sameCameraPose(before, c) &&
+        (c.id === get().selectedCameraId || c.id === generation?.camera.cameraId)
+      );
+    });
+    if (changed) {
+      let next =
+        generation ??
+        generationFromLegacy(draftDna.interior?.roomId, get().generateDraft.extraPrompt ?? "");
+      if (
+        !generation &&
+        get().generateDraft.source === "sketch" &&
+        get().generateDraft.referenceAssetIds?.[0]
+      )
+        next = generationWithSource(next, get().generateDraft.referenceAssetIds![0]!);
+      get().setShotIntent({
+        ...get().workspace!.shotIntent,
+        projectType: "interior",
+        interiorGeneration: {
+          ...next,
+          preserve: { ...next.preserve, camera: false },
+          camera: { mode: "studio", cameraId: changed.id },
+        },
+      });
+    }
+  };
   const isOpen = (projectId: string) => get().workspace?.project.id === projectId;
   /**
    * Per-project shot intents of this session (a cache over `localStorage`, which keeps them
@@ -592,7 +634,12 @@ export const useStudio = create<State>((set, get) => {
               shotIntent: shotIntentOf(projectId),
             },
             selectedAssetId: bundle.project.activeMasterAssetId ?? bundle.assets[0]?.id ?? null,
-            selectedCameraId: bundle.dna.cameras[0]?.id ?? null,
+            selectedCameraId:
+              bundle.dna.cameras.find(
+                (c) => c.id === shotIntentOf(projectId)?.interiorGeneration?.camera.cameraId,
+              )?.id ??
+              bundle.dna.cameras[0]?.id ??
+              null,
             workspaceLoading: false,
             workflowView: deriveWorkflow(workflow.steps, {
               masterApproved: ["master_approved", "anchor_generation", "production"].includes(
@@ -631,7 +678,7 @@ export const useStudio = create<State>((set, get) => {
       const centerView =
         id === "camera" && view === "canvas"
           ? "director"
-          : id !== "camera" && view === "director"
+          : id !== "camera" && (view === "director" || view === "orbit")
             ? "canvas"
             : view;
       set({ activeModule: id, centerView });
@@ -677,7 +724,26 @@ export const useStudio = create<State>((set, get) => {
       set((s) => ({ nodeViewport: { ...s.nodeViewport, [projectId]: viewport } })),
     openViewer: (viewer) => set({ viewer }),
     closeViewer: () => set({ viewer: null }),
-    selectCamera: (id) => set({ selectedCameraId: id }),
+    selectCamera: (id) => {
+      set({ selectedCameraId: id });
+      const ws = get().workspace;
+      const generation = ws?.shotIntent?.interiorGeneration;
+      if (
+        !ws ||
+        ws.project.archivedAt ||
+        ws.project.projectType !== "interior" ||
+        !isInteriorShot(ws.draftDna) ||
+        !generation ||
+        generation.camera.mode === "original" ||
+        effectiveGenerationPreserve(generation).camera ||
+        !ws.draftDna.cameras.some((c) => c.id === id)
+      )
+        return;
+      get().setShotIntent({
+        ...ws.shotIntent!,
+        interiorGeneration: { ...generation, camera: { mode: "studio", cameraId: id! } },
+      });
+    },
     setTrayTab: (t) => set({ trayTab: t, trayCollapsed: false }),
     toggleTray: () => set((s) => ({ trayCollapsed: !s.trayCollapsed })),
     setInspectorOpen: (open) => set({ inspectorOpen: open }),
@@ -689,6 +755,7 @@ export const useStudio = create<State>((set, get) => {
       set({ workspace: { ...ws, draftDna }, save: { status: "dirty", fieldErrors: {} } });
       if (autosaveTimer) clearTimeout(autosaveTimer);
       autosaveTimer = setTimeout(() => void get().flushDna(), AUTOSAVE_DELAY_MS);
+      if (validateProjectDNA(draftDna).ok) syncCameraDraft(ws, draftDna);
     },
 
     editDna: (path, value) => {
@@ -708,13 +775,65 @@ export const useStudio = create<State>((set, get) => {
       });
       if (autosaveTimer) clearTimeout(autosaveTimer);
       if (v.ok) autosaveTimer = setTimeout(() => void get().flushDna(), AUTOSAVE_DELAY_MS);
+      if (v.ok && path.startsWith("cameras")) syncCameraDraft(ws, draftDna);
     },
 
     setCameras: (cameras) => get().editDna("cameras", cameras),
     setShotIntent: (shotIntent) => {
       const ws = get().workspace;
-      if (!ws) return;
+      if (!ws || ws.project.archivedAt) return;
       const id = ws.project.id;
+      const generation = shotIntent?.interiorGeneration;
+      if (
+        generation &&
+        !ws.project.archivedAt &&
+        ws.project.projectType === "interior" &&
+        isInteriorShot(ws.draftDna) &&
+        !effectiveGenerationPreserve(generation).camera &&
+        generation.camera.mode !== "original"
+      ) {
+        const mode = generation.camera.mode;
+        const previous = ws.shotIntent?.interiorGeneration;
+        let camera =
+          ws.draftDna.cameras.find(
+            (c) => c.id === (generation.camera.cameraId ?? get().selectedCameraId),
+          ) ?? (!generation.camera.cameraId ? ws.draftDna.cameras[0] : undefined);
+        if (!generation.camera.cameraId || (mode !== "studio" && previous?.camera.mode !== mode)) {
+          camera ??= blankCamera(ws.draftDna.cameras.map((c) => c.name));
+          const next =
+            mode === "studio"
+              ? {
+                  ...camera,
+                  viewType:
+                    camera.viewType === "interior_detail"
+                      ? ("interior_detail" as const)
+                      : ("interior_wide" as const),
+                  azimuthDeg: camera.azimuthDeg ?? 0,
+                  elevationDeg: camera.elevationDeg ?? 0,
+                  distanceM: camera.distanceM ?? 5,
+                }
+              : cameraFromInteriorMode(camera, mode as InteriorPoseMode);
+          syncingInteriorCamera = true;
+          try {
+            get().editDna(
+              "cameras",
+              ws.draftDna.cameras.some((c) => c.id === next.id)
+                ? ws.draftDna.cameras.map((c) => (c.id === next.id ? next : c))
+                : [...ws.draftDna.cameras, next],
+            );
+          } finally {
+            syncingInteriorCamera = false;
+          }
+          camera = next;
+        }
+        if (camera) {
+          shotIntent = {
+            ...shotIntent!,
+            interiorGeneration: { ...generation, camera: { mode, cameraId: camera.id } },
+          };
+          set({ selectedCameraId: camera.id });
+        }
+      }
       const empty =
         !shotIntent ||
         (!shotIntent.sceneObjects?.length &&
@@ -731,10 +850,10 @@ export const useStudio = create<State>((set, get) => {
         shotIntents.delete(id);
         clearShotIntent(id);
       } else {
-        shotIntents.set(id, shotIntent);
-        saveShotIntent(id, shotIntent);
+        shotIntents.set(id, shotIntent!);
+        saveShotIntent(id, shotIntent!);
       }
-      set({ workspace: { ...ws, shotIntent: empty ? undefined : shotIntent } });
+      set({ workspace: { ...get().workspace!, shotIntent: empty ? undefined : shotIntent } });
     },
 
     /** Save pending DNA now. Resolves true when nothing is left unsaved. */

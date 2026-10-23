@@ -1,3 +1,4 @@
+import { CameraDNASchema } from "../schemas/future";
 import { z } from "zod";
 import { INTERIOR_STYLES, type InteriorStyleId } from "../interior/catalog";
 
@@ -22,6 +23,7 @@ export const GENERATION_ROOM_IDS = [
 ] as const;
 export const GENERATION_CAMERA_IDS = [
   "original",
+  "studio",
   "eye_level",
   "diagonal",
   "front",
@@ -69,7 +71,25 @@ export const InteriorGenerationSchema = z.object({
     .nullable(),
   changeLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
   preserve: PreserveSchema,
-  camera: z.object({ mode: z.enum(GENERATION_CAMERA_IDS) }),
+  camera: z
+    .object({
+      mode: z.enum(GENERATION_CAMERA_IDS),
+      cameraId: CameraDNASchema.shape.id.optional(),
+    })
+    .superRefine((camera, ctx) => {
+      if (camera.mode === "studio" && !camera.cameraId)
+        ctx.addIssue({
+          code: "custom",
+          path: ["cameraId"],
+          message: "Camera Studio requires a Camera DNA ID.",
+        });
+      if (camera.mode === "original" && camera.cameraId)
+        ctx.addIssue({
+          code: "custom",
+          path: ["cameraId"],
+          message: "Original source camera must not link a planned camera.",
+        });
+    }),
   lighting: z.object({ preset: z.enum(GENERATION_LIGHT_IDS).nullable() }),
   reference: z
     .object({
