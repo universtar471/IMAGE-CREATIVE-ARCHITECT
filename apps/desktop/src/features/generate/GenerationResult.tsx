@@ -14,6 +14,7 @@ import { formatDuration, isActiveGeneration } from "./labels";
 import { isMasterApproved } from "../camera/labels";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { spendRequestForGeneration } from "../../lib/spend";
+import { InteriorResultActions } from "./interior/InteriorResultActions";
 
 const EMPTY_PROVIDERS = [] as const;
 
@@ -262,6 +263,9 @@ function ResultCard({ generation: g }: { generation: GenerationDTO }) {
               <RefreshCw size={13} /> {t("result.again")}
             </button>
           </div>
+          {project.projectType === "interior" && current && (
+            <InteriorResultActions generation={g} assetId={current} />
+          )}
           {(awaitingApproval || (!isMaster && !project.activeMasterAssetId)) && <MasterDnaCheck />}
         </>
       ) : (

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProject } from "../src/app/services";
 import { useStudio } from "../src/app/store";
 import { InteriorDnaPanel } from "../src/features/dna/InteriorDnaPanel";
+import { StylePanel } from "../src/features/style/StylePanel";
 import { createMockTransport } from "../src/lib/mockBackend";
 import { defaultInteriorDNA } from "../src/lib/interior";
 import { setTransport } from "../src/lib/bridge";
@@ -82,10 +83,13 @@ describe("Space panel layout", () => {
     await renderInterior();
     expect(screen.queryByRole("group", { name: "Floor" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Furniture" })).toBeNull();
-    expect(screen.getByText("Reference images")).toBeTruthy();
+    expect(screen.queryByText("Reference images")).toBeNull();
     expect(useStudio.getState().workspace!.draftDna.interior).toMatchObject({
       surfaces: { floor: ["walnut", "oak"] },
       furnitureIds: ["rug", "sofa"],
     });
+    cleanup();
+    render(<StylePanel />);
+    expect(screen.getByRole("combobox", { name: "Reference image" })).toBeTruthy();
   });
 });

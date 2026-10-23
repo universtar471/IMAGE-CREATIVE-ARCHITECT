@@ -68,6 +68,9 @@ export function RegionPanel() {
   );
   const [instruction, setInstruction] = useState(regionActionInstruction(action));
   const [material, setMaterial] = useState("");
+  const [surfaceChoice, setSurfaceChoice] = useState<{ key: string; slot: string } | null>(null);
+  const surfaceKey = JSON.stringify([selectedId, [...selectedRegions].sort()]);
+  const surface = surfaceChoice?.key === surfaceKey ? surfaceChoice.slot : "other";
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -543,19 +546,36 @@ export function RegionPanel() {
             scope="regions"
             catalog={{
               scope: "regions",
-              fields: assistCatalog("regions", ws.project.projectType).fields.filter(
-                (field) =>
-                  field.path ===
-                  (mode === "material_replace" ? "region.material" : "region.instruction"),
-              ),
+              fields: [
+                ...assistCatalog("regions", ws.project.projectType).fields.filter(
+                  (field) =>
+                    field.path ===
+                    (mode === "material_replace" ? "region.material" : "region.instruction"),
+                ),
+                ...(mode === "material_replace"
+                  ? [
+                      {
+                        path: "region.surface",
+                        kind: "id" as const,
+                        options: [...Object.keys(INTERIOR_CATALOG.surfaces), "other"].map((id) => ({
+                          id,
+                          en: id,
+                        })),
+                      },
+                    ]
+                  : []),
+              ],
             }}
             context={{
               selectedRegionIds: [...selectedRegions],
+              sourceImageId: selectedId,
               regions: regions.filter((r) => selectedRegions.has(r.id)),
               currentSelections: { mode, instruction, material, action },
             }}
             onApply={(fields) => {
               for (const field of fields) {
+                if (field.path === "region.surface")
+                  setSurfaceChoice({ key: surfaceKey, slot: String(field.value) });
                 if (field.path === "region.instruction") {
                   setInstruction(String(field.value));
                   setMode("edit");
@@ -571,8 +591,30 @@ export function RegionPanel() {
         )}
         {mode === "material_replace" && selectedRegions.size > 0 && (
           <div className="catalog-chips" role="group" aria-label={t("menu.material")}>
+            <label className="field">
+              <span>{t("interiorFlow.surface")}</span>
+              <select
+                className="select"
+                disabled={readOnly}
+                value={surface}
+                onChange={(event) =>
+                  setSurfaceChoice({ key: surfaceKey, slot: event.target.value })
+                }
+              >
+                <option value="other">{t("interiorFlow.allSurfaces")}</option>
+                {Object.keys(INTERIOR_CATALOG.surfaces).map((slot) => (
+                  <option value={slot} key={slot}>
+                    {t(`interior.surface.${slot}` as never)}
+                  </option>
+                ))}
+              </select>
+            </label>
             {Object.entries(INTERIOR_CATALOG.surfaces).map(([slot, items]) => (
-              <details key={slot}>
+              <details
+                key={slot}
+                hidden={surface !== "other" && surface !== slot}
+                open={surface === slot}
+              >
                 <summary>{t(`interior.surface.${slot}` as never)}</summary>
                 {items.map((item) => (
                   <button

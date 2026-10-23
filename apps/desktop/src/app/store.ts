@@ -19,6 +19,10 @@ import {
   hasEffects,
   JOB_UPDATED_EVENT,
   orderReferenceIds,
+  generationWithSource,
+  InteriorGenerationSchema,
+  resolveGenerationConflicts,
+  GenerationLockConflictError,
   TERMINAL_JOB_STATUSES,
   validateProjectDNA,
   type AppErrorCode,
@@ -620,8 +624,7 @@ export const useStudio = create<State>((set, get) => {
 
     setModule: (id) => {
       if (id === "context") id = "design_dna";
-      if (id === "references" && get().workspace?.project.projectType === "interior")
-        id = "design_dna";
+      if (id === "references" && get().workspace?.project.projectType === "interior") id = "style";
       void get().flushDna();
       const view = get().centerView;
       // The Camera module's canvas is the Camera Director; other modules show images.
@@ -722,6 +725,7 @@ export const useStudio = create<State>((set, get) => {
           !shotIntent.presetIds?.length &&
           !shotIntent.lighting &&
           !shotIntent.gradeLookId &&
+          !shotIntent.interiorGeneration &&
           !hasEffects(shotIntent.effects));
       if (empty) {
         shotIntents.delete(id);
@@ -846,7 +850,30 @@ export const useStudio = create<State>((set, get) => {
         const textChanged =
           patch.extraPrompt !== undefined && patch.extraPrompt !== s.generateDraft.extraPrompt;
         const reset = textChanged && !("approvedExceptions" in patch);
+        const workspace = s.workspace;
+        const previous =
+          workspace?.project.projectType === "interior" && !selectReadOnly(s)
+            ? workspace.shotIntent?.interiorGeneration
+            : undefined;
+        let generation = previous;
+        if (generation && patch.source === "sketch" && patch.referenceAssetIds?.[0])
+          generation = generationWithSource(generation, patch.referenceAssetIds[0]);
+        if (generation && textChanged)
+          generation = { ...generation, instruction: patch.extraPrompt!.slice(0, 4000) };
+        const shotIntent =
+          workspace && generation && generation !== previous
+            ? {
+                ...workspace.shotIntent,
+                projectType: workspace.project.projectType,
+                interiorGeneration: generation,
+              }
+            : undefined;
+        if (workspace && shotIntent) {
+          shotIntents.set(workspace.project.id, shotIntent);
+          saveShotIntent(workspace.project.id, shotIntent);
+        }
         return {
+          ...(workspace && shotIntent ? { workspace: { ...workspace, shotIntent } } : {}),
           generateDraft: {
             ...s.generateDraft,
             ...patch,
@@ -855,15 +882,18 @@ export const useStudio = create<State>((set, get) => {
         };
       }),
     reuseGeneration: (g) => {
+      const interior = g.prompt?.shotIntent?.interiorGeneration;
+      if (interior) get().setShotIntent(g.prompt.shotIntent!);
       set({
         generateDraft: {
-          source: "dna",
+          source: interior?.input.assetId ? "sketch" : "dna",
           providerId: g.providerId,
           modelId: g.modelId,
           // Anchor/production renders belong to a camera; Generate offers hero/variation.
           purpose: g.purpose === "hero" || g.purpose === "variation" ? g.purpose : null,
           params: g.params,
           referenceAssetIds: [...g.referenceAssetIds],
+          ...(interior ? { extraPrompt: interior.instruction } : {}),
         },
       });
       get().setModule("generate");
@@ -922,6 +952,16 @@ export const useStudio = create<State>((set, get) => {
         if (prompt) {
           // A resent or hand-built snapshot (enhance, retry): gated on the persisted DNA.
           const project = await persistedProject(projectId);
+          if (
+            project.projectType === "interior" &&
+            !cameraId &&
+            prompt.metadata.interiorComposerVersion &&
+            prompt.shotIntent?.interiorGeneration
+          ) {
+            const state = InteriorGenerationSchema.parse(prompt.shotIntent.interiorGeneration);
+            const hardConflicts = resolveGenerationConflicts(state);
+            if (hardConflicts.length) throw new GenerationLockConflictError(hardConflicts);
+          }
           // The snapshot's own shot intent is what its prompt was compiled with.
           const validation = checkShot({
             ...project,
@@ -949,6 +989,12 @@ export const useStudio = create<State>((set, get) => {
           // AC-22: the extra prompt is checked BEFORE it is appended; a refused shot is
           // never sent to the bridge or a provider.
           const selectedShotIntent = shotIntent ?? get().workspace?.shotIntent;
+          const interiorSource =
+            bundle.project.projectType === "interior" && !cameraId
+              ? selectedShotIntent?.interiorGeneration?.input.assetId
+              : null;
+          const sourceIndex = ids.indexOf(interiorSource ?? "");
+          if (sourceIndex > 0) ids.unshift(...ids.splice(sourceIndex, 1));
           const validation = checkShot({
             dna: bundle.dna,
             projectType: bundle.project.projectType,

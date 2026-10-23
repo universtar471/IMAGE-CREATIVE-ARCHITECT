@@ -317,10 +317,26 @@ pub(crate) fn validate(core: &AppCore, mut req: SubmitRequest) -> AppResult<Vali
         return Err(AppError::validation("params.region is only valid when purpose is 'region_edit'."));
     }
 
-    // Lineage anchor: the master if referenced, else the first reference.
+    // Interior source is authoritative even if a selective reference happens to be a master.
+    let interior_workflow = matches!(purpose, GenerationPurpose::Hero | GenerationPurpose::Variation)
+        && req.prompt.metadata.contains_key("interiorComposerVersion");
+    let interior_source = req
+        .prompt
+        .shot_intent
+        .as_ref()
+        .and_then(|shot| shot.extra.get("interiorGeneration"))
+        .and_then(|state| state.pointer("/input/assetId"))
+        .and_then(Value::as_str);
+    if interior_workflow && interior_source.is_some_and(|id| !assets.iter().any(|asset| asset.id == id)) {
+        return Err(AppError::validation("The selected interior source must be included in the request."));
+    }
+    // Legacy lineage anchor: the master if referenced, else the first reference.
     let master = project.active_master_asset_id.as_deref();
-    let parent_asset_id =
-        assets.iter().find(|a| Some(a.id.as_str()) == master).or_else(|| assets.first()).map(|a| a.id.clone());
+    let parent_asset_id = if interior_workflow {
+        interior_source.map(str::to_string)
+    } else {
+        assets.iter().find(|a| Some(a.id.as_str()) == master).or_else(|| assets.first()).map(|a| a.id.clone())
+    };
 
     if info.requires_api_key && key_for(core, provider.as_ref()).is_none() {
         return Err(not_configured(provider.as_ref()));
@@ -785,6 +801,26 @@ fn prepare_run(core: &AppCore, job_id: &str) -> Result<Prepared, Stop> {
 /// The provider call (no DB lock held), then storage of the outputs.
 fn call_and_store(core: &AppCore, prepared: &Prepared, clock: &Instant) -> Result<(), Stop> {
     let mut references = prepared.references.clone();
+    if matches!(prepared.purpose, GenerationPurpose::Hero | GenerationPurpose::Variation)
+        && prepared.snapshot.prompt.metadata.contains_key("interiorComposerVersion")
+    {
+        let source_id = prepared
+            .snapshot
+            .prompt
+            .shot_intent
+            .as_ref()
+            .and_then(|shot| shot.extra.get("interiorGeneration"))
+            .and_then(|state| state.pointer("/input/assetId"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
+        for reference in &mut references {
+            reference.role = crate::providers::text::generation_reference_role(
+                &reference.role,
+                &reference.asset_id,
+                Some(source_id),
+            );
+        }
+    }
     let mask = if prepared.purpose == GenerationPurpose::RegionEdit {
         let source = references
             .first()
@@ -1274,6 +1310,31 @@ mod tests {
         assert_eq!(mask_coverage_pct(&[255, 0, 255, 0]), 50.0);
         assert_eq!(mask_coverage_pct(&[255, 0, 0]), 33.3);
         assert_eq!(mask_coverage_pct(&[]), 0.0);
+    }
+
+    #[test]
+    fn interior_source_and_reference_permissions_survive_the_provider_and_history_roundtrip() {
+        let (tmp, core, double) = core_with_double();
+        set_key(&core, "k");
+        let project = test_create_villa(&core, "Interior source permissions");
+        let source = import(&core, tmp.path(), &project.id, "source.png", "regular_image", [20, 40, 60]);
+        let reference = import(&core, tmp.path(), &project.id, "reference.png", "master_architecture", [90, 120, 150]);
+        let state = json!({"schemaVersion":1,"input":{"assetId":source.id,"type":"photo"},"reference":{"assetId":reference.id,"attributes":{"style":true}}});
+        let mut req = request(&project.id, TEST_PROVIDER, "full", &[&source.id, &reference.id], params(1));
+        req.prompt.metadata.insert("interiorComposerVersion".into(), json!("ig-1.0.0"));
+        req.prompt.shot_intent =
+            Some(serde_json::from_value(json!({"projectType":"interior","interiorGeneration":state})).unwrap());
+        let generation = submit(&core, req).unwrap();
+        assert_eq!(generation.parent_asset_id.as_deref(), Some(source.id.as_str()));
+        let sent = double.last_request.lock().unwrap().clone().unwrap();
+        assert_eq!(sent.references[0].role, "interior_source");
+        assert_eq!(sent.references[1].role, "selective_reference");
+        let stored = get(&core, &project.id, &generation.id).unwrap();
+        assert_eq!(stored.prompt.shot_intent.unwrap().extra["interiorGeneration"], state);
+        assert_eq!(
+            assets::list(&core, &project.id).unwrap().into_iter().find(|a| a.id == reference.id).unwrap().role,
+            crate::domain::AssetRole::MasterArchitecture
+        );
     }
 
     #[test]

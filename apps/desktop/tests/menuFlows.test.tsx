@@ -59,14 +59,14 @@ it("adds room components to the existing prompt and connects a draft to the sele
   });
 });
 
-it("keeps references in Space and hides standalone scene objects in the interior nav", async () => {
+it("routes interior references to Style and hides standalone scene objects", async () => {
   await openInterior();
   render(<WorkspaceNav />);
   expect(screen.getByRole("button", { name: "Rooms" })).toBeTruthy();
   expect(document.querySelector('[data-module="references"]')).toBeNull();
   expect(document.querySelector('[data-module="scene_objects"]')).toBeNull();
   useStudio.getState().setModule("references");
-  expect(useStudio.getState().activeModule).toBe("design_dna");
+  expect(useStudio.getState().activeModule).toBe("style");
 });
 
 it("offers region insertion actions but requires a region before material controls", async () => {

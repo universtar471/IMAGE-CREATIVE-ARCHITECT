@@ -16,6 +16,7 @@ import {
   ROOMS,
   furnitureForRoom,
   roomsForUse,
+  generationFromLegacy,
   type FurnitureId,
   type RoomId,
 } from "@arch/domain";
@@ -39,6 +40,15 @@ export function RoomsPanel() {
   const disabled = readOnly || ws.draftDna.locks.building;
   const choose = (roomId: RoomId) => {
     useStudio.getState().editDna("interior.roomId", roomId);
+    const shot = useStudio.getState().workspace?.shotIntent;
+    if (shot?.interiorGeneration)
+      useStudio.getState().setShotIntent({
+        ...shot,
+        interiorGeneration: {
+          ...shot.interiorGeneration,
+          room: generationFromLegacy(roomId).room,
+        },
+      });
     setComponents(furnitureForRoom(roomId));
   };
   const sourceId = ws.assets.find(

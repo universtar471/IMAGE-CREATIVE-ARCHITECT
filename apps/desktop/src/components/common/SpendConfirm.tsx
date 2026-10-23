@@ -15,6 +15,7 @@ export type SpendRequest = {
   /** ADR-043: a paid clip. Always asks (no threshold) and shows the clip length. */
   video?: { durationSec: number };
   children?: ReactNode;
+  confirmLabel?: string;
 };
 
 function readThreshold(): number {
@@ -114,7 +115,7 @@ function SpendConfirmDialog({
             {t("common.cancel")}
           </button>
           <button className="btn btn-primary" onClick={confirm}>
-            {request.video ? t("spend.createVideo") : t("spend.create")}
+            {request.confirmLabel ?? (request.video ? t("spend.createVideo") : t("spend.create"))}
           </button>
         </>
       }

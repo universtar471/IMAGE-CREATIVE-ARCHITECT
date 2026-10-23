@@ -27,7 +27,7 @@ export function useAssetImport() {
       source: AssetSource = "external",
     ) => {
       const ws = useStudio.getState().workspace;
-      if (!ws || !paths.length) return;
+      if (!ws || !paths.length) return null;
       const { notify, selectAsset, adoptAssets } = useStudio.getState();
       let imported = 0;
       let lastId: string | null = null;
@@ -57,6 +57,7 @@ export function useAssetImport() {
         if (lastId) selectAsset(lastId);
         notify("success", t("assets.importedToast", { count: imported }));
       }
+      return lastId;
     },
     [],
   );
@@ -65,9 +66,10 @@ export function useAssetImport() {
     async (role?: AssetRole) => {
       try {
         const paths = await pickImages();
-        await importPaths(paths, role);
+        return await importPaths(paths, role);
       } catch (err) {
         useStudio.getState().notifyError(err);
+        return null;
       }
     },
     [importPaths],

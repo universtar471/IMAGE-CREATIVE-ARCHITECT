@@ -3,7 +3,14 @@
  * the spend confirm (Retry), the duplicate-import prompt and the evidence analysis.
  */
 import { useState, type ReactNode } from "react";
-import { setShotPresets, type AssetDTO, type ProjectDNA } from "@arch/domain";
+import {
+  generationWithSource,
+  initialInteriorGeneration,
+  selectGenerationGoal,
+  setShotPresets,
+  type AssetDTO,
+  type ProjectDNA,
+} from "@arch/domain";
 import { useStudio } from "../../app/store";
 import { ConfirmDialog } from "../../components/common/Dialog";
 import { useSpendConfirm } from "../../components/common/SpendConfirm";
@@ -42,7 +49,17 @@ export function useSelectionActions(selection: Selection): {
         referenceAssetIds: [assetId],
         params: null,
       });
-      if (variation && s.workspace) {
+      if (s.workspace?.project.projectType === "interior") {
+        const state = generationWithSource(
+          s.workspace.shotIntent?.interiorGeneration ?? initialInteriorGeneration(),
+          assetId,
+        );
+        s.setShotIntent({
+          ...s.workspace.shotIntent,
+          projectType: "interior",
+          interiorGeneration: variation ? selectGenerationGoal(state, "variations") : state,
+        });
+      } else if (variation && s.workspace) {
         s.setShotIntent(
           setShotPresets(
             { projectType: s.workspace.project.projectType },

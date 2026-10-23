@@ -36,6 +36,10 @@ import { presetLines, presetsSection } from "./sections/presets";
 import { PRESET_CATALOG_VERSION } from "../presets/catalog";
 import type { TimeOfDay } from "../schemas/future";
 import type { InteriorDNA } from "../interior/schemas";
+import {
+  composeInteriorGeneration,
+  INTERIOR_COMPOSER_VERSION,
+} from "../generationPresets/composer";
 
 export const COMPILER_VERSION = "pc-1.11.0";
 
@@ -197,14 +201,26 @@ export function withResolvedWarnings(bundle: PromptBundle, codes: readonly strin
 
 function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA): PromptBundle {
   const { project, pack } = input;
-  const references = sortReferences(input.references);
   const typeLabel = PROJECT_TYPE_LABELS[project.projectType];
   const isInterior = project.projectType === "interior";
+  const interiorWorkflow = isInterior && !input.cameraId && !!input.shotIntent?.interiorGeneration;
+  const references = sortReferences(input.references);
+  const sourceIndex = interiorWorkflow
+    ? references.findIndex(
+        (ref) => ref.assetId === input.shotIntent?.interiorGeneration?.input.assetId,
+      )
+    : -1;
+  if (sourceIndex > 0) references.unshift(...references.splice(sourceIndex, 1));
   const dnaCamera = input.cameraId
     ? sourceDna.cameras.find((c) => c.id === input.cameraId)
     : undefined;
   const shotIntent = normalizeShotIntent(
-    input.shotIntent,
+    interiorWorkflow
+      ? {
+          projectType: project.projectType,
+          interiorGeneration: input.shotIntent!.interiorGeneration,
+        }
+      : input.shotIntent,
     project.projectType,
     dnaCamera?.id ?? null,
   );
@@ -354,7 +370,7 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
     knowledgePack: pack ?? null,
   });
 
-  return {
+  const bundle: PromptBundle = {
     compilerVersion: COMPILER_VERSION,
     validatorVersion: VALIDATOR_VERSION,
     catalogVersion,
@@ -394,6 +410,31 @@ function compilePromptInternal(input: PromptCompileInput, sourceDna: ProjectDNA)
       },
     },
   };
+  if (interiorWorkflow && shotIntent?.interiorGeneration) {
+    const composed = composeInteriorGeneration(
+      shotIntent.interiorGeneration,
+      references,
+      formSection(sourceDna, false) ?? "",
+    );
+    return {
+      ...bundle,
+      compilerVersion: `${COMPILER_VERSION}/${INTERIOR_COMPOSER_VERSION}`,
+      positivePrompt: composed.positivePrompt,
+      negativePrompt: composed.negativePrompt,
+      referenceInstructions: composed.referenceInstructions,
+      preservationInstructions: composed.preservationInstructions,
+      configHash: canonicalHash({
+        base: bundle.configHash,
+        interiorComposerVersion: INTERIOR_COMPOSER_VERSION,
+      }),
+      metadata: {
+        ...bundle.metadata,
+        interiorComposerVersion: INTERIOR_COMPOSER_VERSION,
+        sections: composed.sections,
+      },
+    };
+  }
+  return bundle;
 }
 
 // ---------------------------------------------------------------- shot lighting

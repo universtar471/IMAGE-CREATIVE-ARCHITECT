@@ -138,7 +138,15 @@ export function AssistControl({
       const selectedId = state.selectedAssetId ?? state.workspace?.project.activeMasterAssetId;
       const imageIds =
         selectedMode === "images"
-          ? referenceAssetIds
+          ? scope === "regions"
+            ? [
+                ...new Set(
+                  [selectedId, ...referenceAssetIds].filter(
+                    (id): id is string => !!id && references.some((asset) => asset.id === id),
+                  ),
+                ),
+              ]
+            : referenceAssetIds
           : [
               selectedId,
               ...assets

@@ -23,9 +23,27 @@ import { useSpendConfirm } from "../../components/common/SpendConfirm";
 import { HelpPopover } from "../../components/common/HelpPopover";
 import { ConflictPanel, useConflictFix } from "../validation/ConflictPanel";
 import { checkShot } from "../validation/gate";
+import type { InteriorGenerationState } from "@arch/domain";
+import { useInteriorGeneration } from "./interior/useInteriorGeneration";
+import { InteriorGenerateFlow } from "./interior/InteriorGenerateFlow";
+import { interiorGenerateDisabledReason, resolveInteriorGenerateForm } from "./interior/form";
 
 /** Right panel of the Generate module: provider, params, references, prompt, run, result. */
 export function GeneratePanel() {
+  const interior = useStudio((s) => s.workspace!.project.projectType === "interior");
+  return interior ? <InteriorGenerateAdapter /> : <GenerateContent />;
+}
+
+function InteriorGenerateAdapter() {
+  const interior = useInteriorGeneration();
+  return <GenerateContent interior={interior} />;
+}
+
+function GenerateContent({
+  interior,
+}: {
+  interior?: { state: InteriorGenerationState; set: (next: InteriorGenerationState) => void };
+}) {
   const allProviders = useStudio((s) => s.providers);
   const providers =
     allProviders && allProviders.filter((p) => isImageProvider(p) && p.id !== "local_upscale");
@@ -61,7 +79,15 @@ export function GeneratePanel() {
   }
 
   const project = ws.project;
-  const form = resolveGenerateForm(draft, providers, ws.assets, project.activeMasterAssetId);
+  const form = interior
+    ? resolveInteriorGenerateForm(
+        draft,
+        providers,
+        ws.assets,
+        project.activeMasterAssetId,
+        interior.state,
+      )
+    : resolveGenerateForm(draft, providers, ws.assets, project.activeMasterAssetId);
   const running = run?.status === "submitting";
   const reason = generateDisabledReason(form, {
     readOnly,
@@ -78,7 +104,8 @@ export function GeneratePanel() {
     approvedExceptions: draft.approvedExceptions,
     shotIntent: ws.shotIntent,
   });
-  const disabledReason = reason;
+  const disabledReason =
+    reason ?? (interior ? interiorGenerateDisabledReason(interior.state, ws.assets) : null);
   const thisRun = run && run.projectId === project.id ? run : null;
   // Estimated price (HHTECH price list): images × tier price; null for unpriced providers.
   const costText = form.model
@@ -87,7 +114,7 @@ export function GeneratePanel() {
   const cost = costText ? translateDomainMessage(costText, t) : null;
 
   const generate = async () => {
-    if (!form.provider || !form.model) return;
+    if (!form.provider || !form.model || disabledReason) return;
     const unit = form.params.imageSize ? form.model.priceHint?.[form.params.imageSize] : undefined;
     const estimatedTotal = unit === undefined ? null : unit * form.params.outputCount;
     if (
@@ -109,7 +136,7 @@ export function GeneratePanel() {
       referenceAssetIds: form.referenceIds,
       params: form.params,
       cameraId: null,
-      extraPrompt: draft.extraPrompt,
+      extraPrompt: interior?.state.instruction ?? draft.extraPrompt,
       approvedExceptions: draft.approvedExceptions,
       shotIntent: ws.shotIntent,
     });
@@ -150,92 +177,68 @@ export function GeneratePanel() {
 
   return (
     <div className="generate-panel">
-      <ProviderSection form={form} disabled={running} />
-      {form.model && (
-        <div className="generation-quality-controls">
-          {form.model.imageSizes.length > 0 && (
-            <SelectField
-              label={t("generate.imageSize")}
-              allowEmpty={false}
-              disabled={running}
-              value={form.params.imageSize ?? undefined}
-              options={form.model.imageSizes.map((size) => ({ value: size, label: size }))}
-              onChange={(imageSize) =>
-                setDraft({ params: { ...form.params, imageSize: imageSize ?? null } })
+      {!interior && <GenerateProviderControls form={form} disabled={running} />}
+      {interior ? (
+        <InteriorGenerateFlow
+          state={interior.state}
+          set={interior.set}
+          disabled={readOnly || running}
+          providerControls={<GenerateProviderControls form={form} disabled={running} />}
+        />
+      ) : (
+        <>
+          {form.purpose === "variation" && form.sketch && (
+            <div className="variation-source" data-testid="variation-source">
+              <img
+                src={fileUrl(form.sketch.thumbnailPath ?? form.sketch.absolutePath) ?? undefined}
+                alt=""
+              />
+              <div>
+                <strong>{t("generate.generateVariation")}</strong>
+                <span className="field-hint">{form.sketch.originalName}</span>
+              </div>
+            </div>
+          )}
+          {form.purpose !== "variation" && (
+            <SectionPanel
+              title={t("generate.simpleSource")}
+              aside={
+                <HelpPopover topic={t("generate.simpleSource")}>
+                  {t("generate.simpleSourceHint")}
+                </HelpPopover>
               }
+            >
+              <SourceFields form={form} disabled={running} />
+            </SectionPanel>
+          )}
+          <SectionPanel
+            title={t("presets.title")}
+            aside={<HelpPopover topic={t("presets.title")}>{t("presets.none")}</HelpPopover>}
+          >
+            <PresetGrid disabled={running} variation={form.purpose === "variation"} />
+          </SectionPanel>
+          {form.purpose !== "variation" && (
+            <RecipeSection
+              disabledReason={disabledReason}
+              running={running}
+              outputCount={form.params.outputCount}
+              onRun={(plans) => void runRecipe(plans)}
             />
           )}
-          <QualityField
-            model={form.model}
-            value={form.params.quality}
-            disabled={running}
-            onChange={(quality) => setDraft({ params: { ...form.params, quality } })}
-          />
-          {form.model.maxOutputs > 1 && (
-            <SelectField
-              label={t("generate.imagesPerRun")}
-              allowEmpty={false}
-              disabled={running}
-              value={String(form.params.outputCount)}
-              options={Array.from({ length: Math.min(4, form.model.maxOutputs) }, (_, i) => ({
-                value: String(i + 1),
-                label: String(i + 1),
-              }))}
-              onChange={(value) =>
-                setDraft({ params: { ...form.params, outputCount: Number(value) || 1 } })
-              }
-            />
+          {form.purpose === "variation" && (
+            <ExtraPromptSection referenceIds={form.referenceIds} disabled={running} />
           )}
-        </div>
+        </>
       )}
-      {form.purpose === "variation" && form.sketch && (
-        <div className="variation-source" data-testid="variation-source">
-          <img
-            src={fileUrl(form.sketch.thumbnailPath ?? form.sketch.absolutePath) ?? undefined}
-            alt=""
-          />
-          <div>
-            <strong>{t("generate.generateVariation")}</strong>
-            <span className="field-hint">{form.sketch.originalName}</span>
-          </div>
-        </div>
-      )}
-      {form.purpose !== "variation" && (
-        <SectionPanel
-          title={t("generate.simpleSource")}
-          aside={
-            <HelpPopover topic={t("generate.simpleSource")}>
-              {t("generate.simpleSourceHint")}
-            </HelpPopover>
+      {!interior && (
+        <ConflictPanel
+          entries={[{ validation: conflicts }]}
+          onFix={fixConflict}
+          onApprove={(codes) =>
+            setDraft({ approvedExceptions: [...(draft.approvedExceptions ?? []), ...codes] })
           }
-        >
-          <SourceFields form={form} disabled={running} />
-        </SectionPanel>
-      )}
-      <SectionPanel
-        title={t("presets.title")}
-        aside={<HelpPopover topic={t("presets.title")}>{t("presets.none")}</HelpPopover>}
-      >
-        <PresetGrid disabled={running} variation={form.purpose === "variation"} />
-      </SectionPanel>
-      {form.purpose !== "variation" && (
-        <RecipeSection
-          disabledReason={disabledReason}
-          running={running}
-          outputCount={form.params.outputCount}
-          onRun={(plans) => void runRecipe(plans)}
         />
       )}
-      {form.purpose === "variation" && (
-        <ExtraPromptSection referenceIds={form.referenceIds} disabled={running} />
-      )}
-      <ConflictPanel
-        entries={[{ validation: conflicts }]}
-        onFix={fixConflict}
-        onApprove={(codes) =>
-          setDraft({ approvedExceptions: [...(draft.approvedExceptions ?? []), ...codes] })
-        }
-      />
 
       <SectionPanel title={t("generate.compiledPrompt")} defaultOpen={false}>
         <GeneratePromptPreview referenceIds={form.referenceIds} />
@@ -272,7 +275,11 @@ export function GeneratePanel() {
           data-testid="generate-button"
         >
           <Sparkles size={15} />
-          {form.purpose === "hero" ? t("generate.generateHero") : t("generate.generateVariation")}
+          {interior
+            ? t("interiorFlow.generate")
+            : form.purpose === "hero"
+              ? t("generate.generateHero")
+              : t("generate.generateVariation")}
           {form.params.outputCount > 1 ? ` ×${form.params.outputCount}` : ""}
         </button>
         {cost && (
@@ -291,6 +298,52 @@ export function GeneratePanel() {
   );
 }
 
+function GenerateProviderControls({ form, disabled }: { form: GenerateForm; disabled: boolean }) {
+  const setDraft = useStudio((s) => s.setGenerateDraft);
+  const t = useT();
+  return (
+    <>
+      <ProviderSection form={form} disabled={disabled} />
+      {form.model && (
+        <div className="generation-quality-controls">
+          {form.model.imageSizes.length > 0 && (
+            <SelectField
+              label={t("generate.imageSize")}
+              allowEmpty={false}
+              disabled={disabled}
+              value={form.params.imageSize ?? undefined}
+              options={form.model.imageSizes.map((size) => ({ value: size, label: size }))}
+              onChange={(imageSize) =>
+                setDraft({ params: { ...form.params, imageSize: imageSize ?? null } })
+              }
+            />
+          )}
+          <QualityField
+            model={form.model}
+            value={form.params.quality}
+            disabled={disabled}
+            onChange={(quality) => setDraft({ params: { ...form.params, quality } })}
+          />
+          {form.model.maxOutputs > 1 && (
+            <SelectField
+              label={t("generate.imagesPerRun")}
+              allowEmpty={false}
+              disabled={disabled}
+              value={String(form.params.outputCount)}
+              options={Array.from({ length: Math.min(4, form.model.maxOutputs) }, (_, i) => ({
+                value: String(i + 1),
+                label: String(i + 1),
+              }))}
+              onChange={(value) =>
+                setDraft({ params: { ...form.params, outputCount: Number(value) || 1 } })
+              }
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 /** Non-terminal jobs of one project (count is a primitive, so the selector is stable). */
 function useQueuedCount(projectId: string): number {
   return useStudio(

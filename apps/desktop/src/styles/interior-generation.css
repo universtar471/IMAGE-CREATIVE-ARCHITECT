@@ -1,0 +1,117 @@
+.interior-generate-flow {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.style-panel {
+  container-type: inline-size;
+}
+.generation-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.generation-choice,
+.generation-preserve {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.generation-choice {
+  flex-direction: column;
+  min-height: 76px;
+  padding: 9px 5px;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+.generation-choice svg,
+.generation-preserve svg {
+  color: var(--c-accent, #54c8e9);
+  flex-shrink: 0;
+}
+.generation-choice[aria-pressed="true"],
+.generation-preserve[aria-pressed="true"] {
+  border-color: var(--c-accent, #54c8e9);
+  background: color-mix(in srgb, var(--c-accent, #54c8e9) 15%, var(--c-surface));
+  box-shadow: inset 0 0 0 1px var(--c-accent, #54c8e9);
+}
+.generation-choice:disabled,
+.generation-preserve:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.generation-preserve-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.generation-preserve {
+  min-height: 42px;
+  justify-content: flex-start;
+  padding: 7px;
+  font-size: 12px;
+}
+.interior-source-input {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.interior-source-preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--c-bg);
+}
+.interior-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 9px 0;
+}
+.interior-style-grid .style-thumbnail > img {
+  aspect-ratio: 4/3;
+  min-height: 0;
+  height: auto;
+  width: 100%;
+  object-fit: cover !important;
+}
+.interior-style-grid .style-thumbnail {
+  min-width: 0;
+  font-size: 11px;
+}
+.interior-style-grid .style-thumbnail > span {
+  padding: 5px 2px;
+}
+@container (min-width:330px) {
+  .interior-style-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.generate-footer {
+  z-index: 4;
+}
+.interior-reference-attributes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.interior-reference-attributes label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.interior-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
