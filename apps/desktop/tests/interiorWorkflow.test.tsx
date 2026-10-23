@@ -106,6 +106,41 @@ it("presents the new workflow and keeps optional settings collapsed", async () =
   ).toBe(false);
   expect(screen.getByRole("combobox", { name: "Model" }).closest("details")!.open).toBe(true);
 });
+it("edits space and lighting directly from Generate without losing the source or instruction", async () => {
+  await open();
+  const before = useStudio.getState().workspace!;
+  useStudio.getState().setShotIntent({
+    ...before.shotIntent,
+    interiorGeneration: {
+      ...before.shotIntent!.interiorGeneration!,
+      instruction: "Keep the current scene.",
+    },
+  });
+  render(<GeneratePanel />);
+  fireEvent.click(screen.getByRole("button", { name: "Space" }));
+  const space = screen.getByRole("dialog", { name: "Space" });
+  fireEvent.change(within(space).getByRole("combobox", { name: "Room" }), {
+    target: { value: "bedroom" },
+  });
+  fireEvent.click(within(space).getByRole("button", { name: "Close" }));
+  expect(useStudio.getState().workspace!.shotIntent!.interiorGeneration!.room).toBe("bedroom");
+  fireEvent.click(screen.getByRole("button", { name: "Interior lighting" }));
+  const light = screen.getByRole("dialog", { name: "Interior lighting" });
+  fireEvent.click(within(light).getByRole("button", { name: "Warm" }));
+  fireEvent.click(within(light).getByRole("button", { name: "Close" }));
+  expect(useStudio.getState().workspace!.shotIntent!.interiorGeneration).toMatchObject({
+    room: "bedroom",
+    lighting: { preset: "warm" },
+    input: { assetId: "AST_WORKFLOW_SOURCE" },
+    instruction: "Keep the current scene.",
+  });
+  fireEvent.click(screen.getByTestId("generate-button"));
+  await waitFor(() => expect(submitted).toHaveLength(1));
+  expect(submitted[0]!.prompt.shotIntent!.interiorGeneration).toMatchObject({
+    room: "bedroom",
+    lighting: { preset: "warm" },
+  });
+});
 it("uses goal defaults, functional room context and persists structured choices", async () => {
   const p = await open();
   render(<GeneratePanel />);
@@ -224,6 +259,7 @@ it("restores the latest Prompt and Node source after reopening a project in the 
 it("only requests lighting advice, then applies it explicitly", async () => {
   await open();
   render(<GeneratePanel />);
+  fireEvent.click(screen.getByRole("button", { name: "Interior lighting" }));
   fireEvent.click(screen.getByRole("button", { name: "Suggest lighting" }));
   const dialog = await screen.findByRole("dialog", { name: "Confirm cost" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Continue" }));
@@ -290,6 +326,7 @@ it("shows invalid advice as an error and permits a fresh analysis retry", async 
   await open();
   assistRaw = "{broken";
   render(<GeneratePanel />);
+  fireEvent.click(screen.getByRole("button", { name: "Interior lighting" }));
   fireEvent.click(screen.getByRole("button", { name: "Suggest lighting" }));
   fireEvent.click(
     within(await screen.findByRole("dialog", { name: "Confirm cost" })).getByRole("button", {

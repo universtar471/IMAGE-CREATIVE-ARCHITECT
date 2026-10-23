@@ -115,6 +115,35 @@ try {
   );
   const flow = page.getByTestId("interior-generate-flow");
   await flow.waitFor();
+  for (const id of ["design_dna", "style", "lighting", "effects"]) {
+    assert.equal(await page.locator(`.nav [data-module="${id}"]`).count(), 0);
+  }
+  await flow.getByRole("button", { name: "Không gian", exact: true }).click();
+  const space = page.getByRole("dialog", { name: "Không gian", exact: true });
+  await space.getByRole("combobox", { name: "Không gian", exact: true }).selectOption("bedroom");
+  await page.screenshot({ path: resolve(output, "interior-space-options.png") });
+  await space.getByRole("button", { name: "Đóng", exact: true }).click();
+  assert.equal(
+    await page.evaluate(
+      async () =>
+        (await import("/src/app/store.ts")).useStudio.getState().workspace.shotIntent
+          .interiorGeneration.room,
+    ),
+    "bedroom",
+  );
+  await flow.getByRole("button", { name: "Ánh sáng nội thất", exact: true }).click();
+  const light = page.getByRole("dialog", { name: "Ánh sáng nội thất", exact: true });
+  await light.getByRole("button", { name: "Ấm áp", exact: true }).click();
+  await page.screenshot({ path: resolve(output, "interior-lighting-options.png") });
+  await light.getByRole("button", { name: "Đóng", exact: true }).click();
+  assert.equal(
+    await page.evaluate(
+      async () =>
+        (await import("/src/app/store.ts")).useStudio.getState().workspace.shotIntent
+          .interiorGeneration.lighting.preset,
+    ),
+    "warm",
+  );
   const more = flow
     .locator("details")
     .filter({ has: page.locator("summary", { hasText: "Tùy chỉnh thêm" }) })

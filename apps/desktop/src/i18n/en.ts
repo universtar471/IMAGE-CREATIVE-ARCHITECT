@@ -1665,7 +1665,7 @@ export const en = {
     changeLevel: "Change level",
     preserve: "Preserve",
     customize: "More options",
-    customizeHint: "Optional camera, indoor lighting, your instructions and provider settings.",
+    customizeHint: "Optional camera controls and additional instructions.",
     camera: "Camera",
     cameraLocked:
       "Original camera is locked. Unlock Camera in Preserve to select a different view.",

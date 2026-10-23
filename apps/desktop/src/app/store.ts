@@ -66,7 +66,11 @@ import { deriveWorkflow, type DerivedWorkflow } from "../lib/workflow";
 import { setIn } from "../lib/path";
 import { t } from "../i18n";
 import { errorHeadline } from "../i18n/domain";
-import type { ModuleId, TrayTabId } from "../features/workspace/modules";
+import {
+  workspaceModuleForProject,
+  type ModuleId,
+  type TrayTabId,
+} from "../features/workspace/modules";
 import { isActiveGeneration } from "../features/generate/labels";
 import { withExtraPrompt } from "../features/generate/extraPrompt";
 import { compileFromBundle } from "./services";
@@ -670,8 +674,7 @@ export const useStudio = create<State>((set, get) => {
     },
 
     setModule: (id) => {
-      if (id === "context") id = "design_dna";
-      if (id === "references" && get().workspace?.project.projectType === "interior") id = "style";
+      id = workspaceModuleForProject(id, get().workspace?.project.projectType);
       void get().flushDna();
       const view = get().centerView;
       // The Camera module's canvas is the Camera Director; other modules show images.
@@ -705,10 +708,12 @@ export const useStudio = create<State>((set, get) => {
         // Re-selecting the same node must not override a tool chosen from its toolbar.
         const changed = ids.join("\n") !== s.canvasSelection.join("\n");
         const ws = s.workspace;
-        const activeModule =
+        const activeModule = workspaceModuleForProject(
           changed && ws && s.workspaceMode === "node"
             ? nodeSelectionModule(ids, ws.assets, ws.generations, s.activeModule)
-            : s.activeModule;
+            : s.activeModule,
+          ws?.project.projectType,
+        );
         const assetId = ids.length === 1 && ids[0]!.startsWith("asset:") ? ids[0]!.slice(6) : null;
         return {
           canvasSelection: ids,

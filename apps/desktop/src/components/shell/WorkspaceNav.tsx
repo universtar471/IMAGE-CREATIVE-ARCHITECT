@@ -1,7 +1,11 @@
 import { Fragment } from "react";
 import { AlertTriangle, Check, Circle, LockKeyhole, Minus } from "lucide-react";
 import { useStudio } from "../../app/store";
-import { WORKSPACE_MODULES, type ModuleId } from "../../features/workspace/modules";
+import {
+  WORKSPACE_MODULES,
+  workspaceModuleForProject,
+  type ModuleId,
+} from "../../features/workspace/modules";
 import { useT } from "../../i18n";
 import { WORKFLOW_STEPS } from "../../lib/workflow";
 import { PremiumIcon, type PremiumIconId } from "../common/PremiumIcon";
@@ -43,7 +47,7 @@ export function WorkspaceNav() {
     (m) =>
       m.id !== "scene_objects" &&
       m.id !== "context" &&
-      !(isInterior && m.id === "references") &&
+      workspaceModuleForProject(m.id, isInterior ? "interior" : undefined) === m.id &&
       m.id !== "rooms" &&
       !(isInterior && m.id === "detail"),
   );

@@ -143,6 +143,7 @@ describe("Preset grid", () => {
     await openPanel("interior");
     expect(screen.queryByRole("button", { name: "Aerial" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Parked sedan" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Interior lighting" }));
     expect(screen.getByRole("button", { name: "Golden hour" })).toBeTruthy();
   });
 });

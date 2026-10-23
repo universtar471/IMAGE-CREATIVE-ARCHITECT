@@ -5,14 +5,12 @@ import {
   GENERATION_ROOMS,
   GENERATION_CHANGE_LEVELS,
   GENERATION_PRESERVE,
-  GENERATION_LIGHTING,
   selectGenerationGoal,
   selectChangeLevel,
   setGenerationPreserve,
   resolveGenerationConflicts,
   keepGenerationLock,
   type InteriorGenerationState,
-  type GenerationLight,
 } from "@arch/domain";
 import { SectionPanel } from "../../../components/panels/SectionPanel";
 import { HelpPopover } from "../../../components/common/HelpPopover";
@@ -23,6 +21,7 @@ import { InteriorSourceInput } from "./InteriorSourceInput";
 import { InteriorStylePicker } from "./InteriorStylePicker";
 import { InteriorReference } from "./InteriorReference";
 import { InteriorRecommendation } from "./InteriorRecommendation";
+import { InteriorOptions } from "./InteriorOptions";
 
 export function InteriorGenerateFlow({
   state,
@@ -43,6 +42,7 @@ export function InteriorGenerateFlow({
       <SectionPanel title={t("interiorFlow.source")}>
         <InteriorSourceInput state={state} set={set} disabled={disabled} />
       </SectionPanel>
+      <InteriorOptions state={state} set={set} disabled={disabled} />
       <SectionPanel title={t("interiorFlow.goal")}>
         <GenerationChoices
           items={GENERATION_GOALS}
@@ -115,18 +115,6 @@ export function InteriorGenerateFlow({
       >
         <SectionPanel title={t("interiorFlow.camera")}>
           <InteriorCameraControls state={state} set={set} disabled={disabled} />
-        </SectionPanel>
-        <SectionPanel title={t("interiorFlow.lighting")}>
-          <GenerationChoices
-            items={GENERATION_LIGHTING}
-            value={state.lighting.preset}
-            disabled={disabled}
-            label={t("interiorFlow.lighting")}
-            onChange={(preset) =>
-              set({ ...state, lighting: { preset: preset as GenerationLight } })
-            }
-          />
-          <InteriorRecommendation kind="lighting" state={state} set={set} disabled={disabled} />
         </SectionPanel>
         <label className="field">
           <span className="field-label">{t("interiorFlow.instruction")}</span>
