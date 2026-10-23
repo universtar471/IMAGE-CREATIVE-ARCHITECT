@@ -1660,7 +1660,7 @@ export const vi: Dict = {
     changeLevel: "Mức thay đổi",
     preserve: "Giữ nguyên",
     customize: "Tùy chỉnh thêm",
-    customizeHint: "Tùy chọn góc máy, ánh sáng nội thất, yêu cầu thêm và nhà cung cấp.",
+    customizeHint: "Tùy chọn góc máy và yêu cầu bổ sung.",
     camera: "Camera",
     cameraLocked: "Đang khóa góc gốc. Bỏ khóa Camera trong Giữ nguyên để chọn góc khác.",
     lighting: "Ánh sáng nội thất",

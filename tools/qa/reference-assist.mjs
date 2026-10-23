@@ -139,7 +139,7 @@ try {
   await panel.locator(".style-thumbnail").first().waitFor();
   assert.equal(await panel.locator(".style-thumbnail").count(), 6);
   await page.waitForFunction(() => {
-    const images = [...document.querySelectorAll(".style-panel .style-thumbnail img")];
+    const images = [...document.querySelectorAll(".interior-generate-flow .style-thumbnail img")];
     return images.length === 6 && images.every((img) => img.complete && img.naturalWidth > 0);
   });
   await page.screenshot({ path: resolve(output, "interior-style-menu-compact.png") });

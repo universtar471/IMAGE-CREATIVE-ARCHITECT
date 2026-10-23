@@ -71,15 +71,40 @@ it("adds room components to the existing prompt and connects a draft to the sele
   });
 });
 
-it("routes interior references to Style and hides standalone scene objects", async () => {
+it("keeps interior design controls inside Generate and hides their standalone menu entries", async () => {
   await openInterior();
   render(<WorkspaceNav />);
   expect(screen.queryByRole("button", { name: "Rooms" })).toBeNull();
   expect(document.querySelector('[data-module="detail"]')).toBeNull();
   expect(document.querySelector('[data-module="references"]')).toBeNull();
   expect(document.querySelector('[data-module="scene_objects"]')).toBeNull();
-  useStudio.getState().setModule("references");
-  expect(useStudio.getState().activeModule).toBe("style");
+  for (const id of ["design_dna", "style", "lighting", "effects", "references"] as const) {
+    expect(document.querySelector(`[data-module="${id}"]`)).toBeNull();
+    useStudio.getState().setModule(id);
+    expect(useStudio.getState().activeModule).toBe("generate");
+  }
+  const ws = useStudio.getState().workspace!;
+  const reference = asset(ws.project.id, "AST_INTERIOR_REFERENCE");
+  useStudio.setState({ workspace: { ...ws, assets: [reference] } });
+  useStudio.getState().setWorkspaceMode("node");
+  useStudio.getState().setCanvasSelection([`asset:${reference.id}`]);
+  expect(useStudio.getState().activeModule).toBe("generate");
+});
+
+it("retains architecture design, Style, lighting and effects navigation", async () => {
+  const project = await createProject({
+    name: "Architecture",
+    projectType: "custom",
+    subtype: null,
+    starter: {},
+  });
+  await useStudio.getState().openProject(project.id);
+  render(<WorkspaceNav />);
+  for (const id of ["design_dna", "style", "lighting", "effects"] as const) {
+    expect(document.querySelector(`[data-module="${id}"]`)).toBeTruthy();
+    useStudio.getState().setModule(id);
+    expect(useStudio.getState().activeModule).toBe(id);
+  }
 });
 
 it("offers region insertion actions but requires a region before material controls", async () => {

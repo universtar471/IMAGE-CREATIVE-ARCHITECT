@@ -102,6 +102,6 @@ it.each(["interior", "villa"] as const)(
     fireEvent.click(screen.getByRole("button", { name: "Mountains" }));
     expect(useStudio.getState().workspace!.draftDna.context.front.spaceType).toBe("mountain view");
     useStudio.getState().setModule("context");
-    expect(useStudio.getState().activeModule).toBe("design_dna");
+    expect(useStudio.getState().activeModule).toBe(type === "interior" ? "generate" : "design_dna");
   },
 );

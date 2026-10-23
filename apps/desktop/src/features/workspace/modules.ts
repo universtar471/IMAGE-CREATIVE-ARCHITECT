@@ -196,6 +196,15 @@ export const hasOwnCenter = (id: ModuleId) => OWN_CENTER_MODULES.includes(id);
 export const moduleById = (id: ModuleId) => WORKSPACE_MODULES.find((m) => m.id === id)!;
 export const isFutureModule = (id: ModuleId) => moduleById(id).availableIn !== null;
 
+/** Old links stay usable after interior controls move into Generate. */
+export function workspaceModuleForProject(id: ModuleId, projectType?: string): ModuleId {
+  if (id === "context") id = "design_dna";
+  return projectType === "interior" &&
+    ["design_dna", "style", "lighting", "effects", "references"].includes(id)
+    ? "generate"
+    : id;
+}
+
 export type TrayTabId = "assets" | "versions" | "jobs" | "history";
 
 export const TRAY_TABS: readonly {
