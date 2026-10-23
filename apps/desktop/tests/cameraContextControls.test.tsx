@@ -68,13 +68,11 @@ it("uses interior camera choices and sends a close-up variation without a wide c
 
 it("keeps the camera module and preset chips on the same view", async () => {
   await open();
-  useStudio
-    .getState()
-    .setShotIntent({
-      projectType: "interior",
-      presetIds: ["camera.front"],
-      visualIntent: { view: "front", purpose: "portrait", focus: 80 },
-    });
+  useStudio.getState().setShotIntent({
+    projectType: "interior",
+    presetIds: ["camera.front"],
+    visualIntent: { view: "front", purpose: "portrait", focus: 80 },
+  });
   render(<VisualIntentSelector />);
   fireEvent.click(screen.getByRole("button", { name: /Furniture detail/ }));
   expect(useStudio.getState().workspace!.shotIntent).toMatchObject({
