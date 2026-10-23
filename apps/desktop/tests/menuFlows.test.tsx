@@ -11,6 +11,18 @@ import { WorkspaceNav } from "../src/components/shell/WorkspaceNav";
 import { RegionPanel } from "../src/features/regions/RegionPanel";
 import { GradePreview } from "../src/features/previews/GradePreview";
 import { neutralGrade } from "../src/lib/grade";
+import { StylePanel } from "../src/features/style/StylePanel";
+
+it("keeps the Style menu compact and opens the complete catalogue on demand", async () => {
+  await openInterior();
+  render(<StylePanel />);
+  expect(document.querySelectorAll(".style-thumbnail")).toHaveLength(6);
+  fireEvent.click(screen.getByRole("button", { name: "View all styles" }));
+  expect(
+    screen.getByRole("dialog", { name: "View all styles" }).querySelectorAll(".style-thumbnail")
+      .length,
+  ).toBeGreaterThan(6);
+});
 
 beforeEach(() => {
   setTransport(createMockTransport({ projects: {}, dna: {}, assets: {}, versions: [] }));

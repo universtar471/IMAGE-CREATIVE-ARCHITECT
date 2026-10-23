@@ -1,5 +1,17 @@
 import { useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
+  Check,
+  Image,
+  Images,
+  Languages,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Text,
+  X,
+} from "lucide-react";
+import {
   assistFieldSection,
   isVideoAsset,
   type AssetDTO,
@@ -22,6 +34,9 @@ import {
   type AssistScope,
 } from "../../lib/assist";
 import { getIn } from "../../lib/path";
+import { fileUrl } from "../../lib/files";
+
+const modeIcons = { brief: Text, images: Images, master: Image };
 
 const stepForPath = (path: string): DnaStepId | undefined =>
   (
@@ -51,6 +66,7 @@ export function TranslateChip({
       disabled={disabled}
       onClick={onClick}
     >
+      <Languages size={14} aria-hidden />
       {t("assist.translate")}
     </button>
   );
@@ -262,9 +278,20 @@ export function AssistControl({
           setMode(initialMode ?? null);
           setProposal(null);
           setError(null);
+          // Assets may have been imported since this control first mounted.
+          const available = referenceAssetIds.filter((id) => references.some((a) => a.id === id));
+          setReferenceAssetIds(
+            available.length
+              ? available
+              : references
+                  .filter((a) => a.role.endsWith("_reference"))
+                  .slice(0, 3)
+                  .map((a) => a.id),
+          );
           if (initialMode) void continueToCall(initialMode);
         }}
       >
+        <Sparkles size={15} aria-hidden />
         {buttonLabel ?? t("assist.button")}
       </button>
       {open && (
@@ -280,25 +307,29 @@ export function AssistControl({
                 setOpen(false);
               }}
             >
-              ×
+              <X size={16} aria-hidden />
             </button>
           </div>
           {!proposal || error ? (
             <>
               {!initialMode && (
                 <div className="assist-modes" role="group">
-                  {(["brief", "images", "master"] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className="btn btn-sm"
-                      aria-pressed={mode === value}
-                      disabled={busy || (value === "master" && !canUseMaster)}
-                      onClick={() => setMode(value)}
-                    >
-                      {t(`assist.mode.${value}`)}
-                    </button>
-                  ))}
+                  {(["brief", "images", "master"] as const).map((value) => {
+                    const Icon = modeIcons[value];
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        className="btn btn-sm"
+                        aria-pressed={mode === value}
+                        disabled={busy || (value === "master" && !canUseMaster)}
+                        onClick={() => setMode(value)}
+                      >
+                        <Icon size={15} aria-hidden />
+                        {t(`assist.mode.${value}`)}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {mode === "brief" && (
@@ -318,12 +349,13 @@ export function AssistControl({
                 <div className="assist-reference-list">
                   {references.length ? (
                     references.map((asset) => (
-                      <label key={asset.id} className="check-row">
+                      <label key={asset.id} className="check-row assist-reference-option">
                         <input
                           type="checkbox"
                           checked={referenceAssetIds.includes(asset.id)}
                           disabled={
-                            !referenceAssetIds.includes(asset.id) && referenceAssetIds.length >= 3
+                            busy ||
+                            (!referenceAssetIds.includes(asset.id) && referenceAssetIds.length >= 3)
                           }
                           onChange={(event) =>
                             setReferenceAssetIds(
@@ -332,6 +364,10 @@ export function AssistControl({
                                 : referenceAssetIds.filter((id) => id !== asset.id),
                             )
                           }
+                        />
+                        <img
+                          src={fileUrl(asset.thumbnailPath ?? asset.absolutePath) ?? undefined}
+                          alt=""
                         />
                         {asset.originalName}
                       </label>
@@ -352,6 +388,11 @@ export function AssistControl({
                   }
                   onClick={() => void continueToCall()}
                 >
+                  {busy ? (
+                    <Loader2 size={15} className="spin" aria-hidden />
+                  ) : (
+                    <ArrowRight size={15} aria-hidden />
+                  )}
                   {busy ? t("common.loading") : t("assist.continue")}
                 </button>
               )}
@@ -435,6 +476,7 @@ export function AssistControl({
                 disabled={busy || !checked.length}
                 onClick={() => void apply()}
               >
+                <Check size={15} aria-hidden />
                 {t("assist.apply", { count: checked.length })}
               </button>
             </>
@@ -450,6 +492,7 @@ export function AssistControl({
                 void continueToCall();
               }}
             >
+              <RefreshCw size={15} aria-hidden />
               {t("common.tryAgain")}
             </button>
           )}

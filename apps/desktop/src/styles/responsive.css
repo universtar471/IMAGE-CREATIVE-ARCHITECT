@@ -184,7 +184,8 @@
   overflow: hidden;
   cursor: pointer;
 }
-.style-thumbnail[aria-pressed="true"] {
+.style-thumbnail[aria-pressed="true"],
+.reference-thumbnail[aria-pressed="true"] {
   outline: 2px solid var(--c-accent);
 }
 .style-thumbnail img,

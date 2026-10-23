@@ -3114,7 +3114,9 @@ textarea {
   z-index: 30;
   display: grid;
   gap: 12px;
-  width: min(560px, calc(100vw - 32px));
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  min-width: 0;
   padding: 16px;
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
@@ -3143,6 +3145,20 @@ textarea {
 .assist-diff-list {
   display: grid;
   gap: 8px;
+}
+.assist-reference-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.assist-reference-option {
+  overflow-wrap: anywhere;
+}
+.assist-reference-option img {
+  width: 48px;
+  height: 36px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: var(--r-sm);
 }
 .assist-diff-row {
   align-items: flex-start;

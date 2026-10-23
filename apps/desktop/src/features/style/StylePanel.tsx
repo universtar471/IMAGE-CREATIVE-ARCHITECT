@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Orbit } from "lucide-react";
+import { ArrowRight, Check, LayoutGrid, Orbit } from "lucide-react";
 import { INTERIOR_STYLES, PALETTES, applyStyleDefaults, type InteriorStyleId } from "@arch/domain";
 import { selectReadOnly, useStudio } from "../../app/store";
 import { Dialog } from "../../components/common/Dialog";
@@ -31,6 +31,7 @@ export function StylePanel() {
   const t = useT();
   const locale = useLocale((s) => s.locale);
   const [preview, setPreview] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
   const interior = ws.draftDna.interior;
   const pack = knowledge.resolve(ws.project.projectType, ws.project.subtype).pack;
   const items = interior
@@ -50,6 +51,9 @@ export function StylePanel() {
     interior && ws.shotIntent?.interiorGeneration
       ? ws.shotIntent.interiorGeneration.style
       : (interior?.styleId ?? ws.draftDna.building.architecturalStyle);
+  const visible = items.slice(0, 6);
+  const selectedItem = items.find((item) => item.id === selected);
+  if (selectedItem && !visible.includes(selectedItem)) visible[visible.length - 1] = selectedItem;
   const apply = (id: string) => {
     if (disabled) return;
     if (interior) {
@@ -78,6 +82,36 @@ export function StylePanel() {
     } else useStudio.getState().editDna("building.architecturalStyle", id);
     setPreview(null);
   };
+  const grid = (choices: typeof items) => (
+    <div
+      className={interior ? "interior-style-grid" : "style-thumbnail-grid"}
+      role="group"
+      aria-label={t("menu.style")}
+    >
+      {choices.map((item) => (
+        <button
+          type="button"
+          className="style-thumbnail"
+          key={item.id}
+          aria-label={item.label}
+          aria-pressed={selected === item.id}
+          onClick={() => {
+            setAll(false);
+            setPreview(item.id);
+          }}
+        >
+          <PhotoThumbnail
+            kind={interior ? "style" : "style_architecture"}
+            presetId={item.id}
+            label={item.label}
+          >
+            <span className="style-thumbnail-fallback">{item.label}</span>
+          </PhotoThumbnail>
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
   return (
     <div className="style-panel">
       <HelpPopover topic={t("menu.style")}>{t("menu.styleHelp")}</HelpPopover>
@@ -86,31 +120,17 @@ export function StylePanel() {
       ) : (
         <ModuleAssist scope="style" stepId="dna.building" />
       )}
-      <div
-        className={interior ? "interior-style-grid" : "style-thumbnail-grid"}
-        role="group"
-        aria-label={t("menu.style")}
-      >
-        {items.map((item) => (
-          <button
-            type="button"
-            className="style-thumbnail"
-            key={item.id}
-            aria-label={item.label}
-            aria-pressed={selected === item.id}
-            onClick={() => setPreview(item.id)}
-          >
-            <PhotoThumbnail
-              kind={interior ? "style" : "style_architecture"}
-              presetId={item.id}
-              label={item.label}
-            >
-              <span className="style-thumbnail-fallback">{item.label}</span>
-            </PhotoThumbnail>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </div>
+      {grid(visible)}
+      {items.length > visible.length && (
+        <button type="button" className="btn btn-sm" onClick={() => setAll(true)}>
+          <LayoutGrid size={16} aria-hidden /> {t("interiorFlow.allStyles")}
+        </button>
+      )}
+      {all && (
+        <Dialog title={t("interiorFlow.allStyles")} onClose={() => setAll(false)}>
+          {grid(items)}
+        </Dialog>
+      )}
       {interior && (
         <SelectField
           label={t("interior.palette")}
@@ -145,6 +165,7 @@ export function StylePanel() {
           onClose={() => setPreview(null)}
           footer={
             <button className="btn btn-primary" disabled={disabled} onClick={() => apply(preview)}>
+              <Check size={16} aria-hidden />
               {t("menu.apply")}
             </button>
           }
